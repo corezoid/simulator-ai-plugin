@@ -1,0 +1,20 @@
+{
+  "name": "simulator",
+  "owner": {
+    "name": "Simulator.Company",
+    "url": "https://github.com/corezoid"
+  },
+  "plugins": [
+    {
+      "name": "simulator",
+      "description": "Simulator.Company platform assistant — manage actors, graphs, forms, and financial accounts via the Simulator REST API.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Simulator.Company",
+        "url": "https://simulator.company"
+      },
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "simulator": {
+    "command": "sh",
+    "args": ["-c", "exec \"$CLAUDE_PLUGIN_ROOT/scripts/start-mcp.sh\""],
+    "env": {
+      "SIMULATOR_TOKEN": "${SIMULATOR_TOKEN}"
+    }
+  }
+}
