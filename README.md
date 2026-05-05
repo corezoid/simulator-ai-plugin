@@ -32,7 +32,7 @@ export SIMULATOR_TOKEN=your_bearer_token_here
 **2. Add the plugin marketplace and install:**
 
 ```bash
-claude plugin marketplace add github:corezoid/simulator-ai-plugin
+claude plugin marketplace add corezoid/simulator-ai-plugin
 claude plugin install simulator@simulator
 ```
 
