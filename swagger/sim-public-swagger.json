@@ -3672,6 +3672,237 @@
         ]
       }
     },
+    "/form_accounts/{formId}": {
+      "post": {
+        "x-codeSamples": [
+          {
+            "lang": "shell_curl",
+            "source": "curl --request POST \\\n  --url https://api.simulator.company/v/1.0/form_accounts/%7BformId%7D \\\n  --header 'Content-Type: application/json' \\\n  --data '{\"accountType\":\"fact\",\"currencyId\":148172,\"nameId\":\"ca2a8551-73f2-4301-a8ff-5bd1fb8cdaa5\",\"treeCalculation\":false,\"search\":true}'"
+          }
+        ],
+        "tags": [
+          "forms"
+        ],
+        "summary": "Add account-currency pair to form",
+        "description": "Adds an account-currency pair to the specified form. Scopes [control.events:forms.management]",
+        "operationId": "addFormAccount",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "description": "Authorization header. Bearer [AccessToken]",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formId",
+            "in": "path",
+            "description": "Form ID",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nameId", "accountType", "currencyId"],
+                "properties": {
+                  "nameId": {
+                    "type": "string",
+                    "description": "Account name identifier (UUID)",
+                    "example": "ca2a8551-73f2-4301-a8ff-5bd1fb8cdaa5"
+                  },
+                  "accountType": {
+                    "type": "string",
+                    "description": "Account type",
+                    "enum": ["fact", "budget", "reserve"],
+                    "example": "fact"
+                  },
+                  "currencyId": {
+                    "type": "integer",
+                    "description": "Currency ID",
+                    "example": 148172
+                  },
+                  "treeCalculation": {
+                    "type": "boolean",
+                    "description": "Enable tree calculation for the account",
+                    "example": false
+                  },
+                  "minLimit": {
+                    "type": "number",
+                    "description": "Minimum limit for the account balance",
+                    "example": 0
+                  },
+                  "maxLimit": {
+                    "type": "number",
+                    "description": "Maximum limit for the account balance",
+                    "example": 0
+                  },
+                  "limitServiceUrl": {
+                    "type": "string",
+                    "description": "URL of the service used to check account limits",
+                    "example": ""
+                  },
+                  "commissionServiceUrl": {
+                    "type": "string",
+                    "description": "URL of the service used to calculate commissions",
+                    "example": ""
+                  },
+                  "search": {
+                    "type": "boolean",
+                    "description": "Enable search for this account",
+                    "example": true
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "description": "Form account record ID",
+                          "example": 45722
+                        },
+                        "formId": {
+                          "type": "integer",
+                          "description": "Form ID",
+                          "example": 562581
+                        },
+                        "nameId": {
+                          "type": "string",
+                          "description": "Account name identifier (UUID)",
+                          "example": "ca2a8551-73f2-4301-a8ff-5bd1fb8cdaa5"
+                        },
+                        "currencyId": {
+                          "type": "integer",
+                          "description": "Currency ID",
+                          "example": 148172
+                        },
+                        "type": {
+                          "type": "string",
+                          "description": "Account type",
+                          "enum": ["fact", "budget", "reserve"],
+                          "example": "fact"
+                        },
+                        "treeCalculation": {
+                          "type": "boolean",
+                          "description": "Tree calculation enabled",
+                          "example": false
+                        },
+                        "minLimit": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "Minimum balance limit",
+                          "example": null
+                        },
+                        "maxLimit": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "Maximum balance limit",
+                          "example": null
+                        },
+                        "limitServiceUrl": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "URL of limit check service",
+                          "example": null
+                        },
+                        "commissionServiceUrl": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "URL of commission calculation service",
+                          "example": null
+                        },
+                        "search": {
+                          "type": "boolean",
+                          "description": "Search enabled for this account",
+                          "example": true
+                        },
+                        "userId": {
+                          "type": "integer",
+                          "description": "ID of the user who created the record",
+                          "example": 68381
+                        },
+                        "createdAt": {
+                          "type": "integer",
+                          "description": "Creation timestamp (Unix epoch)",
+                          "example": 1778072299
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/paths/~1actors/delete/responses/400/content/application~1json/schema"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/paths/~1actors/delete/responses/400/content/application~1json/schema"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/paths/~1actors/delete/responses/400/content/application~1json/schema"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/paths/~1actors/delete/responses/400/content/application~1json/schema"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2": [
+              "control.events:forms.management"
+            ]
+          }
+        ]
+      }
+    },
     "/forms/item_cache/{formId}/{itemId}": {
       "delete": {
         "x-codeSamples": [

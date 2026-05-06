@@ -149,6 +149,194 @@ run_oper("DELETE:/forms/item_cache/formId/itemId",
   query = '{"formId": "42", "itemId": "condition"}')
 ```
 
+### Create Account-Currency Pair
+```
+run_oper("POST:/accounts/pair/accId",
+  query = '{"accId": "ws_xxx"}',
+  body  = '{
+    "accountName":  "Purchase Value",
+    "currencyName": "USD"
+  }')
+# Creates the pair by name. If account name or currency with that title
+# already exists in the workspace, it is reused automatically.
+# Returns the created/resolved pair with ids.
+```
+
+### Attach Account to Form
+```
+run_oper("POST:/form_accounts/formId",
+  query = '{"formId": "42"}',
+  body  = '{
+    "nameId":     "aname_value",
+    "currencyId": "cur_usd",
+    "accountType":       "fact",
+    "search": true
+  }')
+```
+
+### List Existing Account Names in Workspace
+```
+run_oper("GET:/account_names/accId", query='{"accId": "ws_xxx"}')
+# Returns: [{id, title, ref, ...}, ...]
+```
+
+### List Existing Currencies in Workspace
+```
+run_oper("GET:/currencies/accId", query='{"accId": "ws_xxx"}')
+# Returns: [{id, title, symbol, decimals, ...}, ...]
+```
+
+---
+
+## Post-Creation Workflow: Form Analysis & Account-Currency Suggestions
+
+**MANDATORY:** After every successful form creation, execute this workflow automatically without waiting for the user to ask.
+
+### Step 1 — Analyze the form
+
+Immediately after the form is created, produce a structured analysis:
+
+```
+## Form Analysis: "<Form Title>"
+
+**Purpose:** <one-sentence description of what this form models in the domain>
+
+**Fields overview:**
+| Field name | Type | Required | Description |
+|---|---|---|---|
+| make | text | yes | Vehicle manufacturer |
+| ... | ... | ... | ... |
+
+**Key observations:**
+- <note about domain: e.g. "tracks physical assets with monetary value">
+- <note about numeric/financial fields that imply accounts>
+- <note about lifecycle/status fields that imply state accounts>
+```
+
+### Step 2 — Fetch existing accounts and currencies
+
+Run both calls in parallel to avoid extra round-trips:
+
+```
+run_oper("GET:/account_names/accId", query='{"accId": "ws_xxx"}')
+run_oper("GET:/currencies/accId",    query='{"accId": "ws_xxx"}')
+```
+
+Match existing items by `title` (case-insensitive). Keep their `id` for reuse.
+
+### Step 3 — Derive account-currency suggestions from the form
+
+Think about the form's domain entity holistically: what would you want to **measure, track, or accumulate** over the lifetime of one actor of this type? Go beyond the explicit fields — infer useful statistical and operational accounts from the domain context.
+
+**Two sources of suggestions:**
+
+**A. From explicit fields** — numeric or financial fields directly imply accounts:
+
+| Field pattern | Account type | Currency |
+|---|---|---|
+| price, cost, budget, value | `asset` or `expense` | monetary (USD, EUR, …) |
+| income, revenue, earnings | `income` | monetary |
+| debt, loan, balance | `liability` | monetary |
+| quantity, count, units | `counter` | unit (pcs, kg, …) |
+| mileage, distance | `counter` | Km / Mi |
+| duration, hours worked | `counter` | Hours |
+| status, stage, phase | `state` | integer or boolean |
+
+**B. From domain context** — infer implicit but useful statistical accounts even when no matching field exists. Use the domain entity type as the primary signal:
+
+| Domain entity | Suggested accounts | Types & currencies |
+|---|---|---|
+| Employee / Staff | Hours Worked, Vacation Days, Sick Days, Seniority (months), Salary Paid | counter (Hours, Days, Months), expense (USD) |
+| Vehicle / Equipment | Mileage, Fuel Cost, Maintenance Cost, Downtime Hours | counter (Km, Hours), expense (USD) |
+| Project / Task | Hours Spent, Budget, Actual Cost, Overrun | counter (Hours), asset/expense (USD) |
+| Product / SKU | Stock Quantity, Sales Count, Returns Count, Revenue | counter (pcs), income/expense (USD) |
+| Client / Customer | Orders Count, Total Spent, Debt, Loyalty Points | counter (pcs, pts), asset/liability (USD) |
+| Property / Asset | Current Value, Depreciation, Maintenance Cost, Rental Income | asset/expense/income (USD) |
+| Student / Learner | Hours Studied, Courses Completed, Score Points, Absences | counter (Hours, pcs, pts) |
+| Event / Campaign | Participants Count, Budget, Actual Spend, Revenue | counter (pcs), expense/income (USD) |
+| Contract / Deal | Contract Value, Paid Amount, Remaining Debt, Penalty | asset/liability (USD) |
+
+If the entity type does not match any row above, reason from first principles:
+- What accumulates over time for this entity?
+- What would a manager want to see on a dashboard for one actor?
+- What can be compared across actors of this type?
+
+Always propose **3–6 pairs** per form. Include at least one statistical/operational counter
+even for purely financial forms.
+
+### Step 4 — Present the plan to the user
+
+Show a clear table before creating anything:
+
+```
+## Suggested Accounts for "<Form Title>"
+
+| Account Name | Type | Currency | Action |
+|---|---|---|---|
+| Purchase Value | asset | USD ($) | ✅ exists (reuse) |
+| Maintenance | expense | USD ($) | ✅ exists (reuse) |
+| Mileage | counter | Km (km) | 🆕 will be created |
+| Fuel Cost | expense | USD ($) | ✅ exists (reuse) |
+
+**Currencies:**
+| Currency | Symbol | Action |
+|---|---|---|
+| USD | $ | ✅ exists (reuse) |
+| Km | km | 🆕 will be created |
+
+Shall I attach these accounts to the form? (yes / adjust / skip)
+```
+
+Wait for user confirmation before proceeding to Step 5.
+
+### Step 5 — Create pairs and attach to form
+
+Execute strictly in this order for **each** proposed account-currency pair:
+
+1. **MANDATORY: Create the account-currency pair** via `POST:/accounts/pair/accId`.
+   Pass the names as strings — the API resolves existing account names and currencies
+   automatically, or creates them if they don't exist yet:
+```
+run_oper("POST:/accounts/pair/accId",
+  query = '{"accId": "ws_xxx"}',
+  body  = '{
+    "accountName":  "Mileage",
+    "currencyName": "Km"
+  }')
+# → response contains nameId and currencyId — save both for the next step
+```
+
+2. **Attach the pair to the form** via `POST:/form_accounts/formId`,
+   using the `nameId` and `currencyId` returned from the previous call:
+```
+run_oper("POST:/form_accounts/formId",
+  query = '{"formId": "42"}',
+  body  = '{
+    "nameId":     "<nameId from pair response>",
+    "currencyId": "<currencyId from pair response>",
+    "accountType":       "fact",
+    "search": true
+  }')
+```
+
+Repeat steps 1–2 for every pair in the plan.
+
+3. **Report results** to the user:
+
+```
+## Done — Accounts attached to "<Form Title>"
+
+| Account | Currency | Pair | Form |
+|---|---|---|---|
+| Purchase Value | USD | ✅ pair created | ✅ attached |
+| Maintenance | USD | ✅ pair created | ✅ attached |
+| Mileage | Km | ✅ pair created | ✅ attached |
+```
+
+> Note: `POST:/accounts/pair/accId` always handles reuse vs creation internally —
+> you do not need to manually create account names or currencies beforehand.
+> The GET calls in Step 2 are only used to inform the user in the plan table.
+
 ---
 
 ## Complete Example: Custom Car Form with Accounts

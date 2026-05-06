@@ -169,7 +169,7 @@ For the complete list of operation IDs and their parameters, read:
 
 For domain-specific workflows use the specialized skills:
 - `/simulator-graph` — actors, links, layers, graph building
-- `/simulator-forms` — creating and managing form templates
+- `/simulator-forms` — creating and managing form templates for actors
 - `/simulator-finance` — accounts, transactions, transfers
 
 ## Reference Documents

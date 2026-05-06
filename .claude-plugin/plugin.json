@@ -18,6 +18,6 @@
     "forms",
     "mcp"
   ],
-  "skills": "./skills/",
+  "skills": "./plugins/simulator/skills/",
   "mcpServers": "./.mcp.json"
 }

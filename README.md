@@ -1,6 +1,6 @@
-# Simulator.Company — Claude Code Plugin
+# Simulator.Company — Claude Code & Codex Plugin
 
-A [Claude Code](https://claude.ai/code) plugin that connects the [Simulator.Company](https://simulator.company) platform to Claude via MCP (Model Context Protocol). Claude gets direct access to the Simulator REST API and domain knowledge to manage actors, graphs, forms, and financial accounts through natural conversation.
+A plugin for [Claude Code](https://claude.ai/code) and [Codex](https://codex.openai.com) that connects the [Simulator.Company](https://simulator.company) platform to Claude via MCP (Model Context Protocol). Claude gets direct access to the Simulator REST API and domain knowledge to manage actors, graphs, forms, and financial accounts through natural conversation.
 
 ## What it does
 
@@ -17,7 +17,7 @@ Claude uses three MCP tools under the hood — `list_opers`, `get_oper`, `run_op
 
 ## Requirements
 
-- [Claude Code](https://claude.ai/code) CLI installed
+- [Claude Code](https://claude.ai/code) or [Codex](https://codex.openai.com) installed
 - [Go 1.21+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed)
 - A Simulator.Company account with an API bearer token
 
@@ -141,21 +141,31 @@ Specialist for financial and metric tracking:
 ```
 simulator-ai-plugin/
 ├── .claude-plugin/
-│   └── plugin.json              # Plugin manifest
-├── .mcp.json                    # MCP server configuration
+│   └── plugin.json              # Claude Code plugin manifest
+├── .mcp.json                    # MCP server configuration (Claude Code)
+├── .agents/
+│   └── plugins/
+│       └── marketplace.json     # Codex marketplace listing
+├── plugins/
+│   └── simulator/               # Codex plugin root
+│       ├── .codex-plugin/
+│       │   └── plugin.json      # Codex plugin manifest
+│       ├── .mcp.json            # MCP server configuration (Codex)
+│       ├── scripts/
+│       │   └── start-mcp.sh    # Codex wrapper → delegates to repo-root script
+│       └── skills/
+│           ├── simulator/
+│           │   ├── SKILL.md             # Universal assistant skill
+│           │   └── references/
+│           │       └── api-operations.md  # Complete operation ID reference
+│           ├── simulator-graph/
+│           │   └── SKILL.md
+│           ├── simulator-forms/
+│           │   └── SKILL.md
+│           └── simulator-finance/
+│               └── SKILL.md
 ├── scripts/
 │   └── start-mcp.sh             # MCP server startup (go run, no build needed)
-├── skills/
-│   ├── simulator/
-│   │   ├── SKILL.md             # Universal assistant skill
-│   │   └── references/
-│   │       └── api-operations.md  # Complete operation ID reference
-│   ├── simulator-graph/
-│   │   └── SKILL.md
-│   ├── simulator-forms/
-│   │   └── SKILL.md
-│   └── simulator-finance/
-│       └── SKILL.md
 ├── swagger/
 │   └── sim-public-swagger.json  # Bundled Simulator.Company OpenAPI spec
 ├── app/
