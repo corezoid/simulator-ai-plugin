@@ -1,0 +1,20 @@
+{
+  "name": "simulator",
+  "interface": {
+    "displayName": "Simulator.Company"
+  },
+  "plugins": [
+    {
+      "name": "simulator",
+      "source": {
+        "source": "local",
+        "path": "./plugins/simulator"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
