@@ -19,17 +19,11 @@ Claude uses three MCP tools under the hood — `list_opers`, `get_oper`, `run_op
 
 - [Claude Code](https://claude.ai/code) or [Codex](https://codex.openai.com) installed
 - [Go 1.21+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed)
-- A Simulator.Company account with an API bearer token
+- A Simulator.Company account
 
 ## Installation
 
-**1. Set your API token** (add to `~/.zshrc` or `~/.bashrc` and reload the shell):
-
-```bash
-export SIMULATOR_TOKEN=your_bearer_token_here
-```
-
-**2. Add the plugin marketplace and install:**
+**Add the plugin marketplace and install:**
 
 ```bash
 claude plugin marketplace add corezoid/simulator-ai-plugin
@@ -46,14 +40,45 @@ claude plugin install simulator@simulator
 
 That's it. No build step, no additional setup. Claude Code starts the MCP server automatically via `go run` on first use.
 
+## Authentication
+
+The plugin supports two authentication methods.
+
+### Option 1: OAuth2 browser login (recommended)
+
+No setup required. On the first Simulator API call Claude automatically detects that no token is present and runs the `login` tool on its own — your browser opens at `account.corezoid.com`, you sign in, and the session continues without interruption.
+
+The token is saved to `~/.simulator/credentials.json` and reused automatically on every subsequent session. When it expires, Claude will trigger the login flow again automatically.
+
+You can also trigger login manually at any time:
+
+```
+log in to Simulator
+```
+
+### Option 2: Static token (manual)
+
+If you prefer to manage the token yourself, export it before starting Claude Code:
+
+```bash
+export SIMULATOR_TOKEN=your_token_here
+```
+
+The static token takes priority over the saved credentials file and is never written to disk.
+
 ## Configuration
 
 | Environment variable | Required | Description |
 |---|---|---|
-| `SIMULATOR_TOKEN` | Yes | Bearer token for Simulator.Company API |
+| `SIMULATOR_TOKEN` | No | Static token — overrides OAuth2 saved credentials |
 | `SIMULATOR_URL` | No | Override the default API base URL |
 
-The token is passed securely through the Claude Code plugin environment — it never appears in config files.
+Token storage:
+
+| Method | Where | Lifetime |
+|---|---|---|
+| OAuth2 login | `~/.simulator/credentials.json` (mode `0600`) | Until JWT expiry |
+| Static token | Shell environment only | Current shell session |
 
 ## Usage
 
@@ -84,6 +109,7 @@ Search for all actors of form type "Task" on the "Main Process" layer.
 ```
 Claude Code
   └── simulator MCP server (go run .)
+        ├── login       → OAuth2 PKCE browser flow, saves JWT to ~/.simulator/credentials.json
         ├── list_opers  → discover available API operations
         ├── get_oper    → get full schema of an operation
         └── run_oper    → execute API call with parameters
@@ -169,6 +195,7 @@ simulator-ai-plugin/
 ├── swagger/
 │   └── sim-public-swagger.json  # Bundled Simulator.Company OpenAPI spec
 ├── app/
+│   ├── auth/                    # OAuth2 PKCE flow + credentials storage
 │   ├── mcp-server/              # MCP server implementation (Go)
 │   ├── models/                  # OpenAPI data models
 │   └── swagger/                 # Swagger loader

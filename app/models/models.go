@@ -138,6 +138,7 @@ type ApiConfig struct {
 	Authorization  string `json:"authorization"`  // Authorization token
 	SseHeaders     string `json:"sseHeaders"`     // Read headers from sse request, and pass to API request (format: name1,name2)
 	Headers        string `json:"headers"`        // Additional headers to include in requests (format: name1=value1,name2=value2)
+	OAuthClientID  string `json:"oauthClientId"`  // OAuth2 client ID for PKCE flow
 }
 
 // ServiceConfig contains configuration for a single service

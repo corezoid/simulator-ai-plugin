@@ -79,6 +79,7 @@ func main() {
 	apiKeyAuth := flag.String("apiKeyAuth", "", "API key auth, format: 'passAs:name=value', passAs=header/query/cookie, multiple by comma")
 	headers := flag.String("headers", "", "Additional headers to include in requests (format: name1=value1,name2=value2)")
 	sseHeaders := flag.String("sseHeaders", "", "Read headers from sse request, and pass to API request (format: name1,name2)")
+	oauthClientID := flag.String("oauthClientID", "", "OAuth2 client ID for PKCE browser login flow (also read from SIMULATOR_OAUTH_CLIENT_ID env var)")
 
 	flag.Parse()
 
@@ -155,6 +156,7 @@ func main() {
 				Authorization:  *authorization,
 				Headers:        *headers,
 				SseHeaders:     *sseHeaders,
+				OAuthClientID:  *oauthClientID,
 			},
 		}
 		//log.Printf("Starting server with built-in spec: %s\n", *spec)
@@ -193,6 +195,7 @@ func main() {
 				Authorization:  *authorization,
 				Headers:        *headers,
 				SseHeaders:     *sseHeaders,
+				OAuthClientID:  *oauthClientID,
 			},
 		}
 

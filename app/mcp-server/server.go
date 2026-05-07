@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"git.corezoid.com/mw161089sar/swagger-mcp/app/auth"
 	"git.corezoid.com/mw161089sar/swagger-mcp/app/models"
 	"git.corezoid.com/mw161089sar/swagger-mcp/app/swagger"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -253,6 +254,8 @@ var globalOperations []Operation
 var globalSwaggerSpec models.SwaggerSpec
 var globalApiConfig models.ApiConfig
 var globalServiceConfigs map[string]models.ApiConfig
+var globalMCPServer *server.MCPServer
+var globalOAuthClientID string
 
 // operationScore is used for scoring search results
 type operationScore struct {
@@ -264,6 +267,24 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 	globalOperations = buildOperations(swaggerSpec, apiCfg)
 	globalSwaggerSpec = swaggerSpec
 	globalApiConfig = apiCfg
+	globalMCPServer = mcpServer
+
+	// Resolve OAuth client ID: flag > env var > built-in default
+	globalOAuthClientID = apiCfg.OAuthClientID
+	if globalOAuthClientID == "" {
+		globalOAuthClientID = os.Getenv("SIMULATOR_OAUTH_CLIENT_ID")
+	}
+	if globalOAuthClientID == "" {
+		globalOAuthClientID = auth.DefaultClientID
+	}
+
+	// If no auth token is set, try to load from saved credentials
+	if globalApiConfig.Authorization == "" {
+		if creds, err := auth.Load(); err == nil && creds != nil && !auth.IsExpired(creds) {
+			globalApiConfig.Authorization = creds.AuthorizationHeader()
+			log.Printf("Loaded auth token from saved credentials (expires %s)", creds.ExpiresAt.Format("2006-01-02 15:04"))
+		}
+	}
 
 	mcpServer.AddTool(
 		mcp.NewTool("get_oper",
@@ -301,6 +322,13 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 			mcp.WithDescription("List all available API operations with their ID and summary."),
 		),
 		handleListOpers,
+	)
+
+	mcpServer.AddTool(
+		mcp.NewTool("login",
+			mcp.WithDescription("Authenticate with Simulator via OAuth2 browser flow. Saves the token so it persists across sessions."),
+		),
+		handleLogin,
 	)
 
 	// Add MCP resources capability
@@ -804,7 +832,8 @@ func checkIfRequestBodyIsArray(op Operation) bool {
 }
 
 func handleGetOper(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, ok := request.Params.Arguments["id"].(string)
+	args := request.GetArguments()
+	name, ok := args["id"].(string)
 	if !ok {
 		return mcp.NewToolResultError("[Error] missing or invalid name parameter"), nil
 	}
@@ -833,14 +862,15 @@ func handleGetOper(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 }
 
 func handleRunOper(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	name, ok := request.Params.Arguments["id"].(string)
+	args := request.GetArguments()
+	name, ok := args["id"].(string)
 	if !ok {
 		return mcp.NewToolResultError("[Error] missing or invalid name parameter"), nil
 	}
 
 	// Extract combined query parameters (contains both path and query params)
 	var combinedParams map[string]interface{}
-	if queryStr, ok := request.Params.Arguments["query"].(string); ok && queryStr != "" {
+	if queryStr, ok := args["query"].(string); ok && queryStr != "" {
 		if err := json.Unmarshal([]byte(queryStr), &combinedParams); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] invalid JSON in query parameter: %v", err)), nil
 		}
@@ -852,7 +882,7 @@ func handleRunOper(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 
 	// Extract header parameters
 	var headerParams map[string]interface{}
-	if headerStr, ok := request.Params.Arguments["header"].(string); ok && headerStr != "" {
+	if headerStr, ok := args["header"].(string); ok && headerStr != "" {
 		if err := json.Unmarshal([]byte(headerStr), &headerParams); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] invalid JSON in header parameter: %v", err)), nil
 		}
@@ -860,10 +890,15 @@ func handleRunOper(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallT
 
 	// Extract body parameters (for backwards compatibility)
 	var bodyParams map[string]interface{}
-	if bodyStr, ok := request.Params.Arguments["body"].(string); ok && bodyStr != "" {
+	if bodyStr, ok := args["body"].(string); ok && bodyStr != "" {
 		// Try to unmarshal as an object for backwards compatibility
 		// The actual body processing will be handled in executeOperation
 		json.Unmarshal([]byte(bodyStr), &bodyParams)
+	}
+
+	// Ensure we have a valid auth token before executing
+	if authErr := ensureAuth(ctx); authErr != nil {
+		return authErr, nil
 	}
 
 	for _, op := range globalOperations {
@@ -887,6 +922,73 @@ func handleListOpers(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 
 	result, _ := json.Marshal(operations)
 	return mcp.NewToolResultText(string(result)), nil
+}
+
+// handleLogin runs the OAuth2 PKCE flow, saves credentials, and updates the global auth token.
+func handleLogin(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	creds, err := auth.PKCEFlow(globalOAuthClientID, nil)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("[Error] OAuth2 login failed: %v", err)), nil
+	}
+
+	if err := auth.Save(creds); err != nil {
+		log.Printf("Warning: failed to save credentials: %v", err)
+	}
+
+	globalApiConfig.Authorization = creds.AuthorizationHeader()
+	return mcp.NewToolResultText("Authorization successful! Token saved. You can now use Simulator tools."), nil
+}
+
+// ensureAuth checks that globalApiConfig.Authorization is set.
+// If not, it tries to load/refresh from saved credentials.
+// If still empty, uses MCP Elicitation to ask the user whether to start OAuth2.
+// Returns an error result if authentication cannot be established.
+func ensureAuth(ctx context.Context) *mcp.CallToolResult {
+	// Already authenticated
+	if globalApiConfig.Authorization != "" {
+		return nil
+	}
+
+	// Try loading saved credentials
+	creds, err := auth.Load()
+	if err == nil && creds != nil {
+		if !auth.IsExpired(creds) {
+			globalApiConfig.Authorization = creds.AuthorizationHeader()
+			return nil
+		}
+	}
+
+	// No valid token — use elicitation to ask the user whether to open OAuth2 in browser
+	mcpSrv := server.ServerFromContext(ctx)
+	if mcpSrv != nil {
+		elicitReq := mcp.ElicitationRequest{
+			Request: mcp.Request{Method: string(mcp.MethodElicitationCreate)},
+			Params: mcp.ElicitationParams{
+				Message: "Simulator authentication required. Would you like to open a browser and sign in via OAuth2?",
+				RequestedSchema: map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"confirm": map[string]interface{}{
+							"type":        "boolean",
+							"title":       "Open browser to sign in",
+							"description": "Click OK to open your browser for OAuth2 login",
+						},
+					},
+				},
+			},
+		}
+
+		result, err := mcpSrv.RequestElicitation(ctx, elicitReq)
+		if err == nil && result != nil && result.Action == mcp.ElicitationResponseActionAccept {
+			if creds, err := auth.PKCEFlow(globalOAuthClientID, nil); err == nil {
+				_ = auth.Save(creds)
+				globalApiConfig.Authorization = creds.AuthorizationHeader()
+				return nil
+			}
+		}
+	}
+
+	return mcp.NewToolResultError("[Error] Not authenticated. Set SIMULATOR_TOKEN env var, or run the 'login' tool to authenticate via OAuth2.")
 }
 
 func executeOperation(ctx context.Context, op Operation, queryParams, headerParams, bodyParams map[string]interface{}, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -964,7 +1066,7 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 	hasBody := false
 
 	// Check if we have a body to process
-	if bodyStr, ok := request.Params.Arguments["body"].(string); ok && bodyStr != "" {
+	if bodyStr, ok := request.GetArguments()["body"].(string); ok && bodyStr != "" {
 		// Check if the schema expects an array and wrap the body parameter if needed
 		isArray := checkIfRequestBodyIsArray(op)
 		log.Printf("DEBUG: checkIfRequestBodyIsArray returned: %t for operation %s", isArray, op.ID)
@@ -1058,6 +1160,8 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to read HTTP response: %v", err)), nil
 	}
+
+
 
 	return mcp.NewToolResultText(string(body)), nil
 }
