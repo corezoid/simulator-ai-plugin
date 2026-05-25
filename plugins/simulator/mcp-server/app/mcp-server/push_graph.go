@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 )
 
 // PushGraphResult holds the outcome of PushGraphFile.
@@ -22,6 +21,7 @@ type PushGraphResult struct {
 	UpdatedGraph                                                                  GraphFile
 	ActorsCreated, ActorsUpdated, ActorsUnchanged, ActorsDeleted, ActorsRecreated int
 	EdgesCreated, EdgesDeleted                                                    int
+	Changes                                                                       map[string]string
 }
 
 // PushGraphFile syncs a parsed graph to the simulator API without touching the
@@ -937,6 +937,10 @@ func (s *GraphSyncer) pushGraph(ctx context.Context, graph GraphFile, layerID st
 					idMap[origID] = serverUUID
 					a.ID = serverUUID
 					fileUUIDs[serverUUID] = true
+					if result.Changes == nil {
+						result.Changes = map[string]string{}
+					}
+					result.Changes[origID] = serverUUID
 
 					var addItem manageLayerItem
 					addItem.Action = "create"
@@ -981,6 +985,10 @@ func (s *GraphSyncer) pushGraph(ctx context.Context, graph GraphFile, layerID st
 			idMap[origID] = serverUUID
 			a.ID = serverUUID
 			fileUUIDs[serverUUID] = true
+			if result.Changes == nil {
+				result.Changes = map[string]string{}
+			}
+			result.Changes[origID] = serverUUID
 
 			var item manageLayerItem
 			item.Action = "create"
