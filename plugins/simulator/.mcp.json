@@ -1,9 +1,6 @@
 {
   "simulator": {
     "command": "sh",
-    "args": ["-c", "exec \"$CLAUDE_PLUGIN_ROOT/scripts/start-mcp.sh\""],
-    "env": {
-      "SIMULATOR_TOKEN": "${SIMULATOR_TOKEN}"
-    }
+    "args": ["-c", "export SIMULATOR_WORK_DIR=\"$PWD\"; cd \"$CLAUDE_PLUGIN_ROOT/mcp-server\" && exec go run . --spec simulator"]
   }
 }

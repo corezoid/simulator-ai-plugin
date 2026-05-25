@@ -1,0 +1,22 @@
+layerId: "123"
+actors:
+  - id: id1
+    action: del|set
+    title: "asdfaaa"
+    description: "asdf"
+    formId: ""
+    formName: "Human"
+    picture: ""
+    color: "#539fdf"
+    data:
+      type: graph
+    position:
+      x: 1
+      y: 0
+edges:
+  - source: id1
+    target: id2
+    action: del|set
+    source_title: Actor Start
+    target_title: Actor End
+

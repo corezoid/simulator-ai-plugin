@@ -18,7 +18,13 @@ Claude uses three MCP tools under the hood — `list_opers`, `get_oper`, `run_op
 ## Requirements
 
 - [Claude Code](https://claude.ai/code) or [Codex](https://codex.openai.com) installed
-- [Go 1.21+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed)
+- [Go 1.21+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed).
+  If Go is not installed:
+  ```bash
+  brew install golang        # macOS
+  sudo apt install golang    # Ubuntu/Debian
+  ```
+  Verify with `go version`.
 - A Simulator.Company account
 
 ## Installation

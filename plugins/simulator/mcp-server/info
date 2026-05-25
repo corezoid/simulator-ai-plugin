@@ -1,0 +1,2 @@
+sim-mcp createActor formId=334704 body='{"color":"#409547"}'
+sim-mcp manageLayer layerId=f1e95265-e842-4203-82be-a20091f7bba8 body='[{"action":"create","data":{"id":"ab636ecd-b68b-4a33-97cb-309521b330e6","type":"node","position":{"x":0,"y":0}  }}]'

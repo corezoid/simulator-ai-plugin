@@ -131,7 +131,7 @@ Accounts can have transactions and transfers:
 - **Transactions**: Record financial activities within an account
 - **Transfers**: Move funds between accounts
 
-See the [Transactions](./transactions.md) and [Transfers](./transfers.md) documentation for more details.
+See the [Transactions](transactions.md) and [Transfers](transfers.md) documentation for more details.
 
 ## Hierarchical Balance Calculation
 

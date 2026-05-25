@@ -14,12 +14,12 @@ The Simulator.Company platform provides a comprehensive API for managing busines
 
 ### Form Management
 
-- [Custom Car Form](./custom-car-form.md) - Creating a custom form, instantiating actors from it, and attaching financial accounts
+- [Custom Car Form](custom-car-form.md) - Creating a custom form, instantiating actors from it, and attaching financial accounts
 
 ### Graph Management
 
-- [Graph Functionality](./graph-functionality.md) - Creating and managing actors, links, and layers in graph structures
-- [Actor Graph Management](./actor-graph-management.md) - Managing actors on graphs: creating links, organizing on layers, searching and filtering
+- [Graph Functionality](graph-functionality.md) - Creating and managing actors, links, and layers in graph structures
+- [Actor Graph Management](actor-graph-management.md) - Managing actors on graphs: creating links, organizing on layers, searching and filtering
 
 ## Related Entity Documentation
 
@@ -42,7 +42,7 @@ All API requests require a Bearer token:
 Authorization: Simulator <your_token>
 ```
 
-The token is set via the `SIMULATOR_TOKEN` environment variable and passed automatically by the MCP server.
+The token is set via the `ACCESS_TOKEN` environment variable and passed automatically by the MCP server.
 
 ## API Documentation
 

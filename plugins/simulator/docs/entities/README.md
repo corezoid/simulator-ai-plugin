@@ -117,30 +117,30 @@ Workspaces
 
 ### Core Entities
 
-- [Actors](./actors.md) - Core entity representing nodes in business process graph
-- [Forms](./forms.md) - Reusable data structure templates for actors
-- [Links](./links.md) - Connections between actors forming graph structures
-- [Layers](./layers.md) - Visual organization of actors and edges
+- [Actors](actors.md) - Core entity representing nodes in business process graph
+- [Forms](forms.md) - Reusable data structure templates for actors
+- [Links](links.md) - Connections between actors forming graph structures
+- [Layers](layers.md) - Visual organization of actors and edges
 
 ### Financial Entities
 
-- [Accounts](./accounts.md) - Financial tracking for actors
-- [Transactions](./transactions.md) - Financial operations within accounts
-- [Transfers](./transfers.md) - Movement of funds between accounts
-- [Balances](./balances.md) - Account balance tracking
+- [Accounts](accounts.md) - Financial tracking for actors
+- [Transactions](transactions.md) - Financial operations within accounts
+- [Transfers](transfers.md) - Movement of funds between accounts
+- [Balances](balances.md) - Account balance tracking
 
 ### System Entities
 
-- [System Forms](./system-forms.md) - Predefined templates for system functionality
-- [Counters](./counters.md) - High-performance metrics tracking
-- [System Data](./system-data.md) - Supporting data structures for platform functionality
-- [Search](./search.md) - Full-text search capabilities
-- [History](./history.md) - Audit trail of changes to objects
+- [System Forms](system-forms.md) - Predefined templates for system functionality
+- [Counters](counters.md) - High-performance metrics tracking
+- [System Data](system-data.md) - Supporting data structures for platform functionality
+- [Search](search.md) - Full-text search capabilities
+- [History](history.md) - Audit trail of changes to objects
 
 ### Additional Entities
 
-- [Reactions](./reactions.md) - User interactions on actors
-- [Attachments](./attachments.md) - File storage system for actors
+- [Reactions](reactions.md) - User interactions on actors
+- [Attachments](attachments.md) - File storage system for actors
 
 ## Database Technologies
 
