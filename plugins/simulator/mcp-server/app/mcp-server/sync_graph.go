@@ -46,8 +46,8 @@ type GraphEdge struct {
 	Source      string `yaml:"source"`
 	Target      string `yaml:"target"`
 	Action      string `yaml:"action,omitempty"`
-	SourceTitle string `yaml:"source_title,omitempty"`
-	TargetTitle string `yaml:"target_title,omitempty"`
+	SourceTitle string `yaml:"sourceTitle,omitempty"`
+	TargetTitle string `yaml:"targetTitle,omitempty"`
 }
 
 // ---- Server response types ----
@@ -281,7 +281,7 @@ func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch layer edges: %v", err)), nil
 	}
 
-	// Build actor title lookup for edge source_title / target_title
+	// Build actor title lookup for edge sourceTitle / targetTitle
 	titleByUUID := make(map[string]string, len(serverActors))
 	for _, a := range serverActors {
 		titleByUUID[a.ID] = a.Title
@@ -329,10 +329,10 @@ func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	}
 
 	out, _ := json.Marshal(map[string]interface{}{
-		"layerId":   layerID,
-		"filePath":  filePath,
-		"actors":    len(graph.Actors),
-		"edges":     len(graph.Edges),
+		"layerId":  layerID,
+		"filePath": filePath,
+		"actors":   len(graph.Actors),
+		"edges":    len(graph.Edges),
 	})
 	return mcp.NewToolResultText(string(out)), nil
 }
