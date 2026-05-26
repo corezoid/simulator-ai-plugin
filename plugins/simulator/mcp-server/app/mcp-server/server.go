@@ -764,6 +764,33 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 		handleCreateActors,
 	)
 
+	mcpServer.AddTool(
+		mcp.NewTool("uploadActorPicture",
+			mcp.WithDescription("Upload an image and set it as the actor's picture (graph node avatar). Source can be an HTTP URL, a local path, or a raw base64 string. The plugin uploads via POST /upload/{accId} and then PUT /actors/actor/{formId}/{actorId} — mirroring the UI's flow so the icon shows up on the graph."),
+			mcp.WithString("actorId",
+				mcp.Description("Actor UUID whose picture should be set."),
+				mcp.Required(),
+			),
+			mcp.WithNumber("formId",
+				mcp.Description("Form ID the actor belongs to (needed for the updateActor endpoint)."),
+				mcp.Required(),
+			),
+			mcp.WithString("imageUrl",
+				mcp.Description("Public HTTP(S) URL of the image. The plugin downloads it (up to 10 MB). One of imageUrl / localPath / base64 is required."),
+			),
+			mcp.WithString("localPath",
+				mcp.Description("Absolute path to an image file on the machine running the MCP server. One of imageUrl / localPath / base64 is required."),
+			),
+			mcp.WithString("base64",
+				mcp.Description("Raw base64-encoded image bytes (optionally with a `data:...;base64,` prefix). One of imageUrl / localPath / base64 is required."),
+			),
+			mcp.WithString("filename",
+				mcp.Description("Override the filename sent with the upload (e.g. `slack.png`). Extension drives the Content-Type. Defaults to the source's basename or `picture.png`."),
+			),
+		),
+		handleUploadActorPicture,
+	)
+
 	// Add MCP resources capability
 	initializeResources(mcpServer)
 
