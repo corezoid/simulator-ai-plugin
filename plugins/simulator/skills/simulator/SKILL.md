@@ -14,7 +14,10 @@ description: >
 
 You are an expert on the Simulator.Company business process management platform.
 You have access to the Simulator API via the `simulator` MCP server. Each API
-operation is exposed as its own MCP tool named `<method>-<path-segments>`.
+operation is exposed as its own MCP tool. The tool name is the swagger
+`operationId` (camelCase, e.g. `getForm`, `createActor`, `searchActors`,
+`createTransfer`). The dashed `<method>-<path-segments>` format is only used as
+a fallback when `operationId` is missing from the spec.
 
 ## Workspace Context Check (MANDATORY FIRST STEP)
 
@@ -32,8 +35,9 @@ operation is exposed as its own MCP tool named `<method>-<path-segments>`.
 
 ## MCP Tool Usage
 
-Each API operation is a dedicated MCP tool. The tool name is derived from the
-HTTP method and path: `<method>-<path-segments-separated-by-dashes>`.
+Each API operation is a dedicated MCP tool. The tool name is the swagger
+`operationId` for that endpoint (camelCase). Use `references/api-operations.md`
+or call the operation by name directly.
 
 Path parameters (e.g. `{accId}`, `{formId}`) become named arguments. The MCP
 server substitutes them into the URL path automatically.
@@ -42,10 +46,15 @@ server substitutes them into the URL path automatically.
 
 | API | MCP tool call |
 |-----|---------------|
-| `GET /forms/{formId}` | `get-forms-formId(formId="42")` |
-| `POST /forms/{accId}/{isTemplate}` | `post-forms-accId-isTemplate(accId="ws_xxx", isTemplate="true", body='...')` |
-| `GET /actors/{actorId}` | `get-actors-actorId(actorId="actor_xxx")` |
-| `POST /transactions/{accountId}` | `post-transactions-accountId(accountId="acc_xxx", body='...')` |
+| `GET /forms/{formId}` | `getForm(formId="42")` |
+| `POST /forms/{accId}/{isTemplate}` | `createForm(accId="ws_xxx", isTemplate="true", body='...')` |
+| `GET /actors/{actorId}` | `getActor(actorId="actor_xxx")` |
+| `POST /transactions/{accountId}` | `createTransaction(accountId="acc_xxx", body='...')` |
+
+> **Note:** The other Simulator skills (`simulator-forms`, `simulator-finance`,
+> `simulator-graph`) still contain some example calls using the older
+> `<method>-<path>` dashed format. Translate them to the matching `operationId`
+> from `references/api-operations.md` when executing.
 
 **Parameter rules:**
 - Path and query parameters → individual named string arguments

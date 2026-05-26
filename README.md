@@ -1,25 +1,25 @@
 # Simulator.Company — Claude Code & Codex Plugin
 
+> **Status:** stable — released, actively maintained. Supported clients: Claude Code ≥ 1.x, Codex. Go 1.24+ required. macOS and Linux tested.
+
 A plugin for [Claude Code](https://claude.ai/code) and [Codex](https://codex.openai.com) that connects the [Simulator.Company](https://simulator.company) platform to Claude via MCP (Model Context Protocol). Claude gets direct access to the Simulator REST API and domain knowledge to manage actors, graphs, forms, and financial accounts through natural conversation.
 
 ## What it does
 
-The plugin exposes the full Simulator.Company public API as MCP tools and provides four specialist skills that teach Claude the platform's entity model and common workflows:
+The plugin bundles a Go MCP server that exposes the full Simulator.Company public API as MCP tools and provides specialist skills that teach Claude the platform's entity model and common workflows:
 
-| Skill | Activate with | Covers |
-|---|---|---|
-| `simulator` | "use Simulator", "call Simulator API" | Full platform overview, all entities |
-| `simulator-graph` | "create actor", "link nodes", "add to layer" | Actors, links, layers, graph traversal |
-| `simulator-forms` | "create form", "design template", "field structure" | Form templates, field types, system forms |
-| `simulator-finance` | "record transaction", "account balance", "transfer funds" | Accounts, transactions, transfers, currencies |
-
-Claude uses three MCP tools under the hood — `list_opers`, `get_oper`, `run_oper` — to discover and execute any of the 80+ Simulator API operations.
+| Skill                | Activate with                                            | Covers                                                  |
+|----------------------|----------------------------------------------------------|---------------------------------------------------------|
+| `simulator`          | "use Simulator", "call Simulator API"                    | Full platform overview, all entities, MCP tools         |
+| `simulator-init`     | "setup", "connect to simulator", "login to simulator"    | OAuth login, workspace selection, environment setup     |
+| `simulator-graph`    | "create actor", "link nodes", "add to layer"             | Actors, links, layers, graph traversal, bulk push/pull  |
+| `simulator-forms`    | "create form", "design template", "field structure"      | Form templates, field types, system forms               |
+| `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies           |
 
 ## Requirements
 
 - [Claude Code](https://claude.ai/code) or [Codex](https://codex.openai.com) installed
-- [Go 1.21+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed).
-  If Go is not installed:
+- [Go 1.24+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed)
   ```bash
   brew install golang        # macOS
   sudo apt install golang    # Ubuntu/Debian
@@ -29,14 +29,16 @@ Claude uses three MCP tools under the hood — `list_opers`, `get_oper`, `run_op
 
 ## Installation
 
-**Add the plugin marketplace and install:**
+### Claude Code
+
+**From the GitHub marketplace:**
 
 ```bash
 claude plugin marketplace add corezoid/simulator-ai-plugin
 claude plugin install simulator@simulator
 ```
 
-**Or install from a local clone:**
+**Or from a local clone:**
 
 ```bash
 git clone https://github.com/corezoid/simulator-ai-plugin
@@ -44,17 +46,39 @@ claude plugin marketplace add ./simulator-ai-plugin
 claude plugin install simulator@simulator
 ```
 
-That's it. No build step, no additional setup. Claude Code starts the MCP server automatically via `go run` on first use.
+### Codex
+
+**From the GitHub marketplace:**
+
+```bash
+codex plugin marketplace add corezoid/simulator-ai-plugin
+codex plugin install simulator@simulator
+```
+
+**Or from a local clone:**
+
+```bash
+git clone https://github.com/corezoid/simulator-ai-plugin
+codex plugin marketplace add ./simulator-ai-plugin
+codex plugin install simulator@simulator
+```
+
+No build step, no extra setup. The MCP server starts automatically on first use.
+
+### Updating
+
+```bash
+claude plugin update simulator@simulator   # Claude Code
+codex plugin update simulator@simulator    # Codex
+```
+
+Restart Claude Code / Codex after updating to apply the new version.
 
 ## Authentication
 
-The plugin supports two authentication methods.
+On the first Simulator operation Claude detects that no token is present and runs the `login` tool automatically — your browser opens at `account.corezoid.com` for OAuth2 sign-in and the session continues without interruption. After login Claude uses MCP elicitation to let you pick a workspace from the list returned by the account API.
 
-### Option 1: OAuth2 browser login (recommended)
-
-No setup required. On the first Simulator API call Claude automatically detects that no token is present and runs the `login` tool on its own — your browser opens at `account.corezoid.com`, you sign in, and the session continues without interruption.
-
-The token is saved to `~/.simulator/credentials.json` and reused automatically on every subsequent session. When it expires, Claude will trigger the login flow again automatically.
+The token is saved to `.env` in your working directory (mode `0600`) and reused on every subsequent session. When it expires, the login flow triggers again automatically.
 
 You can also trigger login manually at any time:
 
@@ -62,29 +86,27 @@ You can also trigger login manually at any time:
 log in to Simulator
 ```
 
-### Option 2: Static token (manual)
+### Static token (optional)
 
-If you prefer to manage the token yourself, export it before starting Claude Code:
+If you prefer to manage the token yourself, set it in `.env` or export it before starting Claude Code or Codex:
 
 ```bash
-export SIMULATOR_TOKEN=your_token_here
+export ACCESS_TOKEN=your_token_here
 ```
 
-The static token takes priority over the saved credentials file and is never written to disk.
+The static token takes priority over saved credentials.
 
 ## Configuration
 
-| Environment variable | Required | Description |
-|---|---|---|
-| `SIMULATOR_TOKEN` | No | Static token — overrides OAuth2 saved credentials |
-| `SIMULATOR_URL` | No | Override the default API base URL |
+| Environment variable          | Required | Description                                                                 |
+|-------------------------------|----------|-----------------------------------------------------------------------------|
+| `ACCESS_TOKEN`                | No       | Static token — overrides OAuth2 saved credentials                           |
+| `ACCESS_TOKEN_EXPIRES_AT`     | No       | Token expiry timestamp (RFC 3339) — written automatically after OAuth login |
+| `ACCOUNT_URL`                 | No       | Override the default account URL (`https://account.corezoid.com`)           |
+| `WORKSPACE_ID`                | No       | Default workspace ID (`accId`) — set automatically after `set-workspace`    |
+| `SIMULATOR_OAUTH_CLIENT_ID`   | No       | OAuth2 client ID — on-prem deployments with a custom authorization server should set this to their own client ID; cloud (account.corezoid.com) users do not need it |
 
-Token storage:
-
-| Method | Where | Lifetime |
-|---|---|---|
-| OAuth2 login | `~/.simulator/credentials.json` (mode `0600`) | Until JWT expiry |
-| Static token | Shell environment only | Current shell session |
+All values are read from a `.env` file in the current working directory at startup, and the `login` / `set-workspace` tools persist their results back to that file.
 
 ## Usage
 
@@ -110,15 +132,34 @@ Then show me all accounts and their current balances.
 Search for all actors of form type "Task" on the "Main Process" layer.
 ```
 
+```
+Pull layer 1a2b3c4d-... to a local YAML, let me edit it, then push it back.
+```
+
+## MCP Tools
+
+The MCP server exposes a small set of hand-written tools plus every operation discovered in the bundled Simulator OpenAPI spec (80+ endpoints). All API-derived tools follow the operation IDs from the swagger spec (e.g. `createActor`, `getCompanies`, `searchActors`, `createTransfer`, …).
+
+| Tool             | Description                                                                                          |
+|------------------|------------------------------------------------------------------------------------------------------|
+| `login`          | Authenticate via OAuth2 PKCE (opens browser); elicits account URL + workspace and writes them to `.env` |
+| `set-workspace`  | Save the active workspace ID (`accId`) to `.env` as `WORKSPACE_ID`                                   |
+| `pullGraphFile`  | Fetch all actors and edges from a layer and write them to `<layerId>.yaml` in the working directory  |
+| `pushGraphFile`  | Read `<layerId>.yaml` and sync it with the server layer: create / update / remove to match the file  |
+| `createActors`   | Bulk-create up to 50 actors in one call; returns the list of new actor IDs                           |
+| `<operationId>`  | One tool per Simulator REST operation (auto-generated from the bundled OpenAPI spec)                 |
+
 ## Architecture
 
 ```
-Claude Code
+Claude Code / Codex
   └── simulator MCP server (go run .)
-        ├── login       → OAuth2 PKCE browser flow, saves JWT to ~/.simulator/credentials.json
-        ├── list_opers  → discover available API operations
-        ├── get_oper    → get full schema of an operation
-        └── run_oper    → execute API call with parameters
+        ├── Auth          login (OAuth2 PKCE → .env), set-workspace
+        ├── Graph helpers pullGraphFile, pushGraphFile, createActors
+        └── REST passthrough
+              └── one MCP tool per operation in sim-public-swagger.json
+                  (createActor, searchActors, createLink, createLayer,
+                   createForm, createAccount, createTransaction, createTransfer, …)
 ```
 
 The MCP server is a generic Swagger→MCP bridge that reads the bundled `swagger/sim-public-swagger.json` and converts every endpoint into an MCP-callable operation. Skills add the domain knowledge on top.
@@ -146,12 +187,16 @@ Workspace (accId)
 ### `/simulator`
 Universal Simulator assistant. Knows the full platform model, all entity types, and common workflow sequences. Use this when you need guidance across multiple domains or want to explore what's possible.
 
+### `/simulator-init`
+Environment setup assistant — runs `login`, picks a workspace, and saves credentials to `.env`. Use it the first time you connect to Simulator or when switching workspaces.
+
 ### `/simulator-graph`
 Specialist for graph structure operations:
 - Create, update, search, and delete actors
 - Create single or bulk links between actors
 - Manage layers — add actors with positions, search by form or text, move between layers
 - Traverse the graph — get linked actors, actor links, global layer membership
+- Pull a whole layer to YAML, edit locally, push it back
 
 ### `/simulator-forms`
 Specialist for form template design:
@@ -173,44 +218,73 @@ Specialist for financial and metric tracking:
 ```
 simulator-ai-plugin/
 ├── .claude-plugin/
-│   └── plugin.json              # Claude Code plugin manifest
-├── .mcp.json                    # MCP server configuration (Claude Code)
+│   ├── marketplace.json         # Claude Code marketplace listing (points to plugins/simulator)
+│   └── plugin.json              # Claude Code plugin manifest (root-level install target)
+├── .mcp.json                    # Root-level MCP server config (used when installed via marketplace)
 ├── .agents/
 │   └── plugins/
-│       └── marketplace.json     # Codex marketplace listing
-├── plugins/
-│   └── simulator/               # Codex plugin root
-│       ├── .codex-plugin/
-│       │   └── plugin.json      # Codex plugin manifest
-│       ├── .mcp.json            # MCP server configuration (Codex)
-│       ├── scripts/
-│       │   └── start-mcp.sh    # Codex wrapper → delegates to repo-root script
-│       └── skills/
-│           ├── simulator/
-│           │   ├── SKILL.md             # Universal assistant skill
-│           │   └── references/
-│           │       └── api-operations.md  # Complete operation ID reference
-│           ├── simulator-graph/
-│           │   └── SKILL.md
-│           ├── simulator-forms/
-│           │   └── SKILL.md
-│           └── simulator-finance/
-│               └── SKILL.md
-├── scripts/
-│   └── start-mcp.sh             # MCP server startup (go run, no build needed)
-├── swagger/
-│   └── sim-public-swagger.json  # Bundled Simulator.Company OpenAPI spec
-├── app/
-│   ├── auth/                    # OAuth2 PKCE flow + credentials storage
-│   ├── mcp-server/              # MCP server implementation (Go)
-│   ├── models/                  # OpenAPI data models
-│   └── swagger/                 # Swagger loader
-├── resources/
-│   └── docs/
-│       ├── entities/            # Entity documentation
-│       └── user-flows/          # Workflow documentation
-└── main.go
+│       └── marketplace.json     # Codex marketplace listing (points to plugins/simulator)
+└── plugins/simulator/           # Plugin root (CLAUDE_PLUGIN_ROOT for both Claude Code and Codex)
+    ├── .claude-plugin/
+    │   └── plugin.json          # Claude Code plugin manifest
+    ├── .codex-plugin/
+    │   └── plugin.json          # Codex plugin manifest
+    ├── .mcp.json                # MCP server configuration (go run . --spec simulator)
+    ├── mcp-server/              # Go MCP server source
+    │   ├── main.go
+    │   ├── specs.go
+    │   ├── go.mod / go.sum
+    │   ├── app/
+    │   │   ├── auth/            # OAuth2 PKCE flow + .env credential storage
+    │   │   ├── mcp-server/      # MCP server, push/pull graph handlers
+    │   │   ├── models/          # OpenAPI data models
+    │   │   └── swagger/         # Swagger loader
+    │   ├── swagger/             # Bundled OpenAPI specs
+    │   │   ├── sim-public-swagger.json
+    │   │   └── sim-public-swagger-all.json
+    │   └── info/
+    ├── skills/
+    │   ├── simulator/                      # Universal assistant skill
+    │   │   ├── SKILL.md
+    │   │   └── references/api-operations.md
+    │   ├── simulator-init/                 # Environment setup skill
+    │   ├── simulator-graph/                # Graph specialist skill
+    │   ├── simulator-forms/                # Forms specialist skill
+    │   └── simulator-finance/              # Finance specialist skill
+    └── docs/                    # Entity and user-flow documentation
+        ├── entities/
+        └── user-flows/
 ```
+
+## Debugging
+
+The MCP server always writes debug output to `/tmp/simulator.log` when running in MCP mode. View it with:
+
+```bash
+tail -f /tmp/simulator.log
+```
+
+In CLI mode, you can invoke a single tool without starting the MCP transport:
+
+```bash
+cd plugins/simulator/mcp-server
+go run . <tool-name> key=value ...
+# e.g.
+go run . getCompanies
+```
+
+## Compatibility
+
+| Component         | Supported versions            | Notes                                       |
+|-------------------|-------------------------------|---------------------------------------------|
+| Claude Code       | ≥ 1.x                         | MCP protocol 2025-03-26                     |
+| Codex             | current stable                | Same MCP server, same skills                |
+| Go toolchain      | 1.24+ (module declares 1.25)  | Required to run the MCP server via `go run` |
+| macOS             | 13 Ventura and later          | Tested on arm64 and amd64                   |
+| Linux             | Ubuntu 22.04+, Debian 12+     | amd64 tested                                |
+| Windows           | not tested                    | Likely works; PRs welcome                   |
+
+> **Note:** If your Go installation is older than the module's `go` directive, the toolchain manager will try to download a newer version from `proxy.golang.org`. In air-gapped environments set `GOTOOLCHAIN=local` and install a matching Go version manually.
 
 ## Links
 

@@ -22,7 +22,7 @@ login()
 
 The tool handles the full setup interactively via MCP elicitation dialogs:
 1. Asks for Account URL (blank = use default `https://account.corezoid.com`)
-2. Opens a browser for OAuth2 authentication, saves token to `.env` as `SIMULATOR_TOKEN`
+2. Opens a browser for OAuth2 authentication, saves token to `.env` as `ACCESS_TOKEN`
 3. Fetches available workspaces and presents a selection dialog, saves choice to `.env` as `WORKSPACE_ID`
 
 When `login` returns successfully, setup is complete — proceed to Step 2.
@@ -51,6 +51,6 @@ Confirm setup is complete:
 | Variable | Set during |
 |---|---|
 | `ACCOUNT_URL` | Step 1 — Account URL elicitation |
-| `SIMULATOR_TOKEN` | Step 1 — OAuth2 authentication |
-| `SIMULATOR_TOKEN_EXPIRES_AT` | Step 1 — Token expiry |
+| `ACCESS_TOKEN` | Step 1 — OAuth2 authentication |
+| `ACCESS_TOKEN_EXPIRES_AT` | Step 1 — Token expiry |
 | `WORKSPACE_ID` | Step 1 — Workspace selection |
