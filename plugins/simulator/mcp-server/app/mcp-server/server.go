@@ -820,6 +820,24 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 		handleUploadActorPictureBulk,
 	)
 
+	mcpServer.AddTool(
+		mcp.NewTool("moveActorToForm",
+			mcp.WithDescription("Recreate an actor under a different formId, preserving title, picture, color, description, data, ref, all incoming/outgoing links, and every layer placement (laId, position). The Public REST API does not support changing an actor's formId directly, so this tool orchestrates create-replay-delete on top of existing endpoints. Returns the old and new actor IDs plus per-step counters; partial failures don't abort the run."),
+			mcp.WithString("actorId",
+				mcp.Description("UUID of the actor to move."),
+				mcp.Required(),
+			),
+			mcp.WithNumber("targetFormId",
+				mcp.Description("Numeric ID of the destination form. Must differ from the actor's current formId."),
+				mcp.Required(),
+			),
+			mcp.WithBoolean("keepOld",
+				mcp.Description("Keep the original actor instead of deleting it. Default false. Useful when you want to verify the new actor first."),
+			),
+		),
+		handleMoveActorToForm,
+	)
+
 	// Add MCP resources capability
 	initializeResources(mcpServer)
 
