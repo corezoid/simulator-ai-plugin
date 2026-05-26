@@ -787,8 +787,37 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 			mcp.WithString("filename",
 				mcp.Description("Override the filename sent with the upload (e.g. `slack.png`). Extension drives the Content-Type. Defaults to the source's basename or `picture.png`."),
 			),
+			mcp.WithNumber("pngWidth",
+				mcp.Description("PNG width when the source is SVG and gets auto-rasterised. Default 256."),
+			),
+			mcp.WithNumber("pngHeight",
+				mcp.Description("PNG height when the source is SVG and gets auto-rasterised. Default 256."),
+			),
+			mcp.WithString("svgFillColor",
+				mcp.Description("Optional brand colour (e.g. `#26A5E4`) injected on the <svg> root before rasterising. Handy for monochrome simpleicons."),
+			),
 		),
 		handleUploadActorPicture,
+	)
+
+	mcpServer.AddTool(
+		mcp.NewTool("uploadActorPictureBulk",
+			mcp.WithDescription("Set pictures on many actors in one MCP call. Identical source images are uploaded once and reused — saves bytes and round-trips when the same icon (e.g. Slack PNG) is wired to multiple actors. Each item supports imageUrl / localPath / base64 / picture (shortcut to bind an already-uploaded storage path) plus optional filename, pngWidth, pngHeight, svgFillColor."),
+			mcp.WithArray("items",
+				mcp.Description("Array of items. Each: {actorId, formId, [imageUrl|localPath|base64|picture], filename?, pngWidth?, pngHeight?, svgFillColor?}. Max 500 per call."),
+				mcp.Required(),
+			),
+			mcp.WithNumber("pngWidth",
+				mcp.Description("Default PNG width for SVG auto-rasterisation. Per-item value wins. Default 256."),
+			),
+			mcp.WithNumber("pngHeight",
+				mcp.Description("Default PNG height for SVG auto-rasterisation. Per-item value wins. Default 256."),
+			),
+			mcp.WithString("svgFillColor",
+				mcp.Description("Default brand colour to inject on the <svg> root before rasterising. Per-item value wins."),
+			),
+		),
+		handleUploadActorPictureBulk,
 	)
 
 	// Add MCP resources capability
