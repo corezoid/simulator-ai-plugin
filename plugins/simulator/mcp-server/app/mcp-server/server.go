@@ -791,6 +791,17 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 		handleUploadActorPicture,
 	)
 
+	mcpServer.AddTool(
+		mcp.NewTool("getAllLayerPlacements",
+			mcp.WithDescription("Return every placement (actorId, laId, formId, title, position) on a layer in one call. Walks the paginated /graph_layers/paginated/{layerId}?type=nodes endpoint internally, so the caller does not need to enumerate formIds. Handy for bulk layout / dedup / position scripting where getLayerActorsByFormId would require N round-trips (one per form)."),
+			mcp.WithString("layerId",
+				mcp.Description("UUID of the layer to enumerate."),
+				mcp.Required(),
+			),
+		),
+		handleGetAllLayerPlacements,
+	)
+
 	// Add MCP resources capability
 	initializeResources(mcpServer)
 
