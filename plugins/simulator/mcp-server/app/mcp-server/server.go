@@ -791,6 +791,18 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 		handleUploadActorPicture,
 	)
 
+	mcpServer.AddTool(
+		mcp.NewTool("pruneLongEdges",
+			mcp.WithDescription("Delete edges whose Manhattan distance between endpoints exceeds `maxDistancePx` (default 600). By default `preserveParentEdges:true` keeps edges where either endpoint is a hierarchy bucket (>= bucketThreshold incoming edges, default 3) — those usually span the canvas legitimately. Use `dryRun:true` to preview without deleting. Returns scanned/deleted/kept_short/kept_parent counts plus up to 10 example deletions."),
+			mcp.WithString("layerId", mcp.Description("UUID of the layer."), mcp.Required()),
+			mcp.WithNumber("maxDistancePx", mcp.Description("Distance threshold in pixels (Manhattan). Edges above this are candidates for deletion. Default 600.")),
+			mcp.WithNumber("bucketThreshold", mcp.Description("Min incoming-edge count for an actor to count as a hierarchy bucket. Default 3.")),
+			mcp.WithBoolean("preserveParentEdges", mcp.Description("Keep long edges where either endpoint is a bucket. Default true.")),
+			mcp.WithBoolean("dryRun", mcp.Description("Don't delete; just count what would be deleted. Default false.")),
+		),
+		handlePruneLongEdges,
+	)
+
 	// Add MCP resources capability
 	initializeResources(mcpServer)
 
