@@ -1,6 +1,5 @@
 # Changelog
 
-
 ## [1.4.0]
 
 - Add `uploadActorPictureBulk` MCP tool: set pictures on up to 500 actors per call, dedupes identical source images by SHA-256 so the same icon is uploaded once and reused, supports `picture` shortcut to bind an already-uploaded storage path without re-uploading bytes.
@@ -9,6 +8,10 @@
 ## [1.3.5]
 
 - Add `pruneLongEdges(layerId, maxDistancePx?, bucketThreshold?, preserveParentEdges?, dryRun?)` MCP tool. Walks every edge on a layer, deletes those whose Manhattan distance between endpoints exceeds `maxDistancePx` (default 600 px). By default keeps edges where either endpoint is a hierarchy bucket (≥ `bucketThreshold` incoming edges, default 3). `dryRun:true` previews without deleting. Returns scanned/deleted/kept_short/kept_parent counts plus up to 10 example deletions.
+
+## [1.3.4]
+
+- Add `compactGraphLayout(layerId, strategy)` MCP tool. Implements the `domain-clusters` strategy: actors with `>= bucketThreshold` incoming edges become cluster headers, their children are arranged in a grid under them, and the clusters themselves are laid out in a super-grid (default 4 columns). Orphans stack in a Misc zone. Tunable via `clustersPerRow` / `nodesPerRow` / `nodeDX` / `nodeDY`. One MCP call replaces the full pull → YAML → reposition → push loop. Strategy arg is reserved for future `hierarchical` / `force-directed` layouts.
 
 ## [1.3.3]
 
