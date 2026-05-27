@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
@@ -268,7 +269,19 @@ func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mc
 	if filename == "" {
 		filename = "picture.png"
 	}
-	contentType := guessContentType(filename)
+
+	// SVG inputs are auto-rasterised to PNG: the graph UI doesn't render SVG
+	// from storage paths (multipart Content-Type comes back as
+	// application/octet-stream). pngWidth / pngHeight / svgFillColor are
+	// optional and only apply when the source is detected as SVG.
+	pngW := toInt(args["pngWidth"])
+	pngH := toInt(args["pngHeight"])
+	fillColor, _ := args["svgFillColor"].(string)
+	newBytes, newName, contentType, err := maybeConvertSVG(fileBytes, filename, pngW, pngH, fillColor)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("[Error] svg→png: %v", err)), nil
+	}
+	fileBytes, filename = newBytes, newName
 
 	// Step 1 — upload to storage and capture (attachId, storage path).
 	storagePath, err := uploadFile(ctx, accID, filename, contentType, fileBytes)
@@ -287,4 +300,213 @@ func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mc
 	}
 	resultBytes, _ := json.Marshal(out)
 	return mcp.NewToolResultText(string(resultBytes)), nil
+}
+
+// uploadBulkItemResult is the per-item result returned by uploadActorPictureBulk.
+type uploadBulkItemResult struct {
+	ActorID string `json:"actorId"`
+	Picture string `json:"picture,omitempty"`
+	Status  string `json:"status"` // "ok" | "error"
+	Error   string `json:"error,omitempty"`
+}
+
+// handleUploadActorPictureBulk uploads pictures for many actors in one MCP call,
+// deduplicating identical source images so we only pay for the bytes upload
+// once per unique image. Useful when wiring icons across the whole graph.
+//
+// items[] entries support the same source options as uploadActorPicture
+// (`imageUrl` / `localPath` / `base64`), plus an explicit `picture` shortcut
+// that skips the upload and binds an already-known storage path to the actor.
+func handleUploadActorPictureBulk(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	if authResult := ensureAuth(ctx); authResult != nil {
+		return authResult, nil
+	}
+
+	args := req.GetArguments()
+	rawItems, ok := args["items"].([]any)
+	if !ok || len(rawItems) == 0 {
+		return mcp.NewToolResultError("[Error] items[] is required and must be non-empty"), nil
+	}
+	if len(rawItems) > 500 {
+		return mcp.NewToolResultError("[Error] items[] capped at 500 per call"), nil
+	}
+
+	accID := os.Getenv("WORKSPACE_ID")
+	if accID == "" {
+		return mcp.NewToolResultError("[Error] WORKSPACE_ID is not set"), nil
+	}
+
+	defaultW := toInt(args["pngWidth"])
+	defaultH := toInt(args["pngHeight"])
+	defaultFill, _ := args["svgFillColor"].(string)
+
+	// Cache uploads by raw-bytes SHA-256 so we only POST /upload once per
+	// unique image even if 50 actors share the same icon.
+	uploadCache := map[string]string{} // hash → storage path
+
+	results := make([]uploadBulkItemResult, 0, len(rawItems))
+
+	for i, raw := range rawItems {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			results = append(results, uploadBulkItemResult{
+				Status: "error",
+				Error:  fmt.Sprintf("items[%d] is not an object", i),
+			})
+			continue
+		}
+
+		actorID, _ := item["actorId"].(string)
+		formID := toInt(item["formId"])
+		if actorID == "" || formID == 0 {
+			results = append(results, uploadBulkItemResult{
+				ActorID: actorID,
+				Status:  "error",
+				Error:   fmt.Sprintf("items[%d] missing actorId or formId", i),
+			})
+			continue
+		}
+
+		// Picture shortcut — bind an existing storage path directly.
+		if p, ok := item["picture"].(string); ok && p != "" {
+			if err := setActorPicture(ctx, formID, actorID, p); err != nil {
+				results = append(results, uploadBulkItemResult{
+					ActorID: actorID, Status: "error",
+					Error: fmt.Sprintf("set picture: %v", err),
+				})
+				continue
+			}
+			results = append(results, uploadBulkItemResult{
+				ActorID: actorID, Picture: p, Status: "ok",
+			})
+			continue
+		}
+
+		// Resolve source bytes.
+		var (
+			fileBytes []byte
+			filename  string
+		)
+		if u, ok := item["imageUrl"].(string); ok && u != "" {
+			b, _, err := fetchImageFromURL(ctx, u)
+			if err != nil {
+				results = append(results, uploadBulkItemResult{
+					ActorID: actorID, Status: "error",
+					Error: fmt.Sprintf("fetch imageUrl: %v", err),
+				})
+				continue
+			}
+			fileBytes = b
+			filename = filepath.Base(u)
+			if i := strings.IndexAny(filename, "?#"); i >= 0 {
+				filename = filename[:i]
+			}
+		} else if p, ok := item["localPath"].(string); ok && p != "" {
+			b, err := os.ReadFile(p)
+			if err != nil {
+				results = append(results, uploadBulkItemResult{
+					ActorID: actorID, Status: "error",
+					Error: fmt.Sprintf("read localPath: %v", err),
+				})
+				continue
+			}
+			fileBytes = b
+			filename = filepath.Base(p)
+		} else if b64, ok := item["base64"].(string); ok && b64 != "" {
+			if i := strings.Index(b64, "base64,"); i >= 0 {
+				b64 = b64[i+len("base64,"):]
+			}
+			b, err := base64.StdEncoding.DecodeString(b64)
+			if err != nil {
+				results = append(results, uploadBulkItemResult{
+					ActorID: actorID, Status: "error",
+					Error: fmt.Sprintf("decode base64: %v", err),
+				})
+				continue
+			}
+			fileBytes = b
+		} else {
+			results = append(results, uploadBulkItemResult{
+				ActorID: actorID, Status: "error",
+				Error: "one of imageUrl / localPath / base64 / picture is required",
+			})
+			continue
+		}
+
+		if fn, ok := item["filename"].(string); ok && fn != "" {
+			filename = fn
+		}
+		if filename == "" {
+			filename = "picture.png"
+		}
+
+		// Per-item override or default sizes.
+		w := toInt(item["pngWidth"])
+		if w == 0 {
+			w = defaultW
+		}
+		h := toInt(item["pngHeight"])
+		if h == 0 {
+			h = defaultH
+		}
+		fill, _ := item["svgFillColor"].(string)
+		if fill == "" {
+			fill = defaultFill
+		}
+
+		newBytes, newName, contentType, err := maybeConvertSVG(fileBytes, filename, w, h, fill)
+		if err != nil {
+			results = append(results, uploadBulkItemResult{
+				ActorID: actorID, Status: "error",
+				Error: fmt.Sprintf("svg→png: %v", err),
+			})
+			continue
+		}
+		fileBytes, filename = newBytes, newName
+
+		// Dedup uploads by content hash.
+		hash := sha256.Sum256(fileBytes)
+		key := fmt.Sprintf("%x", hash[:])
+		storagePath, cached := uploadCache[key]
+		if !cached {
+			sp, err := uploadFile(ctx, accID, filename, contentType, fileBytes)
+			if err != nil {
+				results = append(results, uploadBulkItemResult{
+					ActorID: actorID, Status: "error",
+					Error: fmt.Sprintf("upload: %v", err),
+				})
+				continue
+			}
+			storagePath = sp
+			uploadCache[key] = sp
+		}
+
+		if err := setActorPicture(ctx, formID, actorID, storagePath); err != nil {
+			results = append(results, uploadBulkItemResult{
+				ActorID: actorID, Status: "error",
+				Error: fmt.Sprintf("set picture: %v", err),
+			})
+			continue
+		}
+		results = append(results, uploadBulkItemResult{
+			ActorID: actorID, Picture: storagePath, Status: "ok",
+		})
+	}
+
+	summary := struct {
+		Total   int                    `json:"total"`
+		Ok      int                    `json:"ok"`
+		Errors  int                    `json:"errors"`
+		Uploads int                    `json:"uploads"`
+		Items   []uploadBulkItemResult `json:"items"`
+	}{Total: len(results), Uploads: len(uploadCache), Items: results}
+	for _, r := range results {
+		if r.Status == "ok" {
+			summary.Ok++
+		} else {
+			summary.Errors++
+		}
+	}
+	out, _ := json.Marshal(summary)
+	return mcp.NewToolResultText(string(out)), nil
 }
