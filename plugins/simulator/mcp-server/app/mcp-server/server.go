@@ -801,6 +801,14 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 	)
 
 	mcpServer.AddTool(
+		mcp.NewTool("getAllLayerPlacements",
+			mcp.WithDescription("Return every placement (actorId, laId, formId, title, position) on a layer in one call. Walks the paginated /graph_layers/paginated/{layerId}?type=nodes endpoint internally, so the caller does not need to enumerate formIds. Handy for bulk layout / dedup / position scripting where getLayerActorsByFormId would require N round-trips (one per form)."),
+			mcp.WithString("layerId",
+				mcp.Description("UUID of the layer to enumerate."),
+				mcp.Required(),
+			),
+		),
+		handleGetAllLayerPlacements,
 		mcp.NewTool("uploadActorPictureBulk",
 			mcp.WithDescription("Set pictures on many actors in one MCP call. Identical source images are uploaded once and reused — saves bytes and round-trips when the same icon (e.g. Slack PNG) is wired to multiple actors. Each item supports imageUrl / localPath / base64 / picture (shortcut to bind an already-uploaded storage path) plus optional filename, pngWidth, pngHeight, svgFillColor."),
 			mcp.WithArray("items",
