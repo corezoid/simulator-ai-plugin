@@ -789,9 +789,51 @@ func (s *GraphSyncer) callManageLayer(ctx context.Context, layerID string, items
 }
 
 func (s *GraphSyncer) updatePositions(ctx context.Context, layerID string, updates []map[string]interface{}) error {
-	u := fmt.Sprintf("%s/graph_layers/actors/%s", s.baseURL, layerID)
-	_, err := s.put(ctx, u, updates)
-	return err
+	if len(updates) == 0 {
+		return nil
+	}
+	// The /graph_layers/actors/{layerId} PUT endpoint expects a payload of
+	// {"items": [...]} with each item carrying `id` as a STRING (the laId)
+	// — sending a bare array, or `id` as a number, silently no-ops, which
+	// is why pre-1.x callers reported positions never reaching the canvas.
+	// Normalise both here so callers can keep passing whatever they already had.
+	normalised := make([]map[string]interface{}, 0, len(updates))
+	for _, u := range updates {
+		item := make(map[string]interface{}, len(u))
+		for k, v := range u {
+			if k == "id" {
+				switch tv := v.(type) {
+				case int:
+					item[k] = fmt.Sprintf("%d", tv)
+				case int64:
+					item[k] = fmt.Sprintf("%d", tv)
+				case float64:
+					item[k] = fmt.Sprintf("%d", int64(tv))
+				case string:
+					item[k] = tv
+				default:
+					item[k] = fmt.Sprintf("%v", tv)
+				}
+			} else {
+				item[k] = v
+			}
+		}
+		normalised = append(normalised, item)
+	}
+	const batchSize = 100
+	for i := 0; i < len(normalised); i += batchSize {
+		end := i + batchSize
+		if end > len(normalised) {
+			end = len(normalised)
+		}
+		batch := normalised[i:end]
+		body := map[string]interface{}{"items": batch}
+		u := fmt.Sprintf("%s/graph_layers/actors/%s", s.baseURL, layerID)
+		if _, err := s.put(ctx, u, body); err != nil {
+			return fmt.Errorf("updatePositions batch %d: %w", i/batchSize, err)
+		}
+	}
+	return nil
 }
 
 func (s *GraphSyncer) createEdgeLink(ctx context.Context, srcUUID, tgtUUID string) (string, error) {
