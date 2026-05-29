@@ -827,6 +827,9 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 			),
 		),
 		handleCompactGraphLayout,
+	)
+
+	mcpServer.AddTool(
 		mcp.NewTool("getAllLayerPlacements",
 			mcp.WithDescription("Return every placement (actorId, laId, formId, title, position) on a layer in one call. Walks the paginated /graph_layers/paginated/{layerId}?type=nodes endpoint internally, so the caller does not need to enumerate formIds. Handy for bulk layout / dedup / position scripting where getLayerActorsByFormId would require N round-trips (one per form)."),
 			mcp.WithString("layerId",
@@ -835,6 +838,9 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 			),
 		),
 		handleGetAllLayerPlacements,
+	)
+
+	mcpServer.AddTool(
 		mcp.NewTool("uploadActorPictureBulk",
 			mcp.WithDescription("Set pictures on many actors in one MCP call. Identical source images are uploaded once and reused — saves bytes and round-trips when the same icon (e.g. Slack PNG) is wired to multiple actors. Each item supports imageUrl / localPath / base64 / picture (shortcut to bind an already-uploaded storage path) plus optional filename, pngWidth, pngHeight, svgFillColor."),
 			mcp.WithArray("items",
@@ -852,6 +858,9 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 			),
 		),
 		handleUploadActorPictureBulk,
+	)
+
+	mcpServer.AddTool(
 		mcp.NewTool("pruneLongEdges",
 			mcp.WithDescription("Delete edges whose Manhattan distance between endpoints exceeds `maxDistancePx` (default 600). By default `preserveParentEdges:true` keeps edges where either endpoint is a hierarchy bucket (>= bucketThreshold incoming edges, default 3) — those usually span the canvas legitimately. Use `dryRun:true` to preview without deleting. Returns scanned/deleted/kept_short/kept_parent counts plus up to 10 example deletions."),
 			mcp.WithString("layerId", mcp.Description("UUID of the layer."), mcp.Required()),
@@ -861,6 +870,64 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 			mcp.WithBoolean("dryRun", mcp.Description("Don't delete; just count what would be deleted. Default false.")),
 		),
 		handlePruneLongEdges,
+	)
+
+	mcpServer.AddTool(
+		mcp.NewTool("createChart",
+			mcp.WithDescription("Create a Dashboard (chart) actor on a graph layer. Supports two source modes:\n"+
+				"• actorFilter (default) — dynamic source: charts the top-N actors from a form filtered by accountName+currency. "+
+				"Creates a new ActorFilters actor automatically unless filterActorId is provided.\n"+
+				"• direct accounts — charts an explicit list of actors: provide the `accounts` array instead.\n\n"+
+				"Returns {dashboardActorId, filterActorId, laId}. The chart is visible on the layer immediately."),
+			mcp.WithString("layerId",
+				mcp.Description("Layer actor UUID where the chart will be placed."),
+				mcp.Required(),
+			),
+			mcp.WithString("title",
+				mcp.Description("Chart title shown on the dashboard actor."),
+				mcp.Required(),
+			),
+			mcp.WithString("description",
+				mcp.Description("Optional description for the chart."),
+			),
+			mcp.WithString("chartType",
+				mcp.Description("Chart visual type: \"line\" (default), \"bar\", or \"area\"."),
+			),
+			mcp.WithString("counterType",
+				mcp.Description("Metric type: \"amount\" (default) or \"turnover\"."),
+			),
+			mcp.WithString("range",
+				mcp.Description("Time range: \"lastHour\" (default), \"lastDay\", \"lastWeek\", \"lastMonth\"."),
+			),
+			mcp.WithNumber("positionX",
+				mcp.Description("X position on the layer canvas. Default -100."),
+			),
+			mcp.WithNumber("positionY",
+				mcp.Description("Y position on the layer canvas. Default 0."),
+			),
+			mcp.WithString("filterActorId",
+				mcp.Description("(actorFilter mode) UUID of an existing ActorFilters actor to reuse. When omitted, a new one is created from sourceFormId+accountNameId+currencyId."),
+			),
+			mcp.WithString("filterTitle",
+				mcp.Description("(actorFilter mode) Title for the newly created ActorFilters actor. Defaults to the chart title."),
+			),
+			mcp.WithNumber("sourceFormId",
+				mcp.Description("(actorFilter mode) Numeric form ID whose actors will be charted. Required when filterActorId is not provided."),
+			),
+			mcp.WithString("accountNameId",
+				mcp.Description("(actorFilter mode) UUID of the account name to chart. Required when filterActorId is not provided."),
+			),
+			mcp.WithNumber("currencyId",
+				mcp.Description("(actorFilter mode) Numeric currency ID. Required when filterActorId is not provided."),
+			),
+			mcp.WithNumber("top",
+				mcp.Description("(actorFilter mode) Number of top actors to show. Default 20."),
+			),
+			mcp.WithArray("accounts",
+				mcp.Description("(direct accounts mode) Explicit list of data series. Each item: {actorId, currencyId, nameId, color?, incomeType?}. When provided, actorFilter params are ignored."),
+			),
+		),
+		handleCreateChart,
 	)
 
 	// Add MCP resources capability
@@ -2936,6 +3003,8 @@ func RunCLI(swaggerSpec models.SwaggerSpec, apiCfg models.ApiConfig, toolName st
 		result, err = handlePushGraphFile(ctx, req)
 	case "pullGraphFile":
 		result, err = handlePullGraphFile(ctx, req)
+	case "createChart":
+		result, err = handleCreateChart(ctx, req)
 	default:
 		var found *Operation
 		for i, op := range globalOperations {

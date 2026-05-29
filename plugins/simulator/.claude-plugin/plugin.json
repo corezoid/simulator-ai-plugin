@@ -30,7 +30,8 @@
       "Graph-based business process management",
       "Actor and form template management",
       "Financial accounts and transaction tracking",
-      "Multi-layer visual graph organization"
+      "Multi-layer visual graph organization",
+      "Dashboard charts and time-series visualisation on graph layers"
     ],
     "websiteURL": "https://simulator.company",
     "defaultPrompt": [
