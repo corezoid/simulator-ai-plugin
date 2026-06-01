@@ -1,0 +1,60 @@
+# Simulator.Company AI Plugin
+
+> Official Claude Code plugin for Simulator.Company platform. Provides skills and MCP tools for managing actors, graph-based business processes, form templates, financial accounts, and visualisations directly from the IDE.
+
+## Skills
+
+- [simulator](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator/SKILL.md): Universal Simulator.Company platform assistant
+- [simulator-charts](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-charts/SKILL.md): Simulator.Company chart and dashboard specialist
+- [simulator-finance](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-finance/SKILL.md): Simulator.Company financial management specialist
+- [simulator-forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-forms/SKILL.md): Simulator.Company form designer specialist
+- [simulator-graph](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-graph/SKILL.md): Simulator.Company graph structure specialist
+- [simulator-init](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-init/SKILL.md): Simulator.Company environment setup specialist
+- [software-migration-onramp](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/SKILL.md): Discovery facilitator for Smart Company Onramp migration project
+
+## MCP Tools
+
+The plugin bundles a Go MCP server that wraps the Simulator REST API:
+
+- **login**: Authenticate with Simulator.Company via OAuth2 browser flow
+- **set-workspace**: Save workspace ID to .env for subsequent API calls
+- **pullGraphFile**: Export a layer to a local YAML file for editing
+- **pushGraphFile**: Sync a local YAML graph file back to a Simulator layer
+- **createActor**: Create a single actor (node) in a layer
+- **createActors**: Bulk-create up to 50 actors in a single call
+- **updateActor**: Update actor properties (title, description, status)
+- **deleteActor**: Delete an actor from a layer
+- **getActor**: Get actor details by ID
+- **searchActors**: Search actors by title or custom fields
+- **createLink**: Create a link (edge) between two actors
+- **massLink**: Create multiple links in one call
+- **deleteLink**: Delete a link between actors
+- **manageLayer**: Create, update, or delete a layer
+- **moveElements**: Move actors on a layer canvas
+- **compactGraphLayout**: Auto-layout actors with domain-clustering strategy
+- **pruneLongEdges**: Delete links that exceed a Manhattan distance threshold
+- **getAllLayerPlacements**: Enumerate all actors on a layer in one call
+- **createForm**: Create a new form template
+- **updateForm**: Update an existing form template
+- **getForms**: List all available form templates
+- **createAccountName**: Define an account name (asset, liability, expense, income)
+- **createCurrency**: Create a currency for financial tracking
+- **addFormAccount**: Add an account to a form template
+- **uploadActorPicture**: Set an actor's avatar from URL, local file, or base64 (auto SVG→PNG)
+- **uploadActorPictureBulk**: Bulk-upload actor pictures with SHA-256 deduplication
+- **createChart**: Create a chart/dashboard actor on a layer
+
+## Documentation
+
+- [Actors](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/docs/entities/actors.md): Actor model, fields, status lifecycle
+- [Forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/docs/entities/forms.md): Form templates and field definitions
+- [Links](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/docs/entities/links.md): Link model and directionality
+- [Layers](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/docs/entities/layers.md): Layer types and canvas operations
+- [Accounts](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/docs/entities/accounts.md): Financial account types
+- [Transactions](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/docs/entities/transactions.md): Transaction lifecycle
+- [Graph Management](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/docs/user-flows/actor-graph-management.md): End-to-end graph build and sync workflow
+
+## Optional
+
+- [Skills Index](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/public/.well-known/skills/index.json): Machine-readable agent discovery index
+- [Changelog](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/CHANGELOG.md): Release history
