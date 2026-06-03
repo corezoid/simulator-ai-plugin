@@ -3,14 +3,12 @@ package mcpserver
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -120,20 +118,13 @@ func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL s
 
 // ---- HTTP helpers ----
 
-var chartHTTPClient = &http.Client{
-	Timeout: 30 * time.Second,
-	Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-	},
-}
-
 func chartHTTPGet(ctx context.Context, apiURL, auth string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", auth)
-	resp, err := chartHTTPClient.Do(req)
+	resp, err := apiHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +147,7 @@ func chartHTTPJSON(ctx context.Context, method, apiURL, auth string, body interf
 	}
 	req.Header.Set("Authorization", auth)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := chartHTTPClient.Do(req)
+	resp, err := apiHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -303,11 +294,11 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 			filterBody := map[string]interface{}{
 				"title": filterTitle,
 				"data": map[string]interface{}{
-					"filter":               filterJSON,
-					"fields":               "[]",
-					"defaultFields":        `["title","id","ref","owner","createdAt","updatedAt","balance"]`,
+					"filter":                filterJSON,
+					"fields":                "[]",
+					"defaultFields":         `["title","id","ref","owner","createdAt","updatedAt","balance"]`,
 					"formFieldExportFormat": "idAndTitle",
-					"cacheFilterResult":    false,
+					"cacheFilterResult":     false,
 				},
 				"hole": false,
 			}
@@ -318,7 +309,9 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 			}
 
 			var fr struct {
-				Data struct{ ID string `json:"id"` } `json:"data"`
+				Data struct {
+					ID string `json:"id"`
+				} `json:"data"`
 			}
 			if err := json.Unmarshal(respData, &fr); err != nil {
 				return result, fmt.Errorf("parse ActorFilters response: %w", err)
@@ -333,9 +326,9 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 
 	if isActorFilterMode {
 		dynamicSource := map[string]interface{}{
-			"id":           filterActorID,
-			"title":        filterTitle,
-			"top":          fmt.Sprintf("%d", cfg.Top),
+			"id":            filterActorID,
+			"title":         filterTitle,
+			"top":           fmt.Sprintf("%d", cfg.Top),
 			"groupByFields": []interface{}{},
 		}
 		if cfg.SourceFormID != 0 {
@@ -421,7 +414,9 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 	}
 
 	var dr struct {
-		Data struct{ ID string `json:"id"` } `json:"data"`
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
 	}
 	if err := json.Unmarshal(respData, &dr); err != nil {
 		return result, fmt.Errorf("parse Dashboards actor response: %w", err)

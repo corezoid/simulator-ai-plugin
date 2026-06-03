@@ -50,8 +50,8 @@ type Endpoint struct {
 	Parameters  []Parameter         `json:"parameters"`
 	RequestBody *RequestBody        `json:"requestBody,omitempty"` // OpenAPI 3.0+ request body
 	Responses   map[string]Response `json:"responses"`
-	Consumes    []string            `json:"consumes"` // Swagger 2.0 only
-	Produces    []string            `json:"produces"` // Swagger 2.0 only
+	Consumes    []string            `json:"consumes"`              // Swagger 2.0 only
+	Produces    []string            `json:"produces"`              // Swagger 2.0 only
 	Invisible   bool                `json:"x-invisible,omitempty"` // When true, tool is hidden from tools/list but still callable
 }
 
@@ -141,6 +141,7 @@ type ApiConfig struct {
 	SseHeaders     string `json:"sseHeaders"`     // Read headers from sse request, and pass to API request (format: name1,name2)
 	Headers        string `json:"headers"`        // Additional headers to include in requests (format: name1=value1,name2=value2)
 	OAuthClientID  string `json:"oauthClientId"`  // OAuth2 client ID for PKCE flow
+	Insecure       bool   `json:"insecure"`       // Disable TLS certificate verification for API calls (self-signed gateways)
 }
 
 // Config stores all command line parameters

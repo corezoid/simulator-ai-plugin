@@ -3,7 +3,6 @@ package mcpserver
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 // PushGraphResult holds the outcome of PushGraphFile.
@@ -105,13 +103,8 @@ func newGraphSyncer(baseURL, authorization, workspaceID string) *GraphSyncer {
 		baseURL:     strings.TrimSuffix(baseURL, "/"),
 		auth:        authorization,
 		workspaceID: workspaceID,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-			},
-		},
-		cache: getWorkspaceCache(workspaceID),
+		httpClient:  apiHTTPClient(),
+		cache:       getWorkspaceCache(workspaceID),
 	}
 }
 
@@ -1135,8 +1128,13 @@ func (s *GraphSyncer) pushGraph(ctx context.Context, graph GraphFile, layerID st
 				item.Data.LaIDSrc = srcLaID
 				item.Data.LaIDTgt = tgtLaID
 				edgeManageItems = append(edgeManageItems, item)
+				result.EdgesCreated++
+			} else {
+				// The link relationship was created server-side, but at least one
+				// endpoint is not placed on this layer (laId == 0), so it can't be
+				// drawn on the canvas. Don't count it as a placed edge.
+				log.Printf("Warning: edge %s→%s created but not placed on layer (missing laId: src=%d tgt=%d)", srcUUID, tgtUUID, srcLaID, tgtLaID)
 			}
-			result.EdgesCreated++
 		}
 	}
 

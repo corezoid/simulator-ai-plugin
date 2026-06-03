@@ -5,8 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
+
+// envMu serialises all .env read-modify-write operations. updateEnvFile and
+// removeEnvKey are NOT self-locking (so a caller can hold the lock across
+// several mutations); the exported functions below acquire it.
+var envMu sync.Mutex
 
 // Credentials holds the Simulator JWT token.
 type Credentials struct {
@@ -30,9 +36,11 @@ func envFilePath() string {
 	return filepath.Join(cwd, ".env")
 }
 
-// updateEnvFile writes or updates key=value in the given .env file.
-// If the key already exists, its value is replaced; otherwise the line is appended.
-func updateEnvFile(path, key, value string) error {
+// updateEnvFileMulti reads the .env file once, applies all key=value updates,
+// and writes it back once. Writing several keys in a single pass avoids the
+// crash-window where a multi-write left the file half-updated (e.g. a token
+// with no expiry line). Not self-locking — callers hold envMu.
+func updateEnvFileMulti(path string, kv [][2]string) error {
 	var lines []string
 	if data, err := os.ReadFile(path); err == nil {
 		lines = strings.Split(string(data), "\n")
@@ -40,21 +48,26 @@ func updateEnvFile(path, key, value string) error {
 			lines = lines[:len(lines)-1]
 		}
 	}
-
-	prefix := key + "="
-	found := false
-	for i, line := range lines {
-		if strings.HasPrefix(line, prefix) {
-			lines[i] = prefix + value
-			found = true
-			break
+	for _, pair := range kv {
+		prefix := pair[0] + "="
+		found := false
+		for i, line := range lines {
+			if strings.HasPrefix(line, prefix) {
+				lines[i] = prefix + pair[1]
+				found = true
+				break
+			}
+		}
+		if !found {
+			lines = append(lines, prefix+pair[1])
 		}
 	}
-	if !found {
-		lines = append(lines, prefix+value)
-	}
-
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600)
+}
+
+// updateEnvFile writes or updates a single key=value. Not self-locking.
+func updateEnvFile(path, key, value string) error {
+	return updateEnvFileMulti(path, [][2]string{{key, value}})
 }
 
 // removeEnvKey removes a key from the .env file.
@@ -110,17 +123,20 @@ func Load() (*Credentials, error) {
 // Save writes ACCESS_TOKEN (and optionally ACCESS_TOKEN_EXPIRES_AT)
 // to the .env file in the current working directory, and updates the in-process env vars.
 func Save(creds *Credentials) error {
-	path := envFilePath()
-	if err := updateEnvFile(path, "ACCESS_TOKEN", creds.AccessToken); err != nil {
+	envMu.Lock()
+	defer envMu.Unlock()
+
+	kv := [][2]string{{"ACCESS_TOKEN", creds.AccessToken}}
+	var expStr string
+	if !creds.ExpiresAt.IsZero() {
+		expStr = creds.ExpiresAt.Format(time.RFC3339)
+		kv = append(kv, [2]string{"ACCESS_TOKEN_EXPIRES_AT", expStr})
+	}
+	if err := updateEnvFileMulti(envFilePath(), kv); err != nil {
 		return fmt.Errorf("failed to save token to .env: %w", err)
 	}
 	os.Setenv("ACCESS_TOKEN", creds.AccessToken)
-
-	if !creds.ExpiresAt.IsZero() {
-		expStr := creds.ExpiresAt.Format(time.RFC3339)
-		if err := updateEnvFile(path, "ACCESS_TOKEN_EXPIRES_AT", expStr); err != nil {
-			return fmt.Errorf("failed to save token expiry to .env: %w", err)
-		}
+	if expStr != "" {
 		os.Setenv("ACCESS_TOKEN_EXPIRES_AT", expStr)
 	}
 	return nil
@@ -129,6 +145,8 @@ func Save(creds *Credentials) error {
 // Delete removes ACCESS_TOKEN and ACCESS_TOKEN_EXPIRES_AT
 // from the .env file and from the in-process environment.
 func Delete() error {
+	envMu.Lock()
+	defer envMu.Unlock()
 	path := envFilePath()
 	if err := removeEnvKey(path, "ACCESS_TOKEN"); err != nil {
 		return err
@@ -143,6 +161,8 @@ func Delete() error {
 
 // SaveAccountURL saves ACCOUNT_URL to the .env file.
 func SaveAccountURL(accountURL string) error {
+	envMu.Lock()
+	defer envMu.Unlock()
 	path := envFilePath()
 	if err := updateEnvFile(path, "ACCOUNT_URL", accountURL); err != nil {
 		return fmt.Errorf("failed to save ACCOUNT_URL to .env: %w", err)
@@ -153,6 +173,8 @@ func SaveAccountURL(accountURL string) error {
 
 // SaveWorkspaceID saves WORKSPACE_ID to the .env file.
 func SaveWorkspaceID(accID string) error {
+	envMu.Lock()
+	defer envMu.Unlock()
 	path := envFilePath()
 	if err := updateEnvFile(path, "WORKSPACE_ID", accID); err != nil {
 		return fmt.Errorf("failed to save workspace ID to .env: %w", err)

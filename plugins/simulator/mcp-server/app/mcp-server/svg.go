@@ -22,14 +22,18 @@ func looksLikeSVG(b []byte) bool {
 		head = head[:256]
 	}
 	s := strings.ToLower(string(head))
-	return strings.Contains(s, "<svg") || strings.Contains(s, "<!doctype svg") ||
-		strings.Contains(s, "<?xml") && strings.Contains(s, "svg")
+	return strings.Contains(s, "<svg") ||
+		strings.Contains(s, "<!doctype svg") ||
+		(strings.Contains(s, "<?xml") && strings.Contains(s, "<svg"))
 }
 
 // svgInjectFill inserts a `fill="<color>"` attribute on the first <svg ...> tag.
 // Used to paint monochrome simpleicons (which inherit colour from CSS) in
 // a brand colour before rasterising. No-op when the SVG already declares fill.
-var svgOpenRe = regexp.MustCompile(`(?is)<svg\b([^>]*)>`)
+var (
+	svgOpenRe = regexp.MustCompile(`(?is)<svg\b([^>]*)>`)
+	svgFillRe = regexp.MustCompile(`(?i)\sfill\s*=`)
+)
 
 func svgInjectFill(svg []byte, color string) []byte {
 	if color == "" {
@@ -37,7 +41,7 @@ func svgInjectFill(svg []byte, color string) []byte {
 	}
 	return svgOpenRe.ReplaceAllFunc(svg, func(m []byte) []byte {
 		// If a fill attribute is already present, leave it untouched.
-		if regexp.MustCompile(`(?i)\sfill\s*=`).Match(m) {
+		if svgFillRe.Match(m) {
 			return m
 		}
 		return []byte(strings.Replace(string(m), "<svg", `<svg fill="`+color+`"`, 1))
@@ -46,12 +50,23 @@ func svgInjectFill(svg []byte, color string) []byte {
 
 // rasterizeSVG renders an SVG to a PNG of the requested size using pure-Go
 // oksvg + rasterx. Returns the PNG bytes.
+// maxSVGDim caps the rasterised PNG dimensions. Without it a caller could pass
+// pngWidth/pngHeight in the tens of thousands and allocate a multi-GB RGBA
+// buffer (OOM). 4096 is comfortably larger than any actor icon needs.
+const maxSVGDim = 4096
+
 func rasterizeSVG(svg []byte, width, height int) ([]byte, error) {
 	if width <= 0 {
 		width = 256
 	}
 	if height <= 0 {
 		height = 256
+	}
+	if width > maxSVGDim {
+		width = maxSVGDim
+	}
+	if height > maxSVGDim {
+		height = maxSVGDim
 	}
 
 	icon, err := oksvg.ReadIconStream(bytes.NewReader(svg), oksvg.StrictErrorMode)

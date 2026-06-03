@@ -2,7 +2,6 @@ package mcpserver
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
@@ -120,18 +118,22 @@ func papiGET(apiURL string) ([]byte, error) {
 		return nil, err
 	}
 	req.Header.Set("Authorization", globalApiConfig.Authorization)
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
-	resp, err := client.Do(req)
+	resp, err := apiHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	return io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	// Check status AFTER reading: a 401/500 returns an error body that is not a
+	// {"data":[...]} payload; without this guard the caller would silently parse
+	// it as an empty result (e.g. an empty layer export). Matches GraphSyncer.get.
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("GET %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
+	}
+	return data, nil
 }
 
 func fetchLayerActors(layerID string) ([]layerActor, error) {

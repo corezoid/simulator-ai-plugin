@@ -159,6 +159,7 @@ func main() {
 	headers := flag.String("headers", "", "Additional headers to include in requests (format: name1=value1,name2=value2)")
 	sseHeaders := flag.String("sseHeaders", "", "Read headers from sse request, and pass to API request (format: name1,name2)")
 	oauthClientID := flag.String("oauthClientID", "", "OAuth2 client ID for PKCE browser login flow (also read from SIMULATOR_OAUTH_CLIENT_ID env var)")
+	insecure := flag.Bool("insecure", false, "Disable TLS certificate verification for API calls (only for self-signed gateways)")
 
 	flag.Parse()
 
@@ -166,7 +167,6 @@ func main() {
 	if *specUrl == "" && *spec == "" {
 		log.Fatal("Please provide --specUrl or --spec flag")
 	}
-
 
 	// Validate specUrl if provided
 	if *specUrl != "" {
@@ -233,6 +233,7 @@ func main() {
 				Headers:        *headers,
 				SseHeaders:     *sseHeaders,
 				OAuthClientID:  *oauthClientID,
+				Insecure:       *insecure,
 			},
 		}
 		//log.Printf("Starting server with built-in spec: %s\n", *spec)
@@ -272,6 +273,7 @@ func main() {
 				Headers:        *headers,
 				SseHeaders:     *sseHeaders,
 				OAuthClientID:  *oauthClientID,
+				Insecure:       *insecure,
 			},
 		}
 

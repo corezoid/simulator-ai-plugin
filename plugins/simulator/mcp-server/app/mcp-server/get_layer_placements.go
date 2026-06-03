@@ -2,13 +2,11 @@ package mcpserver
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -54,12 +52,7 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
 
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := apiHTTPClient()
 
 	var rows []layerPlacementRow
 	const limit = 100

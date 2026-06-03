@@ -2,12 +2,10 @@ package mcpserver
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -25,13 +23,13 @@ import (
 // trims those diagonals while preserving meaningful parent → child wiring.
 
 type pruneStats struct {
-	Scanned     int      `json:"scanned"`
-	Deleted     int      `json:"deleted"`
-	KeptShort   int      `json:"kept_short"`
-	KeptParent  int      `json:"kept_parent"`
-	Errors      []string `json:"errors,omitempty"`
-	DryRun      bool     `json:"dryRun"`
-	Examples    []string `json:"deletedExamples,omitempty"`
+	Scanned    int      `json:"scanned"`
+	Deleted    int      `json:"deleted"`
+	KeptShort  int      `json:"kept_short"`
+	KeptParent int      `json:"kept_parent"`
+	Errors     []string `json:"errors,omitempty"`
+	DryRun     bool     `json:"dryRun"`
+	Examples   []string `json:"deletedExamples,omitempty"`
 }
 
 func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -57,12 +55,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		preserveParents = v
 	}
 
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := apiHTTPClient()
 	apiGet := func(url string) ([]byte, error) {
 		hr, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 		hr.Header.Set("Authorization", globalApiConfig.Authorization)
@@ -94,8 +87,8 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 
 	// 1) Pull all placements (for positions).
 	type plac struct {
-		ID    string `json:"id"`
-		Title string `json:"title"`
+		ID       string `json:"id"`
+		Title    string `json:"title"`
 		Position struct {
 			X int `json:"x"`
 			Y int `json:"y"`
@@ -168,7 +161,12 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	stats := pruneStats{DryRun: dryRun}
 
 	// 4) For each edge: compute Manhattan distance, decide.
-	abs := func(a int) int { if a < 0 { return -a }; return a }
+	abs := func(a int) int {
+		if a < 0 {
+			return -a
+		}
+		return a
+	}
 	for _, e := range edges {
 		stats.Scanned++
 		ps, sok := positionOf[e.Source]

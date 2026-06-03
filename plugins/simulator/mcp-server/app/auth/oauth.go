@@ -57,6 +57,15 @@ func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error
 	h := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(h[:])
 
+	// CSRF state: a random nonce echoed back in the callback. Without it an
+	// attacker could feed our local callback a forged ?code=... (authorization
+	// code injection). We reject any callback whose state does not match.
+	stateBytes := make([]byte, 32)
+	if _, err := rand.Read(stateBytes); err != nil {
+		return nil, fmt.Errorf("failed to generate OAuth state: %w", err)
+	}
+	state := base64.RawURLEncoding.EncodeToString(stateBytes)
+
 	// Pick a random available port for the redirect server
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
@@ -72,6 +81,7 @@ func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error
 	params.Set("redirect_uri", redirectURI)
 	params.Set("code_challenge", codeChallenge)
 	params.Set("code_challenge_method", "S256")
+	params.Set("state", state)
 	if len(scopes) > 0 {
 		params.Set("scope", strings.Join(scopes, " "))
 	}
@@ -85,6 +95,15 @@ func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error
 
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
+		if got := q.Get("state"); got != state {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte(oauthPageHTML("Authentication Failed", "error",
+				"Authentication failed",
+				"State mismatch — possible CSRF. Please retry the login.",
+				"You may close this tab.")))
+			errCh <- fmt.Errorf("OAuth state mismatch (possible CSRF)")
+			return
+		}
 		if errCode := q.Get("error"); errCode != "" {
 			desc := q.Get("error_description")
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -180,10 +199,18 @@ func postTokenRequest(tokenURL string, data url.Values) (*Credentials, error) {
 		return nil, fmt.Errorf("no simulator_token in response: %s", string(body))
 	}
 
+	// If the token carries no usable exp claim, fall back to a conservative
+	// window rather than "never expires" (see jwtExpiry / IsExpired): that way
+	// a malformed/exp-less token is re-validated periodically instead of being
+	// trusted forever.
+	expiry := jwtExpiry(tr.SimulatorToken)
+	if expiry.IsZero() {
+		expiry = time.Now().Add(12 * time.Hour)
+	}
 	creds := &Credentials{
 		AccessToken: tr.SimulatorToken,
 		TokenType:   "Simulator",
-		ExpiresAt:   jwtExpiry(tr.SimulatorToken),
+		ExpiresAt:   expiry,
 	}
 	return creds, nil
 }

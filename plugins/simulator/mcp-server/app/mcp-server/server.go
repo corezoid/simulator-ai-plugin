@@ -3,8 +3,6 @@ package mcpserver
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -147,7 +145,7 @@ func shouldIncludeMethod(method string, includeMethods, excludeMethods []string)
 
 func CreateServer(swaggerSpec models.SwaggerSpec, config models.Config) {
 	mcpServer := server.NewMCPServer(
-		"swagegr-mcp",
+		"swagger-mcp",
 		"1.0.0",
 	)
 
@@ -720,7 +718,7 @@ func LoadSwaggerServer(mcpServer *server.MCPServer, swaggerSpec models.SwaggerSp
 				mcp.Description("Workspace ID (accId) to use for all Simulator API calls"),
 				mcp.Required(),
 			),
-			mcp.WithDescription("Save the Simulator workspace ID to .env as SIMULATOR_ACC_ID."),
+			mcp.WithDescription("Save the Simulator workspace ID to .env as WORKSPACE_ID."),
 		),
 		handleSetWorkspace,
 	)
@@ -1116,7 +1114,7 @@ func checkIfRequestBodyIsArray(op Operation) bool {
 				if mediaType.Schema.Ref != "" {
 					schemaName := ExtractSchemaName(mediaType.Schema.Ref, "")
 					if definition, found := getDefinition(globalSwaggerSpec, schemaName); found {
-						log.Printf("DEBUG: found definition %s with type: %s", schemaName, definition.Type)
+						debugf("DEBUG: found definition %s with type: %s", schemaName, definition.Type)
 						return definition.Type == "array"
 					}
 				}
@@ -1127,56 +1125,56 @@ func checkIfRequestBodyIsArray(op Operation) bool {
 	// Fallback: try to cast to map[string]interface{}
 	requestBodyMap, ok := op.RequestBody.(map[string]interface{})
 	if !ok {
-		log.Printf("DEBUG: RequestBody is neither *models.RequestBody nor map[string]interface{}")
+		debugf("DEBUG: RequestBody is neither *models.RequestBody nor map[string]interface{}")
 		return false
 	}
 
 	// Check the content field
 	content, exists := requestBodyMap["content"]
 	if !exists {
-		log.Printf("DEBUG: content field not found in RequestBody")
+		debugf("DEBUG: content field not found in RequestBody")
 		return false
 	}
 
 	contentMap, ok := content.(map[string]interface{})
 	if !ok {
-		log.Printf("DEBUG: content is not a map[string]interface{}")
+		debugf("DEBUG: content is not a map[string]interface{}")
 		return false
 	}
 
 	// Check application/json content type
 	appJson, exists := contentMap["application/json"]
 	if !exists {
-		log.Printf("DEBUG: application/json not found in content")
+		debugf("DEBUG: application/json not found in content")
 		return false
 	}
 
 	appJsonMap, ok := appJson.(map[string]interface{})
 	if !ok {
-		log.Printf("DEBUG: application/json is not a map[string]interface{}")
+		debugf("DEBUG: application/json is not a map[string]interface{}")
 		return false
 	}
 
 	// Check the schema
 	schema, exists := appJsonMap["schema"]
 	if !exists {
-		log.Printf("DEBUG: schema not found in application/json")
+		debugf("DEBUG: schema not found in application/json")
 		return false
 	}
 
 	schemaMap, ok := schema.(map[string]interface{})
 	if !ok {
-		log.Printf("DEBUG: schema is not a map[string]interface{}")
+		debugf("DEBUG: schema is not a map[string]interface{}")
 		return false
 	}
 
-	log.Printf("DEBUG: schema found: %+v", schemaMap)
+	debugf("DEBUG: schema found: %+v", schemaMap)
 
 	// Check if type is array
 	if schemaType, exists := schemaMap["type"]; exists {
-		log.Printf("DEBUG: schema type found: %v", schemaType)
+		debugf("DEBUG: schema type found: %v", schemaType)
 		if typeStr, ok := schemaType.(string); ok && typeStr == "array" {
-			log.Printf("DEBUG: schema type is array - returning true")
+			debugf("DEBUG: schema type is array - returning true")
 			return true
 		}
 	}
@@ -1184,16 +1182,16 @@ func checkIfRequestBodyIsArray(op Operation) bool {
 	// Check if schema has a reference to an array definition
 	if ref, exists := schemaMap["$ref"]; exists {
 		if refStr, ok := ref.(string); ok {
-			log.Printf("DEBUG: schema has $ref: %s", refStr)
+			debugf("DEBUG: schema has $ref: %s", refStr)
 			schemaName := ExtractSchemaName(refStr, "")
 			if definition, found := getDefinition(globalSwaggerSpec, schemaName); found {
-				log.Printf("DEBUG: found definition %s with type: %s", schemaName, definition.Type)
+				debugf("DEBUG: found definition %s with type: %s", schemaName, definition.Type)
 				return definition.Type == "array"
 			}
 		}
 	}
 
-	log.Printf("DEBUG: no array indication found - returning false")
+	debugf("DEBUG: no array indication found - returning false")
 	return false
 }
 
@@ -2485,7 +2483,7 @@ func handleLogin(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToo
 	return mcp.NewToolResultText("Authentication successful! Token saved to .env. You can now use Simulator tools."), nil
 }
 
-// handleSetWorkspace saves the workspace ID (accId) to .env as SIMULATOR_ACC_ID.
+// handleSetWorkspace saves the workspace ID (accId) to .env as WORKSPACE_ID.
 func handleSetWorkspace(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args := request.GetArguments()
 	accID, ok := args["acc_id"].(string)
@@ -2663,17 +2661,17 @@ func ensureAuth(ctx context.Context) *mcp.CallToolResult {
 
 func executeOperation(ctx context.Context, op Operation, queryParams, headerParams, bodyParams map[string]interface{}, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	currentReqURL := op.URL
-	log.Printf("DEBUG: pathParams called for operation %+v, URL: %s", queryParams, currentReqURL)
+	debugf("DEBUG: pathParams called for operation %+v, URL: %s", queryParams, currentReqURL)
 
 	// Handle path parameters
 	for _, param := range op.Parameters {
-		log.Printf("DEBUG: Found  parameter: %+v", param)
+		debugf("DEBUG: Found  parameter: %+v", param)
 		if param.TIn == "path" {
 
 			if queryParams != nil {
 				if paramValue, exists := queryParams[param.Name]; exists {
 					if paramStr, ok := paramValue.(string); ok {
-						log.Printf("DEBUG: Replacing path parameter %s with value %s, in URL %s", param.Name, paramStr, currentReqURL)
+						debugf("DEBUG: Replacing path parameter %s with value %s, in URL %s", param.Name, paramStr, currentReqURL)
 						currentReqURL = strings.Replace(currentReqURL, fmt.Sprintf("{%s}", param.Name), paramStr, 1)
 					} else {
 						if paramBool, ok := paramValue.(bool); ok {
@@ -2740,7 +2738,7 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 	if bodyStr, ok := request.GetArguments()["body"].(string); ok && bodyStr != "" {
 		// Check if the schema expects an array and wrap the body parameter if needed
 		isArray := checkIfRequestBodyIsArray(op)
-		log.Printf("DEBUG: checkIfRequestBodyIsArray returned: %t for operation %s", isArray, op.ID)
+		debugf("DEBUG: checkIfRequestBodyIsArray returned: %t for operation %s", isArray, op.ID)
 
 		if isArray {
 			// First, try to unmarshal the original body string to check if it's already an array
@@ -2748,7 +2746,7 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 			if err := json.Unmarshal([]byte(bodyStr), &originalBody); err == nil {
 				// Check if the original body is already an array
 				if _, isSlice := originalBody.([]interface{}); isSlice {
-					log.Printf("DEBUG: Body is already an array, using as-is")
+					debugf("DEBUG: Body is already an array, using as-is")
 					reqBodyBytes, _ = json.Marshal(originalBody)
 				} else {
 					// Convert body to array
@@ -2756,7 +2754,7 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 					reqBodyBytes, _ = json.Marshal(arrayBody)
 				}
 			} else {
-				log.Printf("DEBUG: Failed to unmarshal original body, error: %v", err)
+				debugf("DEBUG: Failed to unmarshal original body, error: %v", err)
 				return mcp.NewToolResultError(fmt.Sprintf("[Error] invalid JSON in body parameter: %v", err)), nil
 			}
 
@@ -2775,13 +2773,13 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 					}
 				}
 			}
-			log.Printf("DEBUG: Using body as-is: %s", string(reqBodyBytes))
+			debugf("DEBUG: Using body as-is: %s", string(reqBodyBytes))
 		}
 		hasBody = true
 	} else if bodyParams != nil && len(bodyParams) > 0 {
 		// Fallback: use bodyParams if available
 		reqBodyBytes, _ = json.Marshal(bodyParams)
-		log.Printf("DEBUG: Using bodyParams: %s", string(reqBodyBytes))
+		debugf("DEBUG: Using bodyParams: %s", string(reqBodyBytes))
 		hasBody = true
 	}
 
@@ -2814,7 +2812,7 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 			}
 		}
 	}
-	log.Printf("Request  : %s %s %s %s\n", strings.ToUpper(op.Method), string(reqBodyBytes), currentReqURL, req.Header)
+	debugf("Request  : %s %s %s %s\n", strings.ToUpper(op.Method), string(reqBodyBytes), currentReqURL, req.Header)
 
 	// Add Authorization header if configured
 	if globalApiConfig.Authorization != "" {
@@ -2826,13 +2824,9 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	// Execute request
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
-	resp, err := client.Do(req)
+	// Execute request via the shared client (has a Timeout so a stalled upstream
+	// can't pin this goroutine; TLS verification controlled by --insecure).
+	resp, err := apiHTTPClient().Do(req)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to make HTTP request: %v", err)), nil
 	}
@@ -2845,68 +2839,6 @@ func executeOperation(ctx context.Context, op Operation, queryParams, headerPara
 
 	log.Printf("Response : %d %.500s\n", resp.StatusCode, body)
 	return mcp.NewToolResultText(string(body)), nil
-}
-
-func setRequestSecurity(req *http.Request, security string, basicAuth string, apiKeyAuth string, bearerAuth string) {
-	securityType := strings.TrimSpace(security)
-
-	// basic auth
-	if securityType == "basic" && basicAuth != "" {
-		auth := base64.StdEncoding.EncodeToString([]byte(basicAuth))
-		req.Header.Set("Authorization", "Basic "+auth)
-	}
-
-	// bearer auth
-	if securityType == "bearer" && bearerAuth != "" {
-		req.Header.Set("Authorization", "Bearer "+bearerAuth)
-	}
-
-	// apiKey auth
-	// Example: header:token=abc,query:token=xyz,cookie:sid=ccc
-	queryValues := make(map[string]string)
-	cookieValues := []*http.Cookie{}
-	if securityType == "apiKey" && apiKeyAuth != "" {
-		for _, part := range strings.Split(apiKeyAuth, ",") {
-			part = strings.TrimSpace(part)
-			if part == "" {
-				continue
-			}
-			// format passAs:name=value
-			colonIdx := strings.Index(part, ":")
-			eqIdx := strings.Index(part, "=")
-			if colonIdx == -1 || eqIdx == -1 || eqIdx < colonIdx+2 {
-				continue
-			}
-			passAs := strings.ToLower(strings.TrimSpace(part[:colonIdx]))
-			name := strings.TrimSpace(part[colonIdx+1 : eqIdx])
-			value := strings.TrimSpace(part[eqIdx+1:])
-			switch passAs {
-			case "header":
-				req.Header.Set(name, value)
-			case "query":
-				queryValues[name] = value
-			case "cookie":
-				cookieValues = append(cookieValues, &http.Cookie{Name: name, Value: value})
-			}
-		}
-	}
-	// add query
-	if len(queryValues) > 0 {
-		origUrl := req.URL.String()
-		u, err := url.Parse(origUrl)
-		if err == nil {
-			q := u.Query()
-			for k, v := range queryValues {
-				q.Set(k, v)
-			}
-			u.RawQuery = q.Encode()
-			req.URL = u
-		}
-	}
-	// add cookie
-	for _, c := range cookieValues {
-		req.AddCookie(c)
-	}
 }
 
 // initializeResources scans the data/resources directory and adds them as MCP resources
@@ -3152,7 +3084,9 @@ func handleResourceRead(ctx context.Context, request mcp.ReadResourceRequest) ([
 		return nil, fmt.Errorf("failed to get absolute path: %v", err)
 	}
 
-	if !strings.HasPrefix(absFullPath, absResourcePath) {
+	// Require a path separator after the base dir so a sibling like
+	// data/resources2/secret can't satisfy a bare HasPrefix("data/resources").
+	if absFullPath != absResourcePath && !strings.HasPrefix(absFullPath, absResourcePath+string(filepath.Separator)) {
 		return nil, fmt.Errorf("access denied: %s", uri)
 	}
 

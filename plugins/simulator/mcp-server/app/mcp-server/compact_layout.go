@@ -2,14 +2,12 @@ package mcpserver
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -29,11 +27,11 @@ import (
 // `strategy` arg is reserved for future force-directed / hierarchical layouts.
 
 type compactStats struct {
-	Clusters          int `json:"clusters"`
-	BucketActors      int `json:"bucketActors"`
+	Clusters           int `json:"clusters"`
+	BucketActors       int `json:"bucketActors"`
 	ChildrenPositioned int `json:"childrenPositioned"`
 	LeftoverPositioned int `json:"leftoverPositioned"`
-	PlacementsMoved   int `json:"placementsMoved"`
+	PlacementsMoved    int `json:"placementsMoved"`
 }
 
 type compactPlacement struct {
@@ -85,12 +83,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 		nodeDY = 95
 	}
 
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := apiHTTPClient()
 	apiGet := func(url string) ([]byte, error) {
 		hr, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 		hr.Header.Set("Authorization", globalApiConfig.Authorization)
@@ -240,7 +233,20 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	}
 
 	// 5) Layout: clusters in a super-grid, children within each cluster.
-	rowsPerCluster := 5
+	// Reserve vertical space for the tallest cluster so rows of clusters don't
+	// overlap. A previous fixed rowsPerCluster=5 truncated the reserved height
+	// for clusters with more than 5*nodesPerRow children, overlapping the row
+	// of clusters below them.
+	maxChildren := 0
+	for _, kids := range clusterChildren {
+		if len(kids) > maxChildren {
+			maxChildren = len(kids)
+		}
+	}
+	rowsPerCluster := (maxChildren + nodesPerRow - 1) / nodesPerRow
+	if rowsPerCluster < 1 {
+		rowsPerCluster = 1
+	}
 	clusterW := nodesPerRow*nodeDX + 40
 	clusterH := (rowsPerCluster+1)*nodeDY + 40
 	gapX := 60

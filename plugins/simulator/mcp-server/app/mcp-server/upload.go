@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -80,12 +78,7 @@ func uploadFile(ctx context.Context, accID string, filename string, contentType 
 	req.Header.Set("Authorization", globalApiConfig.Authorization)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := apiHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("http request: %w", err)
@@ -125,12 +118,7 @@ func setActorPicture(ctx context.Context, formID int, actorID, picture string) e
 	req.Header.Set("Authorization", globalApiConfig.Authorization)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := apiHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("http request: %w", err)
@@ -153,12 +141,7 @@ func fetchImageFromURL(ctx context.Context, url string) ([]byte, string, error) 
 	req.Header.Set("User-Agent",
 		"simulator-ai-plugin/uploadActorPicture (+https://github.com/corezoid/simulator-ai-plugin)")
 
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	client := apiHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
@@ -172,6 +155,21 @@ func fetchImageFromURL(ctx context.Context, url string) ([]byte, string, error) 
 		return nil, "", err
 	}
 	return data, resp.Header.Get("Content-Type"), nil
+}
+
+// decodeBase64Flexible decodes a base64 string accepting both standard and
+// URL-safe alphabets, with or without padding. Data URIs, JWT-style payloads
+// and many image tools emit URL-safe base64, which StdEncoding alone rejects.
+func decodeBase64Flexible(s string) ([]byte, error) {
+	for _, enc := range []*base64.Encoding{
+		base64.StdEncoding, base64.RawStdEncoding,
+		base64.URLEncoding, base64.RawURLEncoding,
+	} {
+		if b, err := enc.DecodeString(s); err == nil {
+			return b, nil
+		}
+	}
+	return nil, fmt.Errorf("invalid base64 (tried std/url, padded/raw)")
 }
 
 // guessContentType picks a reasonable MIME based on filename extension.
@@ -252,7 +250,7 @@ func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mc
 		if i := strings.Index(b64, "base64,"); i >= 0 {
 			b64 = b64[i+len("base64,"):]
 		}
-		b, err := base64.StdEncoding.DecodeString(b64)
+		b, err := decodeBase64Flexible(b64)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] decode base64: %v", err)), nil
 		}
@@ -416,7 +414,7 @@ func handleUploadActorPictureBulk(ctx context.Context, req mcp.CallToolRequest) 
 			if i := strings.Index(b64, "base64,"); i >= 0 {
 				b64 = b64[i+len("base64,"):]
 			}
-			b, err := base64.StdEncoding.DecodeString(b64)
+			b, err := decodeBase64Flexible(b64)
 			if err != nil {
 				results = append(results, uploadBulkItemResult{
 					ActorID: actorID, Status: "error",

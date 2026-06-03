@@ -5,7 +5,14 @@ import (
 	"fmt"
 )
 
-//go:embed swagger/sim-public-swagger.json
+// sim-public-swagger.full.json is the full /papi/1.0 surface (185 ops) generated
+// from the live spec (https://mw.simulator.company/api/1.0/doc/json) by
+// scripts/enrich-spec.py, which back-fills the operationId/summary the live spec
+// lacks. The hand-curated sim-public-swagger.json (48) / -all.json (80) are kept
+// as the reuse source for that script (they carry the canonical operationIds the
+// server special-cases depend on). Regenerate via `make enrich-spec`.
+//
+//go:embed swagger/sim-public-swagger.full.json
 var simPublicSwagger []byte
 
 var builtinSpecs = map[string][]byte{
