@@ -44,6 +44,7 @@ enables verbose logging.
 mcp-server/
 ├── cmd/server/        # entry point: profile → apiclient → curated + engine tools → stdio
 ├── cmd/gendiscovery/  # regenerate public/ discovery artifacts from SKILL.md files
+├── cmd/evalrunner/    # behavioural eval: drive a model through eval-scenarios.json (opt-in)
 ├── internal/
 │   ├── config/        # local/prod profiles (env + profiles.json overridable)
 │   ├── apiclient/     # HTTP: base URL, auth header, accId injection, timeouts, errors
@@ -65,6 +66,7 @@ make test          # go test ./...   — config, apiclient, tools (scenarios, -r
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
 make run-local     # go run ./cmd/server --profile local
 make run-prod      # go run ./cmd/server --profile prod
+make eval          # behavioural eval (needs ANTHROPIC_API_KEY; skips otherwise)
 ```
 
 ## Keeping in sync with the backend

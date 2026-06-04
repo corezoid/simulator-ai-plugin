@@ -25,6 +25,7 @@ const (
 	InQuery    ParamIn = "query"     // appended to the query string
 	InBody     ParamIn = "body"      // a named field in the JSON request body
 	InBodyRoot ParamIn = "body_root" // this single param IS the entire request body
+	InLocal    ParamIn = "local"     // consumed by Resolve only; never sent to the API
 )
 
 // Param is one typed tool argument.
@@ -46,6 +47,10 @@ type Operation struct {
 	Path    string
 	Summary string
 	Params  []Param
+
+	// Resolve, if set, runs before the request is assembled and may mutate args
+	// (e.g. resolve a friendly name to an id). A returned error aborts the call.
+	Resolve func(ctx context.Context, args map[string]any, c *apiclient.Client) error
 }
 
 // register builds the MCP tool for op and wires its handler to the client.
@@ -85,6 +90,11 @@ func paramOption(p Param) mcp.ToolOption {
 func makeHandler(c *apiclient.Client, op Operation) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		args := req.GetArguments()
+		if op.Resolve != nil {
+			if err := op.Resolve(ctx, args, c); err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("[Error] %s: %v", op.Name, err)), nil
+			}
+		}
 		path := op.Path
 		query := url.Values{}
 		body := map[string]any{}
@@ -108,11 +118,20 @@ func makeHandler(c *apiclient.Client, op Operation) server.ToolHandlerFunc {
 			case InPath:
 				path = strings.ReplaceAll(path, "{"+p.Name+"}", url.PathEscape(toString(val)))
 			case InQuery:
+				// Optional boolean query flags are presence-truthy on the backend;
+				// omit them when false so "false" is not misread as "enabled".
+				if p.Type == "boolean" && !p.Required {
+					if b, ok := val.(bool); ok && !b {
+						continue
+					}
+				}
 				query.Set(p.Name, toString(val))
 			case InBody:
 				body[p.Name] = val
 			case InBodyRoot:
 				bodyRoot = val
+			case InLocal:
+				// consumed by op.Resolve; not placed in the request
 			}
 		}
 

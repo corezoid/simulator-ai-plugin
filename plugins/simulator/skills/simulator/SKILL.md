@@ -202,8 +202,8 @@ Call tools by these exact names:
 - **Auth:** `login`, `set-workspace`
 
 Key rules:
-- **`createActor` takes a numeric `formId`** (no `formName` resolution). First obtain the
-  form id via `getForms`/`getForm`, then call `createActor`.
+- **`createActor` accepts `formId` (number) or `formName`** — pass `formName` and it is
+  resolved to the form id via the active workspace; pass `formId` directly to skip the lookup.
 - Placing nodes/edges on a layer uses **`manageLayerActors`** (the former `manageLayer`).
 - `accId` defaults to the active workspace (`set-workspace`); pass it only to override.
 - Run `login` then `set-workspace` before other tools.

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 
@@ -189,6 +190,47 @@ func TestConcurrentWorkspaceAccess(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+// TestCreateActorResolvesFormName verifies createActor accepts a friendly form
+// name, looks it up, and POSTs to the resolved numeric formId.
+func TestCreateActorResolvesFormName(t *testing.T) {
+	var actorPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/forms/templates/") {
+			_, _ = w.Write([]byte(`{"data":[{"id":5,"title":"Task"},{"id":334704,"title":"Car"}]}`))
+			return
+		}
+		actorPath = r.URL.Path
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	t.Cleanup(srv.Close)
+	c := apiclient.New(srv.URL, "WS", func() (string, error) { return "t", nil }, false)
+
+	res := call(t, c, opByName(t, "createActor"),
+		map[string]any{"formName": "Car", "data": map[string]any{"vin": "X"}})
+	if res.IsError {
+		t.Fatalf("unexpected error: %+v", res.Content)
+	}
+	if actorPath != "/actors/actor/334704" {
+		t.Errorf("actor POST path = %q, want /actors/actor/334704 (formName resolved)", actorPath)
+	}
+}
+
+// TestOptionalBooleanQueryOmittedWhenFalse verifies an optional boolean query
+// flag is dropped when false and sent when true.
+func TestOptionalBooleanQueryOmittedWhenFalse(t *testing.T) {
+	c, rec := setup(t)
+	call(t, c, opByName(t, "getForms"), map[string]any{"withRelations": false})
+	if rec.query != "" {
+		t.Errorf("query = %q, want empty (false flag omitted)", rec.query)
+	}
+
+	c2, rec2 := setup(t)
+	call(t, c2, opByName(t, "getForms"), map[string]any{"withRelations": true})
+	if rec2.query != "withRelations=true" {
+		t.Errorf("query = %q, want withRelations=true", rec2.query)
+	}
 }
 
 // TestQueryParam verifies query params are forwarded.

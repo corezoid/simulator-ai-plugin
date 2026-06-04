@@ -8,6 +8,7 @@ help:
 	@echo "  discovery       Regenerate public/.well-known/skills/index.json and public/llms.txt."
 	@echo "  run-local       Run the MCP server against a local pong-server (:9000)."
 	@echo "  run-prod        Run the MCP server against the public gateway."
+	@echo "  eval            Behavioural eval (needs ANTHROPIC_API_KEY; skips otherwise)."
 
 # Regenerate AI-discovery artifacts (public/) from the plugin SKILL.md files.
 discovery:
@@ -27,3 +28,8 @@ run-local:
 
 run-prod:
 	cd $(MCP) && go run ./cmd/server --profile prod
+
+# Behavioural eval: drive a model through eval-scenarios.json and check it calls
+# the expected tools. No-op without ANTHROPIC_API_KEY.
+eval:
+	cd $(MCP) && go run ./cmd/evalrunner

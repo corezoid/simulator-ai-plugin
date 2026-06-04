@@ -297,14 +297,21 @@ replaces the 3k-line `server.go`: simple CRUD is generated from the curated spec
     It already caught a phantom `getApplication` (no backend route — removed). Refresh the spec
     by re-running the dump and copying it over. *(A future step can switch the registry to
     generate tools from this spec; the gate already guards the hand-declared ops against drift.)*
-11. ✅ **Eval harness (structural)** — `internal/tools/testdata/eval-scenarios.json` (10 NL
-    scenarios → expected tool sequences) + `eval_test.go` asserting every referenced tool is
-    real. The behavioural half (drive a model through each prompt against a throwaway workspace,
-    assert it issues ≥ these tools) runs with an LLM + live server — left as the CI/manual step.
+11. ✅ **Eval harness** — structural: `eval-scenarios.json` (10 NL scenarios → expected tool
+    sequences) + `eval_test.go` asserting every referenced tool is real. **Behavioural:**
+    `cmd/evalrunner` (`make eval`) spawns the real server (`tools/list`), drives a Claude model
+    through each prompt via the Anthropic API in a bounded tool-use loop (stubbed results — no
+    backend writes), and checks the expected tools were called. Opt-in: skips without
+    `ANTHROPIC_API_KEY`.
+12. ✅ **Graph-sync unit tests** — `internal/engines/graphsync_test.go`: the diff's decision
+    primitives (`formIDFromLayerActor`, form-name cache + nested resolution, actor-formId cache,
+    override) plus an end-to-end `pushGraph` test driving the full diff (fetch → diff → delete)
+    against a mock backend.
 
-> **Known limitations (current increment):** `createActor` takes a numeric `formId` only
-> (no `formName` resolution yet — skills should look up the form first); optional boolean
-> params are sent verbatim and cannot express "absent". Both are tracked for follow-up.
+> **Resolved follow-ups:** `createActor` now accepts `formName` (resolved to the form id);
+> optional boolean **query** flags are omitted when false (so `false` is not misread as
+> "enabled"). Remaining: switching the registry to spec-generated tools is still optional
+> (the drift gate already guards the hand-declared ops).
 
 ## 8. Environment auth (local mirrors production)
 

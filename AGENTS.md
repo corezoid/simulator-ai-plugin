@@ -23,6 +23,7 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before making non-trivial ch
 plugins/simulator/mcp-server/   Go MCP server (Go 1.24+, mark3labs/mcp-go)
   cmd/server/                   entry point: profile → apiclient → tools → stdio
   cmd/gendiscovery/             regenerate public/ discovery artifacts
+  cmd/evalrunner/               behavioural eval (opt-in; needs ANTHROPIC_API_KEY)
   internal/config/              local/prod profiles (env + profiles.json overridable)
   internal/apiclient/           HTTP client: base URL, auth header, accId, timeouts, errors
   internal/tools/               curated typed Operation registry (op.go) + per-domain files
@@ -46,6 +47,7 @@ make test          # go test ./...   — config, apiclient, tools (scenarios, -r
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
 make run-local     # go run ./cmd/server --profile local   (dev pong-server :9000)
 make run-prod      # go run ./cmd/server --profile prod
+make eval          # behavioural eval — drives a model through eval-scenarios.json (opt-in)
 ```
 
 Run the server directly (no build step — hosts use `go run ./cmd/server`):

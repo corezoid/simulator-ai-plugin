@@ -1,13 +1,60 @@
 package tools
 
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
+)
+
+// resolveActorFormID lets createActor accept a friendly `formName` instead of a
+// numeric `formId`: if formId is absent but formName is given, it looks the form
+// up by title in the active workspace and fills formId.
+func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.Client) error {
+	if _, ok := args["formId"]; ok {
+		return nil // explicit formId wins
+	}
+	name, _ := args["formName"].(string)
+	if name == "" {
+		return nil // neither given — the path check reports the missing formId
+	}
+	accID := c.WorkspaceID()
+	if accID == "" {
+		return fmt.Errorf("resolving formName needs a workspace — run set-workspace or pass formId")
+	}
+	resp, err := c.Do(ctx, "GET", "/forms/templates/"+accID, nil, nil)
+	if err != nil {
+		return fmt.Errorf("list forms to resolve %q: %w", name, err)
+	}
+	var out struct {
+		Data []struct {
+			ID    int    `json:"id"`
+			Title string `json:"title"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &out); err != nil {
+		return fmt.Errorf("parse forms list: %w", err)
+	}
+	for _, f := range out.Data {
+		if f.Title == name {
+			args["formId"] = float64(f.ID) // JSON-number arg type, like the model would send
+			return nil
+		}
+	}
+	return fmt.Errorf("form %q not found in the active workspace", name)
+}
+
 // actorOps — actor (graph node) CRUD. Actors are instances of a form; their
 // fields live in the free-form `data` object keyed by the form's field schema.
 var actorOps = []Operation{
 	{
 		Name: "createActor", Method: "POST", Path: "/actors/actor/{formId}",
-		Summary: "Create an actor (graph node) of a given form. `data` holds the field values keyed by the form's schema.",
+		Summary: "Create an actor (graph node) of a given form. Pass `formId` (number) or `formName` (resolved to its id). `data` holds the field values keyed by the form's schema.",
+		Resolve: resolveActorFormID,
 		Params: []Param{
-			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id this actor instantiates."},
+			{Name: "formId", In: InPath, Type: "number", Desc: "Form id this actor instantiates. Provide formId or formName."},
+			{Name: "formName", In: InLocal, Type: "string", Desc: "Form name — resolved to its id via the active workspace. Provide formId or formName."},
 			{Name: "data", In: InBody, Type: "object", Required: true, Desc: "Field values keyed by the form's field names."},
 			{Name: "title", In: InBody, Type: "string", Desc: "Actor title shown on the graph."},
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},

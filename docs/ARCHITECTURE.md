@@ -284,21 +284,26 @@ The module ships tests under `internal/`:
 - **config** — profile resolution (defaults, env overrides, unknown-profile error);
 - **apiclient** — request building (method/path/query/body/auth) and non-2xx → `APIError`;
 - **tools** — scenario tests driving handlers against a mock server, accId defaulting,
-  required-param enforcement, empty-object body, a `-race` concurrency test, the spec
-  **drift gate**, and the **eval** scenario/tool-existence check;
-- **engines** — tool-registration smoke test + base-URL config.
+  required-param enforcement, empty-object body, `formName` resolution, boolean-query
+  omission, a `-race` concurrency test, the spec **drift gate**, and the **eval** check;
+- **engines** — graph-sync diff: decision primitives (`formIDFromLayerActor`, form-name
+  cache + nested resolution, actor-formId cache/override) plus an end-to-end `pushGraph`
+  test against a mock backend; tool-registration smoke test + base-URL config.
+
+Eval harness:
+
+- **Structural** (`internal/tools/eval_test.go`): asserts every tool named in
+  `eval-scenarios.json` exists.
+- **Behavioural** (`cmd/evalrunner`, `make eval`): spawns the real server, drives a Claude
+  model through each prompt via the Anthropic API (bounded tool-use loop, stubbed results),
+  and checks the expected tools were called. Opt-in — skips without `ANTHROPIC_API_KEY`.
 
 Backlog:
 
-- **Graph-sync unit tests.** The ported `sync_graph.go` / `push_graph.go` diff has no
-  dedicated unit tests yet — the highest-value gap.
-- **Behavioural eval.** `eval-scenarios.json` lists NL prompts → expected tool sequences;
-  the structural test asserts those tools exist, but driving a model through the prompts
-  against a throwaway workspace is still a CI/manual step.
-- **`createActor` takes a numeric `formId`** (no `formName` resolution) and optional boolean
-  params are sent verbatim (cannot express "absent"); both tracked in `INTEGRATION.md`.
 - **Spec-driven registry (future).** Tools are hand-declared; the drift gate guards them
   against backend drift, so generating them from the spec is optional cleanup, not required.
+- **Live behavioural eval in CI.** `cmd/evalrunner` is read-only (stubbed tool results);
+  executing tool calls against a throwaway workspace would test end-to-end behaviour too.
 
 ---
 
