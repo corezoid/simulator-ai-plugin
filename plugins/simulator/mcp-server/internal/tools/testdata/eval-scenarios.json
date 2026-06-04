@@ -20,6 +20,11 @@
     "tools": ["searchActors"]
   },
   {
+    "name": "Semantic search",
+    "prompt": "Find actors related to \"vehicle maintenance costs\" by meaning, not exact words.",
+    "tools": ["searchAll"]
+  },
+  {
     "name": "Add an account and record a transaction",
     "prompt": "On the Camry, track a USD maintenance expense and record a $450 service.",
     "tools": ["getCurrencies", "getAccountNames", "createAccount", "createTransaction"]

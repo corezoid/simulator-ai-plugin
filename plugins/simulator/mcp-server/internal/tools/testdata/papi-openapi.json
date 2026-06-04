@@ -12250,6 +12250,90 @@
         }
       }
     },
+    "/papi/1.0/search/{accId}/{query}": {
+      "get": {
+        "operationId": "searchAll",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filters",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "semanticSearch",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "text",
+                "semantic"
+              ]
+            },
+            "in": "query",
+            "name": "searchType",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "formId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "accId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2
+            },
+            "in": "path",
+            "name": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/graph_layers/actors/{actorId}": {
       "post": {
         "operationId": "manageLayerActors",

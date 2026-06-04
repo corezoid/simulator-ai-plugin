@@ -205,6 +205,7 @@ backend operation, with typed parameters:
 | Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `manageLayerActors`            |
 | Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
+| Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Auth          | `login` `set-workspace`                                                                |
 
 **Engine tools** (`internal/engines`) — multi-call workflows and client-side computation

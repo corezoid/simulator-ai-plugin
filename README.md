@@ -156,6 +156,7 @@ scenarios — forms, actors, accounts, transactions, graph building, application
 | Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `manageLayerActors`            |
 | Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
+| Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Auth          | `login` `set-workspace`                                                                |
 
 **Engine tools** (multi-call workflows + client-side computation):

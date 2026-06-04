@@ -198,14 +198,16 @@ Call tools by these exact names:
 - **Transactions:** `createTransaction`, `finalizeTransaction`, `getTransactions`, `createTransfer`, `getTransfer`
 - **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`
 - **Applications / smart forms:** `createApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent` (read an application with `getActor` — it is an actor)
+- **Search:** `searchAll` — global workspace search across actors/users, **text or semantic** (vector); `filters` picks targets, `searchType=semantic` for meaning-based lookup
 - **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`
 - **Auth:** `login`, `set-workspace`
 
 Key rules:
 - **Check before you create.** To avoid duplicates, first look for an existing entity:
-  `searchForms`/`getForms` for forms, `searchActors` (workspace) or `searchLayerActors`
-  (one layer) or `getActorByRef` (exact external ref) for actors, `getForms`+`getAccounts`
-  for accounts, `getCurrencies`/`getAccountNames` for reference data. Create only if absent.
+  `searchForms`/`getForms` for forms; `searchActors` (workspace), `searchLayerActors`
+  (one layer), `getActorByRef` (exact ref), or `searchAll` (global text/**semantic** search)
+  for actors; `getForms`+`getAccounts` for accounts; `getCurrencies`/`getAccountNames` for
+  reference data. Create only if absent.
 - **`createActor` accepts `formId` (number) or `formName`** — pass `formName` and it is
   resolved to the form id via the active workspace; pass `formId` directly to skip the lookup.
 - Placing nodes/edges on a layer uses **`manageLayerActors`** (the former `manageLayer`).

@@ -20,6 +20,7 @@ func allOps() []Operation {
 	ops = append(ops, transactionOps...)
 	ops = append(ops, graphOps...)
 	ops = append(ops, appOps...)
+	ops = append(ops, searchOps...)
 	return ops
 }
 
