@@ -21,6 +21,7 @@ func allOps() []Operation {
 	ops = append(ops, graphOps...)
 	ops = append(ops, appOps...)
 	ops = append(ops, searchOps...)
+	ops = append(ops, workspaceOps...)
 	return ops
 }
 
@@ -49,19 +50,29 @@ func registerAuth(s *server.MCPServer, c *apiclient.Client, prof config.Profile)
 			if err := auth.Save(creds); err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to save token: %v", err)), nil
 			}
-			return mcp.NewToolResultText("Authenticated. Token saved to .env. Now call set-workspace with your workspace id (accId)."), nil
+			return mcp.NewToolResultText("Authenticated. Token saved to .env. Next: call getWorkspaces to list your workspaces, show them to the user to pick one, then call set-workspace (by accId or name)."), nil
 		},
 	)
 
 	s.AddTool(
 		mcp.NewTool("set-workspace",
-			mcp.WithDescription("Save the active workspace id (accId) to .env so it is used as the default for all tools."),
-			mcp.WithString("accId", mcp.Required(), mcp.Description("Workspace id.")),
+			mcp.WithDescription("Save the active workspace to .env as the default for all tools. Pass `accId`, or `name` to resolve it among your workspaces (list them with getWorkspaces) — so you can pick a workspace without knowing its id."),
+			mcp.WithString("accId", mcp.Description("Workspace id. Provide accId or name.")),
+			mcp.WithString("name", mcp.Description("Workspace name — resolved to its id among your workspaces. Provide accId or name.")),
 		),
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			accID, ok := req.GetArguments()["accId"].(string)
-			if !ok || accID == "" {
-				return mcp.NewToolResultError("[Error] missing or invalid accId"), nil
+			args := req.GetArguments()
+			accID, _ := args["accId"].(string)
+			if accID == "" {
+				name, _ := args["name"].(string)
+				if name == "" {
+					return mcp.NewToolResultError("[Error] provide accId or name (use getWorkspaces to list your workspaces)"), nil
+				}
+				resolved, err := resolveWorkspaceName(ctx, c, name)
+				if err != nil {
+					return mcp.NewToolResultError(fmt.Sprintf("[Error] %v", err)), nil
+				}
+				accID = resolved
 			}
 			if err := auth.SaveWorkspaceID(accID); err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to save workspace id: %v", err)), nil

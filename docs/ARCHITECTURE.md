@@ -206,7 +206,7 @@ backend operation, with typed parameters:
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `manageLayerActors`            |
 | Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
-| Auth          | `login` `set-workspace`                                                                |
+| Setup         | `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
 **Engine tools** (`internal/engines`) — multi-call workflows and client-side computation
 ported from the original implementation:

@@ -76,7 +76,7 @@ Restart Claude Code / Codex after updating to apply the new version.
 
 ## Authentication
 
-On the first Simulator operation Claude detects that no token is present and runs the `login` tool automatically — your browser opens at `account.corezoid.com` for OAuth2 sign-in and the session continues without interruption. After login Claude uses MCP elicitation to let you pick a workspace from the list returned by the account API.
+On the first Simulator operation Claude runs the `login` tool — your browser opens for OAuth2 sign-in (at the profile's account URL: `account.corezoid.com` for prod, `account.pre.corezoid.com` for local) and the token is saved. Claude then lists your workspaces with `getWorkspaces` and lets you pick one **by name**; `set-workspace` (by `name` or `accId`) saves the choice as `WORKSPACE_ID`. You never need to know the workspace id.
 
 The token is saved to `.env` in your working directory (mode `0600`) and reused on every subsequent session. When it expires, the login flow triggers again automatically.
 
@@ -157,7 +157,7 @@ scenarios — forms, actors, accounts, transactions, graph building, application
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `manageLayerActors`            |
 | Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
-| Auth          | `login` `set-workspace`                                                                |
+| Setup         | `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
 **Engine tools** (multi-call workflows + client-side computation):
 

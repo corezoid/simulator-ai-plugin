@@ -200,7 +200,7 @@ Call tools by these exact names:
 - **Applications / smart forms:** `createApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent` (read an application with `getActor` — it is an actor)
 - **Search:** `searchAll` — global workspace search across actors/users, **text or semantic** (vector); `filters` picks targets, `searchType=semantic` for meaning-based lookup
 - **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`
-- **Auth:** `login`, `set-workspace`
+- **Setup:** `login`, `getWorkspaces` (list your workspaces by name), `set-workspace` (by `accId` or `name`)
 
 Key rules:
 - **Check before you create.** To avoid duplicates, first look for an existing entity:
@@ -212,7 +212,8 @@ Key rules:
   resolved to the form id via the active workspace; pass `formId` directly to skip the lookup.
 - Placing nodes/edges on a layer uses **`manageLayerActors`** (the former `manageLayer`).
 - `accId` defaults to the active workspace (`set-workspace`); pass it only to override.
-- Run `login` then `set-workspace` before other tools.
+- Setup order: `login` → `getWorkspaces` (show names, let the user pick) → `set-workspace`
+  (`name=…` resolves the id, or `accId=…`). The user need not know the workspace id.
 
 > Note: some examples in the specialist skills below still reference older tool names
 > (e.g. `manageLayer`, `searchActors`, `createActors`); prefer the curated names above.
