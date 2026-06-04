@@ -9,6 +9,8 @@ description: >
   to form", "define actor schema", or "what system forms are available".
 ---
 
+> **Curated tool names (v2 server).** Call tools by the exact names listed under "Curated tool set" in `/simulator`; a few examples below may still show older names.
+
 # Simulator.Company Form Designer
 
 You are a specialist in designing form templates for Simulator.Company using the

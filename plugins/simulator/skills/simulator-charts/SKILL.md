@@ -15,6 +15,8 @@ description: >
     "fetch chart metrics", "dashboard data".
 ---
 
+> **Curated tool names (v2 server).** Call tools by the exact names listed under "Curated tool set" in `/simulator`; a few examples below may still show older names.
+
 # Simulator.Company Chart Builder
 
 You are a specialist in creating financial chart dashboards on Simulator.Company
