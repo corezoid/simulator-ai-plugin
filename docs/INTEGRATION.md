@@ -268,8 +268,9 @@ replaces the 3k-line `server.go`: simple CRUD is generated from the curated spec
 
 ### Migration sequence & status
 
-1. ⏳ **pong-server**: add `operationId` to `/papi` route schemas + emit `papi-openapi.json`
-   (curated subset). See §9. *(cross-repo, not started)*
+1. ✅ **pong-server**: `operationId` added to the 35 curated `/papi` route schemas (inline
+   spread) + `tools/dump-openapi.js` + `yarn dump-openapi` script. Branch
+   `feat/papi-operation-ids`. See §9. *(running the dump needs the datastore stack up — path (a))*
 2. ✅ **New skeleton** with tests: `internal/config` (profiles), `internal/apiclient`,
    `internal/tools` registry (`op.go`), `cmd/server` stdio entrypoint. Unit + scenario tests
    (`internal/...`), incl. a `-race` concurrency test.
@@ -277,18 +278,24 @@ replaces the 3k-line `server.go`: simple CRUD is generated from the curated spec
    resolved profile. *(kept in `app/auth`; moves to `internal/auth` when `app/` is deleted)*
 4. ✅ **Curated CRUD** for forms / actors / accounts / transactions declared as typed
    operations and registered via the registry.
-5. ⏳ **Port graph engines** → `internal/graph` + `graph.go` tools (pull/push sync,
-   `compactGraphLayout`, `pruneLongEdges`, `getAllLayerPlacements`); **unit-test the sync diff**.
-   *(basic graph build — `createLink`/`massLink`/`manageLayerActors`/`getLayerActors`/
-   `getEdgeTypes` — is already covered; the YAML-sync/layout helpers are pending)*
-6. ⏳ **Port media** (upload/svg) + `createChart`.
+5. ✅ **Engines ported** → `internal/engines` (pull/push graph sync, `compactGraphLayout`,
+   `pruneLongEdges`, `getAllLayerPlacements`, `createChart`) reusing the proven legacy logic,
+   registered via `engines.RegisterTools`. *(thin runtime config + cosmetic form-name stubs;
+   sync-diff unit tests still TODO)*
+6. ✅ **Media ported** (`upload` + `svg` rasterise) → `internal/engines`.
 7. ✅ **Apps + smart-form tools** (`apps.go`): createApplication, getApplication,
    createSmartForm, listSmartForms, manageAppContent.
-8. ⏳ **Update skills** to the curated tools (incl. resolving `formId` before `createActor`);
-   **switch `.mcp.json`** to `cmd/server` with a profile.
-9. ⏳ **Delete** legacy `app/mcp-server`, root `main.go`/`specs.go`, `cmd/enrichspec`, the
-   `sim-public-swagger*.json`.
-10. ⏳ **Eval harness** — NL prompts → expected tool sequences in a throwaway workspace.
+8. ✅ **Skills updated** to the curated set (formId-before-createActor; `manageLayer`→
+   `manageLayerActors`; per-skill curated-names notes) and **`.mcp.json` switched** to
+   `go run ./cmd/server`.
+9. ✅ **Legacy deleted**: `app/mcp-server`, root `main.go`/`specs.go`, `cmd/enrichspec`,
+   `app/{models,swagger}`, `sim-public-swagger*.json`.
+10. 🔶 **Spec drift gate** (path (a)): `internal/tools/drift_test.go` validates every curated
+    op (method/path/operationId) against `testdata/papi-openapi.json` once that file is
+    committed; until then it skips. Flow: run `yarn dump-openapi` in pong-server CI/dev (stack
+    up) → copy the result to `mcp-server/internal/tools/testdata/papi-openapi.json` → the gate
+    activates. (A future step can switch the registry to generate tools from the spec.)
+11. ⏳ **Eval harness** — NL prompts → expected tool sequences in a throwaway workspace.
 
 > **Known limitations (current increment):** `createActor` takes a numeric `formId` only
 > (no `formName` resolution yet — skills should look up the form first); optional boolean
