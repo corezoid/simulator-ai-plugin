@@ -37,7 +37,7 @@ Account currencies define the types of currencies that can be used in accounts.
 | user_id | Integer | ID of the user who created the currency |
 | name | Text | Name of the currency |
 | symbol | String | Symbol representing the currency |
-| precision | Integer | Number of decimal places for the currency |
+| precision | Integer | Number of decimal places shown in the UI (display only). Amounts/balances are stored as their real decimal value — precision is not a scaling factor, so do not multiply or divide amounts by `10^precision` |
 | type | Enum | Type of currency (number, etc.) |
 | is_system | Boolean | Whether this is a system currency |
 | created_at | Integer | Unix timestamp of creation time |

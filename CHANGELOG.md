@@ -10,6 +10,7 @@
 - **Tests**: first tests in the module — config, apiclient, tool scenarios (incl. `-race`), drift gate, eval, engine registration.
 - **Removed** the legacy tree: `app/mcp-server`, `app/{models,swagger}`, root `main.go`/`specs.go`, `cmd/enrichspec`, and the bundled `sim-public-swagger*.json` (the full-spec embed + enrichspec generator are no longer needed).
 - Known limitations: `createActor` takes a numeric `formId` (no `formName` resolution); behavioural (LLM-in-the-loop) eval is a CI/manual step. See `docs/INTEGRATION.md`.
+- Clarified that account `amount`/balances are stored as their real decimal value and currency `precision`/`decimals` is display-only (never scale by `10^precision`) — in the `createTransaction`/`finalizeTransaction`/`getAccounts`/`getBalance`/`createCurrency` tool descriptions, the `simulator-finance` skill, and `docs/entities/accounts.md`.
 
 ## [1.5.0]
 

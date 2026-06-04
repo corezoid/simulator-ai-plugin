@@ -89,6 +89,12 @@ post-currencies-accId(accId="ws_xxx", body='{"title": "Km", "symbol": "km", "dec
 post-currencies-accId(accId="ws_xxx", body='{"title": "Units", "symbol": "u", "decimals": 0}')
 ```
 
+> **`decimals` / `precision` is display only.** Amounts are stored as their real
+> decimal value, not in minor units. `decimals: 2` just renders `1600` as `1600.00` —
+> it does **not** mean the stored `1600` represents `16.00`. When you record or read an
+> amount, pass/interpret the actual value (500 = 500 USD); never multiply or divide by
+> `10^decimals`.
+
 ---
 
 ## Account Name Operations
@@ -401,6 +407,7 @@ Use the `Read` tool to load these files when you need more detail:
 
 ## Tips
 
+- **Amounts are real decimal values, not minor units** — `amount: 500` on a USD account is 500 USD. Currency `decimals`/`precision` only affects UI rounding; never scale amounts by `10^decimals` when writing or reading them
 - **Always create currency and account name before creating an account** — both `currencyId` and `nameId` are required
 - Use `post-accounts-pair-accId` to create both name and currency together
 - For financial accounts: `asset/income` typically use `incomeType: credit`; `expense/liability` use `incomeType: debit`

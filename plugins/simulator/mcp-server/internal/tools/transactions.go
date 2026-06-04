@@ -8,7 +8,7 @@ var transactionOps = []Operation{
 		Summary: "Record a transaction on an account. Pass a stable `ref` to make it idempotent (safe to retry).",
 		Params: []Param{
 			{Name: "accountId", In: InPath, Type: "string", Required: true, Desc: "Target account id."},
-			{Name: "amount", In: InBody, Type: "number", Desc: "Signed amount (default 0)."},
+			{Name: "amount", In: InBody, Type: "number", Desc: "Signed amount in the account's currency, as the real value (e.g. 500 means 500 USD). Stored as a decimal — do NOT scale by the currency precision/10^decimals; precision only controls display rounding."},
 			{Name: "comment", In: InBody, Type: "string", Desc: "Human-readable note."},
 			{Name: "ref", In: InBody, Type: "string", Desc: "Idempotency reference (max 255)."},
 			{Name: "commission", In: InBody, Type: "number", Desc: "Optional commission amount."},
@@ -24,7 +24,7 @@ var transactionOps = []Operation{
 		Params: []Param{
 			{Name: "accountId", In: InPath, Type: "string", Required: true, Desc: "Target account id."},
 			{Name: "type", In: InPath, Type: "string", Required: true, Desc: "Finalization type (e.g. completed / canceled)."},
-			{Name: "amount", In: InBody, Type: "number", Desc: "Amount (required unless completing the full hold)."},
+			{Name: "amount", In: InBody, Type: "number", Desc: "Amount as the real value in the account's currency (required unless completing the full hold). Not scaled by precision — see createTransaction."},
 			{Name: "comment", In: InBody, Type: "string", Desc: "Note."},
 			{Name: "ref", In: InBody, Type: "string", Desc: "Idempotency reference."},
 			{Name: "parentRef", In: InBody, Type: "string", Desc: "Parent transaction reference."},

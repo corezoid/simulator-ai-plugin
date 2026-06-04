@@ -23,7 +23,7 @@ var accountOps = []Operation{
 	},
 	{
 		Name: "getAccounts", Method: "GET", Path: "/accounts/{actorId}",
-		Summary: "List the accounts on an actor with their balances. Pass `from`/`to` to get each account's turnover/balance over that period (the account's movements summed within the window) — this is the account turnover for the period.",
+		Summary: "List the accounts on an actor with their balances. Pass `from`/`to` to get each account's turnover/balance over that period (the account's movements summed within the window) — this is the account turnover for the period. The returned `amount` is the real balance value as a decimal (e.g. 1600 = 1600 USD); the currency `precision` only controls display rounding — do NOT divide by 10^precision.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "accountType", In: InQuery, Type: "string", Enum: accountTypes, Desc: "Filter by account type."},
@@ -43,7 +43,7 @@ var accountOps = []Operation{
 	},
 	{
 		Name: "getBalance", Method: "GET", Path: "/accounts/{actorId}/{currencyId}/{nameId}",
-		Summary: "Get the current balance of one account on an actor.",
+		Summary: "Get the current balance of one account on an actor. The returned `amount` is the real value as a decimal; the currency `precision` only controls display rounding, it is not a scaling factor.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "currencyId", In: InPath, Type: "number", Required: true, Desc: "Currency id."},
@@ -81,7 +81,7 @@ var accountOps = []Operation{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "name", In: InBody, Type: "string", Required: true, Desc: "Currency name."},
 			{Name: "symbol", In: InBody, Type: "string", Desc: "Display symbol."},
-			{Name: "precision", In: InBody, Type: "number", Desc: "Decimal precision."},
+			{Name: "precision", In: InBody, Type: "number", Desc: "Number of decimal places shown in the UI (display only). Amounts are stored as decimals at their real value — precision is not a scaling factor, e.g. precision 2 displays 1600 as 1600.00, it does not mean 16.00."},
 			{Name: "type", In: InBody, Type: "string", Desc: "Currency type."},
 		},
 	},
