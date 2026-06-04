@@ -2,11 +2,14 @@
 
 ## [Unreleased]
 
-### MCP server rewrite (in progress)
-- New layered server under `mcp-server/internal/` + `cmd/server/`, replacing the monolithic `app/mcp-server/server.go`. Layers: `config` (local/prod profiles, env-overridable), `apiclient` (auth header + accId injection + timeouts + error mapping), `tools` (a curated, typed operation registry → one MCP tool per operation, declared per domain). OAuth/credentials are reused from `app/auth`.
-- **Curated tool set** (~36 typed tools) scoped to the core scenarios — forms / actors / accounts / transactions / graph (links & layers) / applications & smart forms — instead of the full 185-op passthrough. Environment is selected by `--profile` (or `SIMULATOR_PROFILE`); the local profile targets a dev pong-server on `:9000`.
-- First unit/scenario tests in the module (`internal/...`), including a `-race`-checked concurrency test for the workspace switch.
-- Pending in follow-up increments: porting the client-side engines (graph pull/push sync, `compactGraphLayout`, `pruneLongEdges`, `uploadActorPicture(Bulk)`, `createChart`), `formName→formId` resolution in `createActor`, removing the legacy `app/` tree + `enrichspec`, and switching `.mcp.json` to `cmd/server`.
+### MCP server rewrite
+- Replaced the monolithic `app/mcp-server/server.go` Swagger→MCP bridge with a **layered server** under `cmd/server/` + `internal/`: `config` (local/prod profiles, env/`profiles.json`-overridable), `apiclient` (auth header + accId injection + timeouts + error mapping, workspace guarded by `RWMutex`), `tools` (a curated, typed `Operation` registry → one MCP tool per backend operation, declared per domain), and `engines` (the ported client-side tools). OAuth/credentials reused from `app/auth`.
+- **Curated tool set (~46 tools)** scoped to the core scenarios — forms / actors / accounts / transactions / graph (links & layers) / applications & smart forms — plus the engine tools `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `uploadActorPicture(Bulk)`, `createChart`. No more 185-op passthrough.
+- **Environment by profile**: `--profile local|prod` (or `SIMULATOR_PROFILE`); local targets a dev pong-server on `:9000` with the same OAuth flow as prod. `.mcp.json` now launches `go run ./cmd/server`.
+- **Backend operationIds at the source** + a **spec drift gate**: tool declarations are validated against `internal/tools/testdata/papi-openapi.json` (dumped from the live backend); it already caught a phantom `getApplication` tool. Plus a structural **eval harness** (`eval-scenarios.json`).
+- **Tests**: first tests in the module — config, apiclient, tool scenarios (incl. `-race`), drift gate, eval, engine registration.
+- **Removed** the legacy tree: `app/mcp-server`, `app/{models,swagger}`, root `main.go`/`specs.go`, `cmd/enrichspec`, and the bundled `sim-public-swagger*.json` (the full-spec embed + enrichspec generator are no longer needed).
+- Known limitations: `createActor` takes a numeric `formId` (no `formName` resolution); behavioural (LLM-in-the-loop) eval is a CI/manual step. See `docs/INTEGRATION.md`.
 
 ## [1.5.0]
 

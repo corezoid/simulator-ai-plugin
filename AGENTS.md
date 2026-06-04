@@ -6,12 +6,12 @@ repository. Humans: see the root [`README.md`](README.md) (usage) and
 
 ## What this repo is
 
-A plugin for Claude Code and Codex that connects the **Simulator.Company** platform to the
-host via MCP. It bundles:
+A plugin for Claude Code and Codex that connects the **Simulator.Company** platform
+(backend: `pong-server` / `control-api`) to the host via MCP. It bundles:
 
 - a **Go MCP server** (`plugins/simulator/mcp-server/`) that exposes the Simulator
-  `/papi/1.0` REST API as MCP tools — the full surface (**185 operations**) plus 11
-  hand-written convenience tools;
+  `/papi/1.0` public API as a **curated, typed set of ~46 MCP tools** (declared in Go, not a
+  generic spec passthrough), scoped to the core scenarios;
 - **7 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
   platform's entity model and common workflows.
 
@@ -20,17 +20,18 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before making non-trivial ch
 ## Layout (the parts you'll touch)
 
 ```
-plugins/simulator/mcp-server/   Go MCP server (Go 1.24+)
-  main.go                       flags, run modes, .env bootstrap
-  specs.go                      //go:embed of swagger/sim-public-swagger.full.json
-  app/mcp-server/               the Swagger→MCP bridge + the 11 custom tools
+plugins/simulator/mcp-server/   Go MCP server (Go 1.24+, mark3labs/mcp-go)
+  cmd/server/                   entry point: profile → apiclient → tools → stdio
+  cmd/gendiscovery/             regenerate public/ discovery artifacts
+  internal/config/              local/prod profiles (env + profiles.json overridable)
+  internal/apiclient/           HTTP client: base URL, auth header, accId, timeouts, errors
+  internal/tools/               curated typed Operation registry (op.go) + per-domain files
+    testdata/                   papi-openapi.json (drift gate) + eval-scenarios.json
+  internal/engines/             graph sync, layout, prune, placements, upload, chart
   app/auth/                     OAuth2 PKCE + .env credential storage
-  app/{swagger,models}/         spec loader + OpenAPI types
-  cmd/{enrichspec,gendiscovery} regen tools (spec / discovery artifacts)
-  swagger/                      curated reuse source (80) + embedded full (185) specs
 plugins/simulator/skills/       7 skills (markdown only, ship with the plugin)
 plugins/simulator/docs/         entity & user-flow reference (ships with the plugin)
-docs/                           contributor docs (ARCHITECTURE.md) — repo-level
+docs/                           contributor docs (ARCHITECTURE.md, INTEGRATION.md) — repo-level
 public/                         generated AI-discovery artifacts (do not hand-edit)
 ```
 
@@ -41,52 +42,55 @@ All `make` targets run from the repo root (recipes `cd` into the module):
 ```bash
 make build         # go build ./...
 make vet           # go vet ./...
-make test          # go test ./...        (no tests yet)
-make enrich-spec   # regenerate swagger/sim-public-swagger.full.json from the live API
-make check-spec    # CI drift gate: fail if upstream added ops missing from the full spec
+make test          # go test ./...   — config, apiclient, tools (scenarios, -race, drift, eval), engines
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
+make run-local     # go run ./cmd/server --profile local   (dev pong-server :9000)
+make run-prod      # go run ./cmd/server --profile prod
 ```
 
-Run the server directly (no build step — hosts use `go run .`):
+Run the server directly (no build step — hosts use `go run ./cmd/server`):
 
 ```bash
 cd plugins/simulator/mcp-server
-go run .                         # stdio MCP transport
-go run . --sse --addr :8080      # SSE transport
-go run . getCompanies            # CLI mode: run one tool and exit
+SIMULATOR_DEBUG=1 go run ./cmd/server --profile local
 ```
 
-Before committing Go changes, run `make build` and `make vet`. Set `SIMULATOR_DEBUG=1` for
-verbose logs (`/tmp/simulator.log` in MCP mode).
+Before committing Go changes, run `make build && make vet && make test`.
 
 ## Conventions & gotchas
 
-- **No build step ships.** Hosts launch the server with `go run .`. Don't add a compiled
-  binary to the repo.
-- **The served spec is `sim-public-swagger.full.json`** (embedded via `specs.go`). Don't
-  hand-edit it — regenerate with `make enrich-spec`. The curated
-  `sim-public-swagger-all.json` (80) is the **reuse source** for enrichment and the source
-  of truth for canonical operationIds (`createActor`, `getForm`, `manageLayer`,
-  `createLink`, `massLink`, …). If you change those, keep the curated spec in sync.
+- **No build step ships.** Hosts launch the server with `go run ./cmd/server`. Don't add a
+  compiled binary to the repo.
+- **Tools are declared in Go, curated.** Each domain file under `internal/tools/`
+  (`forms.go`, `actors.go`, …) declares a slice of typed `Operation`s; `build.go` registers
+  them. The server exposes ~46 tools, not the full REST surface — keep it curated.
+- **Drift gate.** `internal/tools/drift_test.go` validates every declared op (method, path,
+  operationId) against `internal/tools/testdata/papi-openapi.json` (the backend contract,
+  dumped by pong-server `yarn dump-openapi`). After changing tools or the backend, refresh
+  that spec and run `go test ./internal/tools/ -run TestSpecDrift`.
+- **operationIds live at the backend source.** `pong-server` declares them on its `/papi`
+  route schemas; the plugin matches them. Keep names in sync across both repos.
 - **`public/` is generated.** Edit `SKILL.md` frontmatter, then `make discovery`.
-- **Entity/user-flow docs must stay under `plugins/simulator/docs/`.** Skills reference
-  them as `$CLAUDE_PLUGIN_ROOT/docs/...` and only `plugins/simulator/` is copied on
-  install. Moving them out breaks installed plugins. Contributor/architecture docs go in
-  the repo-root `docs/`.
+- **Entity/user-flow docs must stay under `plugins/simulator/docs/`.** Skills reference them
+  as `$CLAUDE_PLUGIN_ROOT/docs/...` and only `plugins/simulator/` is copied on install.
+  Contributor/architecture docs go in the repo-root `docs/`.
 - **Versioning.** The plugin version appears in `.claude-plugin/{plugin,marketplace}.json`,
   `.agents/plugins/marketplace.json` and `CHANGELOG.md` — bump them together.
 - **TLS is verified by default.** `--insecure` is only for self-signed on-prem gateways.
-- **Custom tools** are registered in `app/mcp-server/server.go` (`LoadSwaggerServer`); the
-  largest/most delicate logic is the bidirectional graph sync in `sync_graph.go` /
-  `push_graph.go` — change it carefully (it has no tests; see ARCHITECTURE §7).
+- **Graph sync** (`internal/engines/sync_graph.go` + `push_graph.go`, ~1.5k LOC) is the most
+  delicate logic — change it carefully; dedicated unit tests are still a backlog item.
 
-## Adding a custom MCP tool
+## Adding a curated MCP tool
 
-1. Add the handler in a new file under `app/mcp-server/` (mirror `create_chart.go` etc.).
-2. Register it with `mcp.NewTool(...)` inside `LoadSwaggerServer` in `server.go`.
-3. `make build && make vet`.
-4. Document it in the root [`README.md`](README.md) MCP-tools table and
-   [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §4.
+1. Add an `Operation` to the relevant `internal/tools/<domain>.go` slice (method, path
+   template, typed params), matching the backend's `operationId`.
+2. `make build && make vet && make test` (the drift gate confirms it matches the backend).
+3. Document it in the root [`README.md`](README.md) tool table and
+   [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §4; consider a line in
+   `internal/tools/testdata/eval-scenarios.json`.
+
+For a multi-call/computational tool, add it under `internal/engines/` and register it in
+`engines/register.go` instead.
 
 ## Security
 

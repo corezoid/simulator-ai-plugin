@@ -26,12 +26,15 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
   go in the repo-root `docs/`.
 - **MCP tools.** When you add or rename a tool, update the MCP-tools table in the root
   [`README.md`](README.md) and §4 of [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-- **Don't hand-edit generated files:** `swagger/sim-public-swagger.full.json` (use
-  `make enrich-spec`) and `public/*` (use `make discovery`).
+- **Curated tools live in Go** under `internal/tools/<domain>.go` (declared as typed
+  `Operation`s), not generated from a spec. The drift gate
+  (`internal/tools/testdata/papi-openapi.json`) validates them against the backend.
+- **Don't hand-edit generated files:** `public/*` (use `make discovery`). Refresh the drift
+  spec from pong-server (`yarn dump-openapi`), don't write it by hand.
 
 ## House rules
 
-- No tests exist yet — if you change graph-sync logic (`sync_graph.go` / `push_graph.go`),
-  be extra careful and consider adding the first tests.
+- Graph-sync logic (`internal/engines/sync_graph.go` / `push_graph.go`) has no dedicated
+  unit tests yet — change it carefully and consider adding them.
 - Keep TLS verification on by default; never log or commit tokens / `.env`.
 - Bump the plugin version in all manifests + `CHANGELOG.md` together.

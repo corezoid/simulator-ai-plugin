@@ -1,9 +1,9 @@
 # Architecture
 
 This document describes the internal architecture of the **simulator-ai-plugin** — how
-the plugin is packaged, how the Go MCP server turns the Simulator.Company REST API into
-MCP tools, how authentication and workspace context work, and how the supporting build
-tooling regenerates the embedded artifacts.
+the plugin is packaged, how the Go MCP server exposes the Simulator.Company (`pong-server`)
+public API as a curated set of MCP tools, how authentication and workspace context work,
+and how the server is kept in sync with the backend contract.
 
 It is aimed at contributors working on the plugin itself. End users only need the root
 [`README.md`](../README.md); skill consumers should read the per-skill `SKILL.md`
@@ -22,43 +22,42 @@ files and the [entity docs](../plugins/simulator/docs/entities/README.md).
 │   ├── simulator-init           │   domain knowledge + tool-call       │
 │   ├── simulator-graph          │   guidance is injected into the      │
 │   ├── simulator-forms          ├─▶ model context; the model then      │
-│   ├── simulator-finance        │   calls MCP tools over stdio/SSE     │
+│   ├── simulator-finance        │   calls MCP tools over stdio         │
 │   ├── simulator-charts         │                                      │
 │   └── software-migration-...─┘                                        │
 └───────────────────────────────────────┬─────────────────────────────┘
-                                         │ MCP (stdio by default, SSE optional)
+                                         │ MCP (stdio)
                                          ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Go MCP server  (`go run .` from plugins/simulator/mcp-server)        │
+│  Go MCP server  (`go run ./cmd/server` from plugins/simulator/mcp-server) │
 │                                                                       │
-│   main.go ── flags / modes / .env bootstrap                           │
+│   cmd/server ── resolve profile · load .env · wire deps · serve stdio │
 │      │                                                                │
 │      ▼                                                                │
-│   app/mcp-server (LoadSwaggerServer)                                  │
-│      ├── embedded OpenAPI spec (specs.go → swagger/*.full.json)       │
-│      ├── auto-generated tools  (one per REST operation, ~174)         │
-│      ├── custom tools          (11 hand-written, see §4)              │
-│      └── executeOperation ── HTTP ─▶ Simulator REST API (/papi/1.0)   │
-│                                                                       │
-│   app/auth ── OAuth2 PKCE login + .env credential storage             │
-│   app/swagger ── spec loader (HTTP/file → models.SwaggerSpec)         │
-│   app/models ── OpenAPI/Swagger type definitions                      │
+│   internal/config   ── local / prod profiles (env + profiles.json)    │
+│   internal/tools    ── curated typed Operation registry → MCP tools   │
+│   internal/engines  ── client-side engines (graph sync, layout, chart)│
+│   app/auth          ── OAuth2 PKCE login + .env credential storage    │
+│      │                                                                │
+│      ▼                                                                │
+│   internal/apiclient ── HTTP: base URL · Bearer · accId · timeouts ─▶ │
 └───────────────────────────────────────┬─────────────────────────────┘
-                                         │ HTTPS (Bearer token, accId query param)
+                                         │ HTTPS (Authorization, accId path/query)
                                          ▼
-                          Simulator.Company REST API (mw.simulator.company)
+              Simulator.Company public API  (/papi/1.0 — local :9000 or mw gateway)
 ```
 
 Two layers cooperate:
 
 - **Skills** carry *domain knowledge* — what an actor/form/account is, which tools to call
   in what order, common workflows. They are plain markdown and ship no code.
-- **The MCP server** is a generic *Swagger→MCP bridge* — it knows nothing about the
-  business domain; it mechanically exposes every REST operation plus a handful of
-  hand-written convenience tools.
+- **The MCP server** exposes a *curated, typed tool set* (~46 tools) scoped to the core
+  scenarios — forms, actors, accounts, transactions, graph building, applications/smart
+  forms — rather than the entire REST surface. Each tool is a compile-time descriptor, not
+  a generic passthrough; a drift gate keeps those descriptors honest against the backend.
 
-This separation is deliberate: the API surface can grow (regenerate the spec) without
-touching the skills, and the skills can evolve without redeploying the server.
+This separation is deliberate: the tool set can evolve without touching the skills, and the
+skills can evolve without redeploying the server.
 
 ---
 
@@ -69,20 +68,21 @@ simulator-ai-plugin/
 ├── .claude-plugin/marketplace.json   # Claude Code marketplace listing
 ├── .agents/plugins/marketplace.json  # Codex marketplace listing
 ├── .mcp.json                         # Root MCP launcher (marketplace install)
-├── Makefile                          # enrich-spec / check-spec / discovery / build / vet / test
+├── Makefile                          # build / vet / test / discovery / run-local / run-prod
 ├── CHANGELOG.md
 ├── CLAUDE.md                         # Repo guide for Claude Code (points to AGENTS.md)
 ├── AGENTS.md                         # Repo guide for coding agents (canonical)
 ├── context7.json                     # Context7 docs indexing config
 ├── docs/                             # Project / contributor documentation
-│   └── ARCHITECTURE.md               # ← this file
+│   ├── ARCHITECTURE.md               # ← this file
+│   └── INTEGRATION.md                # pong-server integration plan & status
 ├── public/                           # Generated AI-discovery artifacts
 │   ├── llms.txt
 │   └── .well-known/skills/index.json
 └── plugins/simulator/                # CLAUDE_PLUGIN_ROOT — what gets installed
     ├── .claude-plugin/plugin.json    # Claude Code manifest
     ├── .codex-plugin/plugin.json     # Codex manifest
-    ├── .mcp.json                     # Plugin MCP launcher (go run . --spec simulator)
+    ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
     ├── skills/                       # 7 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
@@ -91,7 +91,7 @@ simulator-ai-plugin/
 The plugin is published in **two manifests** (Claude Code and Codex) that both point at
 `plugins/simulator/`. The root `.mcp.json` is used when the plugin is installed from a
 marketplace; the plugin-level `.mcp.json` is used when running from a local clone. Both
-launch the same `go run .` command — there is no build step.
+launch the same `go run ./cmd/server` command — there is no build step.
 
 > **Why docs live in two places.** Top-level `docs/` holds contributor/architecture docs
 > for people working *on* the repo. The entity and user-flow reference under
@@ -106,130 +106,124 @@ launch the same `go run .` command — there is no build step.
 
 Source: `plugins/simulator/mcp-server/`. Module:
 `github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server` (Go 1.24+).
-
-> **Rewrite in progress.** The sections below describe the **legacy** server (root
-> `main.go` + `app/mcp-server`) — the generic Swagger→MCP bridge that exposes all 185
-> operations. A **new layered server** now lives alongside it under `cmd/server` +
-> `internal/` and is the target implementation:
->
-> ```
-> cmd/server/        thin entrypoint: resolve profile → apiclient → curated tools → stdio
-> internal/config/   local/prod profiles (env + profiles.json overridable)
-> internal/apiclient/ HTTP: base URL, auth header, accId injection, timeouts, error mapping
-> internal/tools/    curated typed operation registry (op.go) + per-domain tool files
->                    (forms, actors, accounts, transactions, graph, apps) + auth helpers
-> ```
->
-> Layering: `cmd → tools → {apiclient, config}` + reuse of `app/auth`; no package imports
-> "upward". It exposes a curated ~36-tool set for the core scenarios rather than the full
-> passthrough. The client-side engines (graph sync, layout, chart, upload) are not yet
-> ported. See [`INTEGRATION.md`](INTEGRATION.md) for the plan and migration status; `.mcp.json`
-> still launches the legacy server until the engines move over.
+SDK: `github.com/mark3labs/mcp-go`.
 
 ```
 mcp-server/
-├── main.go            # entry point: flags, run modes, .env bootstrap
-├── specs.go           # //go:embed of the full OpenAPI spec
-├── swagger/           # bundled OpenAPI specs (see §3.4)
-├── app/
-│   ├── auth/          # oauth.go (PKCE) + credentials.go (.env persistence)
-│   ├── swagger/       # loader.go — parse spec from URL or file
-│   ├── models/        # models.go — SwaggerSpec / Endpoint / Definition types
-│   └── mcp-server/    # the bridge itself + all custom tools
-└── cmd/
-    ├── enrichspec/    # regenerate the embedded full spec from the live API
-    └── gendiscovery/  # regenerate public/ discovery artifacts from SKILL.md files
+├── cmd/server/        # entry point: resolve profile → build deps → register tools → stdio
+├── cmd/gendiscovery/  # regenerate public/ discovery artifacts from SKILL.md files
+├── internal/
+│   ├── config/        # profile resolution: flag > env > profiles.json > built-in default
+│   ├── apiclient/     # HTTP client: base URL, auth header, accId injection, timeout, errors
+│   ├── tools/         # curated typed Operation registry (op.go) + per-domain tool files
+│   │                  #   forms, actors, accounts, transactions, graph, apps + auth helpers
+│   │   └── testdata/  # papi-openapi.json (drift gate) + eval-scenarios.json
+│   └── engines/       # client-side engines: graph pull/push sync, compact layout, prune,
+│                      #   layer placements, picture upload (+ SVG raster), chart
+└── app/auth/          # OAuth2 PKCE flow + .env credential storage (shared)
 ```
 
-### 3.1 Run modes (`main.go`)
+Layering rule: `cmd → tools → {apiclient, config, engines, auth}`; no package imports
+"upward". `tools.BuildAll(server, client, profile)` plus `engines.RegisterTools(server)`
+replace what used to be a single 3k-line registration function.
 
-`main.go` bootstraps logging, loads `.env` from the working directory, parses flags, and
-selects one of three modes:
+### 3.1 Run mode & entry point (`cmd/server/main.go`)
 
-| Mode      | Trigger                          | Behaviour                                                        |
-|-----------|----------------------------------|-----------------------------------------------------------------|
-| **stdio** | default                          | Standard MCP transport over stdin/stdout (how hosts launch it)  |
-| **SSE**   | `--sse` (+ `--addr`)             | HTTP server with Server-Sent Events for remote/multi-client use |
-| **CLI**   | positional args: `<tool> k=v …`  | Run a single tool once and exit — handy for scripting/testing   |
+The server is stdio-only (the transport MCP hosts launch). On start it:
 
-In MCP mode the server always tees debug output to `/tmp/simulator.log`. Verbose
-per-request logging (including request bodies) is gated behind `SIMULATOR_DEBUG`.
+1. parses `--profile` and `--insecure`;
+2. loads `.env` from the working directory (without overriding the live environment);
+3. resolves the active profile (§3.2);
+4. builds the `apiclient` (base URL from the profile; the Authorization header is read from
+   saved credentials per request, so a mid-session `login` takes effect without a restart);
+5. registers the curated tools (`tools.BuildAll`) and the engine tools
+   (`engines.RegisterTools`);
+6. serves over stdio.
 
-### 3.2 Tool-generation pipeline (`app/mcp-server/server.go`)
+`SIMULATOR_DEBUG` may be used by individual components for verbose logging.
 
-`LoadSwaggerServer` is the heart of the bridge:
+### 3.2 Profiles & environment (`internal/config`)
 
-1. **Load spec** — `specs.go` embeds `swagger/sim-public-swagger.full.json` via
-   `//go:embed`; `app/swagger/loader.go` parses it into `models.SwaggerSpec`. (A different
-   spec can be loaded from a URL/file via flags for development.)
-2. **Build operations** — walk every `path` × `method`, apply include/exclude filters,
-   producing one operation record each.
-3. **Register auto-generated tools** — for each operation:
-   - tool name = `operationId` (fallback: `<method>-<path-segments>`);
-   - the JSON request schema is expanded into typed MCP parameters where possible,
-     otherwise a single JSON-string `body` parameter is used;
-   - a few operations are **special-cased** because the model needs help:
-     `createActor` (resolve `formName`→`formId`, cache the new actor), `massLink`
-     (inject the `layerId`), `createLink` (look up the hierarchy edge-type id).
-4. **Register custom tools** — the 11 hand-written tools in §4 are added on top.
-5. **Execute** — when a tool is called, `executeOperation` builds the HTTP request
-   (Bearer token from `.env`, `accId` workspace query param auto-injected), sends it via
-   the shared `apiHTTPClient()` (with a request timeout and connection reuse), and returns
-   the response body to the model.
+The target backend is chosen by **profile**, resolved in order: `--profile` flag →
+`SIMULATOR_PROFILE` env → `profiles.json` `active` → built-in default (`prod`).
 
-### 3.3 Workspace & auth context
+| Profile | API base URL                          | Account (SA) URL                  |
+|---------|----------------------------------------|-----------------------------------|
+| `local` | `http://localhost:9000/papi/1.0`       | `https://account.pre.corezoid.com`|
+| `prod`  | `https://mw.simulator.company/papi/1.0`| `https://account.corezoid.com`    |
 
-Every API call needs a Bearer token and a workspace id (`accId`). Both live in `.env`:
+Each field is overridable via `SIMULATOR_API_BASE_URL`, `SIMULATOR_ACCOUNT_URL`,
+`SIMULATOR_OAUTH_CLIENT_ID`, or a `profiles.json` in the working directory. Tokens never
+live in `profiles.json` — only in `.env`.
 
-- the token is written by the `login` tool (see §5);
-- the workspace id is written by `set-workspace` as `WORKSPACE_ID` and auto-appended to
-  every outgoing request as the `accId` query parameter.
+### 3.3 Tool model (`internal/tools`)
 
-A static `ACCESS_TOKEN` in the environment overrides saved OAuth credentials.
+Tools are **declared in Go**, not generated from a spec at runtime. `op.go` defines an
+`Operation` (name = operationId, HTTP method, path template, typed `Param`s) and a generic
+`register()` that turns any `Operation` into a typed MCP tool whose handler maps
+arguments → path/query/body → one `apiclient.Do` call. The per-domain files
+(`forms.go`, `actors.go`, `accounts.go`, `transactions.go`, `graph.go`, `apps.go`) each
+declare a slice of `Operation`s; `build.go` registers them all plus the `login` /
+`set-workspace` helpers.
 
-### 3.4 The two swagger specs
+Conventions baked into the registry:
 
-| File                              | Ops | Role                                                                 |
-|-----------------------------------|-----|----------------------------------------------------------------------|
-| `sim-public-swagger-all.json`     | 80  | Hand-curated spec — reuse source carrying canonical operationIds     |
-| `sim-public-swagger.full.json`    | 185 | **Embedded & served at runtime** — full `/papi/1.0` surface          |
+- `accId` path/query params default to the active workspace when omitted;
+- a POST/PUT whose object-body fields are all omitted still sends `{}`;
+- required params missing → a clear error result (not a malformed request).
 
-The live API doc (`https://mw.simulator.company/api/1.0/doc/json`) is served *without*
-`operationId`/`summary`. The `enrichspec` tool (§6) pulls it, back-fills deterministic
-camelCase operationIds and summaries, and **reuses** the curated spec so the canonical
-operationIds the server special-cases (`createActor`, `getForm`, `manageLayer`,
-`createLink`, `massLink`, …) are preserved. The result is `…full.json`, which `specs.go`
-embeds. The curated spec is kept only as the reuse source, not served directly.
+### 3.4 Workspace & auth context
+
+Every API call needs an `Authorization` header and a workspace id (`accId`). Both come from
+`.env`: the token is written by `login`; `WORKSPACE_ID` is written by `set-workspace`. The
+`apiclient` injects `accId` into path/query params that need it, and guards the live
+workspace value with an `RWMutex` (set-workspace mutates it while tool calls read it).
+
+### 3.5 Spec drift gate
+
+`internal/tools/drift_test.go` validates every curated `Operation` (method, path,
+operationId) against `internal/tools/testdata/papi-openapi.json` — the OpenAPI spec dumped
+from the live backend (where `operationId`s are now declared at the source; see
+[`INTEGRATION.md`](INTEGRATION.md) §9). If the file is absent the test skips; when present
+it fails on any divergence between the plugin's declared tools and the backend contract.
+Refresh the spec with pong-server's `yarn dump-openapi` and copy it into `testdata/`.
 
 ---
 
-## 4. Custom (hand-written) tools
+## 4. Curated tool set & engines
 
-These 11 tools are registered in `LoadSwaggerServer` in addition to the auto-generated
-operations. They exist because they wrap multi-call workflows, do client-side computation,
-or massage payloads the raw REST endpoints get wrong.
+The server registers ~46 tools in two groups.
 
-| Tool                     | Source file              | Purpose                                                                                  |
-|--------------------------|--------------------------|------------------------------------------------------------------------------------------|
-| `login`                  | `server.go` + `app/auth` | OAuth2 PKCE flow; opens the browser and writes the token to `.env`                       |
-| `set-workspace`          | `server.go`              | Persist the active `WORKSPACE_ID` (`accId`) to `.env`                                     |
-| `createActors`           | `server.go`              | Bulk-create up to 50 actors in one call; resolves `formName`→`formId`                     |
-| `pullGraphFile`          | `sync_graph.go`          | Export a layer's actors + edges to `<layerId>.yaml` for local editing                    |
-| `pushGraphFile`          | `sync_graph.go` / `push_graph.go` | Diff a local YAML against the server layer and create/update/delete to match    |
-| `getAllLayerPlacements`  | `get_layer_placements.go`| Paginate `/graph_layers/paginated/{layerId}` to return every actor placement in one call |
-| `compactGraphLayout`     | `compact_layout.go`      | Auto-layout a layer into domain-clustered grids (one call replaces pull→edit→push)        |
-| `pruneLongEdges`         | `prune_edges.go`         | Delete edges longer than a Manhattan-distance threshold; preserves hierarchy edges       |
-| `uploadActorPicture`     | `upload.go` + `svg.go`   | Upload an actor picture (URL/file/base64); auto-rasterises SVG→PNG, can inject a fill colour |
-| `uploadActorPictureBulk` | `upload.go`              | Set pictures on up to 500 actors; dedupes identical sources by SHA-256                   |
-| `createChart`            | `create_chart.go`        | Create a dashboard chart actor (dynamic `actorFilter` or explicit accounts mode)         |
+**Curated API operations** (`internal/tools`, declared per domain) — one MCP tool per
+backend operation, with typed parameters:
 
-Notable client-side helpers behind these tools:
+| Domain        | Tools                                                                                  |
+|---------------|----------------------------------------------------------------------------------------|
+| Forms         | `createForm` `getForm` `getForms` `updateForm` `deleteForm` `setFormStatus`            |
+| Actors        | `createActor` `getActor` `getActorByRef` `updateActor` `deleteActor` `setActorStatus`  |
+| Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
+| Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
+| Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `manageLayerActors`            |
+| Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
+| Auth          | `login` `set-workspace`                                                                |
 
-- **SVG rasterisation** (`svg.go`) — pure-Go `oksvg`+`rasterx`, capped at 4096×4096, so the
-  graph UI (which can't render SVG storage paths) always gets a PNG.
-- **Graph sync** (`sync_graph.go`, `push_graph.go`) — the largest and most delicate logic:
-  a bidirectional diff that detects unchanged actors, minimises API calls, and handles
-  cascading deletes. Form name→id maps are cached per-workspace under a `sync.RWMutex`.
+**Engine tools** (`internal/engines`) — multi-call workflows and client-side computation
+ported from the original implementation:
+
+| Tool                     | Source                   | Purpose                                                              |
+|--------------------------|--------------------------|----------------------------------------------------------------------|
+| `pullGraphFile`          | `sync_graph.go`          | Export a layer's actors + edges to `<layerId>.yaml`                  |
+| `pushGraphFile`          | `sync_graph.go` / `push_graph.go` | Diff a local YAML against the layer and create/update/delete |
+| `getAllLayerPlacements`  | `get_layer_placements.go`| Return every placement on a layer in one paginated call             |
+| `compactGraphLayout`     | `compact_layout.go`      | Auto-layout a layer into domain-clustered grids                     |
+| `pruneLongEdges`         | `prune_edges.go`         | Delete edges longer than a distance threshold; preserves hierarchy  |
+| `uploadActorPicture(Bulk)`| `upload.go` + `svg.go`  | Set actor pictures (URL/file/base64); auto-rasterise SVG→PNG        |
+| `createChart`            | `create_chart.go`        | Create a dashboard chart actor (dynamic filter or explicit accounts) |
+
+Engines share a small runtime config (`engines.Configure`: base URL + TLS) and read the
+auth header / `WORKSPACE_ID` per call. The graph sync (`sync_graph.go` + `push_graph.go`,
+~1.5k LOC) is the most delicate logic: a bidirectional diff that minimises API calls and
+handles cascading deletes; its form name→id cache is per-workspace under a `sync.RWMutex`.
 
 ---
 
@@ -247,66 +241,70 @@ login tool
   └─ credentials.go: atomically write ACCESS_TOKEN + ACCESS_TOKEN_EXPIRES_AT to .env (0600)
 ```
 
-- **Storage**: plaintext `.env` in the working directory, mode `0600`. Writes are
-  serialised under a mutex and token + expiry are written in a single pass to avoid
-  half-written credential files.
-- **Defaults**: `ACCOUNT_URL` → `https://account.corezoid.com`; OAuth client id is
-  overridable via `SIMULATOR_OAUTH_CLIENT_ID` (on-prem deployments set their own).
-- **TLS**: certificate verification is **on by default**; `--insecure` is required to talk
-  to self-signed gateways.
+- **Storage**: plaintext `.env` in the working directory, mode `0600`. Writes are serialised
+  under a mutex and token + expiry are written in a single pass.
+- **Account URL** comes from the resolved profile (`account.corezoid.com` for prod,
+  `account.pre.corezoid.com` for local); the OAuth client id is overridable via
+  `SIMULATOR_OAUTH_CLIENT_ID`. Local mirrors production — same PKCE flow, different SA.
+- **TLS**: certificate verification is **on by default**; `--insecure` is for self-signed
+  on-prem gateways.
 
 ---
 
-## 6. Build & regeneration tooling
+## 6. Build & tooling
 
-There is **no build step to run the plugin** — hosts launch it with `go run .`. The
-`Makefile` targets exist to regenerate the committed artifacts and to gate CI:
+There is **no build step to run the plugin** — hosts launch it with `go run ./cmd/server`.
+`Makefile` targets (run from the repo root; recipes `cd` into the module):
 
-| Target            | Command                                            | What it does                                                              |
-|-------------------|----------------------------------------------------|---------------------------------------------------------------------------|
-| `make enrich-spec`| `go run ./cmd/enrichspec --input <live> --reuse … --output …full.json` | Regenerate the embedded full spec from the live API doc        |
-| `make check-spec` | `go run ./cmd/enrichspec --input <live> --check …` | **Drift gate** — fails if upstream added ops missing from the embedded spec |
-| `make discovery`  | `(cd mcp-server) go run ./cmd/gendiscovery --root ../../..` | Regenerate `public/llms.txt` and `public/.well-known/skills/index.json` |
-| `make build`      | `go build ./...`                                   | Compile the server                                                        |
-| `make vet`        | `go vet ./...`                                     | Static checks                                                             |
-| `make test`       | `go test ./...`                                    | Run tests (currently none — see §7)                                       |
+| Target          | What it does                                                                |
+|-----------------|------------------------------------------------------------------------------|
+| `make build`    | `go build ./...`                                                            |
+| `make vet`      | `go vet ./...`                                                              |
+| `make test`     | `go test ./...` — config, apiclient, tools (scenarios, `-race`), drift, eval |
+| `make discovery`| Regenerate `public/llms.txt` + `public/.well-known/skills/index.json`       |
+| `make run-local`| `go run ./cmd/server --profile local`                                       |
+| `make run-prod` | `go run ./cmd/server --profile prod`                                        |
 
-### `cmd/enrichspec`
-
-Pulls the live OpenAPI doc, then for each operation tries an exact (`method`+full path)
-then a fuzzy (normalised path) match against the curated spec to reuse a known
-operationId/summary; otherwise it generates a deterministic camelCase id
-(`<verb><Resource>[ByParam]`), de-duplicating collisions. It then asserts that all
-canonical operationIds the server special-cases are present, failing loudly if not.
+**Spec source.** Tool `operationId`s are declared at the backend source (pong-server
+`/papi` route schemas). pong-server's `yarn dump-openapi` emits `papi-openapi.json`, which
+is copied into `internal/tools/testdata/` to drive the drift gate (§3.5). See
+[`INTEGRATION.md`](INTEGRATION.md).
 
 ### `cmd/gendiscovery`
 
 Walks `plugins/simulator/skills/`, parses each `SKILL.md` frontmatter, and emits the two
-AI-discovery files under `public/`. This replaced an earlier Python script so the repo has
-a single Go toolchain.
+AI-discovery files under `public/`.
 
 ---
 
-## 7. Known gaps & risks
+## 7. Testing & known gaps
 
-These are documented for transparency and as a backlog for contributors:
+The module ships tests under `internal/`:
 
-- **No automated tests.** `go test ./...` reports `[no test files]` across all packages.
-  The highest-value targets are the graph-sync diff (`sync_graph.go` / `push_graph.go`,
-  the most complex logic in the repo) and the auth/credential flow.
-- **Silently ignored errors.** Several `_ = json.Unmarshal(...)` / `_ = auth.Save(...)`
-  sites swallow failures; a failed token persist or a malformed API response can pass
-  unnoticed. Wrapping these in a logged warning would make failures visible.
-- **`--insecure` not fully plumbed.** The flag exists in `main.go` but the swagger loader
-  and OAuth client construct their own TLS config; verify the flag reaches every client
-  before relying on it.
-- **Large `server.go`.** Tool registration, special-casing and execution all live in one
-  ~3k-line file; extracting the custom-tool registrations would improve navigability.
+- **config** — profile resolution (defaults, env overrides, unknown-profile error);
+- **apiclient** — request building (method/path/query/body/auth) and non-2xx → `APIError`;
+- **tools** — scenario tests driving handlers against a mock server, accId defaulting,
+  required-param enforcement, empty-object body, a `-race` concurrency test, the spec
+  **drift gate**, and the **eval** scenario/tool-existence check;
+- **engines** — tool-registration smoke test + base-URL config.
+
+Backlog:
+
+- **Graph-sync unit tests.** The ported `sync_graph.go` / `push_graph.go` diff has no
+  dedicated unit tests yet — the highest-value gap.
+- **Behavioural eval.** `eval-scenarios.json` lists NL prompts → expected tool sequences;
+  the structural test asserts those tools exist, but driving a model through the prompts
+  against a throwaway workspace is still a CI/manual step.
+- **`createActor` takes a numeric `formId`** (no `formName` resolution) and optional boolean
+  params are sent verbatim (cannot express "absent"); both tracked in `INTEGRATION.md`.
+- **Spec-driven registry (future).** Tools are hand-declared; the drift gate guards them
+  against backend drift, so generating them from the spec is optional cleanup, not required.
 
 ---
 
 ## 8. Where to go next
 
+- Integration plan & migration status → [`INTEGRATION.md`](INTEGRATION.md)
 - Entity model and field semantics → [`plugins/simulator/docs/entities/`](../plugins/simulator/docs/entities/README.md)
 - End-to-end walkthroughs → [`plugins/simulator/docs/user-flows/`](../plugins/simulator/docs/user-flows/README.md)
 - API operation catalogue → [`plugins/simulator/skills/simulator/references/api-operations.md`](../plugins/simulator/skills/simulator/references/api-operations.md)

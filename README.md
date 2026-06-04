@@ -104,6 +104,9 @@ The static token takes priority over saved credentials.
 | `ACCESS_TOKEN_EXPIRES_AT`     | No       | Token expiry timestamp (RFC 3339) — written automatically after OAuth login |
 | `ACCOUNT_URL`                 | No       | Override the default account URL (`https://account.corezoid.com`)           |
 | `WORKSPACE_ID`                | No       | Default workspace ID (`accId`) — set automatically after `set-workspace`    |
+| `SIMULATOR_PROFILE`           | No       | Environment profile: `local` \| `prod` (default `prod`); also via `--profile` |
+| `SIMULATOR_API_BASE_URL`      | No       | Override the profile's API base URL (e.g. `http://localhost:9000/papi/1.0`)  |
+| `SIMULATOR_ACCOUNT_URL`       | No       | Override the profile's OAuth account (SA) URL                                |
 | `SIMULATOR_OAUTH_CLIENT_ID`   | No       | OAuth2 client ID — on-prem deployments with a custom authorization server should set this to their own client ID; cloud (account.corezoid.com) users do not need it |
 
 All values are read from a `.env` file in the current working directory at startup, and the `login` / `set-workspace` tools persist their results back to that file.
@@ -138,38 +141,53 @@ Pull layer 1a2b3c4d-... to a local YAML, let me edit it, then push it back.
 
 ## MCP Tools
 
-The MCP server exposes 11 hand-written tools plus every operation in the bundled Simulator OpenAPI spec — the **full `/papi/1.0` surface, 185 operations** (`swagger/sim-public-swagger.full.json`, embedded at build time). All API-derived tools follow the operation IDs from the spec (e.g. `createActor`, `getCompanies`, `searchActors`, `createTransfer`, …).
+The MCP server exposes a **curated, typed tool set (~46 tools)** scoped to the core
+scenarios — forms, actors, accounts, transactions, graph building, applications/smart forms
+— rather than the entire REST surface. Each tool maps to a backend operation by its
+`operationId`; a drift gate keeps the set in sync with the live `/papi/1.0` contract.
+
+**Curated API operations** (one tool per backend operation):
+
+| Domain        | Tools                                                                                  |
+|---------------|----------------------------------------------------------------------------------------|
+| Forms         | `createForm` `getForm` `getForms` `updateForm` `deleteForm` `setFormStatus`            |
+| Actors        | `createActor` `getActor` `getActorByRef` `updateActor` `deleteActor` `setActorStatus`  |
+| Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
+| Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
+| Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `manageLayerActors`            |
+| Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
+| Auth          | `login` `set-workspace`                                                                |
+
+**Engine tools** (multi-call workflows + client-side computation):
 
 | Tool                     | Description                                                                                          |
 |--------------------------|------------------------------------------------------------------------------------------------------|
-| `login`                  | Authenticate via OAuth2 PKCE (opens browser); elicits account URL + workspace and writes them to `.env` |
-| `set-workspace`          | Save the active workspace ID (`accId`) to `.env` as `WORKSPACE_ID`                                   |
-| `createActors`           | Bulk-create up to 50 actors in one call; returns the list of new actor IDs                           |
 | `pullGraphFile`          | Fetch all actors and edges from a layer and write them to `<layerId>.yaml` in the working directory  |
 | `pushGraphFile`          | Read `<layerId>.yaml` and sync it with the server layer: create / update / remove to match the file  |
 | `getAllLayerPlacements`  | Return every actor placement on a layer in one paginated call                                        |
 | `compactGraphLayout`     | Auto-layout a layer into domain-clustered grids (replaces the pull → edit → push loop)               |
 | `pruneLongEdges`         | Delete edges longer than a distance threshold; preserves hierarchy edges                             |
-| `uploadActorPicture`     | Set an actor picture from URL / file / base64; auto-rasterises SVG → PNG                              |
-| `uploadActorPictureBulk` | Set pictures on up to 500 actors; dedupes identical sources by SHA-256                               |
+| `uploadActorPicture` / `uploadActorPictureBulk` | Set actor pictures from URL / file / base64; auto-rasterise SVG → PNG; bulk dedupes by SHA-256 |
 | `createChart`            | Create a dashboard chart actor (dynamic `actorFilter` or explicit accounts mode)                     |
-| `<operationId>`          | One tool per Simulator REST operation (auto-generated from the bundled OpenAPI spec)                 |
 
 ## Architecture
 
 ```
 Claude Code / Codex
-  └── simulator MCP server (go run .)
-        ├── Auth          login (OAuth2 PKCE → .env), set-workspace
-        ├── Graph helpers pullGraphFile, pushGraphFile, createActors, compactGraphLayout,
-        │                 getAllLayerPlacements, pruneLongEdges, uploadActorPicture(Bulk), createChart
-        └── REST passthrough
-              └── one MCP tool per operation in sim-public-swagger.full.json
-                  (createActor, searchActors, createLink, createLayer,
-                   createForm, createAccount, createTransaction, createTransfer, …)
+  └── simulator MCP server (go run ./cmd/server --profile local|prod)
+        ├── config      local / prod profiles (API base + account URL)
+        ├── auth        login (OAuth2 PKCE → .env), set-workspace
+        ├── tools       curated typed operations (forms, actors, accounts,
+        │               transactions, graph, apps) — one tool per backend op
+        ├── engines     pullGraphFile, pushGraphFile, compactGraphLayout,
+        │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart
+        └── apiclient   HTTP → Simulator /papi/1.0 (local :9000 or mw gateway)
 ```
 
-The MCP server is a generic Swagger→MCP bridge that reads the bundled, embedded `swagger/sim-public-swagger.full.json` (185 operations) and converts every endpoint into an MCP-callable operation. Skills add the domain knowledge on top. For the full design — the spec-enrichment pipeline, the three swagger specs, and the auth flow — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+The server exposes a curated, typed tool set declared in Go (not a generic spec passthrough);
+a drift gate validates those declarations against the backend's `papi-openapi.json`. Skills
+add the domain knowledge on top. For the full design — profiles, the tool registry, engines,
+the drift gate, and the auth flow — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ### Simulator.Company Entity Model
 
@@ -241,34 +259,30 @@ simulator-ai-plugin/
 ├── .agents/
 │   └── plugins/
 │       └── marketplace.json     # Codex marketplace listing (points to plugins/simulator)
-├── Makefile                     # enrich-spec / check-spec / discovery / build / vet / test
+├── Makefile                     # build / vet / test / discovery / run-local / run-prod
 ├── CHANGELOG.md
 ├── CLAUDE.md                    # Repo guide for Claude Code (points to AGENTS.md)
 ├── AGENTS.md                    # Repo guide for coding agents (canonical)
 ├── docs/                        # Project / contributor documentation
-│   └── ARCHITECTURE.md          # Plugin & MCP-server architecture
+│   ├── ARCHITECTURE.md          # Plugin & MCP-server architecture
+│   └── INTEGRATION.md           # pong-server integration plan & status
 ├── public/                      # Generated AI-discovery artifacts (llms.txt, .well-known/skills/index.json)
 └── plugins/simulator/           # Plugin root (CLAUDE_PLUGIN_ROOT for both Claude Code and Codex)
     ├── .claude-plugin/
     │   └── plugin.json          # Claude Code plugin manifest
     ├── .codex-plugin/
     │   └── plugin.json          # Codex plugin manifest
-    ├── .mcp.json                # MCP server configuration (go run . --spec simulator)
+    ├── .mcp.json                # MCP server configuration (go run ./cmd/server)
     ├── mcp-server/              # Go MCP server source (see mcp-server/README.md)
-    │   ├── main.go
-    │   ├── specs.go             # //go:embed of the full OpenAPI spec
+    │   ├── cmd/server/          # entry point: profile → tools → stdio
+    │   ├── cmd/gendiscovery/    # regenerate public/ discovery artifacts
     │   ├── go.mod / go.sum
-    │   ├── app/
-    │   │   ├── auth/            # OAuth2 PKCE flow + .env credential storage
-    │   │   ├── mcp-server/      # Swagger→MCP bridge + 11 custom tools
-    │   │   ├── models/          # OpenAPI data models
-    │   │   └── swagger/         # Swagger loader
-    │   ├── cmd/
-    │   │   ├── enrichspec/      # regenerate the embedded full spec from the live API
-    │   │   └── gendiscovery/    # regenerate public/ discovery artifacts
-    │   └── swagger/             # Bundled OpenAPI specs
-    │       ├── sim-public-swagger-all.json   # curated (80 ops) — reuse source
-    │       └── sim-public-swagger.full.json  # full (185 ops) — embedded & served
+    │   ├── internal/
+    │   │   ├── config/          # local/prod profiles
+    │   │   ├── apiclient/       # HTTP client (auth, accId, timeouts)
+    │   │   ├── tools/           # curated typed tools + testdata (drift spec, eval)
+    │   │   └── engines/         # graph sync, layout, prune, upload, chart
+    │   └── app/auth/            # OAuth2 PKCE flow + .env credential storage
     ├── skills/
     │   ├── simulator/                      # Universal assistant skill
     │   │   ├── SKILL.md
@@ -286,19 +300,18 @@ simulator-ai-plugin/
 
 ## Debugging
 
-The MCP server always writes debug output to `/tmp/simulator.log` when running in MCP mode. View it with:
-
-```bash
-tail -f /tmp/simulator.log
-```
-
-In CLI mode, you can invoke a single tool without starting the MCP transport:
+Run the server directly against a profile and enable verbose logging with `SIMULATOR_DEBUG`:
 
 ```bash
 cd plugins/simulator/mcp-server
-go run . <tool-name> key=value ...
-# e.g.
-go run . getCompanies
+SIMULATOR_DEBUG=1 go run ./cmd/server --profile local
+```
+
+Tests cover config, the HTTP client, the curated tools (scenarios + `-race`), the backend
+drift gate, and the eval scenarios:
+
+```bash
+go test ./...
 ```
 
 ## Compatibility
