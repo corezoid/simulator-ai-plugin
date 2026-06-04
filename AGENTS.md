@@ -60,6 +60,12 @@ SIMULATOR_DEBUG=1 go run ./cmd/server --profile local
 
 Before committing Go changes, run `make build && make vet && make test`.
 
+**Dev loop in Claude Code:** load the plugin from the repo with `claude --plugin-dir <repo>`
+(or a local marketplace install, or the project-scoped root `.mcp.json` — pick one).
+Profile via `plugins/simulator/mcp-server/.env` (`SIMULATOR_PROFILE=local`). After editing
+code/tools/skills/`.env`, run **`/reload-plugins`** to relaunch the MCP server — no
+reinstall. Verify with `/mcp`. Full guide: README → "Local development".
+
 ## Conventions & gotchas
 
 - **No build step ships.** Hosts launch the server with `go run ./cmd/server`. Don't add a

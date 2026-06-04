@@ -299,6 +299,73 @@ simulator-ai-plugin/
         └── user-flows/          # End-to-end walkthroughs
 ```
 
+## Local development
+
+Run the plugin from this repo (developing it, or testing against a local `pong-server`),
+not from the marketplace.
+
+**Requirements:** Go 1.24+, and a backend — a local `pong-server` on `http://localhost:9000`
+(profile `local`) or the public gateway (profile `prod`).
+
+### 1. Pick the environment
+
+Create `plugins/simulator/mcp-server/.env`:
+
+```
+SIMULATOR_PROFILE=local      # or prod
+```
+
+`login` / `set-workspace` write `ACCESS_TOKEN` / `WORKSPACE_ID` back into this same file.
+
+### 2. Connect it in Claude Code
+
+Pick **one** way (don't combine — two would register the `simulator` server twice):
+
+- **Plugin dir (recommended for dev):** start Claude Code pointing at the repo —
+  ```bash
+  claude --plugin-dir /Users/<you>/PJ/control/simulator-ai-plugin
+  ```
+- **Local marketplace install:**
+  ```
+  /plugin marketplace add /Users/<you>/PJ/control/simulator-ai-plugin
+  /plugin install simulator@simulator
+  /reload-plugins
+  ```
+- **Project auto-load:** simply opening this repo as your project loads the root
+  `.mcp.json` (a project-scoped server) — approve it when Claude Code asks.
+
+Verify with `/mcp` — you should see **simulator** ✓ with ~50 tools.
+
+### 3. Authenticate and choose a workspace
+
+```
+log in to Simulator          # OAuth in the browser → token saved to .env
+which workspaces do I have?  # getWorkspaces → list by name
+work in <workspace name>     # set-workspace(name=…) → saves WORKSPACE_ID
+```
+
+### 4. Restart after you change the plugin
+
+Edited Go code, a tool, `.env`, `.mcp.json`, or a skill? Reload — **no reinstall needed**:
+
+```
+/reload-plugins
+```
+
+This kills and relaunches the Go MCP server (`go run ./cmd/server`), re-reading the source
+and `.env`. Check `/mcp` again if a server shows as failed (see its **Errors** tab in
+`/plugin`).
+
+### Run / test outside Claude Code
+
+```bash
+make run-local      # go run ./cmd/server --profile local
+make run-prod       # against the public gateway
+make test           # unit + scenario + drift + eval tests
+make eval           # behavioural eval, dry (needs ANTHROPIC_API_KEY)
+make eval-live      # behavioural eval executing tools against the backend
+```
+
 ## Debugging
 
 Run the server directly against a profile and enable verbose logging with `SIMULATOR_DEBUG`:
