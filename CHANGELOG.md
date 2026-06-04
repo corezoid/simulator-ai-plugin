@@ -11,6 +11,7 @@
 - **Removed** the legacy tree: `app/mcp-server`, `app/{models,swagger}`, root `main.go`/`specs.go`, `cmd/enrichspec`, and the bundled `sim-public-swagger*.json` (the full-spec embed + enrichspec generator are no longer needed).
 - Known limitations: `createActor` takes a numeric `formId` (no `formName` resolution); behavioural (LLM-in-the-loop) eval is a CI/manual step. See `docs/INTEGRATION.md`.
 - Clarified that account `amount`/balances are stored as their real decimal value and currency `precision`/`decimals` is display-only (never scale by `10^precision`) — in the `createTransaction`/`finalizeTransaction`/`getAccounts`/`getBalance`/`createCurrency` tool descriptions, the `simulator-finance` skill, and `docs/entities/accounts.md`.
+- **Security hardening** of the engine tools: reject non-UUID `layerId`/`actorId`/`filterActorId`/`accountNameId` arguments before any filesystem or API access (closes path traversal in `pullGraphFile`/`pushGraphFile` and URL/query injection); escape graph-file-derived IDs interpolated into API URLs; restrict the `uploadActorPicture(Bulk)` `localPath` source to image extensions with a 25 MiB cap; HTML-escape reflected values in the OAuth callback page; warn when the API base URL would send the auth token over plaintext HTTP to a non-local host. Added `internal/engines/security_test.go`.
 
 ## [1.5.0]
 

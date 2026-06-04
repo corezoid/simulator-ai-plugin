@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net"
@@ -109,7 +110,7 @@ func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			_, _ = w.Write([]byte(oauthPageHTML("Authentication Failed", "error",
 				"Authentication failed",
-				"<strong>"+errCode+"</strong>: "+desc,
+				"<strong>"+html.EscapeString(errCode)+"</strong>: "+html.EscapeString(desc),
 				"You may close this tab.")))
 			errCh <- fmt.Errorf("OAuth error: %s – %s", errCode, desc)
 			return

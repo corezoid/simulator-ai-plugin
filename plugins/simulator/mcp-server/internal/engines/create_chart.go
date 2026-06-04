@@ -505,6 +505,9 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
+	if r := requireUUID("layerId", layerID); r != nil {
+		return r, nil
+	}
 
 	title, _ := args["title"].(string)
 	if title == "" {
@@ -518,6 +521,16 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	filterActorID, _ := args["filterActorId"].(string)
 	filterTitle, _ := args["filterTitle"].(string)
 	accountNameID, _ := args["accountNameId"].(string)
+	if filterActorID != "" {
+		if r := requireUUID("filterActorId", filterActorID); r != nil {
+			return r, nil
+		}
+	}
+	if accountNameID != "" {
+		if r := requireUUID("accountNameId", accountNameID); r != nil {
+			return r, nil
+		}
+	}
 
 	var sourceFormID, currencyID, top int
 	if v, ok := args["sourceFormId"].(float64); ok {

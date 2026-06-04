@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 
@@ -34,6 +35,7 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 	log.Printf("simulator MCP server %s — profile=%s api=%s account=%s", version, prof.Name, prof.APIBaseURL, prof.AccountURL)
+	warnIfInsecureCredentialTransport(prof.APIBaseURL)
 
 	// AuthHeader provider reads the current credentials each call so a fresh
 	// login takes effect without a restart.
@@ -59,6 +61,22 @@ func main() {
 	if err := server.ServeStdio(s); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
+}
+
+// warnIfInsecureCredentialTransport logs a warning when the resolved API base
+// URL would send the bearer token over plaintext HTTP to a non-loopback host.
+// The token is attached to every request, so a remote http:// endpoint (e.g.
+// set via SIMULATOR_API_BASE_URL or profiles.json) would expose it on the wire.
+func warnIfInsecureCredentialTransport(baseURL string) {
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Scheme != "http" {
+		return
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return
+	}
+	log.Printf("WARNING: API base URL %q uses plaintext HTTP to a non-local host — the auth token will be sent unencrypted. Use HTTPS.", baseURL)
 }
 
 // loadDotEnv loads KEY=VALUE lines from path into the process environment,

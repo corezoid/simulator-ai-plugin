@@ -32,6 +32,40 @@ type uploadResponse struct {
 	Message    string `json:"message,omitempty"`
 }
 
+// maxLocalImageBytes caps how large a file the `localPath` source will read
+// from disk.
+const maxLocalImageBytes = 25 << 20 // 25 MiB
+
+// allowedImageExts is the extension allow-list for the `localPath` source.
+var allowedImageExts = map[string]bool{
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true,
+	".webp": true, ".bmp": true, ".ico": true, ".svg": true,
+}
+
+// readLocalImage reads an image referenced by a `localPath` tool argument,
+// rejecting non-image extensions, directories, and oversized files. This
+// narrows the arbitrary-file-read surface of the localPath source: a caller
+// who can steer tool arguments (e.g. via prompt injection) cannot exfiltrate
+// arbitrary local files (such as ~/.ssh/id_rsa) by uploading them as an actor
+// picture — see security review.
+func readLocalImage(p string) ([]byte, error) {
+	ext := strings.ToLower(filepath.Ext(p))
+	if !allowedImageExts[ext] {
+		return nil, fmt.Errorf("localPath must point to an image file; %q is not an allowed extension", ext)
+	}
+	info, err := os.Stat(p)
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("localPath points to a directory, not a file")
+	}
+	if info.Size() > maxLocalImageBytes {
+		return nil, fmt.Errorf("localPath file is too large (%d bytes; max %d)", info.Size(), maxLocalImageBytes)
+	}
+	return os.ReadFile(p)
+}
+
 // uploadFile sends a multipart POST to /upload/{accId} and returns the
 // storage fileName (path under which the file is accessible via /download).
 // `filename` becomes the multipart Content-Disposition filename and is also
@@ -213,6 +247,9 @@ func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mc
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
+	if r := requireUUID("actorId", actorID); r != nil {
+		return r, nil
+	}
 	formID := toInt(args["formId"])
 	if formID == 0 {
 		return mcp.NewToolResultError("[Error] formId is required"), nil
@@ -239,7 +276,7 @@ func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mc
 			filename = filename[:i]
 		}
 	} else if p, ok := args["localPath"].(string); ok && p != "" {
-		b, err := os.ReadFile(p)
+		b, err := readLocalImage(p)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] read localPath: %v", err)), nil
 		}
@@ -364,6 +401,14 @@ func handleUploadActorPictureBulk(ctx context.Context, req mcp.CallToolRequest) 
 			})
 			continue
 		}
+		if !isUUID(actorID) {
+			results = append(results, uploadBulkItemResult{
+				ActorID: actorID,
+				Status:  "error",
+				Error:   fmt.Sprintf("items[%d] actorId is not a valid UUID", i),
+			})
+			continue
+		}
 
 		// Picture shortcut — bind an existing storage path directly.
 		if p, ok := item["picture"].(string); ok && p != "" {
@@ -400,7 +445,7 @@ func handleUploadActorPictureBulk(ctx context.Context, req mcp.CallToolRequest) 
 				filename = filename[:i]
 			}
 		} else if p, ok := item["localPath"].(string); ok && p != "" {
-			b, err := os.ReadFile(p)
+			b, err := readLocalImage(p)
 			if err != nil {
 				results = append(results, uploadBulkItemResult{
 					ActorID: actorID, Status: "error",

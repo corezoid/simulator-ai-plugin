@@ -41,6 +41,9 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
+	if r := requireUUID("layerId", layerID); r != nil {
+		return r, nil
+	}
 	maxDist := toInt(args["maxDistancePx"])
 	if maxDist <= 0 {
 		maxDist = 600

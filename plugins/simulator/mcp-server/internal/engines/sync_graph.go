@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -98,6 +99,24 @@ func isUUID(s string) bool {
 	return uuidRe.MatchString(s)
 }
 
+// requireUUID returns an MCP error result when v is not a well-formed UUID, or
+// nil when it is. It guards tool arguments that are interpolated into file
+// paths (pull/pushGraphFile write <layerId>.yaml) and API URLs — without it a
+// value like "../../etc/x" or "id?admin=1" would traverse the filesystem or
+// inject into the request (see security review).
+func requireUUID(name, v string) *mcp.CallToolResult {
+	if !isUUID(v) {
+		return mcp.NewToolResultError(fmt.Sprintf("[Error] %s must be a valid UUID, got %q", name, v))
+	}
+	return nil
+}
+
+// seg escapes a value for safe interpolation as a single URL path segment.
+// IDs that originate from a graph file (e.g. graph.LayerID, actor UUIDs) are
+// not boundary-validated, so escaping here prevents path/query injection if
+// such an ID contains "/", "?" or "#".
+func seg(s string) string { return url.PathEscape(s) }
+
 // buildBaseURL returns the same base URL used by all other MCP tools.
 func buildBaseURL() string {
 	switch {
@@ -139,7 +158,7 @@ func fetchLayerActors(layerID string) ([]layerActor, error) {
 	var all []layerActor
 	limit, offset := 50, 0
 	for {
-		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d", base, layerID, limit, offset)
+		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d", base, seg(layerID), limit, offset)
 		body, err := papiGET(u)
 		if err != nil {
 			return nil, err
@@ -164,7 +183,7 @@ func fetchLayerEdges(layerID string) ([]layerEdge, error) {
 	var all []layerEdge
 	limit, offset := 50, 0
 	for {
-		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d", base, layerID, limit, offset)
+		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d", base, seg(layerID), limit, offset)
 		body, err := papiGET(u)
 		if err != nil {
 			return nil, err
@@ -211,6 +230,9 @@ func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	layerID, _ := args["layerId"].(string)
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
+	}
+	if r := requireUUID("layerId", layerID); r != nil {
+		return r, nil
 	}
 	filePath := layerID + ".yaml"
 
@@ -266,6 +288,9 @@ func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	layerID, _ := args["layerId"].(string)
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
+	}
+	if r := requireUUID("layerId", layerID); r != nil {
+		return r, nil
 	}
 	filePath := layerID + ".yaml"
 

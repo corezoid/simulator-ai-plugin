@@ -54,6 +54,9 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
+	if r := requireUUID("layerId", layerID); r != nil {
+		return r, nil
+	}
 	strategy, _ := args["strategy"].(string)
 	if strategy == "" {
 		strategy = "domain-clusters"

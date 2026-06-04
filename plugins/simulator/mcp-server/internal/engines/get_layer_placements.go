@@ -51,6 +51,9 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
+	if r := requireUUID("layerId", layerID); r != nil {
+		return r, nil
+	}
 
 	client := apiHTTPClient()
 
