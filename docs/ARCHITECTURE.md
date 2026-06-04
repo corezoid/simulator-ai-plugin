@@ -295,9 +295,15 @@ Eval harness:
 
 - **Structural** (`internal/tools/eval_test.go`): asserts every tool named in
   `eval-scenarios.json` exists.
-- **Behavioural** (`cmd/evalrunner`, `make eval`): spawns the real server, drives a Claude
-  model through each prompt via the Anthropic API (bounded tool-use loop, stubbed results),
-  and checks the expected tools were called. Opt-in — skips without `ANTHROPIC_API_KEY`.
+- **Behavioural** (`cmd/evalrunner`): spawns the real server (`tools/list`) and drives a
+  Claude model through each prompt via the Anthropic API in a bounded tool-use loop.
+  - `make eval` (dry): tool calls answered with a stub `{}` — read-only, no backend; checks
+    the model reaches for the expected tools. Scenarios tagged `liveOnly` (those needing
+    real ids/state) are skipped. Verified passing against the live model.
+  - `make eval-live` (`--execute`): forwards tool calls to the MCP server so they run against
+    the real backend; entities created during a run are tracked and best-effort deleted at
+    the end. **Use a throwaway workspace** — `login` + `set-workspace` first.
+  - Opt-in either way — skips without `ANTHROPIC_API_KEY`.
 
 Backlog:
 

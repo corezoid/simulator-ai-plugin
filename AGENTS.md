@@ -47,7 +47,8 @@ make test          # go test ./...   — config, apiclient, tools (scenarios, -r
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
 make run-local     # go run ./cmd/server --profile local   (dev pong-server :9000)
 make run-prod      # go run ./cmd/server --profile prod
-make eval          # behavioural eval — drives a model through eval-scenarios.json (opt-in)
+make eval          # behavioural eval, dry — model picks tools, stubbed results (opt-in)
+make eval-live     # behavioural eval executing tools against the backend (throwaway workspace)
 ```
 
 Run the server directly (no build step — hosts use `go run ./cmd/server`):

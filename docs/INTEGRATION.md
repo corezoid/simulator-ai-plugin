@@ -297,12 +297,12 @@ replaces the 3k-line `server.go`: simple CRUD is generated from the curated spec
     It already caught a phantom `getApplication` (no backend route — removed). Refresh the spec
     by re-running the dump and copying it over. *(A future step can switch the registry to
     generate tools from this spec; the gate already guards the hand-declared ops against drift.)*
-11. ✅ **Eval harness** — structural: `eval-scenarios.json` (10 NL scenarios → expected tool
-    sequences) + `eval_test.go` asserting every referenced tool is real. **Behavioural:**
-    `cmd/evalrunner` (`make eval`) spawns the real server (`tools/list`), drives a Claude model
-    through each prompt via the Anthropic API in a bounded tool-use loop (stubbed results — no
-    backend writes), and checks the expected tools were called. Opt-in: skips without
-    `ANTHROPIC_API_KEY`.
+11. ✅ **Eval harness** — structural: `eval-scenarios.json` + `eval_test.go` assert every
+    referenced tool is real. **Behavioural:** `cmd/evalrunner` drives a Claude model through
+    each prompt via the Anthropic API. `make eval` (dry, stubbed results — verified passing
+    against the live model, skips `liveOnly` scenarios); `make eval-live` (`--execute`) routes
+    tool calls to the MCP server to run against the backend, tracking + best-effort deleting
+    created entities (use a throwaway workspace). Opt-in: skips without `ANTHROPIC_API_KEY`.
 12. ✅ **Graph-sync unit tests** — `internal/engines/graphsync_test.go`: the diff's decision
     primitives (`formIDFromLayerActor`, form-name cache + nested resolution, actor-formId cache,
     override) plus an end-to-end `pushGraph` test driving the full diff (fetch → diff → delete)

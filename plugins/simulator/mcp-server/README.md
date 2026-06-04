@@ -66,7 +66,8 @@ make test          # go test ./...   — config, apiclient, tools (scenarios, -r
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
 make run-local     # go run ./cmd/server --profile local
 make run-prod      # go run ./cmd/server --profile prod
-make eval          # behavioural eval (needs ANTHROPIC_API_KEY; skips otherwise)
+make eval          # behavioural eval, dry — stubbed tool results (needs ANTHROPIC_API_KEY)
+make eval-live     # behavioural eval executing tools against the backend (throwaway workspace)
 ```
 
 ## Keeping in sync with the backend
