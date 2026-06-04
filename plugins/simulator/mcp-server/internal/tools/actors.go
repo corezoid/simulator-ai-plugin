@@ -107,4 +107,24 @@ var actorOps = []Operation{
 			{Name: "status", In: InBody, Type: "string", Desc: "New status value."},
 		},
 	},
+	{
+		Name: "searchActors", Method: "GET", Path: "/actors_filters/search/{accId}/{query}",
+		Summary: "Search actors across a workspace by title/text. Use before createActor to check whether an actor already exists.",
+		Params: []Param{
+			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
+			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search query (title or fragment)."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+		},
+	},
+	{
+		Name: "searchLayerActors", Method: "GET", Path: "/layer_actors_filters/search/{actorId}/{query}",
+		Summary: "Search actors placed on a specific layer by title/text.",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
+			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search query (title or fragment)."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+		},
+	},
 }

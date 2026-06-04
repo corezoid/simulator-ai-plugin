@@ -199,8 +199,8 @@ backend operation, with typed parameters:
 
 | Domain        | Tools                                                                                  |
 |---------------|----------------------------------------------------------------------------------------|
-| Forms         | `createForm` `getForm` `getForms` `updateForm` `deleteForm` `setFormStatus`            |
-| Actors        | `createActor` `getActor` `getActorByRef` `updateActor` `deleteActor` `setActorStatus`  |
+| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` |
+| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `updateActor` `deleteActor` `setActorStatus` |
 | Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
 | Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `manageLayerActors`            |

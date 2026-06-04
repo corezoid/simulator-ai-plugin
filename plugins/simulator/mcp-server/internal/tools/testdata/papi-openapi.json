@@ -10902,6 +10902,7 @@
     },
     "/papi/1.0/forms/search/{accId}/{q}": {
       "get": {
+        "operationId": "searchForms",
         "parameters": [
           {
             "schema": {
@@ -11531,6 +11532,7 @@
     },
     "/papi/1.0/actors_filters/search/{accId}/{query}": {
       "get": {
+        "operationId": "searchActors",
         "tags": [
           "Graph"
         ],
@@ -12973,6 +12975,7 @@
     },
     "/papi/1.0/layer_actors_filters/search/{actorId}/{query}": {
       "get": {
+        "operationId": "searchLayerActors",
         "tags": [
           "Graph"
         ],

@@ -67,4 +67,12 @@ var formOps = []Operation{
 			{Name: "status", In: InBody, Type: "string", Desc: "New form status value."},
 		},
 	},
+	{
+		Name: "searchForms", Method: "GET", Path: "/forms/search/{accId}/{q}",
+		Summary: "Search form templates by name/text in a workspace. Use before createForm to check whether a form already exists.",
+		Params: []Param{
+			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
+			{Name: "q", In: InPath, Type: "string", Required: true, Desc: "Search query (form name or fragment)."},
+		},
+	},
 }

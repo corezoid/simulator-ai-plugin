@@ -192,8 +192,8 @@ post-transactions-accountId(accountId="<account-id>",
 The MCP server exposes a **curated, typed tool set** (not the full REST surface).
 Call tools by these exact names:
 
-- **Forms:** `createForm`, `getForm`, `getForms`, `updateForm`, `deleteForm`, `setFormStatus`
-- **Actors:** `createActor`, `getActor`, `getActorByRef`, `updateActor`, `deleteActor`, `setActorStatus`
+- **Forms:** `createForm`, `getForm`, `getForms`, `searchForms`, `updateForm`, `deleteForm`, `setFormStatus`
+- **Actors:** `createActor`, `getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `updateActor`, `deleteActor`, `setActorStatus`
 - **Accounts:** `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
 - **Transactions:** `createTransaction`, `finalizeTransaction`, `getTransactions`, `createTransfer`, `getTransfer`
 - **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`
@@ -202,6 +202,10 @@ Call tools by these exact names:
 - **Auth:** `login`, `set-workspace`
 
 Key rules:
+- **Check before you create.** To avoid duplicates, first look for an existing entity:
+  `searchForms`/`getForms` for forms, `searchActors` (workspace) or `searchLayerActors`
+  (one layer) or `getActorByRef` (exact external ref) for actors, `getForms`+`getAccounts`
+  for accounts, `getCurrencies`/`getAccountNames` for reference data. Create only if absent.
 - **`createActor` accepts `formId` (number) or `formName`** — pass `formName` and it is
   resolved to the form id via the active workspace; pass `formId` directly to skip the lookup.
 - Placing nodes/edges on a layer uses **`manageLayerActors`** (the former `manageLayer`).
