@@ -372,8 +372,13 @@ put-accounts-amount-accountId(
 ### Get Financial Report
 ```
 # Get all accounts with balances
-get-accounts-actorId(actorId="actor_camry_2023")
+getAccounts(actorId="actor_camry_2023")
 # → [{type: "asset", amount: 25000}, {type: "expense", amount: 450}, ...]
+
+# Account turnover over a period: pass from/to (unixtime in MILLISECONDS).
+# The returned amounts are the account's turnover for that window.
+getAccounts(actorId="actor_camry_2023", from=1704067200000, to=1706745600000)
+# Optionally restrict direction with incomeType="debit"|"credit".
 
 # Get maintenance transaction history
 get-transactions-list-accountId(accountId="acc_mnt_xxx")

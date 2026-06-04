@@ -28,7 +28,7 @@ description: >
   traversal operations, layer management, and FlowchartBlock diagram creation.
 ---
 
-> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read layer membership with `getLayerActors` / `getAllLayerPlacements`; create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge types with `getEdgeTypes`. Link-traversal queries (`getLinkedActors`, `getActorLinks`, `getLayerActorsByFormId`) are not in the current curated set. See `/simulator` for the full list.
+> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read layer membership with `getLayerActors` / `getAllLayerPlacements`; create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge types with `getEdgeTypes`. List actors linked to an actor with `getRelatedActors` (type = linked | parents | children; traverses the hierarchy link type by default; paginated, filterable, sortable). Other link-traversal queries (`getActorLinks`, `getLayerActorsByFormId`) are not in the current curated set. See `/simulator` for the full list.
 
 # Simulator.Company Graph Builder
 
@@ -552,9 +552,9 @@ moveElements(sourceLayerId="<la>", targetLayerId="<lb>", body='{"actorIds":["<a1
 ### Graph Traversal
 
 ```
+getRelatedActors(type="linked", actorId="<actorId>")  // type: "linked"|"parents"|"children"; defaults to the hierarchy link type
 getActorLinks(actorId="<actorId>")
 getLinkedActors(actorId="<actorId>")
-getLinked(actorId="<actorId>", type="children")   // "children"|"parents"|"all"
 actorGlobalLayers(actorId="<actorId>")
 ```
 

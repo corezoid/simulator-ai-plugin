@@ -23,10 +23,22 @@ var accountOps = []Operation{
 	},
 	{
 		Name: "getAccounts", Method: "GET", Path: "/accounts/{actorId}",
-		Summary: "List the accounts on an actor.",
+		Summary: "List the accounts on an actor with their balances. Pass `from`/`to` to get each account's turnover/balance over that period (the account's movements summed within the window) — this is the account turnover for the period.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "accountType", In: InQuery, Type: "string", Enum: accountTypes, Desc: "Filter by account type."},
+			{Name: "from", In: InQuery, Type: "number", Desc: "Period start, unixtime in MILLISECONDS. Balances become the turnover from this moment."},
+			{Name: "to", In: InQuery, Type: "number", Desc: "Period end, unixtime in MILLISECONDS."},
+			{Name: "incomeType", In: InQuery, Type: "string", Enum: []string{"debit", "credit"}, Desc: "Restrict the period turnover to one direction (debit = outgoing, credit = incoming)."},
+			{Name: "amountFrom", In: InQuery, Type: "number", Desc: "Only accounts whose (period) amount is >= this value."},
+			{Name: "amountTo", In: InQuery, Type: "number", Desc: "Only accounts whose (period) amount is <= this value."},
+			{Name: "withAggTypes", In: InQuery, Type: "boolean", Desc: "Include aggregated turnover by type in the response."},
+			{Name: "query", In: InQuery, Type: "string", Desc: "Search accounts by name."},
+			{Name: "total", In: InQuery, Type: "boolean", Desc: "Return the total count instead of the list."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 100)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			{Name: "filter", In: InQuery, Type: "string", Desc: "Filter expression on accounts."},
+			{Name: "highPrecision", In: InQuery, Type: "boolean", Desc: "Return transaction sums with high precision."},
 		},
 	},
 	{

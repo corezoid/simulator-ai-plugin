@@ -1,3 +1,4 @@
 .idea/
 bin/
 /plugins/simulator/mcp-server/.env
+.claude/settings.local.json
