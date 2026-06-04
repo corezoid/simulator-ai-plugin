@@ -336,6 +336,23 @@ Pick **one** way (don't combine — two would register the `simulator` server tw
 
 Verify with `/mcp` — you should see **simulator** ✓ with ~50 tools.
 
+> **Avoiding conflicts with the installed (prod) plugin.** If you also have the published
+> `simulator@simulator` plugin installed, it registers the **same** `simulator` MCP server
+> and the same skills — so two copies collide. While developing locally, **disable the prod
+> plugin**:
+> ```
+> /plugin                       # toggle simulator@simulator OFF (or: claude plugin disable simulator@simulator)
+> ```
+> Re-enable it when you're done. Disabling is the only clean option if you're testing the
+> **skills** (they reference tools by bare name, so with both active they'd drive whichever
+> server wins — usually prod, against the prod backend).
+>
+> If you must run both at once (e.g. to call your dev tools explicitly via
+> `mcp__simulator-dev__*` while keeping prod for normal use), rename the server in the root
+> `.mcp.json` from `simulator` to `simulator-dev` so the MCP server names don't clash. The
+> prod backend vs your local backend stay separate anyway — each instance reads its own
+> `.env` (the installed plugin's dir vs `plugins/simulator/mcp-server/.env`).
+
 ### 3. Authenticate and choose a workspace
 
 ```
