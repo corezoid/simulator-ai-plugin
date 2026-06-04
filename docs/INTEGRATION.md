@@ -160,7 +160,7 @@ to typed/safe · `[new]` to be written.
 **6 & 7. Applications & Smart Forms** — `applications.js`, `appContent.js`, `smartForms.js`, pages
 | Tool | Status |
 |---|---|
-| `createApplication` / `getApplication` / `listApplications` | new |
+| `createApplication` (read via `getActor`) | new |
 | `createSmartForm` / `getSmartForm` / `updateSmartForm` / `listSmartForms` | new |
 | `createAppPage` / `manageAppContent` | new |
 
@@ -283,19 +283,24 @@ replaces the 3k-line `server.go`: simple CRUD is generated from the curated spec
    registered via `engines.RegisterTools`. *(thin runtime config + cosmetic form-name stubs;
    sync-diff unit tests still TODO)*
 6. ✅ **Media ported** (`upload` + `svg` rasterise) → `internal/engines`.
-7. ✅ **Apps + smart-form tools** (`apps.go`): createApplication, getApplication,
-   createSmartForm, listSmartForms, manageAppContent.
+7. ✅ **Apps + smart-form tools** (`apps.go`): createApplication, createSmartForm,
+   listSmartForms, manageAppContent. *(getApplication dropped — no backend route; the drift
+   gate in step 10 caught it. Read an app via getActor.)*
 8. ✅ **Skills updated** to the curated set (formId-before-createActor; `manageLayer`→
    `manageLayerActors`; per-skill curated-names notes) and **`.mcp.json` switched** to
    `go run ./cmd/server`.
 9. ✅ **Legacy deleted**: `app/mcp-server`, root `main.go`/`specs.go`, `cmd/enrichspec`,
    `app/{models,swagger}`, `sim-public-swagger*.json`.
-10. 🔶 **Spec drift gate** (path (a)): `internal/tools/drift_test.go` validates every curated
-    op (method/path/operationId) against `testdata/papi-openapi.json` once that file is
-    committed; until then it skips. Flow: run `yarn dump-openapi` in pong-server CI/dev (stack
-    up) → copy the result to `mcp-server/internal/tools/testdata/papi-openapi.json` → the gate
-    activates. (A future step can switch the registry to generate tools from the spec.)
-11. ⏳ **Eval harness** — NL prompts → expected tool sequences in a throwaway workspace.
+10. ✅ **Spec drift gate** (path (a)) — **active**: `internal/tools/drift_test.go` validates every
+    curated op (method/path/operationId) against the committed
+    `testdata/papi-openapi.json` (187 ops, dumped from the live backend via `yarn dump-openapi`).
+    It already caught a phantom `getApplication` (no backend route — removed). Refresh the spec
+    by re-running the dump and copying it over. *(A future step can switch the registry to
+    generate tools from this spec; the gate already guards the hand-declared ops against drift.)*
+11. ✅ **Eval harness (structural)** — `internal/tools/testdata/eval-scenarios.json` (10 NL
+    scenarios → expected tool sequences) + `eval_test.go` asserting every referenced tool is
+    real. The behavioural half (drive a model through each prompt against a throwaway workspace,
+    assert it issues ≥ these tools) runs with an LLM + live server — left as the CI/manual step.
 
 > **Known limitations (current increment):** `createActor` takes a numeric `formId` only
 > (no `formName` resolution yet — skills should look up the form first); optional boolean

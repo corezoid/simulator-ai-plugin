@@ -17,13 +17,6 @@ var appOps = []Operation{
 		},
 	},
 	{
-		Name: "getApplication", Method: "GET", Path: "/applications/{actorId}",
-		Summary: "Get an application by its actor UUID.",
-		Params: []Param{
-			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Application actor UUID."},
-		},
-	},
-	{
 		Name: "createSmartForm", Method: "POST", Path: "/smart_forms/{accId}",
 		Summary: "Install a smart form (CDU / Script form) into the workspace from a file URL.",
 		Params: []Param{

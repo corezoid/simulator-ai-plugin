@@ -197,7 +197,7 @@ Call tools by these exact names:
 - **Accounts:** `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
 - **Transactions:** `createTransaction`, `finalizeTransaction`, `getTransactions`, `createTransfer`, `getTransfer`
 - **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`
-- **Applications / smart forms:** `createApplication`, `getApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent`
+- **Applications / smart forms:** `createApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent` (read an application with `getActor` — it is an actor)
 - **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`
 - **Auth:** `login`, `set-workspace`
 
