@@ -2,8 +2,16 @@
 
 ## [Unreleased]
 
+### MCP server rewrite (in progress)
+- New layered server under `mcp-server/internal/` + `cmd/server/`, replacing the monolithic `app/mcp-server/server.go`. Layers: `config` (local/prod profiles, env-overridable), `apiclient` (auth header + accId injection + timeouts + error mapping), `tools` (a curated, typed operation registry → one MCP tool per operation, declared per domain). OAuth/credentials are reused from `app/auth`.
+- **Curated tool set** (~36 typed tools) scoped to the core scenarios — forms / actors / accounts / transactions / graph (links & layers) / applications & smart forms — instead of the full 185-op passthrough. Environment is selected by `--profile` (or `SIMULATOR_PROFILE`); the local profile targets a dev pong-server on `:9000`.
+- First unit/scenario tests in the module (`internal/...`), including a `-race`-checked concurrency test for the workspace switch.
+- Pending in follow-up increments: porting the client-side engines (graph pull/push sync, `compactGraphLayout`, `pruneLongEdges`, `uploadActorPicture(Bulk)`, `createChart`), `formName→formId` resolution in `createActor`, removing the legacy `app/` tree + `enrichspec`, and switching `.mcp.json` to `cmd/server`.
+
+## [1.5.0]
+
 ### Full API coverage
-- The MCP server now exposes the **full `/papi/1.0` public API surface (185 operations, up from 48)**. Added a Go generator (`cmd/enrichspec`) that pulls the live OpenAPI doc (`https://mw.simulator.company/api/1.0/doc/json` — served without `operationId`/`summary`), back-fills deterministic camelCase operationIds and summaries, and **reuses the hand-curated specs** so the canonical operationIds the server special-cases depend on (`createActor`, `getForm`, `manageLayer`, `createLink`, `massLink`, …) are preserved. `specs.go` now embeds the generated `swagger/sim-public-swagger.full.json`; the curated `sim-public-swagger.json` (48) / `-all.json` (80) are kept as the reuse source.
+- The MCP server now exposes the **full `/papi/1.0` public API surface (185 operations, up from 48)**. Added a Go generator (`cmd/enrichspec`) that pulls the live OpenAPI doc (`https://mw.simulator.company/api/1.0/doc/json` — served without `operationId`/`summary`), back-fills deterministic camelCase operationIds and summaries, and **reuses the hand-curated specs** so the canonical operationIds the server special-cases depend on (`createActor`, `getForm`, `manageLayer`, `createLink`, `massLink`, …) are preserved. `specs.go` now embeds the generated `swagger/sim-public-swagger.full.json`; the curated `sim-public-swagger-all.json` (80) is kept as the reuse source.
 - Added a `Makefile`: `enrich-spec` (regenerate), `check-spec` (drift gate — fails if upstream adds ops missing from the embedded spec), `discovery`, plus `build`/`vet`/`test`.
 
 ### Security & reliability fixes

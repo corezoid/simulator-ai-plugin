@@ -1,6 +1,6 @@
 # Simulator.Company MCP Operation Reference
 
-Each Swagger operation is exposed as an MCP tool. The tool name is the operation's `operationId` from the bundled `sim-public-swagger.json` (e.g. `getForm`, `createActor`, `searchActors`, `createTransfer`). The `METHOD:/path` column below identifies the underlying REST endpoint so you can cross-reference it with the swagger spec; it is **not** the tool name.
+Each Swagger operation is exposed as an MCP tool. The tool name is the operation's `operationId` from the bundled `sim-public-swagger.full.json` (e.g. `getForm`, `createActor`, `searchActors`, `createTransfer`). The `METHOD:/path` column below identifies the underlying REST endpoint so you can cross-reference it with the swagger spec; it is **not** the tool name.
 
 Path parameters (e.g. `{accId}`, `{formId}`) become named string arguments. Request bodies are passed via a single `body` argument as a JSON string.
 

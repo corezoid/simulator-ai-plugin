@@ -1,26 +1,13 @@
-MCP   := plugins/simulator/mcp-server
-LIVE  := https://mw.simulator.company/api/1.0/doc/json
-# Paths below are relative to the mcp-server module dir (recipes cd into $(MCP)).
-REUSE := swagger/sim-public-swagger-all.json,swagger/sim-public-swagger.json
-FULL  := swagger/sim-public-swagger.full.json
+MCP := plugins/simulator/mcp-server
 
-.PHONY: help enrich-spec check-spec discovery build vet test
+.PHONY: help discovery build vet test run-local run-prod
 
 help:
 	@echo "Targets:"
-	@echo "  enrich-spec  Regenerate the embedded full spec ($(MCP)/$(FULL)) from the live API doc."
-	@echo "  check-spec   Drift gate: fail if the live API has ops missing from the embedded spec."
-	@echo "  discovery    Regenerate public/.well-known/skills/index.json and public/llms.txt."
 	@echo "  build/vet/test  Go build / vet / test the MCP server."
-
-# Pull the live OpenAPI doc, back-fill operationId/summary (reusing curated specs),
-# and write the embedded full spec consumed by specs.go.
-enrich-spec:
-	cd $(MCP) && go run ./cmd/enrichspec --input "$(LIVE)" --reuse "$(REUSE)" --output "$(FULL)" --report
-
-# CI gate: fail if upstream added /papi ops not present in the committed full spec.
-check-spec:
-	cd $(MCP) && go run ./cmd/enrichspec --input "$(LIVE)" --check "$(FULL)"
+	@echo "  discovery       Regenerate public/.well-known/skills/index.json and public/llms.txt."
+	@echo "  run-local       Run the MCP server against a local pong-server (:9000)."
+	@echo "  run-prod        Run the MCP server against the public gateway."
 
 # Regenerate AI-discovery artifacts (public/) from the plugin SKILL.md files.
 discovery:
@@ -34,3 +21,9 @@ vet:
 
 test:
 	cd $(MCP) && go test ./...
+
+run-local:
+	cd $(MCP) && go run ./cmd/server --profile local
+
+run-prod:
+	cd $(MCP) && go run ./cmd/server --profile prod

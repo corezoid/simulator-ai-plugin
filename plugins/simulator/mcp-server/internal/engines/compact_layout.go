@@ -1,4 +1,4 @@
-package mcpserver
+package engines
 
 import (
 	"context"
@@ -86,7 +86,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	client := apiHTTPClient()
 	apiGet := func(url string) ([]byte, error) {
 		hr, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-		hr.Header.Set("Authorization", globalApiConfig.Authorization)
+		hr.Header.Set("Authorization", Cfg.Authorization)
 		resp, err := client.Do(hr)
 		if err != nil {
 			return nil, err
@@ -325,7 +325,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	apiPut := func(url string, body interface{}) error {
 		bodyBytes, _ := json.Marshal(body)
 		hr, _ := http.NewRequestWithContext(ctx, "PUT", url, strings.NewReader(string(bodyBytes)))
-		hr.Header.Set("Authorization", globalApiConfig.Authorization)
+		hr.Header.Set("Authorization", Cfg.Authorization)
 		hr.Header.Set("Content-Type", "application/json")
 		resp, err := client.Do(hr)
 		if err != nil {

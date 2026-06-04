@@ -1,4 +1,4 @@
-package mcpserver
+package engines
 
 import (
 	"context"
@@ -101,12 +101,10 @@ func isUUID(s string) bool {
 // buildBaseURL returns the same base URL used by all other MCP tools.
 func buildBaseURL() string {
 	switch {
-	case globalApiConfig.Url != "":
-		return strings.TrimSuffix(globalApiConfig.Url, "/")
-	case globalApiConfig.BaseUrl != "":
-		return strings.TrimSuffix(globalApiConfig.BaseUrl, "/")
-	case len(globalSwaggerSpec.Servers) > 0:
-		return strings.TrimSuffix(globalSwaggerSpec.Servers[0].URL, "/")
+	case Cfg.Url != "":
+		return strings.TrimSuffix(Cfg.Url, "/")
+	case Cfg.BaseUrl != "":
+		return strings.TrimSuffix(Cfg.BaseUrl, "/")
 	default:
 		return "https://api.simulator.company/v/1.0"
 	}
@@ -117,7 +115,7 @@ func papiGET(apiURL string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", globalApiConfig.Authorization)
+	req.Header.Set("Authorization", Cfg.Authorization)
 	resp, err := apiHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
@@ -226,7 +224,7 @@ func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] cannot parse YAML %s: %v", filePath, parseErr)), nil
 	}
 
-	result, syncErr := PushGraphFile(graph, os.Getenv("WORKSPACE_ID"), layerID, globalApiConfig.Authorization, buildBaseURL())
+	result, syncErr := PushGraphFile(graph, os.Getenv("WORKSPACE_ID"), layerID, Cfg.Authorization, buildBaseURL())
 	if syncErr != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] %v", syncErr)), nil
 	}

@@ -187,12 +187,39 @@ post-transactions-accountId(accountId="<account-id>",
   body='{"amount": 1000, "description": "Initial funding"}')
 ```
 
+## Curated tool set (v2 server)
+
+The MCP server exposes a **curated, typed tool set** (not the full REST surface).
+Call tools by these exact names:
+
+- **Forms:** `createForm`, `getForm`, `getForms`, `updateForm`, `deleteForm`, `setFormStatus`
+- **Actors:** `createActor`, `getActor`, `getActorByRef`, `updateActor`, `deleteActor`, `setActorStatus`
+- **Accounts:** `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
+- **Transactions:** `createTransaction`, `finalizeTransaction`, `getTransactions`, `createTransfer`, `getTransfer`
+- **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`
+- **Applications / smart forms:** `createApplication`, `getApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent`
+- **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`
+- **Auth:** `login`, `set-workspace`
+
+Key rules:
+- **`createActor` takes a numeric `formId`** (no `formName` resolution). First obtain the
+  form id via `getForms`/`getForm`, then call `createActor`.
+- Placing nodes/edges on a layer uses **`manageLayerActors`** (the former `manageLayer`).
+- `accId` defaults to the active workspace (`set-workspace`); pass it only to override.
+- Run `login` then `set-workspace` before other tools.
+
+> Note: some examples in the specialist skills below still reference older tool names
+> (e.g. `manageLayer`, `searchActors`, `createActors`); prefer the curated names above.
+
 ## Reference
 
 For domain-specific workflows use the specialized skills:
+- `/simulator-init` — OAuth login, workspace selection, environment setup
 - `/simulator-graph` — actors, links, layers, graph building
 - `/simulator-forms` — creating and managing form templates for actors
 - `/simulator-finance` — accounts, transactions, transfers
+- `/simulator-charts` — dashboard charts and time-series visualisation on layers
+- `/software-migration-onramp` — guided discovery for migrating an existing system into Simulator
 
 ## Reference Documents
 

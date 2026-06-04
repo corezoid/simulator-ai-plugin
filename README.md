@@ -138,16 +138,22 @@ Pull layer 1a2b3c4d-... to a local YAML, let me edit it, then push it back.
 
 ## MCP Tools
 
-The MCP server exposes a small set of hand-written tools plus every operation discovered in the bundled Simulator OpenAPI spec (80+ endpoints). All API-derived tools follow the operation IDs from the swagger spec (e.g. `createActor`, `getCompanies`, `searchActors`, `createTransfer`, …).
+The MCP server exposes 11 hand-written tools plus every operation in the bundled Simulator OpenAPI spec — the **full `/papi/1.0` surface, 185 operations** (`swagger/sim-public-swagger.full.json`, embedded at build time). All API-derived tools follow the operation IDs from the spec (e.g. `createActor`, `getCompanies`, `searchActors`, `createTransfer`, …).
 
-| Tool             | Description                                                                                          |
-|------------------|------------------------------------------------------------------------------------------------------|
-| `login`          | Authenticate via OAuth2 PKCE (opens browser); elicits account URL + workspace and writes them to `.env` |
-| `set-workspace`  | Save the active workspace ID (`accId`) to `.env` as `WORKSPACE_ID`                                   |
-| `pullGraphFile`  | Fetch all actors and edges from a layer and write them to `<layerId>.yaml` in the working directory  |
-| `pushGraphFile`  | Read `<layerId>.yaml` and sync it with the server layer: create / update / remove to match the file  |
-| `createActors`   | Bulk-create up to 50 actors in one call; returns the list of new actor IDs                           |
-| `<operationId>`  | One tool per Simulator REST operation (auto-generated from the bundled OpenAPI spec)                 |
+| Tool                     | Description                                                                                          |
+|--------------------------|------------------------------------------------------------------------------------------------------|
+| `login`                  | Authenticate via OAuth2 PKCE (opens browser); elicits account URL + workspace and writes them to `.env` |
+| `set-workspace`          | Save the active workspace ID (`accId`) to `.env` as `WORKSPACE_ID`                                   |
+| `createActors`           | Bulk-create up to 50 actors in one call; returns the list of new actor IDs                           |
+| `pullGraphFile`          | Fetch all actors and edges from a layer and write them to `<layerId>.yaml` in the working directory  |
+| `pushGraphFile`          | Read `<layerId>.yaml` and sync it with the server layer: create / update / remove to match the file  |
+| `getAllLayerPlacements`  | Return every actor placement on a layer in one paginated call                                        |
+| `compactGraphLayout`     | Auto-layout a layer into domain-clustered grids (replaces the pull → edit → push loop)               |
+| `pruneLongEdges`         | Delete edges longer than a distance threshold; preserves hierarchy edges                             |
+| `uploadActorPicture`     | Set an actor picture from URL / file / base64; auto-rasterises SVG → PNG                              |
+| `uploadActorPictureBulk` | Set pictures on up to 500 actors; dedupes identical sources by SHA-256                               |
+| `createChart`            | Create a dashboard chart actor (dynamic `actorFilter` or explicit accounts mode)                     |
+| `<operationId>`          | One tool per Simulator REST operation (auto-generated from the bundled OpenAPI spec)                 |
 
 ## Architecture
 
@@ -155,14 +161,15 @@ The MCP server exposes a small set of hand-written tools plus every operation di
 Claude Code / Codex
   └── simulator MCP server (go run .)
         ├── Auth          login (OAuth2 PKCE → .env), set-workspace
-        ├── Graph helpers pullGraphFile, pushGraphFile, createActors
+        ├── Graph helpers pullGraphFile, pushGraphFile, createActors, compactGraphLayout,
+        │                 getAllLayerPlacements, pruneLongEdges, uploadActorPicture(Bulk), createChart
         └── REST passthrough
-              └── one MCP tool per operation in sim-public-swagger.json
+              └── one MCP tool per operation in sim-public-swagger.full.json
                   (createActor, searchActors, createLink, createLayer,
                    createForm, createAccount, createTransaction, createTransfer, …)
 ```
 
-The MCP server is a generic Swagger→MCP bridge that reads the bundled `swagger/sim-public-swagger.json` and converts every endpoint into an MCP-callable operation. Skills add the domain knowledge on top.
+The MCP server is a generic Swagger→MCP bridge that reads the bundled, embedded `swagger/sim-public-swagger.full.json` (185 operations) and converts every endpoint into an MCP-callable operation. Skills add the domain knowledge on top. For the full design — the spec-enrichment pipeline, the three swagger specs, and the auth flow — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ### Simulator.Company Entity Model
 
@@ -213,6 +220,16 @@ Specialist for financial and metric tracking:
 - Create atomic multi-account transfers
 - Query balances, transaction history, and filter transfers
 
+### `/simulator-charts`
+Specialist for dashboard charts and time-series visualisation on graph layers — builds
+chart actors via `createChart` (dynamic `actorFilter` or explicit accounts mode).
+
+### `/software-migration-onramp`
+Discovery facilitator for the Smart Company Onramp migration project. Runs a structured
+5-phase discovery dialog and writes the resulting actor graph to disk. See its
+[`README.md`](plugins/simulator/skills/software-migration-onramp/README.md) and the
+`prompts/` specs.
+
 ## Project structure
 
 ```
@@ -224,25 +241,34 @@ simulator-ai-plugin/
 ├── .agents/
 │   └── plugins/
 │       └── marketplace.json     # Codex marketplace listing (points to plugins/simulator)
+├── Makefile                     # enrich-spec / check-spec / discovery / build / vet / test
+├── CHANGELOG.md
+├── CLAUDE.md                    # Repo guide for Claude Code (points to AGENTS.md)
+├── AGENTS.md                    # Repo guide for coding agents (canonical)
+├── docs/                        # Project / contributor documentation
+│   └── ARCHITECTURE.md          # Plugin & MCP-server architecture
+├── public/                      # Generated AI-discovery artifacts (llms.txt, .well-known/skills/index.json)
 └── plugins/simulator/           # Plugin root (CLAUDE_PLUGIN_ROOT for both Claude Code and Codex)
     ├── .claude-plugin/
     │   └── plugin.json          # Claude Code plugin manifest
     ├── .codex-plugin/
     │   └── plugin.json          # Codex plugin manifest
     ├── .mcp.json                # MCP server configuration (go run . --spec simulator)
-    ├── mcp-server/              # Go MCP server source
+    ├── mcp-server/              # Go MCP server source (see mcp-server/README.md)
     │   ├── main.go
-    │   ├── specs.go
+    │   ├── specs.go             # //go:embed of the full OpenAPI spec
     │   ├── go.mod / go.sum
     │   ├── app/
     │   │   ├── auth/            # OAuth2 PKCE flow + .env credential storage
-    │   │   ├── mcp-server/      # MCP server, push/pull graph handlers
+    │   │   ├── mcp-server/      # Swagger→MCP bridge + 11 custom tools
     │   │   ├── models/          # OpenAPI data models
     │   │   └── swagger/         # Swagger loader
-    │   ├── swagger/             # Bundled OpenAPI specs
-    │   │   ├── sim-public-swagger.json
-    │   │   └── sim-public-swagger-all.json
-    │   └── info/
+    │   ├── cmd/
+    │   │   ├── enrichspec/      # regenerate the embedded full spec from the live API
+    │   │   └── gendiscovery/    # regenerate public/ discovery artifacts
+    │   └── swagger/             # Bundled OpenAPI specs
+    │       ├── sim-public-swagger-all.json   # curated (80 ops) — reuse source
+    │       └── sim-public-swagger.full.json  # full (185 ops) — embedded & served
     ├── skills/
     │   ├── simulator/                      # Universal assistant skill
     │   │   ├── SKILL.md
@@ -250,10 +276,12 @@ simulator-ai-plugin/
     │   ├── simulator-init/                 # Environment setup skill
     │   ├── simulator-graph/                # Graph specialist skill
     │   ├── simulator-forms/                # Forms specialist skill
-    │   └── simulator-finance/              # Finance specialist skill
-    └── docs/                    # Entity and user-flow documentation
-        ├── entities/
-        └── user-flows/
+    │   ├── simulator-finance/              # Finance specialist skill
+    │   ├── simulator-charts/               # Dashboard charts specialist skill
+    │   └── software-migration-onramp/      # Migration discovery facilitator
+    └── docs/                    # Plugin-shipped reference (referenced by skills)
+        ├── entities/            # Entity reference docs
+        └── user-flows/          # End-to-end walkthroughs
 ```
 
 ## Debugging

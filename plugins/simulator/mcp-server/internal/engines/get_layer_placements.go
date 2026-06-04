@@ -1,4 +1,4 @@
-package mcpserver
+package engines
 
 import (
 	"context"
@@ -64,7 +64,7 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] new request: %v", err)), nil
 		}
-		httpReq.Header.Set("Authorization", globalApiConfig.Authorization)
+		httpReq.Header.Set("Authorization", Cfg.Authorization)
 		resp, err := client.Do(httpReq)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] http: %v", err)), nil

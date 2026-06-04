@@ -1,4 +1,4 @@
-package mcpserver
+package engines
 
 import (
 	"bytes"
@@ -596,7 +596,7 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		Accounts:      accounts,
 	}
 
-	result, err := CreateChart(ctx, cfg, os.Getenv("WORKSPACE_ID"), globalApiConfig.Authorization, buildBaseURL())
+	result, err := CreateChart(ctx, cfg, os.Getenv("WORKSPACE_ID"), Cfg.Authorization, buildBaseURL())
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] createChart: %v", err)), nil
 	}
