@@ -261,6 +261,7 @@ There is **no build step to run the plugin** — hosts launch it with `go run ./
 |-----------------|------------------------------------------------------------------------------|
 | `make build`    | `go build ./...`                                                            |
 | `make vet`      | `go vet ./...`                                                              |
+| `make lint`     | `golangci-lint run ./...` (golangci-lint v2; `gosec` clean, style backlog)   |
 | `make test`     | `go test ./...` — config, apiclient, tools (scenarios, `-race`), drift, eval |
 | `make discovery`| Regenerate `public/llms.txt` + `public/.well-known/skills/index.json`       |
 | `make run-local`| `go run ./cmd/server --profile local`                                       |

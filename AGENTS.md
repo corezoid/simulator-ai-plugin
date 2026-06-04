@@ -43,6 +43,7 @@ All `make` targets run from the repo root (recipes `cd` into the module):
 ```bash
 make build         # go build ./...
 make vet           # go vet ./...
+make lint          # golangci-lint run ./...   (golangci-lint v2; gosec clean, style backlog open)
 make test          # go test ./...   — config, apiclient, tools (scenarios, -race, drift, eval), engines
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
 make run-local     # go run ./cmd/server --profile local   (dev pong-server :9000)
@@ -85,6 +86,11 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   Contributor/architecture docs go in the repo-root `docs/`.
 - **Versioning.** The plugin version appears in `.claude-plugin/{plugin,marketplace}.json`,
   `.agents/plugins/marketplace.json` and `CHANGELOG.md` — bump them together.
+- **Linter.** `make lint` runs golangci-lint v2 (config `plugins/simulator/mcp-server/.golangci.yml`,
+  shared with sibling Go services). `gosec` is clean (real findings fixed; trusted-input taint
+  false positives are documented in the `gosec.excludes` list). The broader `default: all` set
+  still has a style/modernization backlog, so lint is **advisory** — not yet in the pre-commit
+  `build && vet && test` gate.
 - **TLS is verified by default.** `--insecure` is only for self-signed on-prem gateways.
 - **Graph sync** (`internal/engines/sync_graph.go` + `push_graph.go`, ~1.5k LOC) is the most
   delicate logic — change it carefully; dedicated unit tests are still a backlog item.

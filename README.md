@@ -379,6 +379,7 @@ and `.env`. Check `/mcp` again if a server shows as failed (see its **Errors** t
 make run-local      # go run ./cmd/server --profile local
 make run-prod       # against the public gateway
 make test           # unit + scenario + drift + eval tests
+make lint           # golangci-lint v2 (gosec clean; style backlog)
 make eval           # behavioural eval, dry (needs ANTHROPIC_API_KEY)
 make eval-live      # behavioural eval executing tools against the backend
 ```

@@ -12,7 +12,8 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
   MCP server (`plugins/simulator/mcp-server/`) exposing the REST API as tools, plus 7
   skills (`plugins/simulator/skills/`).
 - **Design:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-- **Verify changes:** `make build && make vet` from the repo root.
+- **Verify changes:** `make build && make vet` from the repo root (`make lint` is available —
+  golangci-lint v2, advisory: `gosec` clean, style backlog open).
 
 ## Claude Code–specific notes
 

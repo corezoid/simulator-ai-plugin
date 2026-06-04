@@ -92,7 +92,9 @@ func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error
 	errCh := make(chan error, 1)
 
 	mux := http.NewServeMux()
-	srv := &http.Server{Handler: mux}
+	// ReadHeaderTimeout bounds how long a client may take to send request
+	// headers, closing the Slowloris hole on this short-lived local server.
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()

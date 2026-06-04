@@ -216,21 +216,21 @@ func main() {
 	fmt.Printf("Found %d skills: %v\n", len(skills), names)
 
 	skillsOut := filepath.Join(publicDir, ".well-known", "skills")
-	if err := os.MkdirAll(skillsOut, 0o755); err != nil {
+	if err := os.MkdirAll(skillsOut, 0o750); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	idx, _ := json.MarshalIndent(indexJSON(skills), "", "  ")
 	idx = append(idx, '\n')
 	indexPath := filepath.Join(skillsOut, "index.json")
-	if err := os.WriteFile(indexPath, idx, 0o644); err != nil {
+	if err := os.WriteFile(indexPath, idx, 0o600); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	fmt.Printf("Written: %s\n", indexPath)
 
 	llmsPath := filepath.Join(publicDir, "llms.txt")
-	if err := os.WriteFile(llmsPath, []byte(llmsTxt(skills)), 0o644); err != nil {
+	if err := os.WriteFile(llmsPath, []byte(llmsTxt(skills)), 0o600); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
