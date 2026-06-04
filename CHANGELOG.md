@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **`filterActors` tool** (`GET /papi/1.0/actors_filters/{formId}`) — list/rank the actors of a form by an account's **current balance** in a single server-side query. Set `linkedToActorId` to scope candidates to one anchor actor's graph neighbours (hierarchy link, both directions), answering "the actors related to X whose account N balance is > / < a value"; `accountNameId`+`currencyId` select the account, `amountFrom`/`amountTo` set the threshold, `orderBy=balance` ranks. Filters on current balance only (turnover-over-period stays a per-actor `getAccounts(from,to)` read; the backend's period-balance path is still disabled). Declared the matching `operationId: 'filterActors'` on the pong-server public route and refreshed the drift spec. Re-introduces, in curated Go form, the `filterActors` tool dropped in the rewrite. Documented in README / `docs/ARCHITECTURE.md` and the `simulator-finance` / `simulator-graph` skills.
+
 ### MCP server rewrite
 - Replaced the monolithic `app/mcp-server/server.go` Swagger→MCP bridge with a **layered server** under `cmd/server/` + `internal/`: `config` (local/prod profiles, env/`profiles.json`-overridable), `apiclient` (auth header + accId injection + timeouts + error mapping, workspace guarded by `RWMutex`), `tools` (a curated, typed `Operation` registry → one MCP tool per backend operation, declared per domain), and `engines` (the ported client-side tools). OAuth/credentials reused from `app/auth`.
 - **Curated tool set (~46 tools)** scoped to the core scenarios — forms / actors / accounts / transactions / graph (links & layers) / applications & smart forms — plus the engine tools `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `uploadActorPicture(Bulk)`, `createChart`. No more 185-op passthrough.

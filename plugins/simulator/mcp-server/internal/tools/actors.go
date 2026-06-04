@@ -127,4 +127,36 @@ var actorOps = []Operation{
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
 		},
 	},
+	{
+		Name: "filterActors", Method: "GET", Path: "/actors_filters/{formId}",
+		Summary: "List/rank the actors of a form, optionally filtered by an account's balance. " +
+			"Set linkedToActorId to restrict candidates to a single anchor actor's graph neighbours " +
+			"(both directions along the hierarchy link) — that answers \"the actors related to X whose " +
+			"account N balance is > / < some value\". Give accountNameId+currencyId to select the account, " +
+			"amountFrom/amountTo for the balance threshold (amountFrom = balance >=, amountTo = balance <=), " +
+			"and orderBy=balance to rank by it. Returned balances are real decimal values (e.g. 1600 = 1600 USD); " +
+			"currency precision is display-only — do NOT divide by 10^precision. " +
+			"This filters on CURRENT balance only; for turnover over a period read each actor's accounts with " +
+			"getAccounts using from/to.",
+		Params: []Param{
+			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id whose actors are filtered/ranked."},
+			{Name: "linkedToActorId", In: InQuery, Type: "string", Desc: "Anchor actor UUID. When set, only actors directly linked to this actor (parents or children along the hierarchy edge) are considered — use it for \"actors related to this one\". Omit for a form-wide listing."},
+			{Name: "accountNameId", In: InQuery, Type: "string", Desc: "Account name id to read the balance from (see getAccountNames). Required to filter/rank by balance."},
+			{Name: "currencyId", In: InQuery, Type: "number", Desc: "Currency id of the account (see getCurrencies). Pairs with accountNameId."},
+			{Name: "incomeType", In: InQuery, Type: "string", Enum: []string{"credit", "debit"}, Desc: "Restrict the balance to one direction. Omit to net credit minus debit."},
+			{Name: "accountType", In: InQuery, Type: "string", Enum: []string{"fact", "plan", "min", "max", "avg"}, Desc: "Ledger account type (the account's `type` column). Defaults to fact. Note: this is NOT the asset/liability/... classification used by getAccounts."},
+			{Name: "amountFrom", In: InQuery, Type: "number", Desc: "Only actors whose account balance is >= this value (\"greater than\")."},
+			{Name: "amountTo", In: InQuery, Type: "number", Desc: "Only actors whose account balance is <= this value (\"less than\")."},
+			{Name: "orderBy", In: InQuery, Type: "string", Enum: []string{"updated_at", "created_at", "title", "owner", "balance", "reacted_at"}, Desc: "Sort field. Use balance to rank by the selected account's balance."},
+			{Name: "orderValue", In: InQuery, Type: "string", Enum: []string{"DESC", "ASC"}, Desc: "Sort direction (default DESC)."},
+			{Name: "search", In: InQuery, Type: "string", Desc: "Full-text search on actor title."},
+			{Name: "q", In: InQuery, Type: "string", Desc: "Data-field filter expression on actor data (e.g. status=active)."},
+			{Name: "status", In: InQuery, Type: "string", Desc: "Comma-separated status filter (e.g. verified,pending)."},
+			{Name: "qFormId", In: InQuery, Type: "string", Desc: "Restrict or expand the candidate set across several forms."},
+			{Name: "withStats", In: InQuery, Type: "boolean", Desc: "Include the total count of matching actors."},
+			{Name: "withForm", In: InQuery, Type: "boolean", Desc: "Include each actor's form template in the response."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (0-200, default 20)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+		},
+	},
 }

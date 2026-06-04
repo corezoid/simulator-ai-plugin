@@ -151,10 +151,10 @@ scenarios — forms, actors, accounts, transactions, graph building, application
 | Domain        | Tools                                                                                  |
 |---------------|----------------------------------------------------------------------------------------|
 | Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` |
-| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `updateActor` `deleteActor` `setActorStatus` |
+| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` |
 | Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
 | Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
-| Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `manageLayerActors`            |
+| Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
 | Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Setup         | `login` `getWorkspaces` `set-workspace` (by accId or name) |

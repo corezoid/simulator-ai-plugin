@@ -556,6 +556,13 @@ getRelatedActors(type="linked", actorId="<actorId>")  // type: "linked"|"parents
 getActorLinks(actorId="<actorId>")
 getLinkedActors(actorId="<actorId>")
 actorGlobalLayers(actorId="<actorId>")
+
+// Related actors filtered/ranked by an account balance, in one query:
+// "the actors related to X whose account N balance is > / < a value".
+filterActors(formId=<formId>, linkedToActorId="<anchorActorId>",
+             accountNameId="<nameId>", currencyId=<id>,
+             amountFrom=<min>, amountTo=<max>,        // amountFrom = balance >=, amountTo = balance <=
+             orderBy="balance", orderValue="DESC")    // omit linkedToActorId for a form-wide ranking
 ```
 
 ---

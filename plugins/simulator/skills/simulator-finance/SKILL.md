@@ -390,6 +390,25 @@ getAccounts(actorId="actor_camry_2023", from=1704067200000, to=1706745600000)
 get-transactions-list-accountId(accountId="acc_mnt_xxx")
 ```
 
+### Rank / filter actors by account balance
+Use `filterActors` to find the actors of a form whose account balance crosses a threshold,
+or to rank them — in one server-side query (no per-actor balance reads).
+```
+# Top clients by "Cash" balance:
+filterActors(formId=42, accountNameId="name_cash", currencyId=1,
+             orderBy="balance", orderValue="DESC", withStats=true)
+
+# Clients with Cash balance > 10000:
+filterActors(formId=42, accountNameId="name_cash", currencyId=1, amountFrom=10000)
+
+# Scope to one anchor actor's related actors (graph neighbours along the hierarchy
+# link) — "related actors of X whose Cash balance is below 100":
+filterActors(formId=42, linkedToActorId="actor_parent", accountNameId="name_cash",
+             currencyId=1, amountTo=100)
+```
+`amountFrom` = balance ≥, `amountTo` = balance ≤. Filters on CURRENT balance only — for
+turnover over a period, read each actor's accounts with `getAccounts(from, to)`.
+
 ---
 
 ## Reference Documents
