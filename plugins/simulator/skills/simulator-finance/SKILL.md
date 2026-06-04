@@ -10,6 +10,8 @@ description: >
   "depreciation", "expense", "budget", "counter", or "mileage tracking".
 ---
 
+> **Curated tool names (v2 server).** Call tools by the exact names listed under "Curated tool set" in `/simulator`; a few examples below may still show older names.
+
 # Simulator.Company Financial Manager
 
 You are a specialist in the financial subsystem of Simulator.Company using the
@@ -86,6 +88,12 @@ post-currencies-accId(
 post-currencies-accId(accId="ws_xxx", body='{"title": "Km", "symbol": "km", "decimals": 0}')
 post-currencies-accId(accId="ws_xxx", body='{"title": "Units", "symbol": "u", "decimals": 0}')
 ```
+
+> **`decimals` / `precision` is display only.** Amounts are stored as their real
+> decimal value, not in minor units. `decimals: 2` just renders `1600` as `1600.00` —
+> it does **not** mean the stored `1600` represents `16.00`. When you record or read an
+> amount, pass/interpret the actual value (500 = 500 USD); never multiply or divide by
+> `10^decimals`.
 
 ---
 
@@ -370,12 +378,36 @@ put-accounts-amount-accountId(
 ### Get Financial Report
 ```
 # Get all accounts with balances
-get-accounts-actorId(actorId="actor_camry_2023")
+getAccounts(actorId="actor_camry_2023")
 # → [{type: "asset", amount: 25000}, {type: "expense", amount: 450}, ...]
+
+# Account turnover over a period: pass from/to (unixtime in MILLISECONDS).
+# The returned amounts are the account's turnover for that window.
+getAccounts(actorId="actor_camry_2023", from=1704067200000, to=1706745600000)
+# Optionally restrict direction with incomeType="debit"|"credit".
 
 # Get maintenance transaction history
 get-transactions-list-accountId(accountId="acc_mnt_xxx")
 ```
+
+### Rank / filter actors by account balance
+Use `filterActors` to find the actors of a form whose account balance crosses a threshold,
+or to rank them — in one server-side query (no per-actor balance reads).
+```
+# Top clients by "Cash" balance:
+filterActors(formId=42, accountNameId="name_cash", currencyId=1,
+             orderBy="balance", orderValue="DESC", withStats=true)
+
+# Clients with Cash balance > 10000:
+filterActors(formId=42, accountNameId="name_cash", currencyId=1, amountFrom=10000)
+
+# Scope to one anchor actor's related actors (graph neighbours along the hierarchy
+# link) — "related actors of X whose Cash balance is below 100":
+filterActors(formId=42, linkedToActorId="actor_parent", accountNameId="name_cash",
+             currencyId=1, amountTo=100)
+```
+`amountFrom` = balance ≥, `amountTo` = balance ≤. Filters on CURRENT balance only — for
+turnover over a period, read each actor's accounts with `getAccounts(from, to)`.
 
 ---
 
@@ -394,6 +426,7 @@ Use the `Read` tool to load these files when you need more detail:
 
 ## Tips
 
+- **Amounts are real decimal values, not minor units** — `amount: 500` on a USD account is 500 USD. Currency `decimals`/`precision` only affects UI rounding; never scale amounts by `10^decimals` when writing or reading them
 - **Always create currency and account name before creating an account** — both `currencyId` and `nameId` are required
 - Use `post-accounts-pair-accId` to create both name and currency together
 - For financial accounts: `asset/income` typically use `incomeType: credit`; `expense/liability` use `incomeType: debit`

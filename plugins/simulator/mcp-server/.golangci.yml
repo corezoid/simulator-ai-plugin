@@ -1,0 +1,82 @@
+version: "2"
+
+run:
+  concurrency: 2
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: disable
+
+linters:
+  default: all
+  disable:
+    - godoclint
+    - canonicalheader
+    - cyclop
+    - depguard
+    - dogsled
+    - dupl
+    - err113
+    - exhaustruct
+    - funlen
+    - gochecknoglobals
+    - gocognit
+    - godot
+    - godox
+    - ireturn
+    - lll
+    - mnd
+    - nlreturn
+    - nolintlint
+    - nonamedreturns
+    - paralleltest
+    - tagalign
+    - tagliatelle
+    - varnamelen
+    - whitespace
+    - wrapcheck
+    - noinlineerr
+    - embeddedstructfieldcheck
+    - wsl
+    - wsl_v5
+    - thelper
+    - zerologlint
+    - arangolint
+    - gosmopolitan
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+    goconst:
+      min-len: 2
+      min-occurrences: 5
+    gocritic:
+      enable-all: true
+    gosec:
+      # G402 (InsecureSkipVerify) / G103 (unsafe) — inherited from the shared
+      # config; both are opt-in/audited in code.
+      # The rules below are taint/variable-source false positives in this
+      # codebase: every flagged sink receives an internal, trusted value, not
+      # untrusted input — so there is no code fix, only suppression. See the
+      # security review for the per-rule rationale.
+      excludes:
+        - G402 # InsecureSkipVerify — gated behind --insecure (off by default)
+        - G103 # unsafe usage
+        - G107 # HTTP request with variable URL — OAuth token URL from trusted accountURL config
+        - G204 # subprocess with variable — openBrowser execs an arg array (no shell) with our own authURL
+        - G702 # command injection via taint — same openBrowser call: arg array (no shell), trusted authURL
+        - G304 # file inclusion via variable — paths are internal (cwd-relative .env, globbed SKILL.md, eval scenario flag)
+        - G703 # path traversal via taint — .env path is filepath.Join(cwd, ".env"), not user input
+        - G704 # SSRF via taint — API URLs use the configured base host; IDs are UUID-validated and seg()-escaped
+        - G706 # log injection via taint — values go to the local stderr log only
+    misspell:
+      locale: US
+    nestif:
+      min-complexity: 7
+    revive:
+      rules:
+        - name: package-comments
+          severity: warning
+          disabled: true

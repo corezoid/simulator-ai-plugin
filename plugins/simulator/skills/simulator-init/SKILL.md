@@ -12,7 +12,7 @@ description: >
 
 You are a specialist in setting up the Simulator.Company working environment using the `simulator` MCP server.
 
-## Step 1 — Authenticate and Select Workspace
+## Step 1 — Authenticate
 
 Call MCP tool **`login`** with no arguments:
 
@@ -20,23 +20,31 @@ Call MCP tool **`login`** with no arguments:
 login()
 ```
 
-The tool handles the full setup interactively via MCP elicitation dialogs:
-1. Asks for Account URL (blank = use default `https://account.corezoid.com`)
-2. Opens a browser for OAuth2 authentication, saves token to `.env` as `ACCESS_TOKEN`
-3. Fetches available workspaces and presents a selection dialog, saves choice to `.env` as `WORKSPACE_ID`
+It opens a browser for OAuth2 (PKCE) sign-in against the profile's account URL and saves
+the token to `.env` as `ACCESS_TOKEN`. (Profile: `prod` → `account.corezoid.com`, `local`
+→ `account.pre.corezoid.com`.)
 
-When `login` returns successfully, setup is complete — proceed to Step 2.
+## Step 2 — Choose a workspace (by name, no id needed)
 
-**If workspace list could not be fetched**, `login` returns a text list of workspaces.
-In that case, call **`set-workspace`** with the `ext_id` of the desired workspace:
+After login, list the user's workspaces and let them pick — they don't need to know the id:
 
 ```
-set-workspace(acc_id=<ext_id>)
+getWorkspaces()        → returns [{id, name}, …]
 ```
+
+Show the names, ask which one, then save the choice with **`set-workspace`** — by name
+(resolved automatically) or by id:
+
+```
+set-workspace(name="<workspace name>")     # resolves the id for you
+set-workspace(accId="<accId>")             # if you already know the id
+```
+
+This writes `WORKSPACE_ID` to `.env`; it becomes the default `accId` for every other tool.
 
 ---
 
-## Step 2 — Done
+## Step 3 — Done
 
 Confirm setup is complete:
 

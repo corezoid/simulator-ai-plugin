@@ -1,0 +1,70 @@
+[
+  {
+    "name": "Connect and choose a workspace",
+    "prompt": "Log in to Simulator and use workspace 64f1...",
+    "tools": ["login", "set-workspace"],
+    "liveOnly": true
+  },
+  {
+    "name": "Create a form with fields",
+    "prompt": "Create a Car form with fields make, model, year, VIN.",
+    "tools": ["createForm"]
+  },
+  {
+    "name": "Create actors of a form",
+    "prompt": "Add three Car actors: a Camry, a Civic and a Model 3.",
+    "tools": ["getForms", "createActor"]
+  },
+  {
+    "name": "Check before creating (no duplicate)",
+    "prompt": "Make sure there is a Camry actor; create one only if it does not already exist.",
+    "tools": ["searchActors"]
+  },
+  {
+    "name": "Semantic search",
+    "prompt": "Find actors related to \"vehicle maintenance costs\" by meaning, not exact words.",
+    "tools": ["searchAll"]
+  },
+  {
+    "name": "Add an account and record a transaction",
+    "prompt": "On the Camry, track a USD maintenance expense and record a $450 service.",
+    "tools": ["getCurrencies", "getAccountNames", "createAccount", "createTransaction"],
+    "liveOnly": true
+  },
+  {
+    "name": "Transfer value between accounts",
+    "prompt": "Move $200 from the budget account to the Camry maintenance account.",
+    "tools": ["createTransfer"],
+    "liveOnly": true
+  },
+  {
+    "name": "Build a process graph on a layer",
+    "prompt": "Build an onboarding process: Collect -> Review -> Approve, linked on a layer.",
+    "tools": ["createActor", "getEdgeTypes", "createLink", "manageLayerActors", "getLayerActors"],
+    "liveOnly": true
+  },
+  {
+    "name": "Auto-layout a layer",
+    "prompt": "Tidy up the layout of layer 1a2b....",
+    "tools": ["compactGraphLayout"],
+    "liveOnly": true
+  },
+  {
+    "name": "Chart top accounts on a layer",
+    "prompt": "Add a chart of the top maintenance spenders to the layer.",
+    "tools": ["createChart"],
+    "liveOnly": true
+  },
+  {
+    "name": "Edit a graph via local file",
+    "prompt": "Pull layer 1a2b... to YAML, let me edit it, then push it back.",
+    "tools": ["pullGraphFile", "pushGraphFile"],
+    "liveOnly": true
+  },
+  {
+    "name": "Install a smart form and an application",
+    "prompt": "Install the orders smart form and create an Orders application.",
+    "tools": ["createApplication", "createSmartForm", "manageAppContent"],
+    "liveOnly": true
+  }
+]

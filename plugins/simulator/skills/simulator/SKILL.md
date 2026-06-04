@@ -187,12 +187,46 @@ post-transactions-accountId(accountId="<account-id>",
   body='{"amount": 1000, "description": "Initial funding"}')
 ```
 
+## Curated tool set (v2 server)
+
+The MCP server exposes a **curated, typed tool set** (not the full REST surface).
+Call tools by these exact names:
+
+- **Forms:** `createForm`, `getForm`, `getForms`, `searchForms`, `updateForm`, `deleteForm`, `setFormStatus`
+- **Actors:** `createActor`, `getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `updateActor`, `deleteActor`, `setActorStatus`
+- **Accounts:** `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
+- **Transactions:** `createTransaction`, `finalizeTransaction`, `getTransactions`, `createTransfer`, `getTransfer`
+- **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`
+- **Applications / smart forms:** `createApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent` (read an application with `getActor` — it is an actor)
+- **Search:** `searchAll` — global workspace search across actors/users, **text or semantic** (vector); `filters` picks targets, `searchType=semantic` for meaning-based lookup
+- **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`
+- **Setup:** `login`, `getWorkspaces` (list your workspaces by name), `set-workspace` (by `accId` or `name`)
+
+Key rules:
+- **Check before you create.** To avoid duplicates, first look for an existing entity:
+  `searchForms`/`getForms` for forms; `searchActors` (workspace), `searchLayerActors`
+  (one layer), `getActorByRef` (exact ref), or `searchAll` (global text/**semantic** search)
+  for actors; `getForms`+`getAccounts` for accounts; `getCurrencies`/`getAccountNames` for
+  reference data. Create only if absent.
+- **`createActor` accepts `formId` (number) or `formName`** — pass `formName` and it is
+  resolved to the form id via the active workspace; pass `formId` directly to skip the lookup.
+- Placing nodes/edges on a layer uses **`manageLayerActors`** (the former `manageLayer`).
+- `accId` defaults to the active workspace (`set-workspace`); pass it only to override.
+- Setup order: `login` → `getWorkspaces` (show names, let the user pick) → `set-workspace`
+  (`name=…` resolves the id, or `accId=…`). The user need not know the workspace id.
+
+> Note: some examples in the specialist skills below still reference older tool names
+> (e.g. `manageLayer`, `searchActors`, `createActors`); prefer the curated names above.
+
 ## Reference
 
 For domain-specific workflows use the specialized skills:
+- `/simulator-init` — OAuth login, workspace selection, environment setup
 - `/simulator-graph` — actors, links, layers, graph building
 - `/simulator-forms` — creating and managing form templates for actors
 - `/simulator-finance` — accounts, transactions, transfers
+- `/simulator-charts` — dashboard charts and time-series visualisation on layers
+- `/software-migration-onramp` — guided discovery for migrating an existing system into Simulator
 
 ## Reference Documents
 

@@ -1,51 +1,50 @@
 {
   "skills": [
     {
-      "name": "simulator",
       "description": "Universal Simulator.Company platform assistant. Use when the user asks anything about Simulator.Company, wants to work with the Simulator API, mentions actors, forms, graphs, layers, accounts, transactions, or any other Simulator entity. Also use when the user asks to \"use simulator\", \"call the simulator API\", or needs to manage business processes in Simulator. This skill provides deep knowledge of the platform model and guides you to use the simulator MCP tools correctly.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator/SKILL.md",
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator/references/api-operations.md"
-      ]
+      ],
+      "name": "simulator"
     },
     {
-      "name": "simulator-charts",
       "description": "Simulator.Company chart and dashboard specialist. Use when the user wants to create, configure, or query charts (line, bar, area), dashboards, or financial time-series visualisations on a graph layer.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-charts/SKILL.md"
-      ]
+      ],
+      "name": "simulator-charts"
     },
     {
-      "name": "simulator-finance",
       "description": "Simulator.Company financial management specialist. Use when the user wants to manage financial accounts (asset, liability, expense, income), record transactions, create transfers between accounts, work with currencies, set up account name definitions, use formula accounts, manage counters and state accounts, or generate financial reports. Activate when the user mentions \"record transaction\", \"transfer funds\", \"account balance\", \"financial tracking\", \"depreciation\", \"expense\", \"budget\", \"counter\", or \"mileage tracking\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-finance/SKILL.md"
-      ]
+      ],
+      "name": "simulator-finance"
     },
     {
-      "name": "simulator-forms",
       "description": "Simulator.Company form designer specialist. Use when the user wants to create or modify form templates, define custom field structures, set up account definitions within forms, explore system forms, work with Smart Forms (CDU / Scripts), manage form status, or understand how forms define actor structure. Activate when the user says \"create a form\", \"design a template\", \"add fields to form\", \"define actor schema\", or \"what system forms are available\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-forms/SKILL.md"
-      ]
+      ],
+      "name": "simulator-forms"
     },
     {
-      "name": "simulator-graph",
       "description": "Simulator.Company graph structure specialist. Use when the user wants to build, edit, analyze, inspect, or ask questions about business process graphs, flowcharts, algorithms, actors (nodes), links (edges), or layers (visual views) in Simulator.Company.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-graph/SKILL.md"
-      ]
+      ],
+      "name": "simulator-graph"
     },
     {
-      "name": "simulator-init",
       "description": "Simulator.Company environment setup specialist. Use when the user wants to connect to Simulator.Company, set up credentials, authenticate, configure the workspace, or start working with Simulator for the first time. Activate when the user says \"init\", \"setup\", \"connect to simulator\", \"login to simulator\", \"configure simulator\", \"get started with simulator\", or \"set workspace\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-init/SKILL.md"
-      ]
+      ],
+      "name": "simulator-init"
     },
     {
-      "name": "software-migration-onramp",
-      "description": "Discovery facilitator for Smart Company Onramp migration project. Activate when the user says: \"начать discovery\", \"проведи discovery\", \"сделай discovery\", \"запусти онбординг клиента\", \"discovery agent\", \"новый клиент — запускай\", \"discovery с клиентом\", \"migration onramp discovery\", \"software migration onramp\". Conducts the structured 5-phase Discovery dialog defined in prompts/02_discovery_agent_spec.md and writes the resulting actor data to ./discovery-output/<client-slug>/actor-graph.json.",
+      "description": "Discovery facilitator for Smart Company Onramp migration project. Activate when the user says: \"начать discovery\", \"проведи discovery\", \"сделай discovery\", \"запусти онбординг клиента\", \"discovery agent\", \"новый клиент — запускай\", \"discovery с клиентом\", \"migration onramp discovery\", \"software migration onramp\". Conducts the structured 5-phase Discovery dialog defined in prompts/02_discovery_agent_spec.md and writes the resulting actor data to ./discovery-output/\u003cclient-slug\u003e/actor-graph.json.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/README.md",
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/SKILL.md",
@@ -56,7 +55,8 @@
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/04_system_profiler_agent_spec.md",
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/05_golden_house_simulation.md",
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/06_signoff_chart.md"
-      ]
+      ],
+      "name": "software-migration-onramp"
     }
   ]
 }

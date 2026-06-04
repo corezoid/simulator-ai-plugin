@@ -28,6 +28,8 @@ description: >
   traversal operations, layer management, and FlowchartBlock diagram creation.
 ---
 
+> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read layer membership with `getLayerActors` / `getAllLayerPlacements`; create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge types with `getEdgeTypes`. List actors linked to an actor with `getRelatedActors` (type = linked | parents | children; traverses the hierarchy link type by default; paginated, filterable, sortable). Other link-traversal queries (`getActorLinks`, `getLayerActorsByFormId`) are not in the current curated set. See `/simulator` for the full list.
+
 # Simulator.Company Graph Builder
 
 You are a specialist in building graph-based business process structures in
@@ -44,14 +46,14 @@ Simulator.Company using the `simulator` MCP server.
 | **Graph actor** | An actor with `formName="Graphs"` — the logical container for a diagram.                             |
 | **Layer actor** | An actor with `formName="Layers"` — the visual canvas where nodes are placed at (x, y).              |
 | **Graph file**  | A YAML file named `<layerId>.yaml` in the current working directory describing the full layer state. |
-| **laId**        | Layer Actor ID. Assigned by `manageLayer` when an actor is placed on a layer.                        |
+| **laId**        | Layer Actor ID. Assigned by `manageLayerActors` when an actor is placed on a layer.                        |
 
 ---
 
 ## Primary Workflow — File-Based Graph Building
 
 > **This is the preferred approach for all graph creation and editing.**
-> Use the low-level MCP tools (createActor, manageLayer, etc.) only for
+> Use the low-level MCP tools (createActor, manageLayerActors, etc.) only for
 > one-off queries or when specifically requested.
 
 ### Step 1 — Create Graph + Layer actors
@@ -529,7 +531,7 @@ massLink(layerId="<layerId>", body='[{"source":"<a>","target":"<b>"}]')
 
 // Single link — two calls required (logical + visual)
 createLink(body='{"source":"<a>","target":"<b>"}')   → edgeId
-manageLayer(layerId="<layerId>", body='[{"action":"create","data":{"id":"<edgeId>","type":"edge","laIdSource":<laA>,"laIdTarget":<laB>}}]')
+manageLayerActors(layerId="<layerId>", body='[{"action":"create","data":{"id":"<edgeId>","type":"edge","laIdSource":<laA>,"laIdTarget":<laB>}}]')
 
 existLink(body='{"source":"<a>","target":"<b>"}')
 updateLink(edgeId="<edgeId>", body='{"data":{"weight":5}}')
@@ -550,10 +552,17 @@ moveElements(sourceLayerId="<la>", targetLayerId="<lb>", body='{"actorIds":["<a1
 ### Graph Traversal
 
 ```
+getRelatedActors(type="linked", actorId="<actorId>")  // type: "linked"|"parents"|"children"; defaults to the hierarchy link type
 getActorLinks(actorId="<actorId>")
 getLinkedActors(actorId="<actorId>")
-getLinked(actorId="<actorId>", type="children")   // "children"|"parents"|"all"
 actorGlobalLayers(actorId="<actorId>")
+
+// Related actors filtered/ranked by an account balance, in one query:
+// "the actors related to X whose account N balance is > / < a value".
+filterActors(formId=<formId>, linkedToActorId="<anchorActorId>",
+             accountNameId="<nameId>", currencyId=<id>,
+             amountFrom=<min>, amountTo=<max>,        // amountFrom = balance >=, amountTo = balance <=
+             orderBy="balance", orderValue="DESC")    // omit linkedToActorId for a form-wide ranking
 ```
 
 ---
