@@ -323,11 +323,11 @@ Pick **one** way (don't combine — two would register the `simulator` server tw
 
 - **Plugin dir (recommended for dev):** start Claude Code pointing at the repo —
   ```bash
-  claude --plugin-dir /Users/<you>/PJ/control/simulator-ai-plugin
+  claude --plugin-dir /Users/<you>/PJ/control/simulator-ai-plugin/plugins/simulator
   ```
 - **Local marketplace install:**
   ```
-  /plugin marketplace add /Users/<you>/PJ/control/simulator-ai-plugin
+  /plugin marketplace add /Users/<you>/PJ/control/simulator-ai-plugin/plugins/simulator
   /plugin install simulator@simulator
   /reload-plugins
   ```

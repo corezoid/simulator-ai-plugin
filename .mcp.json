@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "simulator": {
-      "command": "sh",
-      "args": ["-c", "export SIMULATOR_WORK_DIR=\"$PWD\"; cd plugins/simulator/mcp-server && exec go run ./cmd/server"]
-    }
-  }
-}
