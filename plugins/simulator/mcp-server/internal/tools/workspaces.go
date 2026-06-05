@@ -20,6 +20,7 @@ var workspaceOps = []Operation{
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
 			{Name: "withStats", In: InQuery, Type: "boolean", Desc: "Include totals."},
+			fieldFilterParam("id,name"),
 		},
 	},
 }

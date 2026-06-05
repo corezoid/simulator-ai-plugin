@@ -23,10 +23,11 @@ var formOps = []Operation{
 	},
 	{
 		Name: "getForm", Method: "GET", Path: "/forms/{formId}",
-		Summary: "Get a form template by its integer id.",
+		Summary: "Get a form template by its integer id. Pass `filter` to fetch only the fields you need (form templates can be large).",
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id."},
 			{Name: "withRelations", In: InQuery, Type: "boolean", Desc: "Include related entities."},
+			fieldFilterParam("id,title,sections"),
 		},
 	},
 	{
@@ -39,6 +40,7 @@ var formOps = []Operation{
 			{Name: "status", In: InQuery, Type: "string", Desc: "Filter by form status."},
 			{Name: "formTypes", In: InQuery, Type: "string", Desc: "Filter by form types."},
 			{Name: "withRelations", In: InQuery, Type: "boolean", Desc: "Include related entities."},
+			fieldFilterParam("id,title,status"),
 		},
 	},
 	{
@@ -73,6 +75,7 @@ var formOps = []Operation{
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "q", In: InPath, Type: "string", Required: true, Desc: "Search query (form name or fragment)."},
+			fieldFilterParam("id,title,status"),
 		},
 	},
 }

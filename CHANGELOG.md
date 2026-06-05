@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- **Server-side field selection (`filter`) on every read tool — token-saving.** All read/lookup/list tools now expose an optional `filter` query parameter: a comma-separated allow-list of fields to return (e.g. `id,title,data.status`; dotted paths pick nested `data` fields). The backend prunes the response to just those fields via `filterActorData` / `filterData`, so a tool call can fetch only what it needs instead of the full entity. Centralised as `fieldFilterParam` in `internal/tools/op.go`.
+  - Tools whose backend already supported `filter`: added it to `getActor`, `getBalance`, `getTransactions`, `searchActors`, `searchLayerActors`, `filterActors`, and **fixed** the two pre-existing `filter` params on `getAccounts` and `getRelatedActors` whose descriptions wrongly called them data-filter expressions (the backend always treats `filter` as field selection).
+  - **Added `filter` support in pong-server** for the remaining read routes and wired the matching tools: `getActorByRef`, `getForm`, `getForms`, `searchForms`, `getCurrencies`, `getAccountNames`, `getTransfer`, `getEdgeTypes`, `getLayerActors`, `listSmartForms`, `searchAll`, `getWorkspaces`. Each backend route declares `filter` on its Fastify querystring schema and applies `filterActorData` (actor/node responses: `getActorByRef`, `getLayerActors` nodes, `searchAll` actor results — user results untouched, `objType` preserved) or `filterData` (everything else); `workspaces` clones session-held objects before projection.
+  - The drift gate (`(method, path, operationId)` only) still passes; refresh `testdata/papi-openapi.json` via pong-server's `yarn dump-openapi` once the backend changes deploy so the dumped spec carries the new params. Documented in README / `docs/ARCHITECTURE.md`.
+
 ### Removed
 - **`software-migration-onramp` skill.** Dropped the migration discovery facilitator skill (and its `prompts/` specs); the plugin now ships 6 skills. Removed its references from README / `docs/ARCHITECTURE.md` / AGENTS / the `simulator` skill and regenerated the discovery artifacts (`public/`).
 

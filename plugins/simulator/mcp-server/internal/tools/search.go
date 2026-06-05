@@ -6,7 +6,7 @@ package tools
 var searchOps = []Operation{
 	{
 		Name: "searchAll", Method: "GET", Path: "/search/{accId}/{query}",
-		Summary: "Global workspace search across actors (and users) — text or semantic. Use to find existing entities before creating. `filters` selects what to search.",
+		Summary: "Global workspace search across actors (and users) — text or semantic. Use to find existing entities before creating. `filters` selects what to search; `filter` projects the fields of the actor results (user results are unaffected) to keep the response small.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search text (min 2 chars)."},
@@ -15,6 +15,7 @@ var searchOps = []Operation{
 			{Name: "formId", In: InQuery, Type: "string", Desc: "Restrict the search to actors of this form."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (1-100)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,title,formId"),
 		},
 	},
 }

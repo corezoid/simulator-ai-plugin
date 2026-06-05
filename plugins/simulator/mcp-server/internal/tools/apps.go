@@ -33,6 +33,7 @@ var appOps = []Operation{
 		Summary: "List smart forms installed in the workspace.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
+			fieldFilterParam("id,title,ref"),
 		},
 	},
 	{

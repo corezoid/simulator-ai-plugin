@@ -482,3 +482,4 @@ Use the `Read` tool to load these files when you need more detail:
 - When a form has `accounts` defined, actors created from it get those accounts automatically
 - Updating a form does NOT retroactively update actors already created from it
 - Use `delete-forms-item_cache-formId-itemId` to refresh `select` field options after updating
+- **Save tokens with `filter`** — `getForm`, `getForms`, `searchForms` accept an optional `filter` field-selection arg (comma-separated fields, e.g. `filter="id,title,sections"`); the server returns only those fields. Form templates can be large, so prefer requesting just what you need

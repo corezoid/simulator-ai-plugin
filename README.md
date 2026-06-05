@@ -159,6 +159,16 @@ scenarios — forms, actors, accounts, transactions, graph building, application
 — rather than the entire REST surface. Each tool maps to a backend operation by its
 `operationId`; a drift gate keeps the set in sync with the live `/papi/1.0` contract.
 
+Read tools take an optional **`filter`** parameter — a comma-separated allow-list of fields
+to return (e.g. `id,title,data.status`; dotted paths pick nested `data` fields). The backend
+prunes the response to just those fields, so prefer it whenever only part of an entity is
+needed to keep responses (and token cost) small. Available on every read/lookup/list tool:
+`getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `filterActors`, `getForm`,
+`getForms`, `searchForms`, `getAccounts`, `getBalance`, `getCurrencies`, `getAccountNames`,
+`getTransactions`, `getTransfer`, `getRelatedActors`, `getLayerActors`, `getEdgeTypes`,
+`listSmartForms`, `searchAll`, `getWorkspaces`. (For `getLayerActors`/`searchAll` it projects
+the actor/node items.)
+
 **Curated API operations** (one tool per backend operation):
 
 | Domain        | Tools                                                                                  |

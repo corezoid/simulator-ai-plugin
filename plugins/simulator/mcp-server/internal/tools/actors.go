@@ -66,17 +66,19 @@ var actorOps = []Operation{
 	},
 	{
 		Name: "getActor", Method: "GET", Path: "/actors/{actorId}",
-		Summary: "Get an actor by its UUID.",
+		Summary: "Get an actor by its UUID. Pass `filter` to fetch only the fields you need and keep the response small.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
+			fieldFilterParam("id,title,data.status"),
 		},
 	},
 	{
 		Name: "getActorByRef", Method: "GET", Path: "/actors/ref/{formId}/{ref}",
-		Summary: "Look up an actor by its (formId, ref) external reference.",
+		Summary: "Look up an actor by its (formId, ref) external reference. Pass `filter` to fetch only the fields you need.",
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id."},
 			{Name: "ref", In: InPath, Type: "string", Required: true, Desc: "External reference."},
+			fieldFilterParam("id,title,data.status"),
 		},
 	},
 	{
@@ -115,6 +117,7 @@ var actorOps = []Operation{
 			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search query (title or fragment)."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,title,formId"),
 		},
 	},
 	{
@@ -125,6 +128,7 @@ var actorOps = []Operation{
 			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search query (title or fragment)."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,title,formId"),
 		},
 	},
 	{
@@ -157,6 +161,7 @@ var actorOps = []Operation{
 			{Name: "withForm", In: InQuery, Type: "boolean", Desc: "Include each actor's form template in the response."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (0-200, default 20)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,title,data.status"),
 		},
 	},
 }
