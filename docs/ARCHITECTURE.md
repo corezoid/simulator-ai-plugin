@@ -84,7 +84,7 @@ simulator-ai-plugin/
     ├── .codex-plugin/plugin.json     # Codex manifest
     ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
-    ├── skills/                       # 7 skills (markdown only)
+    ├── skills/                       # 6 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
 ```
 

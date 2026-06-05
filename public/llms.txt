@@ -10,7 +10,6 @@
 - [simulator-forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-forms/SKILL.md): Simulator.Company form designer specialist
 - [simulator-graph](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-graph/SKILL.md): Simulator.Company graph structure specialist
 - [simulator-init](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-init/SKILL.md): Simulator.Company environment setup specialist
-- [software-migration-onramp](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/SKILL.md): Discovery facilitator for Smart Company Onramp migration project
 
 ## MCP Tools
 

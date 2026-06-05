@@ -228,7 +228,6 @@ For domain-specific workflows use the specialized skills:
 - `/simulator-forms` — creating and managing form templates for actors
 - `/simulator-finance` — accounts, transactions, transfers
 - `/simulator-charts` — dashboard charts and time-series visualisation on layers
-- `/software-migration-onramp` — guided discovery for migrating an existing system into Simulator
 
 ## Reference Documents
 

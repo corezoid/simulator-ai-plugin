@@ -42,21 +42,6 @@
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-init/SKILL.md"
       ],
       "name": "simulator-init"
-    },
-    {
-      "description": "Discovery facilitator for Smart Company Onramp migration project. Activate when the user says: \"начать discovery\", \"проведи discovery\", \"сделай discovery\", \"запусти онбординг клиента\", \"discovery agent\", \"новый клиент — запускай\", \"discovery с клиентом\", \"migration onramp discovery\", \"software migration onramp\". Conducts the structured 5-phase Discovery dialog defined in prompts/02_discovery_agent_spec.md and writes the resulting actor data to ./discovery-output/\u003cclient-slug\u003e/actor-graph.json.",
-      "files": [
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/README.md",
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/SKILL.md",
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/00_README.md",
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/01_master_spec.md",
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/02_discovery_agent_spec.md",
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/03_discovery_agent_kb_bundle.md",
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/04_system_profiler_agent_spec.md",
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/05_golden_house_simulation.md",
-        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/software-migration-onramp/prompts/06_signoff_chart.md"
-      ],
-      "name": "software-migration-onramp"
     }
   ]
 }

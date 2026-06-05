@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Removed
+- **`software-migration-onramp` skill.** Dropped the migration discovery facilitator skill (and its `prompts/` specs); the plugin now ships 6 skills. Removed its references from README / `docs/ARCHITECTURE.md` / AGENTS / the `simulator` skill and regenerated the discovery artifacts (`public/`).
+
 ### Added
 - **Local dev preset is now profile-gated.** `set-environment` offers the `local` preset (`localhost:9000`) only in a local-dev session (startup profile `local`, i.e. `SIMULATOR_PROFILE=local` / `--profile local`); the default `prod` profile advertises only the cloud gateways (`mw`, `sim`) + custom URL, so end users are never prompted with localhost. Documented the local-dev invocation in README / AGENTS, and dropped the stale `SIMULATOR_DEBUG` references (it was never read in code).
 - **Multi-environment support + `set-environment` tool.** Before login the user now chooses an environment — a cloud preset (`mw.simulator.company` default, `sim.simulator.company`) or a custom/local/on-prem URL (host or full URL; `/papi/1.0` appended if omitted). Since pong-server authenticates through the `account` system and one account may back several sim environments, the OAuth account URL is no longer fixed per gateway: `set-environment` fetches the gateway's public, unauthenticated config (`getConfigReq` → `data.saUrl`) to derive it, persists `SIMULATOR_API_BASE_URL` + `ACCOUNT_URL` to `.env`, and clears any token + workspace (so you re-`login`). The environment can be switched at any time mid-session — the `apiclient` and engine base URLs are mutated in place (guarded by `RWMutex`) so it takes effect without a restart, and `login` follows the chosen account URL. New `apiclient.FetchPublicConfig`; `config.CloudEnvironments` presets + `NormalizeAPIBaseURL`; `config.Resolve` honours a persisted `ACCOUNT_URL` on restart. Documented in README / `docs/ARCHITECTURE.md` and the `simulator-init` / `simulator` skills.

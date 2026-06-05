@@ -256,12 +256,6 @@ Specialist for financial and metric tracking:
 Specialist for dashboard charts and time-series visualisation on graph layers — builds
 chart actors via `createChart` (dynamic `actorFilter` or explicit accounts mode).
 
-### `/software-migration-onramp`
-Discovery facilitator for the Smart Company Onramp migration project. Runs a structured
-5-phase discovery dialog and writes the resulting actor graph to disk. See its
-[`README.md`](plugins/simulator/skills/software-migration-onramp/README.md) and the
-`prompts/` specs.
-
 ## Project structure
 
 ```
@@ -305,8 +299,7 @@ simulator-ai-plugin/
     │   ├── simulator-graph/                # Graph specialist skill
     │   ├── simulator-forms/                # Forms specialist skill
     │   ├── simulator-finance/              # Finance specialist skill
-    │   ├── simulator-charts/               # Dashboard charts specialist skill
-    │   └── software-migration-onramp/      # Migration discovery facilitator
+    │   └── simulator-charts/               # Dashboard charts specialist skill
     └── docs/                    # Plugin-shipped reference (referenced by skills)
         ├── entities/            # Entity reference docs
         └── user-flows/          # End-to-end walkthroughs
