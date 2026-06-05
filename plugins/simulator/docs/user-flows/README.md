@@ -25,6 +25,7 @@ The Simulator.Company platform provides a comprehensive API for managing busines
 ### Smart Forms (Applications / CDU)
 
 - [Smart Forms](smart-forms.md) - Full lifecycle and behaviour of Smart Forms: catalog & install, project editing, file history, deploy/release, rollback, and serving pages to end users
+- [CDU Page Protocol](cdu-page-protocol.md) - The runtime page JSON contract: `get`/`send` protocol & response codes, the Page/grid/forms/sections/component model, the `changes` patch protocol, templating (`viewModel`/`locale`/`definitions`/`contentLoop`/`bbcode`), the full component catalogue, and server-side save validation
 
 ## Related Entity Documentation
 

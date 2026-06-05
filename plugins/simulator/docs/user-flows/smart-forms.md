@@ -320,6 +320,12 @@ Side effects of every successful mutation:
 - A **real-time event** is published (`publishCDUContentChanges`, action
   `create`/`update`/`delete`) so collaborators' editors update live.
 
+> **Validation note.** The save endpoint validates only the envelope (`objType` enum, required
+> `title`/`type`, folder ownership, readonly/`isSystem` rules) — the file `source` (page
+> `config` JSON, `viewModel`, `locale`, CSS) is stored **opaque, with no structural check**
+> against the protocol. Authoring tooling should validate page JSON against the protocol
+> *before* saving. Details in **[CDU Page Protocol §10](cdu-page-protocol.md#10-server-side-validation-of-saved-pages)**.
+
 ### 4.4 File history, rollback & trash
 
 Base prefix `/api/1.0/file_history`.
@@ -413,6 +419,12 @@ Returns `{ data: release }` (the new release).
 This is the runtime path that turns a Smart Form into a live web app. Base prefix
 `/api/1.0/pages`. These endpoints are gated by **`checkAppAccess(false)`** (see §5), not by
 a session check — they can serve anonymous users when `sharedWith === 'anyone'`.
+
+> **The page JSON contract these endpoints exchange** — the `Page` / `grid` / `forms` /
+> `sections` / component structure, the `get`/`send` request-response codes (200 / 205 / 302),
+> the `changes` patch protocol, `viewModel` / `locale` / `definitions` / `contentLoop` / `bbcode`
+> templating, the full component catalogue, and **what the save endpoint does and does not
+> validate** — is specified in **[CDU Page Protocol](cdu-page-protocol.md)**.
 
 | Endpoint | Handler | Purpose |
 |---|---|---|
@@ -644,15 +656,22 @@ applies the app's `sharedWith` rule (so an `anyone` app can also be served witho
 - **Use the public API (`/papi/1.0`).** The simulator MCP server targets `/papi/1.0` with an
   OAuth2 bearer token. The whole Smart Form surface (`applications`, `app_content`,
   `releases`, `file_history`, `smart_forms`, `pages`) is now available there with full
-  parity — reads need the `actors.readonly` scope, writes need `actors.management` (§7). The
-  MCP server currently wraps only a subset as tools (`createApplication`, `createSmartForm`,
-  `listSmartForms`, `manageAppContent`); the remaining public endpoints can be added as MCP
-  tools without further backend changes.
+  parity — reads need the `actors.readonly` scope, writes need `actors.management` (§7). At
+  this stage **no Smart Form / applications endpoints are wrapped as MCP tools** — the
+  `appOps` definitions live in `internal/tools/apps.go` but are excluded from the registered
+  set (docs-only stage); the public endpoints can be re-enabled as tools without further
+  backend changes.
+- **Editing pages?** The page JSON contract and the (lack of) server-side validation when
+  saving page files are documented in **[CDU Page Protocol](cdu-page-protocol.md)** — validate
+  page `config` against the protocol before saving, since the backend stores it opaque.
 
 ---
 
 ## Related documentation
 
+- [CDU Page Protocol](cdu-page-protocol.md) — the runtime page JSON contract: `get`/`send`
+  protocol, `Page`/`grid`/`forms`/`sections`/component model, the `changes` patch protocol,
+  templating, the component catalogue, and server-side save validation.
 - [Actors](../entities/actors.md) — a Smart Form is an actor in the `scripts` system form.
 - [Forms](../entities/forms.md) / [System Forms](../entities/system-forms.md) — the
   `scripts` and `graphs` system forms that host Smart Forms.
