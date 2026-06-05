@@ -37,7 +37,7 @@ var accountOps = []Operation{
 			{Name: "total", In: InQuery, Type: "boolean", Desc: "Return the total count instead of the list."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 100)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			{Name: "filter", In: InQuery, Type: "string", Desc: "Filter expression on accounts."},
+			fieldFilterParam("id,amount,currencyId,nameId"),
 			{Name: "highPrecision", In: InQuery, Type: "boolean", Desc: "Return transaction sums with high precision."},
 		},
 	},
@@ -48,6 +48,7 @@ var accountOps = []Operation{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "currencyId", In: InPath, Type: "number", Required: true, Desc: "Currency id."},
 			{Name: "nameId", In: InPath, Type: "string", Required: true, Desc: "Account name id."},
+			fieldFilterParam("id,amount,currencyId,nameId"),
 		},
 	},
 	{
@@ -92,6 +93,7 @@ var accountOps = []Operation{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,name,symbol"),
 		},
 	},
 	{
@@ -110,6 +112,7 @@ var accountOps = []Operation{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,name,abbreviation"),
 		},
 	},
 }

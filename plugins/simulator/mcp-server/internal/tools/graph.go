@@ -75,14 +75,16 @@ var graphOps = []Operation{
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "isSystem", In: InQuery, Type: "boolean", Desc: "Only system edge types."},
+			fieldFilterParam("id,name"),
 		},
 	},
 	{
 		Name: "getLayerActors", Method: "GET", Path: "/graph_layers/{actorId}",
-		Summary: "List the actors placed on a layer (the layer is itself an actor).",
+		Summary: "List the actors placed on a layer (the layer is itself an actor). `filter` projects the fields of each placed actor (node), keeping the response small.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
 			{Name: "noDuplicate", In: InQuery, Type: "boolean", Desc: "Deduplicate placements."},
+			fieldFilterParam("id,title,formId"),
 		},
 	},
 	{
@@ -112,7 +114,7 @@ var graphOps = []Operation{
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
 			{Name: "pinned", In: InQuery, Type: "boolean", Desc: "Only pinned edges."},
-			{Name: "filter", In: InQuery, Type: "string", Desc: "Data filter expression on actor fields."},
+			fieldFilterParam("id,title,formId,data.status"),
 		},
 	},
 }

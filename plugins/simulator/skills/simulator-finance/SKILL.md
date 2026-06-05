@@ -435,3 +435,4 @@ Use the `Read` tool to load these files when you need more detail:
 - Use `post-transactions-atom-accId` for accounting entries that must be balanced (double-entry bookkeeping)
 - 2-step transactions are reversible — prefer them for pending/draft operations
 - `get-accounts-children-actorId` aggregates accounts up the actor hierarchy (if `treeCalculation: true`)
+- **Save tokens with `filter`** — read tools (`getAccounts`, `getBalance`, `getTransactions`, `getTransfer`, `getCurrencies`, `getAccountNames`, `filterActors`) accept an optional `filter` field-selection arg (comma-separated fields, e.g. `filter="id,amount,currencyId"`); the server returns only those fields. It is NOT a row filter — that's `q`/`query` or the `POST .../filter` endpoints

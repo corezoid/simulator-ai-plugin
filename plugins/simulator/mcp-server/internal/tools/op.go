@@ -53,6 +53,25 @@ type Operation struct {
 	Resolve func(ctx context.Context, args map[string]any, c *apiclient.Client) error
 }
 
+// fieldFilterParam returns the standard `filter` query parameter for read
+// operations whose backend supports server-side field selection (projection).
+//
+// The pong-server API applies `filter` via filterActorData / filterData: it is a
+// comma-separated allow-list of top-level fields to keep in the response. Dotted
+// paths like `data.status` select nested fields inside the free-form `data`
+// object (its parent `data` is preserved, pruned to the listed sub-fields).
+// Using it keeps responses — and token cost — small, so prefer it whenever only
+// part of the entity is needed. `example` shows entity-appropriate field names.
+func fieldFilterParam(example string) Param {
+	return Param{
+		Name: "filter", In: InQuery, Type: "string",
+		Desc: "Comma-separated allow-list of fields to return (server-side projection). " +
+			"Only the listed fields are kept; use dotted paths like `data.status` for nested data fields. " +
+			"Prefer setting this to just the fields you need — it sharply reduces response size and token cost. " +
+			"Omit to return the full object. Example: \"" + example + "\".",
+	}
+}
+
 // register builds the MCP tool for op and wires its handler to the client.
 func register(s *server.MCPServer, c *apiclient.Client, op Operation) {
 	opts := []mcp.ToolOption{mcp.WithDescription(op.Summary)}

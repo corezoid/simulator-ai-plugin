@@ -59,6 +59,12 @@ server substitutes them into the URL path automatically.
 **Parameter rules:**
 - Path and query parameters → individual named string arguments
 - Request body → `body` argument as a JSON string
+- **`filter` (field selection)** — every read/lookup/list/search tool accepts an
+  optional `filter`: a comma-separated allow-list of fields to return
+  (e.g. `filter="id,title,data.status"`; dotted paths pick nested `data` fields).
+  The server prunes the response to just those fields. Use it actively to save
+  tokens — request only the fields you actually need instead of the whole entity.
+  Don't confuse it with the row filters `q` / `query` (text/data search).
 
 ## Platform Architecture
 
@@ -257,3 +263,4 @@ Use the `Read` tool to load these files when you need deeper detail:
 - When creating accounts, you need both a `currencyId` AND a `nameId` — create them if they don't exist
 - Use `post-actors-mass_links-accId` for creating multiple links at once (much more efficient)
 - Transactions are permanent — use 2-step (authorize → complete/cancel) for reversible operations
+- **Save tokens with `filter`** — on any read/list/search tool, pass `filter` with only the fields you need (e.g. `filter="id,title"`) so the server trims the response instead of returning the full model

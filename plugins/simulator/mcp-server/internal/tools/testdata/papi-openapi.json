@@ -17,6 +17,15 @@
     "schemas": {}
   },
   "paths": {
+    "/papi/1.0/config": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/config/system": {
       "post": {
         "requestBody": {
@@ -95,6 +104,14 @@
             },
             "in": "query",
             "name": "withStats",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           }
         ],
@@ -2297,6 +2314,14 @@
           },
           {
             "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "integer"
             },
             "in": "path",
@@ -2329,6 +2354,14 @@
             },
             "in": "query",
             "name": "edgeTypes",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -7403,6 +7436,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -7522,6 +7563,14 @@
             },
             "in": "query",
             "name": "isSystem",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -9443,6 +9492,14 @@
         "parameters": [
           {
             "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "string",
               "format": "uuid"
             },
@@ -9611,6 +9668,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -9669,6 +9734,14 @@
             },
             "in": "query",
             "name": "withRelations",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -10210,6 +10283,14 @@
             },
             "in": "query",
             "name": "withRelations",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -10947,6 +11028,14 @@
             },
             "in": "query",
             "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -12316,6 +12405,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -12656,6 +12753,14 @@
             },
             "in": "query",
             "name": "graphFolderId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -13706,6 +13811,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -14511,6 +14624,14 @@
       "get": {
         "operationId": "listSmartForms",
         "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
           {
             "schema": {
               "type": "string"

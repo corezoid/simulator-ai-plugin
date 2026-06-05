@@ -188,7 +188,16 @@ Conventions baked into the registry:
 
 - `accId` path/query params default to the active workspace when omitted;
 - a POST/PUT whose object-body fields are all omitted still sends `{}`;
-- required params missing → a clear error result (not a malformed request).
+- required params missing → a clear error result (not a malformed request);
+- every read operation exposes a `filter` field-selection param (`fieldFilterParam` in
+  `op.go`): a comma-separated allow-list of fields the backend prunes the response to
+  (`filterActorData` / `filterData` server-side), with dotted paths like `data.status`
+  for nested fields. It is optional and meant to be used actively to keep responses —
+  and token cost — small. On the single/lookup, list, and search tools across forms,
+  actors, accounts, transactions, graph, apps, search and workspaces (for `getLayerActors`
+  and `searchAll` it projects the actor/node items). The backend support for these routes
+  was added in pong-server alongside this change; refresh `testdata/papi-openapi.json`
+  (`yarn dump-openapi`) once that deploys so the dumped spec reflects the new params.
 
 ### 3.4 Workspace & auth context
 

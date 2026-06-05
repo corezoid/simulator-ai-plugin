@@ -563,6 +563,13 @@ filterActors(formId=<formId>, linkedToActorId="<anchorActorId>",
              accountNameId="<nameId>", currencyId=<id>,
              amountFrom=<min>, amountTo=<max>,        // amountFrom = balance >=, amountTo = balance <=
              orderBy="balance", orderValue="DESC")    // omit linkedToActorId for a form-wide ranking
+
+// Save tokens: every read/traversal tool above (getRelatedActors, getActor,
+// getLayerActors, searchLayerActors, searchActors, filterActors, ...) accepts an
+// optional `filter` field-selection arg — comma-separated fields to return, e.g.
+// filter="id,title,formId" (dotted paths like data.status pick nested data fields).
+// The server returns only those fields. NOT a row filter (that's search / q).
+getRelatedActors(type="children", actorId="<actorId>", filter="id,title,formId")
 ```
 
 ---
