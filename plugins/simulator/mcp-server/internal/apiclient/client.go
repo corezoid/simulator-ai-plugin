@@ -20,11 +20,11 @@ import (
 
 // Client performs authenticated requests against one API base URL.
 type Client struct {
-	BaseURL    string                 // e.g. http://localhost:9000/papi/1.0
 	AuthHeader func() (string, error) // returns the full Authorization value, e.g. "Simulator <jwt>"
 	HTTP       *http.Client
 
-	mu          sync.RWMutex // guards workspaceID (set-workspace mutates it at runtime)
+	mu          sync.RWMutex // guards baseURL + workspaceID (set-environment / set-workspace mutate them at runtime)
+	baseURL     string       // e.g. http://localhost:9000/papi/1.0
 	workspaceID string       // accId default for {accId} path/query params
 }
 
@@ -40,11 +40,25 @@ func New(baseURL, workspaceID string, authHeader func() (string, error), insecur
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402 — opt-in via --insecure
 	}
 	return &Client{
-		BaseURL:     strings.TrimRight(baseURL, "/"),
+		baseURL:     strings.TrimRight(baseURL, "/"),
 		workspaceID: workspaceID,
 		AuthHeader:  authHeader,
 		HTTP:        &http.Client{Timeout: 60 * time.Second, Transport: tr},
 	}
+}
+
+// BaseURL returns the current API base URL, safe for concurrent reads.
+func (c *Client) BaseURL() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.baseURL
+}
+
+// SetBaseURL updates the API base URL at runtime (used by set-environment).
+func (c *Client) SetBaseURL(baseURL string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.baseURL = strings.TrimRight(baseURL, "/")
 }
 
 // WorkspaceID returns the current default workspace (accId), safe for concurrent reads.
@@ -61,6 +75,21 @@ func (c *Client) SetWorkspaceID(id string) {
 	c.workspaceID = id
 }
 
+// IsInsecureCredentialTransport reports whether baseURL would send the bearer
+// token over plaintext HTTP to a non-loopback host. The token is attached to every
+// request, so a remote http:// endpoint would expose it on the wire.
+func IsInsecureCredentialTransport(baseURL string) bool {
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Scheme != "http" {
+		return false
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+		return false
+	}
+	return true
+}
+
 // APIError carries the HTTP status and response body of a non-2xx reply.
 type APIError struct {
 	Status int
@@ -75,7 +104,7 @@ func (e *APIError) Error() string {
 // be nil; body may be nil, or any JSON-serialisable value. On a 2xx it returns the
 // raw response body; on a non-2xx it returns an *APIError.
 func (c *Client) Do(ctx context.Context, method, path string, query url.Values, body any) ([]byte, error) {
-	full := c.BaseURL + path
+	full := c.BaseURL() + path
 	if len(query) > 0 {
 		full += "?" + query.Encode()
 	}

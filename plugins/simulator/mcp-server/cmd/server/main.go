@@ -9,7 +9,6 @@ import (
 	"errors"
 	"flag"
 	"log"
-	"net/url"
 	"os"
 	"strings"
 
@@ -21,7 +20,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-const version = "2.0.0"
+const version = "2.1.0"
 
 func main() {
 	profileFlag := flag.String("profile", "", "Environment profile: local | prod (default: SIMULATOR_PROFILE or prod)")
@@ -53,7 +52,7 @@ func main() {
 	client := apiclient.New(prof.APIBaseURL, os.Getenv("WORKSPACE_ID"), authHeader, *insecure)
 
 	s := server.NewMCPServer("simulator", version)
-	tools.BuildAll(s, client, prof)
+	tools.BuildAll(s, client, prof, *insecure)
 	engines.Configure(prof.APIBaseURL, *insecure)
 	engines.RegisterTools(s)
 	log.Printf("registered %d curated API tools + auth helpers + engine tools", tools.Count())
@@ -68,15 +67,9 @@ func main() {
 // The token is attached to every request, so a remote http:// endpoint (e.g.
 // set via SIMULATOR_API_BASE_URL or profiles.json) would expose it on the wire.
 func warnIfInsecureCredentialTransport(baseURL string) {
-	u, err := url.Parse(baseURL)
-	if err != nil || u.Scheme != "http" {
-		return
+	if apiclient.IsInsecureCredentialTransport(baseURL) {
+		log.Printf("WARNING: API base URL %q uses plaintext HTTP to a non-local host — the auth token will be sent unencrypted. Use HTTPS.", baseURL)
 	}
-	switch u.Hostname() {
-	case "localhost", "127.0.0.1", "::1":
-		return
-	}
-	log.Printf("WARNING: API base URL %q uses plaintext HTTP to a non-local host — the auth token will be sent unencrypted. Use HTTPS.", baseURL)
 }
 
 // loadDotEnv loads KEY=VALUE lines from path into the process environment,

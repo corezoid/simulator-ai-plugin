@@ -67,7 +67,7 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] new request: %v", err)), nil
 		}
-		httpReq.Header.Set("Authorization", Cfg.Authorization)
+		httpReq.Header.Set("Authorization", authHeader())
 		resp, err := client.Do(httpReq)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] http: %v", err)), nil

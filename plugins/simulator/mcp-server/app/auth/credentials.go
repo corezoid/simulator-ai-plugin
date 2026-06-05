@@ -171,6 +171,37 @@ func SaveAccountURL(accountURL string) error {
 	return nil
 }
 
+// SaveEnvironment saves the chosen environment — SIMULATOR_API_BASE_URL and
+// ACCOUNT_URL — to the .env file in a single read-modify-write pass, so it can't
+// leave .env with a new base URL but a stale account URL. config.Resolve reads both
+// on startup, so the choice survives a restart.
+func SaveEnvironment(apiBaseURL, accountURL string) error {
+	envMu.Lock()
+	defer envMu.Unlock()
+	kv := [][2]string{
+		{"SIMULATOR_API_BASE_URL", apiBaseURL},
+		{"ACCOUNT_URL", accountURL},
+	}
+	if err := updateEnvFileMulti(envFilePath(), kv); err != nil {
+		return fmt.Errorf("failed to save environment to .env: %w", err)
+	}
+	os.Setenv("SIMULATOR_API_BASE_URL", apiBaseURL)
+	os.Setenv("ACCOUNT_URL", accountURL)
+	return nil
+}
+
+// ClearWorkspaceID removes WORKSPACE_ID from the .env file and the process env.
+// Used when switching environment, since workspaces are per-environment.
+func ClearWorkspaceID() error {
+	envMu.Lock()
+	defer envMu.Unlock()
+	if err := removeEnvKey(envFilePath(), "WORKSPACE_ID"); err != nil {
+		return err
+	}
+	os.Unsetenv("WORKSPACE_ID")
+	return nil
+}
+
 // SaveWorkspaceID saves WORKSPACE_ID to the .env file.
 func SaveWorkspaceID(accID string) error {
 	envMu.Lock()

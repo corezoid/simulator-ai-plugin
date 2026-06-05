@@ -2,7 +2,12 @@
 
 ## [Unreleased]
 
+### Removed
+- **`software-migration-onramp` skill.** Dropped the migration discovery facilitator skill (and its `prompts/` specs); the plugin now ships 6 skills. Removed its references from README / `docs/ARCHITECTURE.md` / AGENTS / the `simulator` skill and regenerated the discovery artifacts (`public/`).
+
 ### Added
+- **Local dev preset is now profile-gated.** `set-environment` offers the `local` preset (`localhost:9000`) only in a local-dev session (startup profile `local`, i.e. `SIMULATOR_PROFILE=local` / `--profile local`); the default `prod` profile advertises only the cloud gateways (`mw`, `sim`) + custom URL, so end users are never prompted with localhost. Documented the local-dev invocation in README / AGENTS, and dropped the stale `SIMULATOR_DEBUG` references (it was never read in code).
+- **Multi-environment support + `set-environment` tool.** Before login the user now chooses an environment — a cloud preset (`mw.simulator.company` default, `sim.simulator.company`) or a custom/local/on-prem URL (host or full URL; `/papi/1.0` appended if omitted). Since pong-server authenticates through the `account` system and one account may back several sim environments, the OAuth account URL is no longer fixed per gateway: `set-environment` fetches the gateway's public, unauthenticated config (`getConfigReq` → `data.saUrl`) to derive it, persists `SIMULATOR_API_BASE_URL` + `ACCOUNT_URL` to `.env`, and clears any token + workspace (so you re-`login`). The environment can be switched at any time mid-session — the `apiclient` and engine base URLs are mutated in place (guarded by `RWMutex`) so it takes effect without a restart, and `login` follows the chosen account URL. New `apiclient.FetchPublicConfig`; `config.CloudEnvironments` presets + `NormalizeAPIBaseURL`; `config.Resolve` honours a persisted `ACCOUNT_URL` on restart. Documented in README / `docs/ARCHITECTURE.md` and the `simulator-init` / `simulator` skills.
 - **`filterActors` tool** (`GET /papi/1.0/actors_filters/{formId}`) — list/rank the actors of a form by an account's **current balance** in a single server-side query. Set `linkedToActorId` to scope candidates to one anchor actor's graph neighbours (hierarchy link, both directions), answering "the actors related to X whose account N balance is > / < a value"; `accountNameId`+`currencyId` select the account, `amountFrom`/`amountTo` set the threshold, `orderBy=balance` ranks. Filters on current balance only (turnover-over-period stays a per-actor `getAccounts(from,to)` read; the backend's period-balance path is still disabled). Declared the matching `operationId: 'filterActors'` on the pong-server public route and refreshed the drift spec. Re-introduces, in curated Go form, the `filterActors` tool dropped in the rewrite. Documented in README / `docs/ARCHITECTURE.md` and the `simulator-finance` / `simulator-graph` skills.
 
 ### MCP server rewrite
@@ -33,7 +38,7 @@
 - **base64 image input** now accepts URL-safe and unpadded variants, not only `StdEncoding`.
 - **`pushGraphFile`**: an edge whose endpoint isn't placed on the layer is no longer counted as a placed edge (and logs a warning) instead of inflating `EdgesCreated`.
 - **`compactGraphLayout`**: cluster height now scales to the tallest cluster, so large clusters no longer overlap the row below.
-- Resource-read path check now requires a separator (no sibling-dir prefix bypass); removed dead `setRequestSecurity`; fixed the `set-workspace` description (`WORKSPACE_ID`, not `SIMULATOR_ACC_ID`) and the advertised server name typo (`swagger-mcp`); DEBUG logs (and the per-request body dump) are gated behind `SIMULATOR_DEBUG`.
+- Resource-read path check now requires a separator (no sibling-dir prefix bypass); removed dead `setRequestSecurity`; fixed the `set-workspace` description (`WORKSPACE_ID`, not `SIMULATOR_ACC_ID`) and the advertised server name typo (`swagger-mcp`).
 
 ### Repo hygiene
 - Removed the dead duplicate `./app/` tree (stale copy importing the defunct `git.corezoid.com/mw161089sar/...` paths; canonical code lives under `plugins/simulator/mcp-server/`).

@@ -12,7 +12,7 @@ A plugin for Claude Code and Codex that connects the **Simulator.Company** platf
 - a **Go MCP server** (`plugins/simulator/mcp-server/`) that exposes the Simulator
   `/papi/1.0` public API as a **curated, typed set of ~46 MCP tools** (declared in Go, not a
   generic spec passthrough), scoped to the core scenarios;
-- **7 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
+- **6 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
   platform's entity model and common workflows.
 
 Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before making non-trivial changes.
@@ -24,13 +24,13 @@ plugins/simulator/mcp-server/   Go MCP server (Go 1.24+, mark3labs/mcp-go)
   cmd/server/                   entry point: profile → apiclient → tools → stdio
   cmd/gendiscovery/             regenerate public/ discovery artifacts
   cmd/evalrunner/               behavioural eval (opt-in; needs ANTHROPIC_API_KEY)
-  internal/config/              local/prod profiles (env + profiles.json overridable)
+  internal/config/              cloud presets + local/prod profiles (env + profiles.json overridable)
   internal/apiclient/           HTTP client: base URL, auth header, accId, timeouts, errors
   internal/tools/               curated typed Operation registry (op.go) + per-domain files
     testdata/                   papi-openapi.json (drift gate) + eval-scenarios.json
   internal/engines/             graph sync, layout, prune, placements, upload, chart
-  app/auth/                     OAuth2 PKCE + .env credential storage
-plugins/simulator/skills/       7 skills (markdown only, ship with the plugin)
+  app/auth/                     set-environment (public config → account URL) + OAuth2 PKCE + .env credential storage
+plugins/simulator/skills/       6 skills (markdown only, ship with the plugin)
 plugins/simulator/docs/         entity & user-flow reference (ships with the plugin)
 docs/                           contributor docs (ARCHITECTURE.md, INTEGRATION.md) — repo-level
 public/                         generated AI-discovery artifacts (do not hand-edit)
@@ -56,14 +56,20 @@ Run the server directly (no build step — hosts use `go run ./cmd/server`):
 
 ```bash
 cd plugins/simulator/mcp-server
-SIMULATOR_DEBUG=1 go run ./cmd/server --profile local
+go run ./cmd/server --profile local   # targets pong-server :9000; logs to stderr
 ```
+
+The **`local` profile** (`--profile local` or `SIMULATOR_PROFILE=local`) targets a
+pong-server on `:9000` **and** makes `set-environment` offer the `local` preset
+(`localhost:9000`); the default `prod` profile hides it (cloud `mw`/`sim` + custom URL only).
 
 Before committing Go changes, run `make build && make vet && make test`.
 
 **Dev loop in Claude Code:** load the plugin from the repo with `claude --plugin-dir <repo>`
 (or a local marketplace install, or the project-scoped root `.mcp.json` — pick one).
-Profile via `plugins/simulator/mcp-server/.env` (`SIMULATOR_PROFILE=local`). After editing
+Set the profile either by prefixing the launch (`SIMULATOR_PROFILE=local claude --plugin-dir
+<repo>` — the server inherits it) or in `plugins/simulator/mcp-server/.env`
+(`SIMULATOR_PROFILE=local`). After editing
 code/tools/skills/`.env`, run **`/reload-plugins`** to relaunch the MCP server — no
 reinstall. Verify with `/mcp`. Full guide: README → "Local development".
 

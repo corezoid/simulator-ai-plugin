@@ -84,7 +84,7 @@ simulator-ai-plugin/
     ├── .codex-plugin/plugin.json     # Codex manifest
     ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
-    ├── skills/                       # 7 skills (markdown only)
+    ├── skills/                       # 6 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
 ```
 
@@ -124,7 +124,7 @@ mcp-server/
 ```
 
 Layering rule: `cmd → tools → {apiclient, config, engines, auth}`; no package imports
-"upward". `tools.BuildAll(server, client, profile)` plus `engines.RegisterTools(server)`
+"upward". `tools.BuildAll(server, client, profile, insecure)` plus `engines.RegisterTools(server)`
 replace what used to be a single 3k-line registration function.
 
 ### 3.1 Run mode & entry point (`cmd/server/main.go`)
@@ -140,21 +140,39 @@ The server is stdio-only (the transport MCP hosts launch). On start it:
    (`engines.RegisterTools`);
 6. serves over stdio.
 
-`SIMULATOR_DEBUG` may be used by individual components for verbose logging.
+Startup config and request errors are logged to stderr.
 
 ### 3.2 Profiles & environment (`internal/config`)
 
-The target backend is chosen by **profile**, resolved in order: `--profile` flag →
-`SIMULATOR_PROFILE` env → `profiles.json` `active` → built-in default (`prod`).
+The platform runs on many environments (cloud, on-prem, local dev). The primary way users
+pick one is the **`set-environment`** tool (§4): they choose a preset or enter a custom/local
+URL, and the server derives the account URL from that gateway's public config (see below) and
+persists `SIMULATOR_API_BASE_URL` + `ACCOUNT_URL` to `.env`. The advertised presets come from
+`config.OfferedEnvironments`: always the cloud gateways (`mw`, `sim`), **plus a `local`
+preset (`localhost:9000`) only in a local-dev session** (startup profile `local`) — so cloud
+users are never prompted with localhost.
 
-| Profile | API base URL                          | Account (SA) URL                  |
-|---------|----------------------------------------|-----------------------------------|
-| `local` | `http://localhost:9000/papi/1.0`       | `https://account.pre.corezoid.com`|
-| `prod`  | `https://mw.simulator.company/papi/1.0`| `https://account.corezoid.com`    |
+At startup the target backend is resolved as a **profile**, in order: `--profile` flag →
+`SIMULATOR_PROFILE` env → `profiles.json` `active` → built-in default (`prod`). A
+`set-environment` choice persisted to `.env` is honoured here via the per-field env overrides
+(`SIMULATOR_API_BASE_URL`, and `ACCOUNT_URL` as a fallback for the account URL).
 
-Each field is overridable via `SIMULATOR_API_BASE_URL`, `SIMULATOR_ACCOUNT_URL`,
-`SIMULATOR_OAUTH_CLIENT_ID`, or a `profiles.json` in the working directory. Tokens never
-live in `profiles.json` — only in `.env`.
+| Source              | API base URL                          | Account (SA) URL                  |
+|---------------------|----------------------------------------|-----------------------------------|
+| preset `mw` (cloud) | `https://mw.simulator.company/papi/1.0`| derived from public config        |
+| preset `sim` (cloud)| `https://sim.simulator.company/papi/1.0`| derived from public config       |
+| profile `local`     | `http://localhost:9000/papi/1.0`       | `https://account.pre.corezoid.com`|
+| profile `prod`      | `https://mw.simulator.company/papi/1.0`| `https://account.corezoid.com`    |
+
+**Account URL derivation.** pong-server authenticates through the `account` system, and one
+account may back several sim environments, so the OAuth account URL is not fixed per gateway.
+`set-environment` calls the gateway's public, unauthenticated `getConfigReq` endpoint
+(`GET {apiBase}/config`) and reads `data.saUrl` — that is the account URL `login` then uses.
+`apiclient.FetchPublicConfig` implements this fetch.
+
+Each field is overridable via `SIMULATOR_API_BASE_URL`, `SIMULATOR_ACCOUNT_URL` /
+`ACCOUNT_URL`, `SIMULATOR_OAUTH_CLIENT_ID`, or a `profiles.json` in the working directory.
+Tokens never live in `profiles.json` — only in `.env`.
 
 ### 3.3 Tool model (`internal/tools`)
 
@@ -163,8 +181,8 @@ Tools are **declared in Go**, not generated from a spec at runtime. `op.go` defi
 `register()` that turns any `Operation` into a typed MCP tool whose handler maps
 arguments → path/query/body → one `apiclient.Do` call. The per-domain files
 (`forms.go`, `actors.go`, `accounts.go`, `transactions.go`, `graph.go`, `apps.go`) each
-declare a slice of `Operation`s; `build.go` registers them all plus the `login` /
-`set-workspace` helpers.
+declare a slice of `Operation`s; `build.go` registers them all plus the `set-environment` /
+`login` / `set-workspace` helpers.
 
 Conventions baked into the registry:
 
@@ -176,8 +194,12 @@ Conventions baked into the registry:
 
 Every API call needs an `Authorization` header and a workspace id (`accId`). Both come from
 `.env`: the token is written by `login`; `WORKSPACE_ID` is written by `set-workspace`. The
-`apiclient` injects `accId` into path/query params that need it, and guards the live
-workspace value with an `RWMutex` (set-workspace mutates it while tool calls read it).
+`apiclient` injects `accId` into path/query params that need it, and guards the live base URL
+and workspace value with an `RWMutex` — `set-environment` mutates the base URL and clears the
+workspace, `set-workspace` mutates the workspace, while tool calls read them. Switching
+environment with `set-environment` clears the token + workspace (workspaces are per-
+environment) and updates both the `apiclient` and engine base URLs in place, so it takes
+effect without a restart and forces a fresh `login`.
 
 ### 3.5 Spec drift gate
 
@@ -206,7 +228,7 @@ backend operation, with typed parameters:
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
 | Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
-| Setup         | `login` `getWorkspaces` `set-workspace` (by accId or name) |
+| Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
 **Engine tools** (`internal/engines`) — multi-call workflows and client-side computation
 ported from the original implementation:
@@ -242,11 +264,16 @@ login tool
   └─ credentials.go: atomically write ACCESS_TOKEN + ACCESS_TOKEN_EXPIRES_AT to .env (0600)
 ```
 
+`login` reads `ACCOUNT_URL` (written by `set-environment` from the chosen gateway's public
+config) and falls back to the resolved profile's account URL when it is unset.
+
 - **Storage**: plaintext `.env` in the working directory, mode `0600`. Writes are serialised
   under a mutex and token + expiry are written in a single pass.
-- **Account URL** comes from the resolved profile (`account.corezoid.com` for prod,
-  `account.pre.corezoid.com` for local); the OAuth client id is overridable via
-  `SIMULATOR_OAUTH_CLIENT_ID`. Local mirrors production — same PKCE flow, different SA.
+- **Account URL** is derived per environment by `set-environment` (gateway public config →
+  `saUrl`) and saved as `ACCOUNT_URL`; absent that, it comes from the resolved profile
+  (`account.corezoid.com` for prod, `account.pre.corezoid.com` for local). The OAuth client id
+  is overridable via `SIMULATOR_OAUTH_CLIENT_ID`. Local mirrors production — same PKCE flow,
+  different SA.
 - **TLS**: certificate verification is **on by default**; `--insecure` is for self-signed
   on-prem gateways.
 

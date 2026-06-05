@@ -9,7 +9,7 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
 ## Quick orientation
 
 - **What it is:** an MCP plugin connecting the Simulator.Company platform to Claude — a Go
-  MCP server (`plugins/simulator/mcp-server/`) exposing the REST API as tools, plus 7
+  MCP server (`plugins/simulator/mcp-server/`) exposing the REST API as tools, plus 6
   skills (`plugins/simulator/skills/`).
 - **Design:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - **Verify changes:** `make build && make vet` from the repo root (`make lint` is available —

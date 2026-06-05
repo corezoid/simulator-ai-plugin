@@ -61,7 +61,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	client := apiHTTPClient()
 	apiGet := func(url string) ([]byte, error) {
 		hr, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-		hr.Header.Set("Authorization", Cfg.Authorization)
+		hr.Header.Set("Authorization", authHeader())
 		resp, err := client.Do(hr)
 		if err != nil {
 			return nil, err
@@ -75,7 +75,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	}
 	apiDelete := func(url string) error {
 		hr, _ := http.NewRequestWithContext(ctx, "DELETE", url, nil)
-		hr.Header.Set("Authorization", Cfg.Authorization)
+		hr.Header.Set("Authorization", authHeader())
 		resp, err := client.Do(hr)
 		if err != nil {
 			return err
