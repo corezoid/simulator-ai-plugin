@@ -76,7 +76,20 @@ Restart Claude Code / Codex after updating to apply the new version.
 
 ## Authentication
 
-On the first Simulator operation Claude runs the `login` tool — your browser opens for OAuth2 sign-in (at the profile's account URL: `account.corezoid.com` for prod, `account.pre.corezoid.com` for local) and the token is saved. Claude then lists your workspaces with `getWorkspaces` and lets you pick one **by name**; `set-workspace` (by `name` or `accId`) saves the choice as `WORKSPACE_ID`. You never need to know the workspace id.
+Simulator runs on many environments (cloud, on-prem, local dev), so the first step is to
+**choose one**. The `set-environment` tool takes a cloud preset — `mw.simulator.company`
+(default) or `sim.simulator.company` — or a custom/local URL (host or full URL; `/papi/1.0`
+is appended if omitted). It fetches that gateway's **public config** to derive the correct
+OAuth account URL — the platform authenticates through the `account` system, and one account
+may back several environments, so the auth URL is determined per gateway rather than fixed.
+The chosen API base and account URL are saved to `.env` (`SIMULATOR_API_BASE_URL`,
+`ACCOUNT_URL`). Switching environment later clears the token + workspace and requires a fresh
+`login`.
+
+Next Claude runs the `login` tool — your browser opens for OAuth2 sign-in against the chosen
+environment's account URL and the token is saved. Claude then lists your workspaces with
+`getWorkspaces` and lets you pick one **by name**; `set-workspace` (by `name` or `accId`)
+saves the choice as `WORKSPACE_ID`. You never need to know the workspace id.
 
 The token is saved to `.env` in your working directory (mode `0600`) and reused on every subsequent session. When it expires, the login flow triggers again automatically.
 
@@ -102,10 +115,10 @@ The static token takes priority over saved credentials.
 |-------------------------------|----------|-----------------------------------------------------------------------------|
 | `ACCESS_TOKEN`                | No       | Static token — overrides OAuth2 saved credentials                           |
 | `ACCESS_TOKEN_EXPIRES_AT`     | No       | Token expiry timestamp (RFC 3339) — written automatically after OAuth login |
-| `ACCOUNT_URL`                 | No       | Override the default account URL (`https://account.corezoid.com`)           |
+| `ACCOUNT_URL`                 | No       | OAuth account (SA) URL — set automatically by `set-environment` (derived from the gateway's public config); overrides the default `https://account.corezoid.com` |
 | `WORKSPACE_ID`                | No       | Default workspace ID (`accId`) — set automatically after `set-workspace`    |
 | `SIMULATOR_PROFILE`           | No       | Environment profile: `local` \| `prod` (default `prod`); also via `--profile` |
-| `SIMULATOR_API_BASE_URL`      | No       | Override the profile's API base URL (e.g. `http://localhost:9000/papi/1.0`)  |
+| `SIMULATOR_API_BASE_URL`      | No       | API base URL — set automatically by `set-environment`; overrides the profile (e.g. `http://localhost:9000/papi/1.0`) |
 | `SIMULATOR_ACCOUNT_URL`       | No       | Override the profile's OAuth account (SA) URL                                |
 | `SIMULATOR_OAUTH_CLIENT_ID`   | No       | OAuth2 client ID — on-prem deployments with a custom authorization server should set this to their own client ID; cloud (account.corezoid.com) users do not need it |
 
@@ -157,7 +170,7 @@ scenarios — forms, actors, accounts, transactions, graph building, application
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
 | Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
-| Setup         | `login` `getWorkspaces` `set-workspace` (by accId or name) |
+| Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
 **Engine tools** (multi-call workflows + client-side computation):
 
@@ -176,8 +189,8 @@ scenarios — forms, actors, accounts, transactions, graph building, application
 ```
 Claude Code / Codex
   └── simulator MCP server (go run ./cmd/server --profile local|prod)
-        ├── config      local / prod profiles (API base + account URL)
-        ├── auth        login (OAuth2 PKCE → .env), set-workspace
+        ├── config      cloud presets + local / prod profiles (API base + account URL)
+        ├── auth        set-environment (public config → account URL), login (OAuth2 PKCE → .env), set-workspace
         ├── tools       curated typed operations (forms, actors, accounts,
         │               transactions, graph, apps) — one tool per backend op
         ├── engines     pullGraphFile, pushGraphFile, compactGraphLayout,
@@ -315,7 +328,16 @@ Create `plugins/simulator/mcp-server/.env`:
 SIMULATOR_PROFILE=local      # or prod
 ```
 
-`login` / `set-workspace` write `ACCESS_TOKEN` / `WORKSPACE_ID` back into this same file.
+Running with the **`local` profile** (via `SIMULATOR_PROFILE=local` or `--profile local`) does
+two things for development:
+
+- the server starts pointed at a local `pong-server` on `http://localhost:9000`;
+- **`set-environment` additionally offers a `local` preset** (`localhost:9000`) — i.e.
+  `set-environment(preset="local")` works. In the default `prod` profile that preset is
+  hidden, so end users are only offered the cloud gateways (`mw` / `sim`) and a custom URL.
+
+`login` / `set-workspace` (and `set-environment`) write `ACCESS_TOKEN` / `WORKSPACE_ID` /
+`SIMULATOR_API_BASE_URL` / `ACCOUNT_URL` back into this same file.
 
 ### 2. Connect it in Claude Code
 
@@ -325,6 +347,15 @@ Pick **one** way (don't combine — two would register the `simulator` server tw
   ```bash
   claude --plugin-dir /Users/<you>/PJ/control/simulator-ai-plugin/plugins/simulator
   ```
+  To run against the **local** backend, prefix the launch with `SIMULATOR_PROFILE` — the
+  MCP server inherits it from the Claude Code process, so you don't have to edit `.env`:
+  ```bash
+  SIMULATOR_PROFILE=local claude --plugin-dir /Users/<you>/PJ/control/simulator-ai-plugin/plugins/simulator
+  ```
+  (This targets `pong-server` on `:9000` and makes `set-environment` offer the `local`
+  preset; without it the server defaults to the `prod` profile. An env var set this way
+  wins over `mcp-server/.env`. Equivalently: put `SIMULATOR_PROFILE=local` in
+  `plugins/simulator/mcp-server/.env`.)
 - **Local marketplace install:**
   ```
   /plugin marketplace add /Users/<you>/PJ/control/simulator-ai-plugin/plugins/simulator
@@ -386,11 +417,12 @@ make eval-live      # behavioural eval executing tools against the backend
 
 ## Debugging
 
-Run the server directly against a profile and enable verbose logging with `SIMULATOR_DEBUG`:
+Run the server directly against a profile (it logs startup config and request errors to
+stderr):
 
 ```bash
 cd plugins/simulator/mcp-server
-SIMULATOR_DEBUG=1 go run ./cmd/server --profile local
+go run ./cmd/server --profile local
 ```
 
 Tests cover config, the HTTP client, the curated tools (scenarios + `-race`), the backend

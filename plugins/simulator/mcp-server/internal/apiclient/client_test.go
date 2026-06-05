@@ -14,7 +14,7 @@ import (
 type capture struct {
 	method string
 	path   string
-	query string
+	query  string
 	auth   string
 	body   map[string]any
 }
@@ -62,6 +62,48 @@ func TestDoSendsMethodPathQueryBodyAuth(t *testing.T) {
 	}
 	if capt.body["title"] != "Car" {
 		t.Errorf("body = %v", capt.body)
+	}
+}
+
+func TestSetBaseURLRoutesToNewHost(t *testing.T) {
+	var capt capture
+	srv := newServer(200, &capt)
+	defer srv.Close()
+
+	// Start pointed at a throwaway base, then switch to the live server at runtime.
+	c := New("https://unused.example/papi/1.0/", "", nil, false)
+	if c.BaseURL() != "https://unused.example/papi/1.0" { // trailing slash trimmed in New
+		t.Errorf("BaseURL() = %q", c.BaseURL())
+	}
+	c.SetBaseURL(srv.URL + "/")
+	if c.BaseURL() != srv.URL { // trailing slash trimmed in SetBaseURL
+		t.Errorf("BaseURL() after SetBaseURL = %q, want %q", c.BaseURL(), srv.URL)
+	}
+	if _, err := c.Do(context.Background(), "GET", "/forms/1", nil, nil); err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	if capt.path != "/forms/1" {
+		t.Errorf("request did not hit the new base; path = %q", capt.path)
+	}
+}
+
+func TestIsInsecureCredentialTransport(t *testing.T) {
+	tests := []struct {
+		url  string
+		want bool
+	}{
+		{"http://remote-host.example:9000/papi/1.0", true},
+		{"http://1.2.3.4/papi/1.0", true},
+		{"https://mw.simulator.company/papi/1.0", false}, // https is safe
+		{"http://localhost:9000/papi/1.0", false},        // loopback
+		{"http://127.0.0.1:9000/papi/1.0", false},
+		{"http://[::1]:9000/papi/1.0", false},
+		{"://bad", false}, // unparseable → not flagged
+	}
+	for _, tc := range tests {
+		if got := IsInsecureCredentialTransport(tc.url); got != tc.want {
+			t.Errorf("IsInsecureCredentialTransport(%q) = %v, want %v", tc.url, got, tc.want)
+		}
 	}
 }
 

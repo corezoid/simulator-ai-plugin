@@ -109,7 +109,7 @@ func uploadFile(ctx context.Context, accID string, filename string, contentType 
 	if err != nil {
 		return "", fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Authorization", Cfg.Authorization)
+	req.Header.Set("Authorization", authHeader())
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 
 	client := apiHTTPClient()
@@ -149,7 +149,7 @@ func setActorPicture(ctx context.Context, formID int, actorID, picture string) e
 	if err != nil {
 		return fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Authorization", Cfg.Authorization)
+	req.Header.Set("Authorization", authHeader())
 	req.Header.Set("Content-Type", "application/json")
 
 	client := apiHTTPClient()

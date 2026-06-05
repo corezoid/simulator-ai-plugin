@@ -35,8 +35,9 @@ working directory**. The `login` and `set-workspace` tools write back to it. See
 | `--insecure` | off     | Skip TLS verification (self-signed on-prem gateways)            |
 
 Profiles are overridable per-field via `SIMULATOR_API_BASE_URL`, `SIMULATOR_ACCOUNT_URL`,
-`SIMULATOR_OAUTH_CLIENT_ID`, or a `profiles.json` in the working directory. `SIMULATOR_DEBUG`
-enables verbose logging.
+`SIMULATOR_OAUTH_CLIENT_ID`, or a `profiles.json` in the working directory. The `local`
+profile also makes the `set-environment` tool offer a `local` preset (`localhost:9000`);
+`prod` hides it.
 
 ## Layout
 
