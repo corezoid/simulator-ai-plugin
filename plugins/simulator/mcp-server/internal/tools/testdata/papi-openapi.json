@@ -14350,6 +14350,46 @@
         }
       }
     },
+    "/papi/1.0/applications/{actorId}": {
+      "get": {
+        "operationId": "getApplication",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/applications/envs/{actorId}": {
+      "get": {
+        "operationId": "getApplicationEnvs",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/applications/{accId}": {
       "post": {
         "operationId": "createApplication",
@@ -14475,6 +14515,71 @@
         }
       }
     },
+    "/papi/1.0/applications/env/{actorId}/{envId}": {
+      "put": {
+        "operationId": "updateApplicationEnv",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "apiLogin": {
+                    "type": "string"
+                  },
+                  "apiSecret": {
+                    "type": "string"
+                  },
+                  "alias": {
+                    "type": "string"
+                  },
+                  "stageId": {
+                    "type": "string"
+                  },
+                  "companyId": {
+                    "type": "string"
+                  },
+                  "procId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "apiLogin",
+                  "apiSecret"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "envId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/applications/deploy/{actorId}": {
       "post": {
         "requestBody": {
@@ -14517,6 +14622,78 @@
       }
     },
     "/papi/1.0/app_content/{actorId}": {
+      "post": {
+        "operationId": "createAppContent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "folderId": {
+                      "type": "integer"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "objType": {
+                      "enum": [
+                        "folder",
+                        "file"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "folderId",
+                    "title",
+                    "objType"
+                  ],
+                  "if": {
+                    "properties": {
+                      "objType": {
+                        "enum": [
+                          "file"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  }
+                },
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
       "put": {
         "operationId": "manageAppContent",
         "requestBody": {
@@ -14591,6 +14768,52 @@
             "description": "Default Response"
           }
         }
+      },
+      "delete": {
+        "operationId": "deleteAppContent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "objType": {
+                      "enum": [
+                        "folder",
+                        "file"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "objType"
+                  ]
+                },
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
       }
     },
     "/papi/1.0/app_content/struct/{actorId}/{envId}": {
@@ -14610,6 +14833,477 @@
             },
             "in": "path",
             "name": "envId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/app_content/{actorId}/{folderId}": {
+      "get": {
+        "operationId": "getAppContentFolder",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "folderId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}": {
+      "get": {
+        "operationId": "listReleases",
+        "summary": "List production releases of an app",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns release manifests filtered by env / status. Ordered by createdAt DESC. Status enum: active | archived | rolled_back | failed.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "envId",
+            "required": false
+          },
+          {
+            "schema": {
+              "enum": [
+                "active",
+                "archived",
+                "rolled_back"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}/{releaseId}": {
+      "get": {
+        "operationId": "getRelease",
+        "summary": "Get a single release manifest",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns one row from app_releases.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "releaseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}/{releaseId}/struct": {
+      "get": {
+        "operationId": "getReleaseStruct",
+        "summary": "Get the immutable folder/file snapshot of a release",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns { release, objects } where objects is the full app_release_objects payload (folders + files with source bytes). Used by UI to preview a release content.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "releaseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}/{releaseId}/diff": {
+      "get": {
+        "operationId": "diffReleases",
+        "summary": "Diff two releases (added/removed/modified)",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Server-side path-level diff between release `:releaseId` and release `:vs`. Identity per object is (objType, originalId). Modifications detected via source_hash so no TEXT bytes leave the server.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "vs",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "releaseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}/{releaseId}/rollback": {
+      "post": {
+        "operationId": "rollbackRelease",
+        "summary": "Roll an env back to a previous release",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Creates a NEW release (linear forward history) by copying the target release objects, then wipes + materializes the env from the new release. Original target is marked status=rolled_back. Rejected with 400 if the target release content was already pruned by retention GC (configured via `applications.history.releaseLimit`, default 5).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "releaseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/{actorId}/{fileId}": {
+      "get": {
+        "operationId": "listFileVersions",
+        "summary": "List version history of a single file",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns snapshots of an app file ordered by createdAt DESC. Each row captures the file state before a write (create/update/rename/move/delete/restore/rollback). Per-file retention is configured via `applications.history.perFileVersionLimit` (default 50).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "fileId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/{actorId}/{fileId}/{versionId}": {
+      "get": {
+        "operationId": "getFileVersion",
+        "summary": "Get a single file version snapshot",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns one row from app_file_versions for the file.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "fileId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "versionId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/{actorId}/{fileId}/rollback": {
+      "post": {
+        "operationId": "rollbackFile",
+        "summary": "Roll back a file to a previous version",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Overwrites the file in place with the chosen version (id stays stable for live editors). Records a new `rollback` version row holding the pre-rollback state. If the file was soft-deleted, it is also restored. Not allowed for readonly envs (e.g. production).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "versionId": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "versionId"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "fileId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/trash/{actorId}/{envId}": {
+      "get": {
+        "operationId": "listAppTrash",
+        "summary": "List soft-deleted folders and files of an env",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns app_folders / app_files rows where deleted_at IS NOT NULL for the given env. Folders first, then files; newest deletions first. Each row has an `objType` discriminator.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "envId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/trash/{actorId}/restore": {
+      "post": {
+        "operationId": "restoreAppContent",
+        "summary": "Restore soft-deleted items from trash",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Clears deleted_at on the provided ids. Files also get a `restore` version row. Folder restore does NOT cascade to descendants — pass each descendant explicitly if you want them back too. Items that are not currently soft-deleted are silently skipped.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "objType": {
+                          "enum": [
+                            "folder",
+                            "file"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "objType"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
             "required": true
           }
         ],
