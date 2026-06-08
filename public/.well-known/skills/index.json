@@ -9,6 +9,13 @@
       "name": "simulator"
     },
     {
+      "description": "Simulator.Company actor (record) specialist. Use when the user wants to create, update, read, search, or filter the *instances* of a form template (a.k.a. Account Template records) — i.e. data-bearing actors — and needs the `data` value protocol right. Activate when the user says \"create an actor\", \"add a record\", \"create a record from this template\", \"fill in a form\", \"update actor data\", \"find actors where field = …\", \"filter actors by balance\", \"создай актор\", \"заполни шаблон\", or \"добавь запись\". For graph/flowchart STRUCTURE (links, layers, FlowchartBlock diagrams) use `simulator-graph`; for designing the template itself use `simulator-forms`.",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-actors/SKILL.md"
+      ],
+      "name": "simulator-actors"
+    },
+    {
       "description": "Simulator.Company chart and dashboard specialist. Use when the user wants to create, configure, or query charts (line, bar, area), dashboards, or financial time-series visualisations on a graph layer.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-charts/SKILL.md"
@@ -23,7 +30,7 @@
       "name": "simulator-finance"
     },
     {
-      "description": "Simulator.Company form designer specialist. Use when the user wants to create or modify form templates, define custom field structures, set up account definitions within forms, explore system forms, work with Smart Forms (CDU / Scripts), manage form status, or understand how forms define actor structure. Activate when the user says \"create a form\", \"design a template\", \"add fields to form\", \"define actor schema\", or \"what system forms are available\".",
+      "description": "Simulator.Company form designer specialist. Use when the user wants to create or modify form templates (a.k.a. Account Templates / «Шаблон рахунків»), define custom field structures, set up account definitions, explore system forms, work with Smart Forms (CDU / Scripts), manage form status, or understand how forms define actor structure. Activate when the user says \"create a form\", \"design a template\", \"add fields to form\", \"Account Template\", \"Шаблон рахунків\", \"define actor schema\", or \"what system forms are available\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-forms/SKILL.md"
       ],

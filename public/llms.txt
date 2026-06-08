@@ -5,6 +5,7 @@
 ## Skills
 
 - [simulator](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator/SKILL.md): Universal Simulator.Company platform assistant
+- [simulator-actors](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-actors/SKILL.md): Simulator.Company actor (record) specialist
 - [simulator-charts](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-charts/SKILL.md): Simulator.Company chart and dashboard specialist
 - [simulator-finance](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-finance/SKILL.md): Simulator.Company financial management specialist
 - [simulator-forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-forms/SKILL.md): Simulator.Company form designer specialist

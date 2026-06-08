@@ -104,6 +104,34 @@ Notes:
   form tree (`forms_graph`) are **not** curated MCP tools yet — but you can already write/read
   multiform `data` through `createActor`/`updateActor`/`getActor` using these keys.
 
+#### Creating under the tree when asked for a CHILD (leaf) form
+
+In a UAT workspace, an actor can only be created under the **root** form of the tree — not
+under an arbitrary leaf. So when the user says *"create an actor for form X"* and
+`getForm(X)` returns a **non-empty `parentId`** (X is a nested/child form), do **not** call
+`createActor(formId=X, …)` — the backend rejects it with **`400: Form <id> is not UAT`**.
+
+Instead:
+
+1. **Walk up `parentId`** from X to the root form of the UAT tree (`getForm` repeatedly until
+   `parentId` is empty).
+2. **Call `createActor` with `formId` = the root.**
+3. Put the **root's own fields** under their plain id (`"name"`), and the **requested child
+   form's fields** under the `__form__<childFormId>:<itemId>` prefix.
+
+```json
+// Request: "create an actor for form Employee (16951)", where Employee.parentId = People (16950)
+// → create under the ROOT People (16950), not under Employee:
+createActor(formId=16950, title="Olena Kovalenko", data={
+  "name": "Olena Kovalenko",                            // People (root) field
+  "__form__16951:position": "Senior Backend Engineer"   // Employee (child) field
+})
+```
+
+> **Do NOT** flip the child form to `uat` status via `setFormStatus` to "work around" the
+> error — that mutates the shared template for everyone. Use the **root** form as the
+> `formId` instead.
+
 ---
 
 ## Create an actor
@@ -228,6 +256,7 @@ createAccount(actorId="<new UUID>", nameId="<aname>", currencyId=1, accountType=
 ## Tips
 
 - Always `getForm` first — `data` keys are the form's field `id`s, not titles.
+- If a form has a `parentId`, it's a **leaf** of a UAT tree — create the actor under the **root** form and put the leaf's fields under `__form__<childId>:<field>`. Symptom of using the wrong root: `400: Form <id> is not UAT`.
 - Dynamic-`select` values reference real ids; resolve them, don't guess.
 - `createActor` accepts `formName` (resolved in the active workspace) when you don't have the id.
 - `updateActor` is partial; `deleteActor` is irreversible — confirm first.
