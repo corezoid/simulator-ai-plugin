@@ -22,9 +22,9 @@ files and the [entity docs](../plugins/simulator/docs/entities/README.md).
 │   ├── simulator-init           │   domain knowledge + tool-call       │
 │   ├── simulator-graph          │   guidance is injected into the      │
 │   ├── simulator-forms          ├─▶ model context; the model then      │
-│   ├── simulator-finance        │   calls MCP tools over stdio         │
-│   ├── simulator-charts         │                                      │
-│   └── software-migration-...─┘                                        │
+│   ├── simulator-actors         │   calls MCP tools over stdio         │
+│   ├── simulator-finance        │                                      │
+│   └── simulator-charts       ──┘                                      │
 └───────────────────────────────────────┬─────────────────────────────┘
                                          │ MCP (stdio)
                                          ▼
@@ -84,7 +84,7 @@ simulator-ai-plugin/
     ├── .codex-plugin/plugin.json     # Codex manifest
     ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
-    ├── skills/                       # 6 skills (markdown only)
+    ├── skills/                       # 7 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
 ```
 
@@ -234,7 +234,7 @@ backend operation, with typed parameters:
 | Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` |
 | Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
 | Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
-| Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
+| Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 

@@ -26,7 +26,7 @@ a fallback when `operationId` is missing from the spec.
 1. Check whether `accId` is already known: current message, conversation history, or `WORKSPACE_ID` env var / `.env` file in the project directory.
 2. If `accId` is **not** provided, immediately ask:
 
-   > "В каком воркспейсе нужно работать? Укажите, пожалуйста, Workspace ID (`accId`). Если вы ещё не настроили окружение — запустите `/simulator-init`."
+   > Ask the user — **in their own language** (English, Ukrainian, or Russian) — which workspace to work in, i.e. for the Workspace ID (`accId`). If they haven't set up the environment yet, suggest running `/simulator-init`.
 
    Do **not** call any MCP tools until the user provides `accId`.
 3. Once `accId` is known, proceed normally and use it in all subsequent API calls.
@@ -230,8 +230,9 @@ Key rules:
 
 For domain-specific workflows use the specialized skills:
 - `/simulator-init` — OAuth login, workspace selection, environment setup
-- `/simulator-graph` — actors, links, layers, graph building
-- `/simulator-forms` — creating and managing form templates for actors
+- `/simulator-graph` — actors, links, layers, graph building (graph STRUCTURE)
+- `/simulator-forms` — form templates / Account Templates («Шаблон рахунків»): field structure
+- `/simulator-actors` — actor instances (records) of a form: the `data` value protocol, create/update/search/filter
 - `/simulator-finance` — accounts, transactions, transfers
 - `/simulator-charts` — dashboard charts and time-series visualisation on layers
 

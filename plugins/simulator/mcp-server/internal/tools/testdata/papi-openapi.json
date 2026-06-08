@@ -1144,6 +1144,7 @@
     },
     "/papi/1.0/actors/link/{edgeId}": {
       "get": {
+        "operationId": "getEdge",
         "tags": [
           "Graph"
         ],
@@ -1172,6 +1173,7 @@
         }
       },
       "delete": {
+        "operationId": "deleteEdge",
         "tags": [
           "Graph"
         ],
@@ -1192,6 +1194,7 @@
         }
       },
       "put": {
+        "operationId": "updateEdge",
         "tags": [
           "Graph"
         ],
@@ -1221,6 +1224,9 @@
                         ]
                       }
                     ]
+                  },
+                  "pinned": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -1287,6 +1293,7 @@
     },
     "/papi/1.0/actors/exist_link": {
       "post": {
+        "operationId": "existLink",
         "tags": [
           "Graph"
         ],
@@ -1304,6 +1311,9 @@
                   },
                   "edgeTypeId": {
                     "type": "integer"
+                  },
+                  "bidirected": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -2618,6 +2628,7 @@
     },
     "/papi/1.0/actors/bulk/actors_link": {
       "delete": {
+        "operationId": "deleteEdgesByNodes",
         "tags": [
           "Graph"
         ],
@@ -2637,6 +2648,9 @@
                     },
                     "edgeTypeId": {
                       "type": "integer"
+                    },
+                    "bidirected": {
+                      "type": "boolean"
                     }
                   },
                   "required": [

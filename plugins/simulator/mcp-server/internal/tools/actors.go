@@ -45,17 +45,32 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 	return fmt.Errorf("form %q not found in the active workspace", name)
 }
 
+// actorDataDesc documents the actor `data` payload. Actor data is keyed by each
+// form field's `id` ("item_<digits>"), and each value's shape depends on that
+// field's class. See docs/entities/actors.md and docs/entities/forms.md.
+const actorDataDesc = "Field values keyed by each form field's `id` (\"item_<digits>\" — NOT its title or `key`; read the form with getForm first). " +
+	"Value shape per field class: " +
+	"edit text/password/email/phone → string; edit int/float → number; " +
+	"check → boolean; radio → the selected option's `value` (string); " +
+	"static select/multiSelect → array of the chosen option objects [{title,value,color?}]; " +
+	"dynamic select → array of [{type,title,value}] where type is actor (value=actor UUID, for layer/actorFilter/actorsBag/actors/formFilter sources — formFilter lists the actors of a given form), " +
+	"currency (value=currency id number), accountName (value=account-name UUID), workspaceMembers (value=user id number), or form (value=form id, for the forms source); " +
+	"calendar → {startDate,endDate,timeZoneOffset,sendInvite} with startDate/endDate as unix SECONDS; upload → array of file refs. " +
+	"Display-only classes (label, button, image) take NO data entry; omit hidden/disabled fields you do not set. " +
+	"MULTIFORM actors instantiate several forms at once: fields of the actor's own (root) formId use the plain item id, while fields belonging to ANOTHER form are keyed \"__form__<thatFormId>:<itemId>\" (e.g. \"__form__16951:position\"). Use the plain id for this form's own fields."
+
 // actorOps — actor (graph node) CRUD. Actors are instances of a form; their
 // fields live in the free-form `data` object keyed by the form's field schema.
 var actorOps = []Operation{
 	{
 		Name: "createActor", Method: "POST", Path: "/actors/actor/{formId}",
-		Summary: "Create an actor (graph node) of a given form. Pass `formId` (number) or `formName` (resolved to its id). `data` holds the field values keyed by the form's schema.",
+		Summary: "Create an actor (graph node) of a given form. Pass `formId` (number) or `formName` (resolved to its id). `data` holds the field values keyed by the form's schema. " +
+			"In a UAT (form-tree) workspace the formId must be the ROOT form of the tree: if the requested form has a non-empty parentId (a leaf/child form), creating directly under it returns \"400: Form <id> is not UAT\" — walk up parentId to the root, create under the root, and put the leaf form's fields under \"__form__<leafFormId>:<itemId>\" data keys.",
 		Resolve: resolveActorFormID,
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Desc: "Form id this actor instantiates. Provide formId or formName."},
 			{Name: "formName", In: InLocal, Type: "string", Desc: "Form name — resolved to its id via the active workspace. Provide formId or formName."},
-			{Name: "data", In: InBody, Type: "object", Required: true, Desc: "Field values keyed by the form's field names."},
+			{Name: "data", In: InBody, Type: "object", Required: true, Desc: actorDataDesc},
 			{Name: "title", In: InBody, Type: "string", Desc: "Actor title shown on the graph."},
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},
 			{Name: "color", In: InBody, Type: "string", Desc: "Hex node color (e.g. #409547)."},
@@ -87,7 +102,7 @@ var actorOps = []Operation{
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id the actor belongs to."},
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
-			{Name: "data", In: InBody, Type: "object", Desc: "Field values to update."},
+			{Name: "data", In: InBody, Type: "object", Desc: "Field values to update. " + actorDataDesc + " Only the keys you include change; omit the rest."},
 			{Name: "title", In: InBody, Type: "string", Desc: "New title."},
 			{Name: "description", In: InBody, Type: "string", Desc: "New description."},
 			{Name: "color", In: InBody, Type: "string", Desc: "New hex color."},

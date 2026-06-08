@@ -6,15 +6,24 @@
 // schemas via the MCP `tools/list` handshake, then for each scenario runs a
 // bounded tool-use loop against the Anthropic Messages API.
 //
-//   - Default (dry): tool calls are answered with a stub "{}" — read-only, no
-//     backend, no workspace needed. Verifies the model reaches for the right tools.
+//   - Default (dry): tool calls are answered with small canned fixtures (read/list
+//     tools get realistic ids so scenarios can chain; mutating tools get "{}") — no
+//     backend, no workspace needed. Verifies the model reaches for the right tools
+//     and (via argChecks) produces the right argument shapes.
 //   - --execute (live): tool calls are forwarded to the MCP server and run against
 //     the real backend (the server's profile/.env). Entities the model creates are
 //     tracked and best-effort deleted at the end. Use a THROWAWAY workspace.
+//   - --skills: inject the plugin SKILL.md files as the system prompt, approximating
+//     how a host (Claude Code) loads skills. Without it the model sees only the tool
+//     schemas, so the eval validates tool descriptions but not the skill prose.
+//
+// Scenarios (testdata/eval-scenarios.json) may carry argChecks — per-tool assertions
+// on the model's arguments: mustContain / mustNotContain (regression guards) /
+// mustMatch (regexp), matched over the tool's canonical-compact args.
 //
 // Opt-in: with no ANTHROPIC_API_KEY it prints "skipped" and exits 0.
 //
-//	ANTHROPIC_API_KEY=… [ANTHROPIC_MODEL=…] go run ./cmd/evalrunner [--execute] [scenarios.json]
+//	ANTHROPIC_API_KEY=… [ANTHROPIC_MODEL=…] go run ./cmd/evalrunner [--execute] [--skills] [scenarios.json]
 package main
 
 import (
@@ -28,6 +37,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -43,6 +55,18 @@ type scenario struct {
 	// LiveOnly scenarios need real backend state (ids returned by earlier tools)
 	// to complete, so they only run under --execute; dry mode skips them.
 	LiveOnly bool `json:"liveOnly,omitempty"`
+	// ArgChecks optionally assert on the JSON arguments the model passed to a
+	// tool: every substring must appear in that tool's canonical-compact args
+	// (across all of its calls in the scenario). Use it to verify data shapes
+	// (e.g. multiform "__form__<id>:" keys, value-object discriminators).
+	ArgChecks []argCheck `json:"argChecks,omitempty"`
+}
+
+type argCheck struct {
+	Tool           string   `json:"tool"`
+	MustContain    []string `json:"mustContain,omitempty"`    // substrings that must appear in the tool's args
+	MustNotContain []string `json:"mustNotContain,omitempty"` // substrings that must NOT appear (regression guards)
+	MustMatch      []string `json:"mustMatch,omitempty"`      // regexp patterns the args must match
 }
 
 type mcpTool struct {
@@ -51,7 +75,10 @@ type mcpTool struct {
 	InputSchema map[string]any `json:"inputSchema"`
 }
 
-var execute = flag.Bool("execute", false, "Live mode: run tool calls against the real backend (use a throwaway workspace)")
+var (
+	execute    = flag.Bool("execute", false, "Live mode: run tool calls against the real backend (use a throwaway workspace)")
+	withSkills = flag.Bool("skills", false, "Inject the plugin SKILL.md files as the system prompt (approximates Claude Code skill loading; otherwise only tool schemas are seen)")
+)
 
 func main() {
 	flag.Parse()
@@ -82,11 +109,25 @@ func main() {
 	}
 	anthropicTools := toAnthropicTools(tools)
 
-	mode := "dry (stubbed tool results)"
+	var system string
+	if *withSkills {
+		s, n, err := loadSkillsPrompt()
+		if err != nil {
+			fatal("load skills: %v", err)
+		}
+		system = s
+		fmt.Printf("evalrunner: injecting %d SKILL.md files as system prompt (%d chars)\n", n, len(system))
+	}
+
+	mode := "dry (canned fixtures for read tools)"
 	if *execute {
 		mode = "LIVE (executing tools against the backend — best-effort cleanup)"
 	}
-	fmt.Printf("evalrunner: %d tools, %d scenarios, model=%s, mode=%s\n\n", len(tools), len(scenarios), model, mode)
+	skillsMode := "off"
+	if *withSkills {
+		skillsMode = "on"
+	}
+	fmt.Printf("evalrunner: %d tools, %d scenarios, model=%s, mode=%s, skills=%s\n\n", len(tools), len(scenarios), model, mode, skillsMode)
 
 	passed, ran, skipped := 0, 0, 0
 	var cleanups []cleanup
@@ -97,18 +138,19 @@ func main() {
 			continue
 		}
 		ran++
-		called, created, err := runScenario(apiKey, model, anthropicTools, sc.Prompt, mc)
+		called, argsByTool, created, err := runScenario(apiKey, model, system, anthropicTools, sc.Prompt, mc)
 		cleanups = append(cleanups, created...)
 		if err != nil {
 			fmt.Printf("✗ %s — error: %v\n", sc.Name, err)
 			continue
 		}
 		missing := missingTools(sc.Tools, called)
-		if len(missing) == 0 {
+		argFails := failedArgChecks(sc.ArgChecks, argsByTool)
+		if len(missing) == 0 && len(argFails) == 0 {
 			passed++
 			fmt.Printf("✓ %s — called: %v\n", sc.Name, keys(called))
 		} else {
-			fmt.Printf("✗ %s — missing %v (called: %v)\n", sc.Name, missing, keys(called))
+			fmt.Printf("✗ %s — missing tools %v, arg failures %v (called: %v)\n", sc.Name, missing, argFails, keys(called))
 		}
 	}
 
@@ -130,19 +172,20 @@ type cleanup struct {
 	args map[string]any
 }
 
-func runScenario(apiKey, model string, tools []map[string]any, prompt string, mc *mcpClient) (map[string]bool, []cleanup, error) {
+func runScenario(apiKey, model, system string, tools []map[string]any, prompt string, mc *mcpClient) (map[string]bool, map[string]string, []cleanup, error) {
 	called := map[string]bool{}
+	argsByTool := map[string]string{}
 	var created []cleanup
 	messages := []map[string]any{{"role": "user", "content": prompt}}
 
 	for turn := 0; turn < maxTurns; turn++ {
-		resp, err := callAnthropic(apiKey, model, tools, messages)
+		resp, err := callAnthropic(apiKey, model, system, tools, messages)
 		if err != nil {
-			return called, created, err
+			return called, argsByTool, created, err
 		}
 		var blocks []contentBlock
 		if err := json.Unmarshal(resp.Content, &blocks); err != nil {
-			return called, created, fmt.Errorf("parse content: %w", err)
+			return called, argsByTool, created, fmt.Errorf("parse content: %w", err)
 		}
 
 		var results []map[string]any
@@ -151,7 +194,8 @@ func runScenario(apiKey, model string, tools []map[string]any, prompt string, mc
 				continue
 			}
 			called[b.Name] = true
-			resultText := "{}"
+			argsByTool[b.Name] += canonicalJSON(b.Input) + "\n"
+			resultText := dryResult(b.Name)
 			if *execute {
 				text, _, callErr := mc.callTool(b.Name, b.Input)
 				if callErr != nil {
@@ -175,7 +219,131 @@ func runScenario(apiKey, model string, tools []map[string]any, prompt string, mc
 			map[string]any{"role": "user", "content": results},
 		)
 	}
-	return called, created, nil
+	return called, argsByTool, created, nil
+}
+
+// canonicalJSON re-marshals the model's raw tool input to compact JSON so
+// substring argChecks are insensitive to whitespace formatting. On parse
+// failure it falls back to the raw bytes.
+func canonicalJSON(raw json.RawMessage) string {
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return string(raw)
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return string(raw)
+	}
+	return string(b)
+}
+
+// failedArgChecks returns a human-readable list of unmet argument expectations:
+// for each argCheck, every mustContain substring must appear somewhere in that
+// tool's accumulated (canonical) arguments across the scenario.
+func failedArgChecks(checks []argCheck, argsByTool map[string]string) []string {
+	var fails []string
+	for _, ac := range checks {
+		args := argsByTool[ac.Tool]
+		for _, want := range ac.MustContain {
+			if !strings.Contains(args, want) {
+				fails = append(fails, fmt.Sprintf("%s missing %q", ac.Tool, want))
+			}
+		}
+		for _, bad := range ac.MustNotContain {
+			if strings.Contains(args, bad) {
+				fails = append(fails, fmt.Sprintf("%s must NOT contain %q", ac.Tool, bad))
+			}
+		}
+		for _, pat := range ac.MustMatch {
+			re, err := regexp.Compile(pat)
+			if err != nil {
+				fails = append(fails, fmt.Sprintf("%s bad regex %q: %v", ac.Tool, pat, err))
+				continue
+			}
+			if !re.MatchString(args) {
+				fails = append(fails, fmt.Sprintf("%s no match for /%s/", ac.Tool, pat))
+			}
+		}
+	}
+	return fails
+}
+
+// ---- dry-mode fixtures ----
+
+// dryResult answers a tool call in dry mode. Read/list tools get a small canned
+// payload (instead of "{}") so the model has realistic ids to chain into later
+// calls — e.g. getForm returns a form with known item_<id> fields, so a downstream
+// createActor scenario can be scored on whether it keys `data` by those ids.
+// Unknown / mutating tools fall back to "{}".
+func dryResult(tool string) string {
+	if r, ok := dryFixtures[tool]; ok {
+		return r
+	}
+	return "{}"
+}
+
+// dryFixtures: a small, internally-consistent world. Form 42 "Vehicle" has fields
+// item_make/item_year/item_owner; form 16951 "Position" is a second (multiform)
+// template; one actor, one account name, USD+Km currencies.
+var dryFixtures = map[string]string{
+	"getForm": `{"data":{"id":42,"title":"Vehicle","sections":[{"title":"Basics","content":[` +
+		`{"id":"item_make","class":"edit","title":"Make"},` +
+		`{"id":"item_year","type":"int","class":"edit","title":"Year"},` +
+		`{"id":"item_owner","class":"select","title":"Owner","extra":{"optionsSource":{"type":"workspaceMembers"}}}]}]}}`,
+	"getForms":              `{"data":[{"id":42,"title":"Vehicle"},{"id":16951,"title":"Position"}]}`,
+	"searchForms":           `{"data":[{"id":42,"title":"Vehicle"}]}`,
+	"getActor":              `{"data":{"id":"11111111-1111-1111-1111-111111111111","title":"Camry","formId":42,"data":{"item_make":"Toyota"}}}`,
+	"getActorByRef":         `{"data":{"id":"11111111-1111-1111-1111-111111111111","title":"Camry","formId":42}}`,
+	"searchActors":          `{"data":[{"id":"11111111-1111-1111-1111-111111111111","title":"Camry","formId":42}]}`,
+	"searchLayerActors":     `{"data":[{"id":"11111111-1111-1111-1111-111111111111","title":"Camry"}]}`,
+	"filterActors":          `{"data":[{"id":"11111111-1111-1111-1111-111111111111","title":"Camry"}]}`,
+	"searchAll":             `{"data":{"actors":[{"id":"11111111-1111-1111-1111-111111111111","title":"Camry"}]}}`,
+	"getAccountNames":       `{"data":[{"id":"aaaaaaaa-0000-0000-0000-000000000001","name":"Maintenance"}]}`,
+	"getCurrencies":         `{"data":[{"id":1,"name":"USD","symbol":"$"},{"id":2,"name":"Km"}]}`,
+	"getAccounts":           `{"data":[{"nameId":"aaaaaaaa-0000-0000-0000-000000000001","currencyId":1,"amount":1500}]}`,
+	"getBalance":            `{"data":{"amount":1500}}`,
+	"getEdgeTypes":          `{"data":[{"id":1,"name":"hierarchy"},{"id":2,"name":"link"}]}`,
+	"getEdge":               `{"data":{"id":"eeeeeeee-0000-0000-0000-000000000001","source":"11111111-1111-1111-1111-111111111111","target":"22222222-2222-2222-2222-222222222222","edgeTypeId":1,"name":"link"}}`,
+	"existLink":             `{"data":[{"id":"eeeeeeee-0000-0000-0000-000000000001","source":"11111111-1111-1111-1111-111111111111","target":"22222222-2222-2222-2222-222222222222","edgeTypeId":1}]}`,
+	"getRelatedActors":      `{"data":[{"id":"22222222-2222-2222-2222-222222222222","title":"Wheel"}]}`,
+	"getLayerActors":        `{"data":{"nodes":[{"id":"22222222-2222-2222-2222-222222222222","title":"Wheel"}]}}`,
+	"getWorkspaces":         `{"data":[{"id":"ws-demo","title":"Demo workspace"}]}`,
+	"getTransactions":       `{"data":[{"id":"tx-1","amount":450}]}`,
+	"getTransfer":           `{"data":{"id":"tr-1","amount":200}}`,
+	"getAllLayerPlacements": `{"data":[{"layerId":"33333333-3333-3333-3333-333333333333"}]}`,
+	// create/setup tools: return an id so multi-step dry scenarios can chain.
+	"createForm":        `{"data":{"id":42,"title":"Vehicle"}}`,
+	"createActor":       `{"data":{"id":"11111111-1111-1111-1111-111111111111","formId":42}}`,
+	"createAccountName": `{"data":{"id":"aaaaaaaa-0000-0000-0000-000000000002","name":"Mileage"}}`,
+	"createCurrency":    `{"data":{"id":3,"name":"Km","symbol":"km"}}`,
+	"createAccount":     `{"data":{"id":"acc-1"}}`,
+}
+
+// ---- skill injection ----
+
+// loadSkillsPrompt concatenates the plugin SKILL.md files into a system prompt,
+// approximating how a host (Claude Code) injects skill guidance. Without it the
+// behavioural eval sees only tool schemas. Returns the prompt and file count.
+func loadSkillsPrompt() (string, int, error) {
+	matches, err := filepath.Glob("../skills/*/SKILL.md")
+	if err != nil {
+		return "", 0, err
+	}
+	if len(matches) == 0 {
+		return "", 0, fmt.Errorf("no SKILL.md under ../skills/*/ (run evalrunner from the mcp-server dir)")
+	}
+	var b strings.Builder
+	b.WriteString("You are using the Simulator.Company plugin. Below are its skill instructions; follow them when choosing and calling tools.\n\n")
+	for _, m := range matches {
+		data, err := os.ReadFile(m) // #nosec G304 -- fixed glob under the repo
+		if err != nil {
+			return "", 0, fmt.Errorf("read %s: %w", m, err)
+		}
+		b.WriteString("===== " + m + " =====\n")
+		b.Write(data)
+		b.WriteString("\n\n")
+	}
+	return b.String(), len(matches), nil
 }
 
 // cleanupFor derives a delete action from a successful create response so the
@@ -231,10 +399,14 @@ type anthropicResp struct {
 	Content json.RawMessage `json:"content"`
 }
 
-func callAnthropic(apiKey, model string, tools []map[string]any, messages []map[string]any) (*anthropicResp, error) {
-	body, _ := json.Marshal(map[string]any{
+func callAnthropic(apiKey, model, system string, tools []map[string]any, messages []map[string]any) (*anthropicResp, error) {
+	payload := map[string]any{
 		"model": model, "max_tokens": 1024, "tools": tools, "messages": messages,
-	})
+	}
+	if system != "" {
+		payload["system"] = system
+	}
+	body, _ := json.Marshal(payload)
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, "POST", "https://api.anthropic.com/v1/messages", bytes.NewReader(body))

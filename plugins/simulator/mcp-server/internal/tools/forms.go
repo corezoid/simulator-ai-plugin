@@ -1,16 +1,34 @@
 package tools
 
+// sectionsDesc documents the form `sections` payload for create/updateForm so the
+// model emits a valid template. Forms are also surfaced to end users as "Account
+// Templates" (Шаблон рахунків). See docs/entities/forms.md for the full catalogue.
+const sectionsDesc = "Ordered array of sections. Each section = {title, content[]}. " +
+	"Each content item is one field: " +
+	"{id:\"item_<digits>\" (the stable key actors use in their `data` — NOT title/`key`), " +
+	"class, title, visibility:\"visible\"|\"disabled\"|\"hidden\", and class-specific keys}. " +
+	"Classes: " +
+	"edit (text input; optional type:text|password|email|phone|int|float, regexp, errorMsg), " +
+	"check (checkbox), radio (single choice; options[] of {title,value}, optional align), " +
+	"select (single dropdown; static options[] of {title,value,color?} OR dynamic via " +
+	"extra.optionsSource.type = manual(=static)|layer{value.id}|actorFilter{value.id}|actorsBag|actors{value.ids[]}|" +
+	"forms|formFilter|currencies|accountNames|workspaceMembers|api|corezoidSyncApi{value.convId,apiLogin,apiSecret}), " +
+	"multiSelect (multi dropdown; static options[]), " +
+	"calendar (date/time; extra.{time,minDate,maxDate,dateRange,timeZone,static}, unix seconds), " +
+	"upload (file), label/button/image (display-only; image value is a URL — these produce NO actor data). " +
+	"Generate unique item ids per field."
+
 // formOps — form template CRUD. Forms define the field structure (and default
 // accounts) that actors instantiate. accId is the workspace; formId is integer.
 var formOps = []Operation{
 	{
 		Name: "createForm", Method: "POST", Path: "/forms/{accId}/{isTemplate}",
-		Summary: "Create a form template. Defines the field structure (sections) actors of this form will have. Set isTemplate=true for a reusable template.",
+		Summary: "Create a form template (a.k.a. Account Template / Шаблон рахунків). Defines the field structure (sections) actors of this form will have. Set isTemplate=true for a reusable template.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "isTemplate", In: InPath, Type: "boolean", Required: true, Desc: "Whether the form is a reusable template."},
 			{Name: "title", In: InBody, Type: "string", Required: true, Desc: "Form name."},
-			{Name: "sections", In: InBody, Type: "array", Required: true, Desc: "Array of section objects describing fields (field name, type, options)."},
+			{Name: "sections", In: InBody, Type: "array", Required: true, Desc: sectionsDesc},
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},
 			{Name: "color", In: InBody, Type: "string", Desc: "Hex color for actors of this form (e.g. #409547)."},
 			{Name: "picture", In: InBody, Type: "string", Desc: "Storage path / URL of the form icon."},
@@ -49,7 +67,7 @@ var formOps = []Operation{
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id."},
 			{Name: "title", In: InBody, Type: "string", Required: true, Desc: "Form name."},
-			{Name: "sections", In: InBody, Type: "array", Required: true, Desc: "Array of section objects describing fields."},
+			{Name: "sections", In: InBody, Type: "array", Required: true, Desc: sectionsDesc},
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},
 			{Name: "color", In: InBody, Type: "string", Desc: "Hex color."},
 		},

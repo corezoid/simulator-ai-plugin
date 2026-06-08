@@ -57,16 +57,65 @@ var graphOps = []Operation{
 			{Name: "name", In: InBody, Type: "string", Desc: "Optional edge label."},
 			{Name: "weight", In: InBody, Type: "number", Desc: "Optional edge weight."},
 			{Name: "curveStyle", In: InBody, Type: "string", Desc: "Optional curve style."},
-			{Name: "forceDirection", In: InQuery, Type: "boolean", Desc: "Force the edge direction."},
+			{Name: "linkedActorId", In: InBody, Type: "string", Desc: "Optional actor UUID this edge is associated with (e.g. a reaction/widget actor on the link)."},
+			{Name: "pinned", In: InBody, Type: "boolean", Desc: "Pin the edge (excluded from auto-prune)."},
+			{Name: "forceDirection", In: InQuery, Type: "boolean", Desc: "Force the edge direction (skip the hierarchy invert-dedup)."},
 		},
 	},
 	{
 		Name: "massLink", Method: "POST", Path: "/actors/mass_links/{accId}",
-		Summary: "Create up to 50 links in one call. Pass an array of {source, target, edgeTypeId, ...} edge objects.",
+		Summary: "Create up to 50 links in one call. Pass an array of {source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?} edge objects.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
-			{Name: "links", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of edge objects: {source, target, edgeTypeId, name?, weight?} (max 50)."},
+			{Name: "links", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of edge objects: {source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?} (max 50)."},
 			{Name: "forceDirection", In: InQuery, Type: "boolean", Desc: "Force edge directions."},
+		},
+	},
+	{
+		Name: "getEdge", Method: "GET", Path: "/actors/link/{edgeId}",
+		Summary: "Get a single link (edge) by its UUID, including its source/target actors and access privileges.",
+		Params: []Param{
+			{Name: "edgeId", In: InPath, Type: "string", Required: true, Desc: "Edge UUID."},
+			{Name: "linkedActor", In: InQuery, Type: "boolean", Desc: "Also resolve and include the edge's linkedActor."},
+		},
+	},
+	{
+		Name: "updateEdge", Method: "PUT", Path: "/actors/link/{edgeId}",
+		Summary: "Update a link's editable fields (label, associated actor, curve style, pinned). Only the provided fields change.",
+		Params: []Param{
+			{Name: "edgeId", In: InPath, Type: "string", Required: true, Desc: "Edge UUID."},
+			{Name: "name", In: InBody, Type: "string", Desc: "Edge label."},
+			{Name: "linkedActorId", In: InBody, Type: "string", Desc: "Associated actor UUID (null/empty to clear)."},
+			{Name: "curveStyle", In: InBody, Type: "string", Desc: "Curve style."},
+			{Name: "pinned", In: InBody, Type: "boolean", Desc: "Pin/unpin the edge."},
+		},
+	},
+	{
+		Name: "deleteEdge", Method: "DELETE", Path: "/actors/link/{edgeId}",
+		Summary: "Delete a link (edge) by its UUID. Irreversible — confirm with the user first. " +
+			"Permanent/system edge types (e.g. the hierarchy link) and form-field edges cannot be deleted.",
+		Params: []Param{
+			{Name: "edgeId", In: InPath, Type: "string", Required: true, Desc: "Edge UUID."},
+		},
+	},
+	{
+		Name: "existLink", Method: "POST", Path: "/actors/exist_link",
+		Summary: "Check whether a link exists between two actors for an edge type. Returns the matching edge(s). " +
+			"Use before createLink to avoid duplicates, or to find an edge's id by its (source, target, edgeTypeId).",
+		Params: []Param{
+			{Name: "source", In: InBody, Type: "string", Required: true, Desc: "Source actor UUID."},
+			{Name: "target", In: InBody, Type: "string", Required: true, Desc: "Target actor UUID."},
+			{Name: "edgeTypeId", In: InBody, Type: "number", Required: true, Desc: "Edge type id (see getEdgeTypes)."},
+			{Name: "bidirected", In: InBody, Type: "boolean", Desc: "Also check the reverse direction (target→source). Default false."},
+		},
+	},
+	{
+		Name: "deleteEdgesByNodes", Method: "DELETE", Path: "/actors/bulk/actors_link",
+		Summary: "Delete links identified by their (source, target, edgeTypeId) endpoints rather than edge ids, in bulk (1-200). " +
+			"Irreversible — confirm first. Each item may set bidirected to also remove the reverse edge.",
+		Params: []Param{
+			{Name: "links", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of {source, target, edgeTypeId, bidirected?} objects (1-200)."},
+			{Name: "force", In: InQuery, Type: "boolean", Desc: "Force removal of edges that are otherwise protected (e.g. form-field edges)."},
 		},
 	},
 	{
