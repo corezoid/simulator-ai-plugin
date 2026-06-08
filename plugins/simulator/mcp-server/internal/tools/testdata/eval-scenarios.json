@@ -60,11 +60,5 @@
     "prompt": "Pull layer 1a2b... to YAML, let me edit it, then push it back.",
     "tools": ["pullGraphFile", "pushGraphFile"],
     "liveOnly": true
-  },
-  {
-    "name": "Install a smart form and an application",
-    "prompt": "Install the orders smart form and create an Orders application.",
-    "tools": ["createApplication", "createSmartForm", "manageAppContent"],
-    "liveOnly": true
   }
 ]

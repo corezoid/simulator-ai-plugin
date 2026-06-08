@@ -191,7 +191,7 @@ func cleanupFor(tool, resultText string) (cleanup, bool) {
 		return cleanup{}, false
 	}
 	switch tool {
-	case "createActor", "createApplication":
+	case "createActor":
 		var id string
 		_ = json.Unmarshal(r.Data.ID, &id)
 		if id != "" {

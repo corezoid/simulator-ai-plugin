@@ -235,9 +235,14 @@ backend operation, with typed parameters:
 | Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
 | Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
-| Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
+
+> **Applications / Smart Forms (CDU)** are documented
+> (`docs/user-flows/smart-forms.md`) and carried in the public spec
+> (`testdata/papi-openapi.json`), but their MCP tools are **not registered at this stage**.
+> The `appOps` definitions remain in `internal/tools/apps.go` (referenced but excluded from
+> `allOps()`), ready to re-enable when the tools are wanted.
 
 **Engine tools** (`internal/engines`) — multi-call workflows and client-side computation
 ported from the original implementation:

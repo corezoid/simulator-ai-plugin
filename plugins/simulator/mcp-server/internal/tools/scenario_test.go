@@ -94,8 +94,6 @@ func TestScenarios(t *testing.T) {
 		{"createTransaction", map[string]any{"accountId": "acc1", "amount": float64(450)}, "POST", "/transactions/acc1", "amount", false},
 		{"createLink", map[string]any{"source": "s", "target": "t", "edgeTypeId": float64(7)}, "POST", "/actors/link/WS", "source", false},
 		{"massLink", map[string]any{"links": []any{map[string]any{"source": "s", "target": "t"}}}, "POST", "/actors/mass_links/WS", "", true},
-		{"createApplication", map[string]any{"ref": "app", "title": "App", "corezoidCredentials": map[string]any{}}, "POST", "/applications/WS", "ref", false},
-		{"createSmartForm", map[string]any{"fileUrl": "u", "smartFormRef": "r", "title": "T", "ref": "x"}, "POST", "/smart_forms/WS", "fileUrl", false},
 		{"getForm", map[string]any{"formId": float64(12)}, "GET", "/forms/12", "", false},
 	}
 

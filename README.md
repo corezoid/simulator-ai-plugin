@@ -166,7 +166,7 @@ needed to keep responses (and token cost) small. Available on every read/lookup/
 `getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `filterActors`, `getForm`,
 `getForms`, `searchForms`, `getAccounts`, `getBalance`, `getCurrencies`, `getAccountNames`,
 `getTransactions`, `getTransfer`, `getRelatedActors`, `getLayerActors`, `getEdgeTypes`,
-`listSmartForms`, `searchAll`, `getWorkspaces`. (For `getLayerActors`/`searchAll` it projects
+`searchAll`, `getWorkspaces`. (For `getLayerActors`/`searchAll` it projects
 the actor/node items.)
 
 **Curated API operations** (one tool per backend operation):
@@ -178,9 +178,13 @@ the actor/node items.)
 | Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
 | Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
 | Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
-| Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
+
+> **Applications / Smart Forms (CDU)** are **documented** (see
+> [`docs/user-flows/smart-forms.md`](plugins/simulator/docs/user-flows/smart-forms.md)) and
+> covered by the public spec, but their MCP tools are **not registered at this stage**. The
+> `appOps` definitions live in `internal/tools/apps.go`, ready to re-enable.
 
 **Engine tools** (multi-call workflows + client-side computation):
 
