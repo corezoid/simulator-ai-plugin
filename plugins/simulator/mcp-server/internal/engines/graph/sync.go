@@ -1,18 +1,15 @@
-package engines
+package graph
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
-	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
 )
@@ -91,74 +88,15 @@ type layerEdge struct {
 	LaIDTarget int    `json:"laIdTarget"`
 }
 
-// ---- Helpers ----
-
-var uuidRe = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-
-func isUUID(s string) bool {
-	return uuidRe.MatchString(s)
-}
-
-// requireUUID returns an MCP error result when v is not a well-formed UUID, or
-// nil when it is. It guards tool arguments that are interpolated into file
-// paths (pull/pushGraphFile write <layerId>.yaml) and API URLs — without it a
-// value like "../../etc/x" or "id?admin=1" would traverse the filesystem or
-// inject into the request (see security review).
-func requireUUID(name, v string) *mcp.CallToolResult {
-	if !isUUID(v) {
-		return mcp.NewToolResultError(fmt.Sprintf("[Error] %s must be a valid UUID, got %q", name, v))
-	}
-	return nil
-}
-
-// seg escapes a value for safe interpolation as a single URL path segment.
-// IDs that originate from a graph file (e.g. graph.LayerID, actor UUIDs) are
-// not boundary-validated, so escaping here prevents path/query injection if
-// such an ID contains "/", "?" or "#".
-func seg(s string) string { return url.PathEscape(s) }
-
-// buildBaseURL returns the same base URL used by all other MCP tools.
-func buildBaseURL() string {
-	if Cfg.Url != "" {
-		return strings.TrimSuffix(Cfg.Url, "/")
-	}
-	if b := baseURL(); b != "" {
-		return strings.TrimSuffix(b, "/")
-	}
-	return "https://api.simulator.company/v/1.0"
-}
-
-func papiGET(apiURL string) ([]byte, error) {
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", authHeader())
-	resp, err := apiHTTPClient().Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	// Check status AFTER reading: a 401/500 returns an error body that is not a
-	// {"data":[...]} payload; without this guard the caller would silently parse
-	// it as an empty result (e.g. an empty layer export). Matches GraphSyncer.get.
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("GET %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
-	}
-	return data, nil
-}
+// ---- Layer fetch helpers ----
 
 func fetchLayerActors(layerID string) ([]layerActor, error) {
-	base := buildBaseURL()
+	base := ecore.BuildBaseURL()
 	var all []layerActor
 	limit, offset := 50, 0
 	for {
-		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d", base, seg(layerID), limit, offset)
-		body, err := papiGET(u)
+		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d", base, ecore.Seg(layerID), limit, offset)
+		body, err := ecore.PapiGET(u)
 		if err != nil {
 			return nil, err
 		}
@@ -178,12 +116,12 @@ func fetchLayerActors(layerID string) ([]layerActor, error) {
 }
 
 func fetchLayerEdges(layerID string) ([]layerEdge, error) {
-	base := buildBaseURL()
+	base := ecore.BuildBaseURL()
 	var all []layerEdge
 	limit, offset := 50, 0
 	for {
-		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d", base, seg(layerID), limit, offset)
-		body, err := papiGET(u)
+		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d", base, ecore.Seg(layerID), limit, offset)
+		body, err := ecore.PapiGET(u)
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +159,7 @@ type manageLayerItem struct {
 // ---- Main handlers ----
 
 func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -230,7 +168,7 @@ func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
-	if r := requireUUID("layerId", layerID); r != nil {
+	if r := ecore.RequireUUID("layerId", layerID); r != nil {
 		return r, nil
 	}
 	filePath := layerID + ".yaml"
@@ -245,7 +183,7 @@ func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] cannot parse YAML %s: %v", filePath, parseErr)), nil
 	}
 
-	result, syncErr := PushGraphFile(graph, os.Getenv("WORKSPACE_ID"), layerID, authHeader(), buildBaseURL())
+	result, syncErr := PushGraphFile(graph, os.Getenv("WORKSPACE_ID"), layerID, ecore.AuthHeader(), ecore.BuildBaseURL())
 	if syncErr != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] %v", syncErr)), nil
 	}
@@ -279,7 +217,7 @@ func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 // handlePullGraphFile fetches all actors and edges from a layer and writes
 // them to <layerId>.yaml in the current working directory.
 func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -288,7 +226,7 @@ func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
-	if r := requireUUID("layerId", layerID); r != nil {
+	if r := ecore.RequireUUID("layerId", layerID); r != nil {
 		return r, nil
 	}
 	filePath := layerID + ".yaml"

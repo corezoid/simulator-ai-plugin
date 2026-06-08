@@ -23,10 +23,6 @@ func allOps() []Operation {
 	ops = append(ops, accountOps...)
 	ops = append(ops, transactionOps...)
 	ops = append(ops, graphOps...)
-	// appOps (applications & smart forms) are intentionally NOT registered at
-	// this stage — only the Smart Forms documentation + public spec are shipped,
-	// not the tools. Re-enable by appending appOps here again (see apps.go).
-	_ = appOps // keep referenced while deregistered
 	ops = append(ops, searchOps...)
 	ops = append(ops, workspaceOps...)
 	return ops

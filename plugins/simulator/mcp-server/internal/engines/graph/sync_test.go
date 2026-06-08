@@ -1,4 +1,4 @@
-package engines
+package graph
 
 import (
 	"context"
@@ -37,24 +37,6 @@ func TestFormIDFromLayerActor(t *testing.T) {
 				t.Errorf("formIDFromLayerActor = %d, want %d", got, tc.want)
 			}
 		})
-	}
-}
-
-func TestIsUUID(t *testing.T) {
-	valid := []string{
-		"ab636ecd-b68b-4a33-97cb-309521b330e6",
-		"AB636ECD-B68B-4A33-97CB-309521B330E6", // case-insensitive
-	}
-	invalid := []string{"", "not-a-uuid", "12345", "ab636ecd-b68b-4a33-97cb"}
-	for _, s := range valid {
-		if !isUUID(s) {
-			t.Errorf("isUUID(%q) = false, want true", s)
-		}
-	}
-	for _, s := range invalid {
-		if isUUID(s) {
-			t.Errorf("isUUID(%q) = true, want false", s)
-		}
 	}
 }
 
@@ -179,31 +161,6 @@ func TestOverrideActorFormID(t *testing.T) {
 	defer s.cache.mu.RUnlock()
 	if got := s.cache.actorFormIDs["a1"]; got != 333 {
 		t.Errorf("a1 formId = %d, want 333 (overridden)", got)
-	}
-}
-
-// TestBuildBaseURLPrecedence covers the deterministic precedence in buildBaseURL
-// not exercised by TestBuildBaseURL (register_test.go): Cfg.Url overrides
-// Cfg.BaseUrl, and an empty config falls back to the hard-coded default;
-// trailing slashes are trimmed. Mutates package-global Cfg, so it cannot run in
-// parallel.
-func TestBuildBaseURLPrecedence(t *testing.T) {
-	saved := Cfg
-	t.Cleanup(func() { Cfg = saved })
-
-	Cfg = Config{}
-	if got := buildBaseURL(); got != "https://api.simulator.company/v/1.0" {
-		t.Errorf("buildBaseURL (empty) = %q, want default", got)
-	}
-
-	Cfg = Config{BaseUrl: "https://base.example/papi/1.0/"}
-	if got := buildBaseURL(); got != "https://base.example/papi/1.0" {
-		t.Errorf("buildBaseURL (BaseUrl) = %q, want trimmed base", got)
-	}
-
-	Cfg = Config{Url: "https://url.example/v/1.0/", BaseUrl: "https://base.example/papi/1.0"}
-	if got := buildBaseURL(); got != "https://url.example/v/1.0" {
-		t.Errorf("buildBaseURL (Url wins) = %q, want url override", got)
 	}
 }
 

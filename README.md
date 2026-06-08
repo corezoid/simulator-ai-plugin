@@ -15,6 +15,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator-graph`    | "create actor", "link nodes", "add to layer"             | Actors, links, layers, graph traversal, bulk push/pull  |
 | `simulator-forms`    | "create form", "design template", "Account Template"     | Form templates (Account Templates), field classes, system forms |
 | `simulator-actors`   | "create a record", "fill in a template", "update actor data" | Actor instances of a form, the `data` value protocol, search & filter |
+| `simulator-smart-forms` | "smart form", "CDU", "edit page config", "push smart form" | Smart Form lifecycle, pages, CDU protocol, releases  |
 | `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies           |
 
 ## Requirements
@@ -182,10 +183,6 @@ the actor/node items.)
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
-> **Applications / Smart Forms (CDU)** are **documented** (see
-> [`docs/user-flows/smart-forms.md`](plugins/simulator/docs/user-flows/smart-forms.md)) and
-> covered by the public spec, but their MCP tools are **not registered at this stage**. The
-> `appOps` definitions live in `internal/tools/apps.go`, ready to re-enable.
 
 **Engine tools** (multi-call workflows + client-side computation):
 
@@ -197,6 +194,18 @@ the actor/node items.)
 | `compactGraphLayout`     | Auto-layout a layer into domain-clustered grids (replaces the pull → edit → push loop)               |
 | `pruneLongEdges`         | Delete edges longer than a distance threshold; preserves hierarchy edges                             |
 | `uploadActorPicture` / `uploadActorPictureBulk` | Set actor pictures from URL / file / base64; auto-rasterise SVG → PNG; bulk dedupes by SHA-256 |
+| `createSmartForm`        | Create a new Smart Form actor with develop + production environments                                 |
+| `pullSmartForm`          | Download all env file trees of a Smart Form to `<actorId>/<env>/` with `.manifest.json`              |
+| `pushSmartForm`          | Diff local develop files against `.manifest.json`, validate, and push changed files in one batch     |
+| `deploySmartForm`        | Deploy one Smart Form env to another (develop → production); creates a new release                   |
+| `listReleases`           | List releases for a Smart Form environment                                                           |
+| `diffReleases`           | Show added / removed / modified files between two releases                                           |
+| `rollbackRelease`        | Roll back to a prior release (forward-only: creates a new active release)                            |
+| `getFileHistory`         | List version history for a Smart Form file (fileId from `.manifest.json`)                            |
+| `getFileVersion`         | Fetch the source of one specific file version                                                        |
+| `rollbackFile`           | Restore a file to a prior version                                                                    |
+| `listTrash`              | List soft-deleted objects in a Smart Form environment                                                |
+| `restoreFromTrash`       | Restore a soft-deleted object from trash                                                             |
 | `createChart`            | Create a dashboard chart actor (dynamic `actorFilter` or explicit accounts mode)                     |
 
 ## Architecture
@@ -266,6 +275,14 @@ Specialist for actor instances (the *records* of a form / Account Template):
 - Read by UUID or `(formId, ref)`, set status, delete
 - Search across the workspace (`searchActors`) and list/rank a form's actors, optionally by account balance (`filterActors`)
 
+### `/simulator-smart-forms`
+Specialist for Smart Form (CDU / Script / Application) authoring:
+- Pull all env files to disk with `pullSmartForm`, push changes with `pushSmartForm`
+- Edit page `config` (grid → form → section → item), `locale`, `viewModel`, `definitions`, `styles`
+- Full CDU page protocol: 28 component types, templating (`[[locale]]` / `{{viewModel}}` / `$ref`), change protocol (200/205/302)
+- Deploy `develop → production` as an immutable release, list/diff/rollback releases
+- File history, version restore, and trash management
+
 ### `/simulator-finance`
 Specialist for financial and metric tracking:
 - Set up currencies and account name categories
@@ -321,6 +338,7 @@ simulator-ai-plugin/
     │   ├── simulator-graph/                # Graph specialist skill
     │   ├── simulator-forms/                # Forms (Account Templates) specialist skill
     │   ├── simulator-actors/               # Actor-instance / data-protocol specialist skill
+    │   ├── simulator-smart-forms/          # Smart Form (CDU) authoring specialist skill
     │   ├── simulator-finance/              # Finance specialist skill
     │   └── simulator-charts/               # Dashboard charts specialist skill
     └── docs/                    # Plugin-shipped reference (referenced by skills)

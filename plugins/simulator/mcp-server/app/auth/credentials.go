@@ -30,8 +30,13 @@ func (c *Credentials) AuthorizationHeader() string {
 	return tokenType + " " + c.AccessToken
 }
 
-// envFilePath returns the path to the .env file in the current working directory.
+// envFilePath returns the path to the .env file.
+// It prefers SIMULATOR_WORK_DIR (the user's project directory, captured before the
+// server cd-s into the plugin dir) and falls back to cwd for local dev runs.
 func envFilePath() string {
+	if dir := os.Getenv("SIMULATOR_WORK_DIR"); dir != "" {
+		return filepath.Join(dir, ".env")
+	}
 	cwd, _ := os.Getwd()
 	return filepath.Join(cwd, ".env")
 }

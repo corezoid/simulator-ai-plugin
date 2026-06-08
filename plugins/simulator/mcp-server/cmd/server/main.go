@@ -10,6 +10,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/auth"
@@ -27,7 +28,11 @@ func main() {
 	insecure := flag.Bool("insecure", false, "Skip TLS verification (self-signed on-prem gateways only)")
 	flag.Parse()
 
-	loadDotEnv(".env")
+	if workDir := os.Getenv("SIMULATOR_WORK_DIR"); workDir != "" {
+		loadDotEnv(filepath.Join(workDir, ".env"))
+	} else {
+		loadDotEnv(".env")
+	}
 
 	prof, err := config.Resolve(*profileFlag)
 	if err != nil {
