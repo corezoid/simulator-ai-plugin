@@ -181,7 +181,7 @@ Tools are **declared in Go**, not generated from a spec at runtime. `op.go` defi
 `Operation` (name = operationId, HTTP method, path template, typed `Param`s) and a generic
 `register()` that turns any `Operation` into a typed MCP tool whose handler maps
 arguments → path/query/body → one `apiclient.Do` call. The per-domain files
-(`forms.go`, `actors.go`, `accounts.go`, `transactions.go`, `graph.go`, `apps.go`) each
+(`forms.go`, `actors.go`, `accounts.go`, `transactions.go`, `graph.go`) each
 declare a slice of `Operation`s; `build.go` registers them all plus the `set-environment` /
 `login` / `set-workspace` helpers.
 
@@ -239,11 +239,6 @@ backend operation, with typed parameters:
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
-> **Applications / Smart Forms (CDU)** are documented
-> (`docs/user-flows/smart-forms.md`) and carried in the public spec
-> (`testdata/papi-openapi.json`). The curated `appOps` definitions in `internal/tools/apps.go`
-> remain docs-only (excluded from `allOps()`); file-level access is handled by the engine tools
-> `pullSmartForm` / `pushSmartForm` in `internal/engines/`. See the `simulator-smart-forms` skill.
 
 **Engine tools** (`internal/engines`) — multi-call workflows and client-side computation
 ported from the original implementation:

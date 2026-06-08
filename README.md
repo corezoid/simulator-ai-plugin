@@ -183,10 +183,6 @@ the actor/node items.)
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
-> **Applications / Smart Forms (CDU)** are **documented** (see
-> [`docs/user-flows/smart-forms.md`](plugins/simulator/docs/user-flows/smart-forms.md)) and
-> covered by the public spec, but their MCP tools are **not registered at this stage**. The
-> `appOps` definitions live in `internal/tools/apps.go`, ready to re-enable.
 
 **Engine tools** (multi-call workflows + client-side computation):
 
