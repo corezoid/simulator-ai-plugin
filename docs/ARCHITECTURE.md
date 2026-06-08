@@ -22,6 +22,7 @@ files and the [entity docs](../plugins/simulator/docs/entities/README.md).
 │   ├── simulator-init           │   domain knowledge + tool-call       │
 │   ├── simulator-graph          │   guidance is injected into the      │
 │   ├── simulator-forms          ├─▶ model context; the model then      │
+│   ├── simulator-smart-forms    │   calls MCP tools over stdio         │
 │   ├── simulator-actors         │   calls MCP tools over stdio         │
 │   ├── simulator-finance        │                                      │
 │   └── simulator-charts       ──┘                                      │
@@ -240,9 +241,9 @@ backend operation, with typed parameters:
 
 > **Applications / Smart Forms (CDU)** are documented
 > (`docs/user-flows/smart-forms.md`) and carried in the public spec
-> (`testdata/papi-openapi.json`), but their MCP tools are **not registered at this stage**.
-> The `appOps` definitions remain in `internal/tools/apps.go` (referenced but excluded from
-> `allOps()`), ready to re-enable when the tools are wanted.
+> (`testdata/papi-openapi.json`). The curated `appOps` definitions in `internal/tools/apps.go`
+> remain docs-only (excluded from `allOps()`); file-level access is handled by the engine tools
+> `pullSmartForm` / `pushSmartForm` in `internal/engines/`. See the `simulator-smart-forms` skill.
 
 **Engine tools** (`internal/engines`) — multi-call workflows and client-side computation
 ported from the original implementation:
@@ -255,7 +256,19 @@ ported from the original implementation:
 | `compactGraphLayout`     | `compact_layout.go`      | Auto-layout a layer into domain-clustered grids                     |
 | `pruneLongEdges`         | `prune_edges.go`         | Delete edges longer than a distance threshold; preserves hierarchy  |
 | `uploadActorPicture(Bulk)`| `upload.go` + `svg.go`  | Set actor pictures (URL/file/base64); auto-rasterise SVG→PNG        |
-| `createChart`            | `create_chart.go`        | Create a dashboard chart actor (dynamic filter or explicit accounts) |
+| `createSmartForm`        | `create_smart_form.go`   | Create Smart Form actor with develop + production envs              |
+| `pullSmartForm`          | `pull_smart_form.go`     | Download all env file trees of a Smart Form to `<actorId>/<env>/` with `.manifest.json` |
+| `pushSmartForm`          | `push_smart_form.go`     | Diff local develop files against `.manifest.json`, validate, and push changes in one batch |
+| `deploySmartForm`        | `smart_form_releases.go` | Deploy one env to another; resolves env names to IDs internally     |
+| `listReleases`           | `smart_form_releases.go` | List releases for a Smart Form env                                  |
+| `diffReleases`           | `smart_form_releases.go` | Diff two releases (added/removed/modified, by source_hash)          |
+| `rollbackRelease`        | `smart_form_releases.go`      | Roll back to a prior release (forward-only)                    |
+| `getFileHistory`         | `smart_form_file_history.go`  | List version history for a Smart Form file                     |
+| `getFileVersion`         | `smart_form_file_history.go`  | Fetch source of one file version                               |
+| `rollbackFile`           | `smart_form_file_history.go`  | Restore a file to a prior version                              |
+| `listTrash`              | `smart_form_file_history.go`  | List soft-deleted objects in an env                            |
+| `restoreFromTrash`       | `smart_form_file_history.go`  | Restore a soft-deleted object from trash                       |
+| `createChart`            | `create_chart.go`             | Create a dashboard chart actor (dynamic filter or explicit accounts) |
 
 Engines share a small runtime config (`engines.Configure`: base URL + TLS) and read the
 auth header / `WORKSPACE_ID` per call. The graph sync (`sync_graph.go` + `push_graph.go`,
