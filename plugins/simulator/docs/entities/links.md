@@ -64,6 +64,25 @@ The API provides endpoints for:
 
 All API requests require appropriate OAuth2 scopes (`control.events:actors.readonly` for read operations and `control.events:actors.management` for write operations).
 
+### MCP tools (curated)
+
+The link (edge) lifecycle is fully covered by curated MCP tools:
+
+| Operation | Tool | Notes |
+|---|---|---|
+| Create one | `createLink(accId, source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?, forceDirection?)` | directed edge between two actors |
+| Create many | `massLink(accId, links[], forceDirection?)` | up to 50 edge objects in one call |
+| Read one | `getEdge(edgeId, linkedActor?)` | a single edge by UUID, with source/target + privileges |
+| Update | `updateEdge(edgeId, name?, linkedActorId?, curveStyle?, pinned?)` | partial — only provided fields change |
+| Delete by id | `deleteEdge(edgeId)` | irreversible; permanent/system edge types (e.g. the hierarchy link) and form-field edges can't be deleted |
+| Delete by endpoints | `deleteEdgesByNodes(links[], force?)` | bulk (1-200) delete by `(source, target, edgeTypeId)`; per-item `bidirected` also removes the reverse edge |
+| Exists / lookup | `existLink(source, target, edgeTypeId, bidirected?)` | returns matching edge(s) — use to dedupe before `createLink` or to find an edge id by endpoints |
+| List an actor's links | `getRelatedActors(type, actorId, …)` | `type` = linked / parents / children; traverses the hierarchy edge type by default |
+| Edge types | `getEdgeTypes(accId, isSystem?)` | including the hierarchy type used by `getRelatedActors` |
+
+> The hierarchy edge type cannot be created or deleted via these tools — it is permanent and
+> managed by the platform (use it through `getRelatedActors` / `createActor` parent-child flows).
+
 ## Database Structure
 
 Links are stored in the `actors_edges` table with the following structure:

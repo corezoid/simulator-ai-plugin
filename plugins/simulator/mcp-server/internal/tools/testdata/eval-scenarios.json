@@ -6,14 +6,97 @@
     "liveOnly": true
   },
   {
+    "name": "List workspaces",
+    "prompt": "Which Simulator workspaces can I access?",
+    "tools": ["getWorkspaces"]
+  },
+
+  {
     "name": "Create a form with fields",
     "prompt": "Create a Car form with fields make, model, year, VIN.",
     "tools": ["createForm"]
   },
   {
+    "name": "Form sections protocol (createForm)",
+    "prompt": "Create an Account Template (form) named \"Vehicle\" with a text field \"Make\", an integer field \"Year\", and a single-select \"Owner\" whose options come from the workspace members. Use the proper section/field structure.",
+    "tools": ["createForm"],
+    "argChecks": [
+      { "tool": "createForm", "mustContain": ["sections", "\"class\"", "item_", "optionsSource", "workspaceMembers"] }
+    ]
+  },
+  {
+    "name": "Form with a layer-sourced select",
+    "prompt": "Create a form \"Asset\" with a single-select field \"Location\" whose options are the actors placed on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
+    "tools": ["createForm"],
+    "argChecks": [
+      { "tool": "createForm", "mustContain": ["optionsSource", "\"type\":\"layer\"", "14b284e0-5f77-4b40-bdde-f7058b05939f"] }
+    ]
+  },
+  {
+    "name": "Get a form by id",
+    "prompt": "Show me the fields defined on form 42.",
+    "tools": ["getForm"]
+  },
+  {
+    "name": "List forms",
+    "prompt": "What Account Templates (forms) exist in this workspace?",
+    "tools": ["getForms"]
+  },
+  {
+    "name": "Search forms",
+    "prompt": "Is there already a form whose name contains \"Vehicle\"?",
+    "tools": ["searchForms"]
+  },
+  {
+    "name": "Update a form",
+    "prompt": "Rename form 42 to \"Vehicle (2024)\", keeping its existing fields.",
+    "tools": ["updateForm"],
+    "argChecks": [
+      { "tool": "updateForm", "mustContain": ["sections", "Vehicle (2024)"] }
+    ]
+  },
+  {
+    "name": "Set form status",
+    "prompt": "Activate form 42.",
+    "tools": ["setFormStatus"],
+    "argChecks": [
+      { "tool": "setFormStatus", "mustContain": ["active"] }
+    ]
+  },
+  {
+    "name": "Delete a form",
+    "prompt": "Delete form 42.",
+    "tools": ["deleteForm"]
+  },
+
+  {
     "name": "Create actors of a form",
     "prompt": "Add three Car actors: a Camry, a Civic and a Model 3.",
     "tools": ["getForms", "createActor"]
+  },
+  {
+    "name": "Actor dynamic-select value shape",
+    "prompt": "Create an actor under form 42 titled \"Task X\". It has a workspaceMembers select field with id item_owner — set it to the workspace member whose user id is 1. Use the correct stored value shape for that field.",
+    "tools": ["createActor"],
+    "argChecks": [
+      { "tool": "createActor", "mustContain": ["item_owner", "\"type\":\"workspaceMembers\"", "\"value\":1"] }
+    ]
+  },
+  {
+    "name": "Multiform actor data keys",
+    "prompt": "Create an actor under form 42 titled \"Ann Lee\". Set its own field item_name to \"Ann Lee\", and also set field item_position — which belongs to a DIFFERENT form whose id is 16951 — to \"Engineer\". Use the correct multiform data keys.",
+    "tools": ["createActor"],
+    "argChecks": [
+      { "tool": "createActor", "mustContain": ["item_name", "__form__16951:item_position", "Engineer"] }
+    ]
+  },
+  {
+    "name": "Actor calendar field value shape",
+    "prompt": "Create an actor under form 42 titled \"Service slot\". It has a calendar field with id item_when — set it to a single day. Use the correct stored value shape for a calendar field.",
+    "tools": ["createActor"],
+    "argChecks": [
+      { "tool": "createActor", "mustContain": ["item_when", "startDate", "endDate"] }
+    ]
   },
   {
     "name": "Check before creating (no duplicate)",
@@ -21,21 +104,180 @@
     "tools": ["searchActors"]
   },
   {
+    "name": "Get an actor by id",
+    "prompt": "Show me actor 11111111-1111-1111-1111-111111111111.",
+    "tools": ["getActor"]
+  },
+  {
+    "name": "Get an actor by ref",
+    "prompt": "Fetch the actor of form 42 whose external ref is \"car-camry\".",
+    "tools": ["getActorByRef"]
+  },
+  {
+    "name": "Update an actor (partial)",
+    "prompt": "On actor 11111111-1111-1111-1111-111111111111 (form 42), change only field item_year to 2024. Leave everything else untouched.",
+    "tools": ["updateActor"],
+    "argChecks": [
+      { "tool": "updateActor", "mustContain": ["item_year", "2024"] }
+    ]
+  },
+  {
+    "name": "Set actor status",
+    "prompt": "Mark actor 11111111-1111-1111-1111-111111111111 as verified.",
+    "tools": ["setActorStatus"],
+    "argChecks": [
+      { "tool": "setActorStatus", "mustContain": ["verified"] }
+    ]
+  },
+  {
+    "name": "Delete an actor",
+    "prompt": "Delete actor 11111111-1111-1111-1111-111111111111.",
+    "tools": ["deleteActor"]
+  },
+  {
+    "name": "Filter/rank actors by account balance",
+    "prompt": "From the actors of form 42, list those whose maintenance account balance is greater than 1000, ranked from the highest balance.",
+    "tools": ["filterActors"],
+    "argChecks": [
+      { "tool": "filterActors", "mustContain": ["amountFrom", "balance"] }
+    ]
+  },
+  {
+    "name": "Search actors on a layer",
+    "prompt": "On layer 14b284e0-5f77-4b40-bdde-f7058b05939f, find the actors matching \"camry\".",
+    "tools": ["searchLayerActors"]
+  },
+
+  {
+    "name": "Create a currency",
+    "prompt": "Create a kilometre counter currency called \"Km\" (symbol km) that tracks whole kilometres only.",
+    "tools": ["createCurrency"],
+    "argChecks": [
+      { "tool": "createCurrency", "mustContain": ["\"name\""], "mustNotContain": ["\"title\"", "decimals"] }
+    ]
+  },
+  {
+    "name": "Create an account name",
+    "prompt": "Create an account-name category called \"Mileage\".",
+    "tools": ["createAccountName"],
+    "argChecks": [
+      { "tool": "createAccountName", "mustContain": ["\"name\""], "mustNotContain": ["\"title\""] }
+    ]
+  },
+  {
+    "name": "List currencies",
+    "prompt": "What currencies are defined in this workspace?",
+    "tools": ["getCurrencies"]
+  },
+  {
+    "name": "List account names",
+    "prompt": "List the account-name categories in this workspace.",
+    "tools": ["getAccountNames"]
+  },
+  {
+    "name": "Attach an account and record a transaction",
+    "prompt": "On the Camry actor, track a USD maintenance expense and record a $450 service.",
+    "tools": ["getCurrencies", "getAccountNames", "createAccount", "createTransaction"]
+  },
+  {
+    "name": "Two-step transaction (authorize then finalize)",
+    "prompt": "Authorize a $450 maintenance charge on the Camry's maintenance account, then complete (finalize) it.",
+    "tools": ["createTransaction", "finalizeTransaction"]
+  },
+  {
+    "name": "Transfer value between accounts",
+    "prompt": "Move $200 from the budget account to the Camry maintenance account.",
+    "tools": ["createTransfer"]
+  },
+  {
+    "name": "Read all accounts on an actor",
+    "prompt": "List all accounts and their balances on actor 11111111-1111-1111-1111-111111111111.",
+    "tools": ["getAccounts"]
+  },
+  {
+    "name": "Read one account balance",
+    "prompt": "What is the current balance of the USD maintenance account (currency id 1, account name id aaaaaaaa-0000-0000-0000-000000000001) on actor 11111111-1111-1111-1111-111111111111?",
+    "tools": ["getBalance"]
+  },
+  {
+    "name": "Read transaction history",
+    "prompt": "Show the transaction history of actor 11111111-1111-1111-1111-111111111111.",
+    "tools": ["getTransactions"]
+  },
+  {
+    "name": "Get a transfer",
+    "prompt": "Show the details of transfer tr-1.",
+    "tools": ["getTransfer"]
+  },
+  {
+    "name": "Update an account",
+    "prompt": "Enable tree-calculation on the maintenance account (currency id 1, account name id aaaaaaaa-0000-0000-0000-000000000001, type expense) of actor 11111111-1111-1111-1111-111111111111.",
+    "tools": ["updateAccount"]
+  },
+  {
+    "name": "Delete an account",
+    "prompt": "Remove the Mileage account (currency id 2, account name id aaaaaaaa-0000-0000-0000-000000000001, type counter) from actor 11111111-1111-1111-1111-111111111111.",
+    "tools": ["deleteAccount"]
+  },
+
+  {
     "name": "Semantic search",
     "prompt": "Find actors related to \"vehicle maintenance costs\" by meaning, not exact words.",
     "tools": ["searchAll"]
   },
   {
-    "name": "Add an account and record a transaction",
-    "prompt": "On the Camry, track a USD maintenance expense and record a $450 service.",
-    "tools": ["getCurrencies", "getAccountNames", "createAccount", "createTransaction"],
-    "liveOnly": true
+    "name": "Get edge/link types",
+    "prompt": "What link (edge) types exist in this workspace?",
+    "tools": ["getEdgeTypes"]
   },
   {
-    "name": "Transfer value between accounts",
-    "prompt": "Move $200 from the budget account to the Camry maintenance account.",
-    "tools": ["createTransfer"],
-    "liveOnly": true
+    "name": "Get related actors",
+    "prompt": "Which actors are directly linked to actor 11111111-1111-1111-1111-111111111111?",
+    "tools": ["getRelatedActors"]
+  },
+  {
+    "name": "Get actors on a layer",
+    "prompt": "List the actors placed on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
+    "tools": ["getLayerActors"]
+  },
+  {
+    "name": "Mass-link actors",
+    "prompt": "In one operation, link actors 22222222-2222-2222-2222-222222222222 and 33333333-3333-3333-3333-333333333333 as children of parent 11111111-1111-1111-1111-111111111111.",
+    "tools": ["massLink"]
+  },
+  {
+    "name": "Get a link by id",
+    "prompt": "Show me the details of link eeeeeeee-0000-0000-0000-000000000001.",
+    "tools": ["getEdge"]
+  },
+  {
+    "name": "Update a link",
+    "prompt": "Rename link eeeeeeee-0000-0000-0000-000000000001 to \"reports to\" and pin it.",
+    "tools": ["updateEdge"],
+    "argChecks": [
+      { "tool": "updateEdge", "mustContain": ["reports to", "eeeeeeee-0000-0000-0000-000000000001"] }
+    ]
+  },
+  {
+    "name": "Delete a link by id",
+    "prompt": "Delete link eeeeeeee-0000-0000-0000-000000000001.",
+    "tools": ["deleteEdge"]
+  },
+  {
+    "name": "Check whether a link exists",
+    "prompt": "Is there an edge-type-1 link between actor 11111111-1111-1111-1111-111111111111 and actor 22222222-2222-2222-2222-222222222222? Check both directions.",
+    "tools": ["existLink"],
+    "argChecks": [
+      { "tool": "existLink", "mustContain": ["\"edgeTypeId\":1", "\"bidirected\":true"] }
+    ]
+  },
+  {
+    "name": "Delete links by endpoints (bulk)",
+    "prompt": "Remove the edge-type-1 links from actor 11111111-1111-1111-1111-111111111111 to actors 22222222-2222-2222-2222-222222222222 and 33333333-3333-3333-3333-333333333333, identified by their source/target endpoints rather than edge ids.",
+    "tools": ["deleteEdgesByNodes"],
+    "argChecks": [
+      { "tool": "deleteEdgesByNodes", "mustContain": ["\"source\"", "\"target\"", "\"edgeTypeId\":1"] }
+    ]
   },
   {
     "name": "Build a process graph on a layer",
@@ -43,6 +285,7 @@
     "tools": ["createActor", "getEdgeTypes", "createLink", "manageLayerActors", "getLayerActors"],
     "liveOnly": true
   },
+
   {
     "name": "Auto-layout a layer",
     "prompt": "Tidy up the layout of layer 1a2b....",
@@ -50,10 +293,33 @@
     "liveOnly": true
   },
   {
+    "name": "Prune long edges on a layer",
+    "prompt": "Remove the overly long edges on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
+    "tools": ["pruneLongEdges"]
+  },
+  {
+    "name": "List an actor's layer placements",
+    "prompt": "On which layers is actor 11111111-1111-1111-1111-111111111111 placed?",
+    "tools": ["getAllLayerPlacements"]
+  },
+  {
     "name": "Chart top accounts on a layer",
     "prompt": "Add a chart of the top maintenance spenders to the layer.",
     "tools": ["createChart"],
     "liveOnly": true
+  },
+  {
+    "name": "Upload an actor picture",
+    "prompt": "Set the picture of actor 11111111-1111-1111-1111-111111111111 (form 42) from https://example.com/car.png.",
+    "tools": ["uploadActorPicture"],
+    "argChecks": [
+      { "tool": "uploadActorPicture", "mustContain": ["11111111-1111-1111-1111-111111111111"] }
+    ]
+  },
+  {
+    "name": "Bulk-upload actor pictures",
+    "prompt": "Upload pictures for several actors of form 42 at once from the local ./pics folder, matched by actor id.",
+    "tools": ["uploadActorPictureBulk"]
   },
   {
     "name": "Edit a graph via local file",

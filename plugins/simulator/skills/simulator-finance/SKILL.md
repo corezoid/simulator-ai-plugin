@@ -25,7 +25,7 @@ both financial and non-financial metrics.
 1. Check whether the user already specified `accId` (in the current message, conversation history, or session context).
 2. If `accId` is **not** provided, immediately ask:
 
-   > "В каком воркспейсе нужно работать? Укажите, пожалуйста, Workspace ID (`accId`)."
+   > Ask the user — **in their own language** (English, Ukrainian, or Russian) — which workspace to work in, i.e. for the Workspace ID (`accId`).
 
    Do **not** call any MCP tools until the user provides `accId`.
 3. Once `accId` is known, proceed normally and use it in all subsequent API calls.
@@ -106,17 +106,13 @@ get-account_names-accId(accId="ws_xxx")
 
 ### Create Account Name
 ```
-post-account_names-accId(
-  accId="ws_xxx",
-  body='{"title": "Purchase Value"}')
-# Returns: {"id": "aname_xxx", "title": "Purchase Value"}
+createAccountName(accId="ws_xxx", name="Purchase Value")
+# Returns: {"id": "aname_xxx", "name": "Purchase Value"}
 
-# Create account name + currency pair in one call
-post-accounts-pair-accId(
-  accId="ws_xxx",
-  body='{"accountName": "Maintenance", "currencyName": "USD"}')
-# Returns: {"accountName": {"id": "...", "title": "Maintenance"},
-#            "currency":    {"id": "...", "title": "USD"}}
+# There is no single "account+currency pair" tool in the curated v2 set —
+# create the account name and the currency separately, then attach an account
+# to the actor with createAccount(actorId, nameId, currencyId, accountType).
+createCurrency(accId="ws_xxx", name="USD", symbol="$", precision=2)
 ```
 
 ---
@@ -428,7 +424,7 @@ Use the `Read` tool to load these files when you need more detail:
 
 - **Amounts are real decimal values, not minor units** — `amount: 500` on a USD account is 500 USD. Currency `decimals`/`precision` only affects UI rounding; never scale amounts by `10^decimals` when writing or reading them
 - **Always create currency and account name before creating an account** — both `currencyId` and `nameId` are required
-- Use `post-accounts-pair-accId` to create both name and currency together
+- Create the currency (`createCurrency`) and account name (`createAccountName`) separately — there is no single account+currency "pair" tool in the curated set
 - For financial accounts: `asset/income` typically use `incomeType: credit`; `expense/liability` use `incomeType: debit`
 - Use `counter` type for non-monetary metrics (km, units, visits) — they're not financial but follow the same API
 - `put-accounts-amount-accountId` sets the absolute value (good for counters/odometers), transactions add incrementally

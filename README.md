@@ -13,7 +13,8 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator`          | "use Simulator", "call Simulator API"                    | Full platform overview, all entities, MCP tools         |
 | `simulator-init`     | "setup", "connect to simulator", "login to simulator"    | OAuth login, workspace selection, environment setup     |
 | `simulator-graph`    | "create actor", "link nodes", "add to layer"             | Actors, links, layers, graph traversal, bulk push/pull  |
-| `simulator-forms`    | "create form", "design template", "field structure"      | Form templates, field types, system forms               |
+| `simulator-forms`    | "create form", "design template", "Account Template"     | Form templates (Account Templates), field classes, system forms |
+| `simulator-actors`   | "create a record", "fill in a template", "update actor data" | Actor instances of a form, the `data` value protocol, search & filter |
 | `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies           |
 
 ## Requirements
@@ -177,7 +178,7 @@ the actor/node items.)
 | Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` |
 | Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
 | Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
-| Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
+| Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
@@ -252,11 +253,18 @@ Specialist for graph structure operations:
 - Pull a whole layer to YAML, edit locally, push it back
 
 ### `/simulator-forms`
-Specialist for form template design:
-- Create custom forms with typed fields (text, number, select, date, file, formula, reference)
-- Define default account structures within forms (auto-created for every new actor)
+Specialist for form template (Account Template / «Шаблон рахунків») design:
+- Create custom forms as `sections[]` of typed field items (`edit`, `check`, `radio`, `select`, `multiSelect`, `calendar`, `upload`, `label`, `button`, `image`)
+- Use static or dynamic `select` sources (layer, actorFilter, actors, currencies, accountNames, workspaceMembers, …)
 - Work with system forms (Graph, Layer, Event, Script/CDU, Account, Currency, Transaction...)
-- Update, version, and manage form status
+- Update, version, and manage form status; attach accounts to the actors created from the form
+
+### `/simulator-actors`
+Specialist for actor instances (the *records* of a form / Account Template):
+- Create and update actors with a `data` object keyed by the form's field `id`s (`item_<digits>`)
+- Get the per-class `data` value shapes right (string / number / boolean / option arrays / `{type,title,value}` references / calendar objects)
+- Read by UUID or `(formId, ref)`, set status, delete
+- Search across the workspace (`searchActors`) and list/rank a form's actors, optionally by account balance (`filterActors`)
 
 ### `/simulator-finance`
 Specialist for financial and metric tracking:
@@ -311,7 +319,8 @@ simulator-ai-plugin/
     │   │   └── references/api-operations.md
     │   ├── simulator-init/                 # Environment setup skill
     │   ├── simulator-graph/                # Graph specialist skill
-    │   ├── simulator-forms/                # Forms specialist skill
+    │   ├── simulator-forms/                # Forms (Account Templates) specialist skill
+    │   ├── simulator-actors/               # Actor-instance / data-protocol specialist skill
     │   ├── simulator-finance/              # Finance specialist skill
     │   └── simulator-charts/               # Dashboard charts specialist skill
     └── docs/                    # Plugin-shipped reference (referenced by skills)

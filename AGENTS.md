@@ -12,7 +12,7 @@ A plugin for Claude Code and Codex that connects the **Simulator.Company** platf
 - a **Go MCP server** (`plugins/simulator/mcp-server/`) that exposes the Simulator
   `/papi/1.0` public API as a **curated, typed set of ~46 MCP tools** (declared in Go, not a
   generic spec passthrough), scoped to the core scenarios;
-- **6 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
+- **7 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
   platform's entity model and common workflows.
 
 Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before making non-trivial changes.
@@ -30,7 +30,7 @@ plugins/simulator/mcp-server/   Go MCP server (Go 1.24+, mark3labs/mcp-go)
     testdata/                   papi-openapi.json (drift gate) + eval-scenarios.json
   internal/engines/             graph sync, layout, prune, placements, upload, chart
   app/auth/                     set-environment (public config → account URL) + OAuth2 PKCE + .env credential storage
-plugins/simulator/skills/       6 skills (markdown only, ship with the plugin)
+plugins/simulator/skills/       7 skills (markdown only, ship with the plugin)
 plugins/simulator/docs/         entity & user-flow reference (ships with the plugin)
 docs/                           contributor docs (ARCHITECTURE.md, INTEGRATION.md) — repo-level
 public/                         generated AI-discovery artifacts (do not hand-edit)
@@ -48,7 +48,8 @@ make test          # go test ./...   — config, apiclient, tools (scenarios, -r
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
 make run-local     # go run ./cmd/server --profile local   (dev pong-server :9000)
 make run-prod      # go run ./cmd/server --profile prod
-make eval          # behavioural eval, dry — model picks tools, stubbed results (opt-in)
+make eval          # behavioural eval, dry — model picks tools, canned fixtures (opt-in)
+make eval-skills   # behavioural eval, dry, with the SKILL.md files injected as system prompt
 make eval-live     # behavioural eval executing tools against the backend (throwaway workspace)
 ```
 
@@ -87,6 +88,14 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
 - **operationIds live at the backend source.** `pong-server` declares them on its `/papi`
   route schemas; the plugin matches them. Keep names in sync across both repos.
 - **`public/` is generated.** Edit `SKILL.md` frontmatter, then `make discovery`.
+- **Skill language: English-first, trilingual in practice.** We work mainly in three
+  languages — **English (primary), Ukrainian, Russian**. Write all skill/doc *prose and
+  behavioural instructions in English* (one maintainable source). **Never hardcode a
+  non-English sentence for Claude to say** — instead instruct it to reply *in the user's own
+  language*. Two deliberate exceptions stay multilingual: (1) **activation triggers** in
+  `description:` frontmatter may include uk/ru example phrases (they improve auto-activation
+  when users type in those languages); (2) **product/UI terms** are kept verbatim (e.g. the
+  Account-Template alias «Шаблон рахунків»). Example *data* values should be language-neutral.
 - **Entity/user-flow docs must stay under `plugins/simulator/docs/`.** Skills reference them
   as `$CLAUDE_PLUGIN_ROOT/docs/...` and only `plugins/simulator/` is copied on install.
   Contributor/architecture docs go in the repo-root `docs/`.
@@ -99,7 +108,12 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   `build && vet && test` gate.
 - **TLS is verified by default.** `--insecure` is only for self-signed on-prem gateways.
 - **Graph sync** (`internal/engines/sync_graph.go` + `push_graph.go`, ~1.5k LOC) is the most
-  delicate logic — change it carefully; dedicated unit tests are still a backlog item.
+  delicate logic — change it carefully. Core helpers and the diff / inject paths now have
+  unit tests (`graphsync_test.go`: form-id/UUID/name-cache helpers, `injectMassLinkData`,
+  `injectManageLayerData`, `fetchHierarchyEdgeTypeID`, `updateGraphActor`, layer-actor
+  pagination, plus an end-to-end `pushGraph` delete path via `httptest`). The full
+  create/recreate orchestration and edge-placement branches are only partly covered — extend
+  coverage when you touch them.
 
 ## Adding a curated MCP tool
 
@@ -107,11 +121,25 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
    template, typed params), matching the backend's `operationId`.
 2. `make build && make vet && make test` (the drift gate confirms it matches the backend).
 3. Document it in the root [`README.md`](README.md) tool table and
-   [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §4; consider a line in
-   `internal/tools/testdata/eval-scenarios.json`.
+   [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §4.
+4. **Add an eval scenario** in `internal/tools/testdata/eval-scenarios.json` — every curated
+   tool should have at least one. The structural test (`eval_test.go`) fails if a scenario
+   names a tool that isn't registered (or an `argChecks.tool` not listed in `tools`). Use
+   `argChecks` (`mustContain` / `mustNotContain` / `mustMatch`) to assert on the model's
+   arguments where the shape matters (data keys, value discriminators, regression guards).
 
 For a multi-call/computational tool, add it under `internal/engines/` and register it in
 `engines/register.go` instead.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push (main/develop) and PR:
+- **`gate`** (required, no secrets): `make build` → `vet` → `test` → discovery freshness
+  (`make discovery` then `git diff --exit-code -- public/` — a PR that edited `SKILL.md`
+  frontmatter but forgot `make discovery` fails here) → `make lint` (advisory,
+  `continue-on-error`).
+- **`behavioural-eval`** (opt-in, `workflow_dispatch` only — it spends Anthropic credits):
+  `make eval` with `ANTHROPIC_API_KEY` from repo secrets.
 
 ## Security
 

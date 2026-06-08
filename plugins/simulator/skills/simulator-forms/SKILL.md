@@ -2,32 +2,44 @@
 name: simulator-forms
 description: >
   Simulator.Company form designer specialist. Use when the user wants to create
-  or modify form templates, define custom field structures, set up account
-  definitions within forms, explore system forms, work with Smart Forms (CDU /
-  Scripts), manage form status, or understand how forms define actor structure.
-  Activate when the user says "create a form", "design a template", "add fields
-  to form", "define actor schema", or "what system forms are available".
+  or modify form templates (a.k.a. Account Templates / «Шаблон рахунків»), define
+  custom field structures, set up account definitions, explore system forms, work
+  with Smart Forms (CDU / Scripts), manage form status, or understand how forms
+  define actor structure. Activate when the user says "create a form", "design a
+  template", "add fields to form", "Account Template", "Шаблон рахунків", "define
+  actor schema", or "what system forms are available".
 ---
 
-> **Curated tool names (v2 server).** Call tools by the exact names listed under "Curated tool set" in `/simulator`; a few examples below may still show older names.
+> **Curated tool names (v2 server).** Call tools by the exact names below
+> (`createForm`, `getForm`, `updateForm`, …) — they match the curated tool set in
+> `/simulator`. Older docs may show `post-forms-…` style names; ignore those.
 
 # Simulator.Company Form Designer
 
-You are a specialist in designing form templates for Simulator.Company using the
-`simulator` MCP server. Forms are the schema layer of the platform — they define
-the structure, fields, and default accounts of every actor.
+You design **form templates** for Simulator.Company using the `simulator` MCP
+server. Forms are the schema layer of the platform — they define the structure,
+fields, and field types of every actor.
+
+> **Alias — read this.** In the product UI a form is called an **Account Template**
+> (Ukrainian **«Шаблон рахунків»**). "Form", "form template", and "Account Template"
+> are the same entity. Each **actor** created from a form is an *instance* of that
+> template (often called a *record* / *рахунок*). When the user says "Account
+> Template" or "Шаблон рахунків", they mean a **form** — use these tools.
+>
+> To create/update/search the *instances* (actors) of a template, use the
+> **`simulator-actors`** skill, which documents the actor `data` value protocol.
 
 ## Workspace Context Check (MANDATORY FIRST STEP)
 
 **Before doing anything else**, verify the WorkspaceID (`accId`) is known:
 
-1. Check whether the user already specified `accId` (in the current message, conversation history, or session context).
-2. If `accId` is **not** provided, immediately ask:
+1. Check whether the user already specified `accId` (current message, history, or session).
+2. If `accId` is **not** provided, ask:
 
-   > "В каком воркспейсе нужно работать? Укажите, пожалуйста, Workspace ID (`accId`)."
+   > Ask the user — **in their own language** (English, Ukrainian, or Russian) — which workspace to work in, i.e. for the Workspace ID (`accId`).
 
    Do **not** call any MCP tools until the user provides `accId`.
-3. Once `accId` is known, proceed normally and use it in all subsequent API calls.
+3. Once known, use it in all subsequent calls.
 
 ---
 
@@ -36,450 +48,260 @@ the structure, fields, and default accounts of every actor.
 **Forms are templates. Actors are instances.**
 
 ```
-Form (template)          →  Actor (instance)
-─────────────────────────────────────────────
-title: "Car"                title: "Toyota Camry 2023"
-fields: make, model, year   data: {make: "Toyota", ...}
-accounts: [value, maint]    accounts: [{name: "value", amount: 25000}]
+Form / Account Template          →  Actor (instance / record)
+──────────────────────────────────────────────────────────────
+title: "Car"                        title: "Toyota Camry 2023"
+sections: [ {content:[fields]} ]    data: { item_<id>: <value>, … }
 ```
+
+A form is, concretely, a `sections[]` array. Each section = `{title, content[]}`.
+Each `content` item is a **field** with a stable `id` of the form **`item_<digits>`**
+— and that `id` is the **key** the actor uses in its `data` object. Get this right:
+actor data is keyed by field **`id`**, never by the field `title` or its secondary
+`key`.
 
 ### Form Types
 
 | Type | `isTemplate` | Description |
 |------|-------------|-------------|
-| Regular form | `true` | User-created templates for domain actors |
+| Regular form | `true` | User-created reusable templates for domain actors |
+| Private/draft | `false` | Non-template form |
 | System form | built-in | Platform-provided: Graph, Layer, Event, Script, Account, Currency, Transaction, Transfer, Reaction, Stream |
 
-### Field Types
+### Top-level form shape
 
-Forms can define these field types in their `data.fields` structure:
-- `text` / `textarea` — free text
-- `number` / `float` — numeric values
-- `select` / `multiselect` — enum options
-- `checkbox` / `boolean` — true/false
-- `date` / `datetime` — temporal values
-- `file` — file attachment reference
-- `formula` — calculated from other fields
-- `reference` — link to another actor
+```json
+{
+  "title": "FullForm",
+  "ref": "formRef_…",          // optional external ref, unique per workspace
+  "color": "#c6dcba",          // hex color of actors of this form
+  "description": "",
+  "sections": [ /* see below */ ],
+  "settings": {},               // form-level settings
+  "valencyRules": {}            // link/valency constraints between actors (optional)
+}
+```
 
-### Account Definitions in Forms
+### Field item properties
 
-Forms can specify default account structures that are auto-created for every
-actor instantiated from the form. Each account definition includes:
-- `nameId` / `name` — account category name
-- `currencyId` / `currency` — unit of value
-- `type` — `asset`, `liability`, `expense`, `income`, `counter`, `state`, `boolean`
-- `incomeType` — `debit` or `credit` (which direction increases the balance)
-- `formula` — optional calculated value expression
-- `min` / `max` — optional balance limits
+| Property | Meaning |
+|---|---|
+| `id` | `item_<digits>` — **the key actors use in `data`**. Unique within the form. |
+| `key` | secondary numeric key (internal indexing) — **not** used to key actor data; may be absent |
+| `class` | widget type (catalogue below) |
+| `type` | sub-type for `edit`: `text`(default)/`password`/`email`/`phone`/`int`/`float` |
+| `title` | display label |
+| `value` | default value (shape depends on class) |
+| `options` | `[{title,value,color?}]` for radio/select/multiSelect |
+| `extra` | class-specific config (`optionsSource`, calendar config, …) |
+| `required`, `regexp`, `errorMsg`, `description`, `align`, `color`, `visibility` | as named; `visibility` ∈ `visible`/`disabled`/`hidden` |
+
+### Field class catalogue
+
+| `class` | Purpose | Form-side specifics |
+|---|---|---|
+| `edit` | text / number input | `type`: text/password/email/phone/int/float; `regexp`, `errorMsg` |
+| `check` | checkbox | default `value` `"true"`/`"false"` |
+| `radio` | single choice | `options[]`, optional `align` |
+| `select` | single-select dropdown | static `options[]` **or** dynamic `extra.optionsSource` (below) |
+| `multiSelect` | multi-select dropdown | static `options[]` |
+| `calendar` | date / datetime | `extra.{time,minDate,maxDate,dateRange,timeZone,static}` (unix **seconds**) |
+| `upload` | file upload | `value` defaults to `{}` |
+| `label` | static text | `value` is the text; **no actor data** |
+| `button` | action button | `title` is the caption; **no actor data** |
+| `image` | image | `value` is the URL; **no actor data** |
+
+### Dynamic `select` — `extra.optionsSource.type`
+
+| `type` | `value` payload | options from | data `type` |
+|---|---|---|---|
+| `manual` (default) | — | the field's own static `options[]` | — (no `type`) |
+| `layer` | `{id:<layer UUID>}` | actors on that layer | `actor` |
+| `actorFilter` | `{id:<filter UUID>}` | a saved actor filter | `actor` |
+| `actorsBag` | — | the current actors-bag set | `actor` |
+| `actors` | `{ids:[<actor UUID>,…]}` | an explicit actor list | `actor` |
+| `formFilter` | `{id:<form id>}` | the **actors** of that form | `actor` (value=actor UUID) |
+| `forms` | — | workspace forms themselves | `form` (value=form id) |
+| `currencies` | — | workspace currencies | `currency` |
+| `accountNames` | — | workspace account-name definitions | `accountName` |
+| `workspaceMembers` | — | workspace members (users) | `workspaceMembers` |
+| `api` / `corezoidSyncApi` | endpoint cfg / `{convId,apiLogin,apiSecret}` | a generic / Corezoid HTTP source | (source-defined) |
+
+> Full reference + the matching actor-`data` value shapes:
+> `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` and `…/docs/entities/actors.md`.
 
 ---
 
 ## MCP Operations for Forms
 
-### List All Forms in Workspace
-```
-get-forms-templates-accId(accId="ws_xxx")
-# Returns: [{id, title, ref, isTemplate, status, ...}, ...]
-```
+| Goal | Tool |
+|---|---|
+| List forms in a workspace | `getForms(accId="ws_xxx")` |
+| List **system** forms | `getForms(accId="ws_xxx", formTypes="system")` |
+| Get a form by id | `getForm(formId=42)` |
+| Search forms (do this before creating) | `searchForms(accId="ws_xxx", q="car")` |
+| Create a form | `createForm(accId, isTemplate=true, title, sections=[…])` |
+| Update a form | `updateForm(formId=42, title, sections=[…])` |
+| Set form status | `setFormStatus(formId=42, status="active")` |
+| Delete a form | `deleteForm(formId=42)` |
 
-### List System Forms
-```
-get-forms-templates-system-accId(accId="ws_xxx", formTypes="system")
-# Returns built-in forms: Graph, Layer, Event, Script, Account, etc.
-```
+> **Save tokens with `filter`.** `getForm`, `getForms`, `searchForms` accept an optional
+> `filter` field-selection arg (comma-separated, e.g. `filter="id,title,sections"`); the
+> server returns only those fields. Templates can be large — request just what you need.
 
-### Get Form by ID
-```
-get-forms-formId(formId="42")
-```
+### Create a form
 
-### Get Form by Ref
 ```
-get-forms-ref-ref(ref="car-form")
-```
-
-### Create Form
-```
-post-forms-accId-isTemplate(
+createForm(
   accId="ws_xxx",
-  isTemplate="true",
-  body='{
-    "title": "Car",
-    "description": "Form template for vehicle tracking",
-    "ref": "car-form",
-    "data": {
-      "fields": [
-        {"name": "make",         "type": "text",   "required": true,  "label": "Make"},
-        {"name": "model",        "type": "text",   "required": true,  "label": "Model"},
-        {"name": "year",         "type": "number", "required": true,  "label": "Year"},
-        {"name": "color",        "type": "text",   "required": false, "label": "Color"},
-        {"name": "vin",          "type": "text",   "required": false, "label": "VIN"},
-        {"name": "mileage",      "type": "number", "required": false, "label": "Mileage (km)"},
-        {"name": "condition",    "type": "select", "required": false, "label": "Condition",
-          "options": ["excellent", "good", "fair", "poor"]},
-        {"name": "is_active",    "type": "boolean","required": false, "label": "Is Active",
-          "default": true}
-      ]
-    }
-  }')
+  isTemplate=true,
+  title="Car",
+  color="#c6dcba",
+  description="Vehicle tracking template",
+  ref="car-form",
+  sections=[
+    { "title": "Basics", "content": [
+      { "id": "item_make",  "class": "edit", "title": "Make",  "required": true, "visibility": "visible" },
+      { "id": "item_model", "class": "edit", "title": "Model", "required": true, "visibility": "visible" },
+      { "id": "item_year",  "type": "int", "class": "edit", "title": "Year", "regexp": "[0-9]", "visibility": "visible" },
+      { "id": "item_active","class": "check", "title": "In service", "value": "false", "visibility": "visible" }
+    ]},
+    { "title": "Classification", "content": [
+      { "id": "item_cond", "class": "select", "title": "Condition", "value": [],
+        "options": [ {"title":"excellent","value":"c1"}, {"title":"good","value":"c2"}, {"title":"fair","value":"c3"} ],
+        "visibility": "visible" },
+      { "id": "item_owner", "class": "select", "title": "Owner", "value": [], "options": [],
+        "extra": { "optionsSource": { "type": "workspaceMembers" } }, "visibility": "visible" }
+    ]}
+  ])
 ```
 
-Returns: `{"id": 42, "title": "Car", "ref": "car-form", ...}`
+Returns `{"id": 42, "title": "Car", "ref": "car-form", …}`.
 
-### Update Form
-```
-put-forms-formId(
-  formId="42",
-  body='{
-    "title": "Car (Updated)",
-    "data": {
-      "fields": [
-        {"name": "make",  "type": "text",   "required": true, "label": "Make"},
-        {"name": "model", "type": "text",   "required": true, "label": "Model"},
-        {"name": "year",  "type": "number", "required": true, "label": "Year"},
-        {"name": "notes", "type": "textarea", "required": false, "label": "Notes"}
-      ]
-    }
-  }')
-```
+**Generate a unique `id` per field** (`item_<something unique>`). Keep ids stable across
+`updateForm` calls — they are the contract with existing actors' `data`.
 
-### Set Form Status
-```
-put-forms-status-formId(
-  formId="42",
-  body='{"status": "active"}')    # or "inactive"
-```
+### Update a form
 
-### Delete Form
-```
-delete-forms-formId(formId="42")
-# Note: deleting a form does NOT delete actors created from it
-```
+`updateForm` **replaces** `title` + `sections`. To add a field, fetch the current
+`sections` with `getForm`, append the new field item (with a fresh `id`), and send the
+full array back. Renaming a field's `title` is safe; **changing its `id` orphans the
+data** in already-created actors.
 
-### Clear Item Cache (for select fields)
-```
-delete-forms-item_cache-formId-itemId(formId="42", itemId="condition")
-```
-
-### Create Account-Currency Pair
-```
-post-accounts-pair-accId(
-  accId="ws_xxx",
-  body='{
-    "accountName":  "Purchase Value",
-    "currencyName": "USD"
-  }')
-# Creates the pair by name. If account name or currency with that title
-# already exists in the workspace, it is reused automatically.
-# Returns the created/resolved pair with ids.
-```
-
-### Attach Account to Form
-```
-post-form_accounts-formId(
-  formId="42",
-  body='{
-    "nameId":      "aname_value",
-    "currencyId":  "cur_usd",
-    "accountType": "fact",
-    "search": true
-  }')
-```
-
-### List Existing Account Names in Workspace
-```
-get-account_names-accId(accId="ws_xxx")
-# Returns: [{id, title, ref, ...}, ...]
-```
-
-### List Existing Currencies in Workspace
-```
-get-currencies-accId(accId="ws_xxx")
-# Returns: [{id, title, symbol, decimals, ...}, ...]
-```
+> Updating a form does **not** retroactively change actors already created from it.
 
 ---
 
-## Post-Creation Workflow: Form Analysis & Account-Currency Suggestions
+## Form trees & multiform actors (UAT)
 
-**MANDATORY:** After every successful form creation, execute this workflow automatically without waiting for the user to ask.
+Forms can be linked into a **tree** via `parentId` (parents ↕ children). The platform calls
+such a tree a **UAT**. An actor can then instantiate **several forms at once** — a *multiform*
+actor (e.g. a base "Person" form + a "Position" form).
 
-### Step 1 — Analyze the form
+- `createForm(..., parentId=<id>)` links a form under a parent in the tree.
+- The form-tree traversal routes (`forms_graph`: `parents`/`children`, `/tree/{accId}/{formId}`)
+  and the actor-side form-set endpoint (`PUT /actors/actor_forms/{actorId}`) are **internal /
+  not curated MCP tools yet** — treat the tree/attach operations as backend concepts for now.
 
-Immediately after the form is created, produce a structured analysis:
+**What you can do today** is read/write **multiform actor `data`**. Fields are namespaced by
+their owning form via `__form__<formId>:<itemId>`:
+- the actor's **root** form fields → plain `item_<id>`;
+- fields of **another** form in the set → `__form__<thatFormId>:<itemId>`.
 
-```
-## Form Analysis: "<Form Title>"
-
-**Purpose:** <one-sentence description of what this form models in the domain>
-
-**Fields overview:**
-| Field name | Type | Required | Description |
-|---|---|---|---|
-| make | text | yes | Vehicle manufacturer |
-| ... | ... | ... | ... |
-
-**Key observations:**
-- <note about domain: e.g. "tracks physical assets with monetary value">
-- <note about numeric/financial fields that imply accounts>
-- <note about lifecycle/status fields that imply state accounts>
+```json
+{ "name": "Kulo Oleksandr", "__form__16951:position": "Software engineer" }
 ```
 
-### Step 2 — Fetch existing accounts and currencies
+The prefix changes only the **key**; the value still follows the per-class shapes. See the
+`simulator-actors` skill for writing this data.
 
-Run both calls in parallel to avoid extra round-trips:
+## Accounts: attach to ACTORS, not to the form
 
-```
-get-account_names-accId(accId="ws_xxx")
-get-currencies-accId(accId="ws_xxx")
-```
+In the v2 curated tool set, financial accounts attach to **actors** (via `createAccount`,
+keyed by `actorId`), not to the form. There is no form-level account-attach tool. So the
+workflow is: design the form → create actors from it (`simulator-actors`) → attach accounts
+to those actors. The account building blocks:
 
-Match existing items by `title` (case-insensitive). Keep their `id` for reuse.
+| Goal | Tool |
+|---|---|
+| List existing account-name definitions | `getAccountNames(accId="ws_xxx")` |
+| Create an account-name definition | `createAccountName(accId="ws_xxx", name="Mileage")` |
+| List existing currencies | `getCurrencies(accId="ws_xxx")` |
+| Create a currency | `createCurrency(accId="ws_xxx", name="Km", symbol="km", precision=0)` |
+| Attach an account to an actor | `createAccount(actorId="…", nameId, currencyId, accountType="fact")` |
 
-### Step 3 — Derive account-currency suggestions from the form
+> Detailed financial workflows (transactions, transfers, counters, formula accounts,
+> reports) belong to the **`simulator-finance`** skill — defer there for anything beyond
+> attaching a basic account.
 
-Think about the form's domain entity holistically: what would you want to **measure, track, or accumulate** over the lifetime of one actor of this type? Go beyond the explicit fields — infer useful statistical and operational accounts from the domain context.
+### Post-creation analysis & account suggestions (optional, ask first)
 
-**Two sources of suggestions:**
+After creating a form, you may offer the user a set of accounts worth tracking on each
+actor of this type. This is advisory — present a plan and only act on confirmation.
 
-**A. From explicit fields** — numeric or financial fields directly imply accounts:
+**Step 1 — analyze the form.** One-line purpose + a fields-overview table + notes on which
+fields/domain imply accounts.
 
-| Field pattern | Account type | Currency |
-|---|---|---|
-| price, cost, budget, value | `asset` or `expense` | monetary (USD, EUR, …) |
-| income, revenue, earnings | `income` | monetary |
-| debt, loan, balance | `liability` | monetary |
-| quantity, count, units | `counter` | unit (pcs, kg, …) |
-| mileage, distance | `counter` | Km / Mi |
-| duration, hours worked | `counter` | Hours |
-| status, stage, phase | `state` | integer or boolean |
+**Step 2 — fetch existing names & currencies in parallel:** `getAccountNames(accId)` and
+`getCurrencies(accId)`; match by `title` (case-insensitive) and reuse their ids.
 
-**B. From domain context** — infer implicit but useful statistical accounts even when no matching field exists. Use the domain entity type as the primary signal:
+**Step 3 — derive 3–6 account suggestions.** From explicit fields *and* domain context:
 
-| Domain entity | Suggested accounts | Types & currencies |
-|---|---|---|
-| Employee / Staff | Hours Worked, Vacation Days, Sick Days, Seniority (months), Salary Paid | counter (Hours, Days, Months), expense (USD) |
-| Vehicle / Equipment | Mileage, Fuel Cost, Maintenance Cost, Downtime Hours | counter (Km, Hours), expense (USD) |
-| Project / Task | Hours Spent, Budget, Actual Cost, Overrun | counter (Hours), asset/expense (USD) |
-| Product / SKU | Stock Quantity, Sales Count, Returns Count, Revenue | counter (pcs), income/expense (USD) |
-| Client / Customer | Orders Count, Total Spent, Debt, Loyalty Points | counter (pcs, pts), asset/liability (USD) |
-| Property / Asset | Current Value, Depreciation, Maintenance Cost, Rental Income | asset/expense/income (USD) |
-| Student / Learner | Hours Studied, Courses Completed, Score Points, Absences | counter (Hours, pcs, pts) |
-| Event / Campaign | Participants Count, Budget, Actual Spend, Revenue | counter (pcs), expense/income (USD) |
-| Contract / Deal | Contract Value, Paid Amount, Remaining Debt, Penalty | asset/liability (USD) |
+| Domain entity | Suggested accounts (type · currency) |
+|---|---|
+| Vehicle / Equipment | Mileage (counter·Km), Fuel Cost (expense·USD), Maintenance (expense·USD), Downtime (counter·Hours) |
+| Employee / Staff | Hours Worked (counter·Hours), Vacation Days (counter·Days), Salary Paid (expense·USD) |
+| Project / Task | Hours Spent (counter·Hours), Budget (asset·USD), Actual Cost (expense·USD) |
+| Product / SKU | Stock (counter·pcs), Sales (counter·pcs), Revenue (income·USD) |
+| Client / Customer | Orders (counter·pcs), Total Spent (asset·USD), Debt (liability·USD) |
 
-If the entity type does not match any row above, reason from first principles:
-- What accumulates over time for this entity?
-- What would a manager want to see on a dashboard for one actor?
-- What can be compared across actors of this type?
+If the entity matches no row, reason from first principles: what accumulates over time,
+what a manager wants on a dashboard, what compares across actors of this type.
 
-Always propose **3–6 pairs** per form. Include at least one statistical/operational counter
-even for purely financial forms.
+**Step 4 — present the plan** (account · type · currency · exists/new) and wait for "yes".
 
-### Step 4 — Present the plan to the user
-
-Show a clear table before creating anything:
-
-```
-## Suggested Accounts for "<Form Title>"
-
-| Account Name | Type | Currency | Action |
-|---|---|---|---|
-| Purchase Value | asset | USD ($) | ✅ exists (reuse) |
-| Maintenance | expense | USD ($) | ✅ exists (reuse) |
-| Mileage | counter | Km (km) | 🆕 will be created |
-| Fuel Cost | expense | USD ($) | ✅ exists (reuse) |
-
-**Currencies:**
-| Currency | Symbol | Action |
-|---|---|---|
-| USD | $ | ✅ exists (reuse) |
-| Km | km | 🆕 will be created |
-
-Shall I attach these accounts to the form? (yes / adjust / skip)
-```
-
-Wait for user confirmation before proceeding to Step 5.
-
-### Step 5 — Create pairs and attach to form
-
-Execute strictly in this order for **each** proposed account-currency pair:
-
-1. **MANDATORY: Create the account-currency pair** via `post-accounts-pair-accId`.
-   Pass the names as strings — the API resolves existing account names and currencies
-   automatically, or creates them if they don't exist yet:
-```
-post-accounts-pair-accId(
-  accId="ws_xxx",
-  body='{"accountName": "Mileage", "currencyName": "Km"}')
-# → response contains nameId and currencyId — save both for the next step
-```
-
-2. **Attach the pair to the form** via `post-form_accounts-formId`,
-   using the `nameId` and `currencyId` returned from the previous call:
-```
-post-form_accounts-formId(
-  formId="42",
-  body='{
-    "nameId":      "<nameId from pair response>",
-    "currencyId":  "<currencyId from pair response>",
-    "accountType": "fact",
-    "search": true
-  }')
-```
-
-Repeat steps 1–2 for every pair in the plan.
-
-3. **Report results** to the user:
-
-```
-## Done — Accounts attached to "<Form Title>"
-
-| Account | Currency | Pair | Form |
-|---|---|---|---|
-| Purchase Value | USD | ✅ pair created | ✅ attached |
-| Maintenance | USD | ✅ pair created | ✅ attached |
-| Mileage | Km | ✅ pair created | ✅ attached |
-```
-
-> Note: `post-accounts-pair-accId` always handles reuse vs creation internally —
-> you do not need to manually create account names or currencies beforehand.
-> The GET calls in Step 2 are only used to inform the user in the plan table.
-
----
-
-## Complete Example: Custom Car Form with Accounts
-
-### Step 1: Create currencies and account names
-
-```
-# Create USD currency
-post-currencies-accId(
-  accId="ws_xxx",
-  body='{"title": "USD", "symbol": "$", "decimals": 2}')
-# → currency_id = "cur_usd"
-
-# Create "Km" counter currency for mileage
-post-currencies-accId(
-  accId="ws_xxx",
-  body='{"title": "Km", "symbol": "km", "decimals": 0}')
-# → currency_id = "cur_km"
-
-# Create account name definitions
-post-account_names-accId(accId="ws_xxx", body='{"title": "Purchase Value"}')
-# → name_id = "aname_value"
-
-post-account_names-accId(accId="ws_xxx", body='{"title": "Maintenance"}')
-# → name_id = "aname_maint"
-
-post-account_names-accId(accId="ws_xxx", body='{"title": "Mileage"}')
-# → name_id = "aname_mileage"
-```
-
-### Step 2: Create the form with embedded account definitions
-
-```
-post-forms-accId-isTemplate(
-  accId="ws_xxx",
-  isTemplate="true",
-  body='{
-    "title": "Car",
-    "ref":   "car",
-    "data": {
-      "fields": [
-        {"name": "make",      "type": "text",   "required": true,  "label": "Make"},
-        {"name": "model",     "type": "text",   "required": true,  "label": "Model"},
-        {"name": "year",      "type": "number", "required": true,  "label": "Year"},
-        {"name": "color",     "type": "text",   "required": false, "label": "Color"},
-        {"name": "vin",       "type": "text",   "required": false, "label": "VIN"},
-        {"name": "condition", "type": "select", "required": false, "label": "Condition",
-          "options": ["excellent", "good", "fair", "poor"]}
-      ],
-      "accounts": [
-        {
-          "nameId":     "aname_value",
-          "currencyId": "cur_usd",
-          "type":       "asset",
-          "incomeType": "credit",
-          "label":      "Purchase Value"
-        },
-        {
-          "nameId":     "aname_maint",
-          "currencyId": "cur_usd",
-          "type":       "expense",
-          "incomeType": "debit",
-          "label":      "Maintenance Costs"
-        },
-        {
-          "nameId":     "aname_mileage",
-          "currencyId": "cur_km",
-          "type":       "counter",
-          "incomeType": "debit",
-          "label":      "Mileage"
-        }
-      ]
-    }
-  }')
-```
-
-### Step 3: Verify the form
-```
-get-forms-formId(formId="<new-form-id>")
-```
-
-### Step 4: Create an actor from the form
-```
-post-actors-actor-formId(
-  formId="<car-form-id>",
-  body='{
-    "title": "Toyota Camry 2023",
-    "ref":   "car-toyota-camry-2023",
-    "data": {
-      "make":      "Toyota",
-      "model":     "Camry",
-      "year":      2023,
-      "color":     "Silver",
-      "condition": "excellent"
-    }
-  }')
-# The system auto-creates the 3 account definitions from the form
-```
+**Step 5 — execute per pair:** ensure the currency (`getCurrencies`→reuse, else
+`createCurrency`) and account name (`getAccountNames`→reuse, else `createAccountName`)
+exist, then `createAccount(actorId, nameId, currencyId, accountType="fact", search=true)`
+on each target actor. Report a results table.
 
 ---
 
 ## Smart Forms (CDU / Scripts)
 
-The `Script` system form type creates "Smart Forms" — dynamic form templates
-with custom logic. To find the Script system form ID:
+The `Script` system form type creates "Smart Forms" — dynamic templates with custom logic.
+Find the Script system form:
 
 ```
-get-forms-templates-system-accId(accId="ws_xxx", formTypes="system")
-# Find the form where title contains "Script" or "CDU"
+getForms(accId="ws_xxx", formTypes="system")   # find title containing "Script" / "CDU"
 ```
 
-Then create a Smart Form actor from it like any other actor, with the form
-logic defined in the `data` field.
+Then create a Smart Form actor from it like any other actor. The full Smart-Form / CDU
+runtime contract is documented in `$CLAUDE_PLUGIN_ROOT/docs/user-flows/smart-forms.md`
+and `…/cdu-page-protocol.md`.
+
+> Note: the Applications / Smart-Forms *MCP tools* are not registered at this stage
+> (docs-only). Treat Smart Forms here as a documentation/reference topic.
 
 ---
 
 ## Reference Documents
 
-Use the `Read` tool to load these files when you need more detail:
+Load with the `Read` tool when you need more detail:
 
 | Path | When to read |
 |---|---|
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` | Full form properties, field types, inheritance, database structure |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/system-forms.md` | All system form definitions — Graph, Layer, Event, Script, Account, Currency, etc. |
-| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/custom-car-form.md` | End-to-end example: car form with fields and financial accounts |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` | Full field-class catalogue, dynamic select sources, worked form↔data example |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/actors.md` | Actor `data` value protocol (keyed by `item_<id>`) |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/system-forms.md` | System form definitions — Graph, Layer, Event, Script, Account, … |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/custom-car-form.md` | End-to-end car-form field example (note: its account-attach steps predate v2 — attach accounts to **actors** via `createAccount`, as above) |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Smart Forms / CDU lifecycle |
 
 ## Tips
 
-- `isTemplate=true` in the query creates a reusable template form visible to all users
-- `isTemplate=false` creates a private/draft form
-- Form `ref` must be unique per workspace
-- System forms cannot be modified — use them as-is by their IDs
-- When a form has `accounts` defined, actors created from it get those accounts automatically
-- Updating a form does NOT retroactively update actors already created from it
-- Use `delete-forms-item_cache-formId-itemId` to refresh `select` field options after updating
-- **Save tokens with `filter`** — `getForm`, `getForms`, `searchForms` accept an optional `filter` field-selection arg (comma-separated fields, e.g. `filter="id,title,sections"`); the server returns only those fields. Form templates can be large, so prefer requesting just what you need
+- `isTemplate=true` makes a reusable template visible to all users; `false` is a private/draft form.
+- Form `ref` must be unique per workspace.
+- System forms cannot be modified — use them as-is by their ids.
+- Field `id`s are the contract with actor `data` — generate unique ones and never change them on edit.
+- `label` / `button` / `image` fields are display-only and produce **no** actor `data`.
+- To create the *instances* of a template, hand off to **`simulator-actors`**.
