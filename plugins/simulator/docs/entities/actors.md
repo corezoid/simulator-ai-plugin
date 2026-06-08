@@ -87,6 +87,13 @@ The prefix changes only the **key** — the value still follows the per-class sh
 table above. When you write multiform data, use the plain id for the form you are creating
 the actor under and the `__form__<id>:` form for fields owned by the other attached forms.
 
+> **Create under the UAT root, not a leaf.** In a UAT workspace the `form_id` you create an
+> actor under must be the **root** of the tree. If the form you want has a non-empty
+> `parent_id` (it's a leaf/child), creating directly under it fails with
+> `400: Form <id> is not UAT` — walk up `parent_id` to the root, create under the root, and
+> put the leaf form's fields under `__form__<leafFormId>:<itemId>`. See
+> [forms.md → Creating actors under a UAT tree](forms.md#creating-actors-under-a-uat-tree-root-vs-leaf).
+
 ## API Endpoints
 
 For detailed API documentation on actors, including request parameters, response formats, and authentication requirements, please refer to the official API documentation:

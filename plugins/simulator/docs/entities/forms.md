@@ -184,6 +184,39 @@ prefix only changes the *key*, never the value shape. Scanning an actor's data k
 `__form__<id>:` prefix is how the platform discovers every form the actor instantiates
 (`getActorsAllForms`).
 
+### Creating actors under a UAT tree (root vs leaf)
+
+In a UAT workspace an actor can be created **only under the root form** of the tree, never
+under an arbitrary leaf. So when you want an actor "of form X" and X has a non-empty
+`parent_id` (X is a child/leaf), creating it directly under X is rejected:
+
+```
+400: Form <id> is not UAT
+```
+
+The correct flow:
+
+1. Walk up `parent_id` from X to the **root** form (read forms until `parent_id` is empty).
+2. Create the actor with `form_id` = the **root**.
+3. Put the **root's own fields** under their plain `id`, and the **leaf form X's fields**
+   under the `__form__<X>:<itemId>` prefix.
+
+```json
+// "create an actor for form Employee (16951)", where Employee.parent_id = People (16950):
+// create under the ROOT People (16950), not under Employee.
+{
+  "form_id": 16950,
+  "title": "Olena Kovalenko",
+  "data": {
+    "name": "Olena Kovalenko",                            // People (root) field
+    "__form__16951:position": "Senior Backend Engineer"   // Employee (leaf) field
+  }
+}
+```
+
+> Do **not** flip the leaf form to `uat` status to bypass the error — that mutates the shared
+> template. Use the root form's id as the `form_id` instead.
+
 ## Accounts and forms
 
 Financial accounts are **attached to actors**, not to the form itself: in the curated
