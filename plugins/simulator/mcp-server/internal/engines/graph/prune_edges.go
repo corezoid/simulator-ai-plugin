@@ -1,4 +1,4 @@
-package engines
+package graph
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -33,7 +34,7 @@ type pruneStats struct {
 }
 
 func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 	args := req.GetArguments()
@@ -41,7 +42,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
-	if r := requireUUID("layerId", layerID); r != nil {
+	if r := ecore.RequireUUID("layerId", layerID); r != nil {
 		return r, nil
 	}
 	maxDist := toInt(args["maxDistancePx"])
@@ -58,10 +59,10 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		preserveParents = v
 	}
 
-	client := apiHTTPClient()
+	client := ecore.APIHTTPClient()
 	apiGet := func(url string) ([]byte, error) {
 		hr, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-		hr.Header.Set("Authorization", authHeader())
+		hr.Header.Set("Authorization", ecore.AuthHeader())
 		resp, err := client.Do(hr)
 		if err != nil {
 			return nil, err
@@ -75,7 +76,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	}
 	apiDelete := func(url string) error {
 		hr, _ := http.NewRequestWithContext(ctx, "DELETE", url, nil)
-		hr.Header.Set("Authorization", authHeader())
+		hr.Header.Set("Authorization", ecore.AuthHeader())
 		resp, err := client.Do(hr)
 		if err != nil {
 			return err
@@ -103,7 +104,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",
-			buildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURL(), layerID, limit, offset)
 		body, err := apiGet(u)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch placements: %v", err)), nil
@@ -134,7 +135,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	offset = 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d",
-			buildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURL(), layerID, limit, offset)
 		body, err := apiGet(u)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch edges: %v", err)), nil
@@ -190,7 +191,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		}
 		// Delete it.
 		if !dryRun {
-			u := fmt.Sprintf("%s/actors/link/%s", buildBaseURL(), e.ID)
+			u := fmt.Sprintf("%s/actors/link/%s", ecore.BuildBaseURL(), e.ID)
 			if err := apiDelete(u); err != nil {
 				stats.Errors = append(stats.Errors,
 					fmt.Sprintf("%s→%s: %v", titleOf[e.Source], titleOf[e.Target], err))

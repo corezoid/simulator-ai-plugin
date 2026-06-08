@@ -1,4 +1,4 @@
-package engines
+package graph
 
 import (
 	"bytes"
@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 )
 
 // PushGraphResult holds the outcome of PushGraphFile.
@@ -103,7 +105,7 @@ func newGraphSyncer(baseURL, authorization, workspaceID string) *GraphSyncer {
 		baseURL:     strings.TrimSuffix(baseURL, "/"),
 		auth:        authorization,
 		workspaceID: workspaceID,
-		httpClient:  apiHTTPClient(),
+		httpClient:  ecore.APIHTTPClient(),
 		cache:       getWorkspaceCache(workspaceID),
 	}
 }
@@ -172,7 +174,7 @@ func (s *GraphSyncer) fetchLayerActors(ctx context.Context, layerID string) ([]l
 	limit, offset := 50, 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",
-			s.baseURL, seg(layerID), limit, offset)
+			s.baseURL, ecore.Seg(layerID), limit, offset)
 		body, err := s.get(ctx, u)
 		if err != nil {
 			return nil, err
@@ -197,7 +199,7 @@ func (s *GraphSyncer) fetchLayerEdges(ctx context.Context, layerID string) ([]la
 	limit, offset := 50, 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d",
-			s.baseURL, seg(layerID), limit, offset)
+			s.baseURL, ecore.Seg(layerID), limit, offset)
 		body, err := s.get(ctx, u)
 		if err != nil {
 			return nil, err
@@ -366,7 +368,7 @@ func (s *GraphSyncer) fetchHierarchyEdgeTypeID(ctx context.Context) (int, error)
 		return cached, nil
 	}
 
-	u := fmt.Sprintf("%s/edge_types/%s", s.baseURL, seg(s.workspaceID))
+	u := fmt.Sprintf("%s/edge_types/%s", s.baseURL, ecore.Seg(s.workspaceID))
 	data, err := s.get(ctx, u)
 	if err != nil {
 		return 0, err
@@ -399,7 +401,7 @@ func (s *GraphSyncer) resolveActorFormID(ctx context.Context, actorID string) in
 		return fid
 	}
 
-	u := fmt.Sprintf("%s/actors/%s", s.baseURL, seg(actorID))
+	u := fmt.Sprintf("%s/actors/%s", s.baseURL, ecore.Seg(actorID))
 	data, err := s.get(ctx, u)
 	if err != nil {
 		log.Printf("resolveActorFormID: getActor failed for %s: %v", actorID, err)
@@ -424,7 +426,7 @@ func (s *GraphSyncer) loadSysForms(ctx context.Context) ([]SysFormItem, error) {
 		return forms, cacheErr
 	}
 
-	u := fmt.Sprintf("%s/forms/templates/system/%s?formTypes=system", s.baseURL, seg(s.workspaceID))
+	u := fmt.Sprintf("%s/forms/templates/system/%s?formTypes=system", s.baseURL, ecore.Seg(s.workspaceID))
 	data, err := s.get(ctx, u)
 	if err != nil {
 		s.cache.mu.Lock()
@@ -744,7 +746,7 @@ func (s *GraphSyncer) updateGraphActor(ctx context.Context, sa layerActor, fa Gr
 		}
 	}
 
-	u := fmt.Sprintf("%s/actors/actor/%d/%s?replaceEmpty=false", s.baseURL, apiFormID, seg(sa.ID))
+	u := fmt.Sprintf("%s/actors/actor/%d/%s?replaceEmpty=false", s.baseURL, apiFormID, ecore.Seg(sa.ID))
 	if _, err := s.put(ctx, u, body); err != nil {
 		return false, err
 	}
@@ -773,7 +775,7 @@ func (s *GraphSyncer) callManageLayer(ctx context.Context, layerID string, items
 			bodyToSend = arr
 		}
 
-		u := fmt.Sprintf("%s/graph_layers/actors/%s", s.baseURL, seg(layerID))
+		u := fmt.Sprintf("%s/graph_layers/actors/%s", s.baseURL, ecore.Seg(layerID))
 		if _, err := s.post(ctx, u, bodyToSend); err != nil {
 			return fmt.Errorf("manageLayer batch %d: %w", i/batchSize, err)
 		}
@@ -821,7 +823,7 @@ func (s *GraphSyncer) updatePositions(ctx context.Context, layerID string, updat
 		}
 		batch := normalised[i:end]
 		body := map[string]interface{}{"items": batch}
-		u := fmt.Sprintf("%s/graph_layers/actors/%s", s.baseURL, seg(layerID))
+		u := fmt.Sprintf("%s/graph_layers/actors/%s", s.baseURL, ecore.Seg(layerID))
 		if _, err := s.put(ctx, u, body); err != nil {
 			return fmt.Errorf("updatePositions batch %d: %w", i/batchSize, err)
 		}
@@ -846,7 +848,7 @@ func (s *GraphSyncer) createEdgeLink(ctx context.Context, srcUUID, tgtUUID strin
 		bodyToSend = arr
 	}
 
-	u := fmt.Sprintf("%s/actors/mass_links/%s", s.baseURL, seg(s.workspaceID))
+	u := fmt.Sprintf("%s/actors/mass_links/%s", s.baseURL, ecore.Seg(s.workspaceID))
 	respBytes, err := s.post(ctx, u, bodyToSend)
 	if err != nil {
 		return "", err
@@ -925,7 +927,7 @@ func (s *GraphSyncer) pushGraph(ctx context.Context, graph GraphFile, layerID st
 		origID := a.ID
 
 		if partialMode && a.Action == "del" {
-			if isUUID(origID) {
+			if ecore.IsUUID(origID) {
 				if sa, onLayer := serverActorByUUID[origID]; onLayer {
 					var item manageLayerItem
 					item.Action = "delete"
@@ -939,7 +941,7 @@ func (s *GraphSyncer) pushGraph(ctx context.Context, graph GraphFile, layerID st
 			continue
 		}
 
-		if isUUID(origID) {
+		if ecore.IsUUID(origID) {
 			idMap[origID] = origID
 			fileUUIDs[origID] = true
 

@@ -1,4 +1,4 @@
-package engines
+package smartform
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -58,7 +59,7 @@ func hashSource(s string) string {
 // ---- Fetch helpers ----
 
 func fetchAppEnvs(actorID string) ([]appEnvItem, error) {
-	body, err := papiGET(fmt.Sprintf("%s/applications/envs/%s", buildBaseURL(), seg(actorID)))
+	body, err := ecore.PapiGET(fmt.Sprintf("%s/applications/envs/%s", ecore.BuildBaseURL(), ecore.Seg(actorID)))
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func fetchAppEnvs(actorID string) ([]appEnvItem, error) {
 }
 
 func fetchEnvStruct(actorID string, envID int) (*appTreeNode, error) {
-	body, err := papiGET(fmt.Sprintf("%s/app_content/struct/%s/%d", buildBaseURL(), seg(actorID), envID))
+	body, err := ecore.PapiGET(fmt.Sprintf("%s/app_content/struct/%s/%d", ecore.BuildBaseURL(), ecore.Seg(actorID), envID))
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +126,7 @@ func writeEnvTree(node appTreeNode, dir, relDir string, files map[string]manifes
 // directory. A .manifest.json is written in each env folder to track file IDs and
 // content hashes (used by pushSmartForm for diffing).
 func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -134,7 +135,7 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 

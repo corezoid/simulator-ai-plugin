@@ -1,10 +1,11 @@
-package engines
+package smartform
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -12,7 +13,7 @@ import (
 // GET /papi/1.0/file_history/<actorId>/<fileId>[?limit=<n>&offset=<n>]
 // fileId is the numeric file ID from .manifest.json.
 func handleGetFileHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -21,7 +22,7 @@ func handleGetFileHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -31,7 +32,7 @@ func handleGetFileHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	}
 	fileID := int(fileIDFloat)
 
-	apiURL := fmt.Sprintf("%s/file_history/%s/%d", buildBaseURL(), seg(actorID), fileID)
+	apiURL := fmt.Sprintf("%s/file_history/%s/%d", ecore.BuildBaseURL(), ecore.Seg(actorID), fileID)
 
 	sep := "?"
 	if limit, ok := args["limit"].(float64); ok && limit > 0 {
@@ -42,7 +43,7 @@ func handleGetFileHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		apiURL += fmt.Sprintf("%soffset=%d", sep, int(offset))
 	}
 
-	respBytes, err := papiGET(apiURL)
+	respBytes, err := ecore.PapiGET(apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] get file history: %v", err)), nil
 	}
@@ -52,7 +53,7 @@ func handleGetFileHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 // handleGetFileVersion fetches the source of one specific file version.
 // GET /papi/1.0/file_history/<actorId>/<fileId>/<versionId>
 func handleGetFileVersion(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -61,7 +62,7 @@ func handleGetFileVersion(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -76,8 +77,8 @@ func handleGetFileVersion(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		return mcp.NewToolResultError("[Error] versionId is required"), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/file_history/%s/%d/%s", buildBaseURL(), seg(actorID), fileID, seg(versionID))
-	respBytes, err := papiGET(apiURL)
+	apiURL := fmt.Sprintf("%s/file_history/%s/%d/%s", ecore.BuildBaseURL(), ecore.Seg(actorID), fileID, ecore.Seg(versionID))
+	respBytes, err := ecore.PapiGET(apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] get file version: %v", err)), nil
 	}
@@ -87,7 +88,7 @@ func handleGetFileVersion(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 // handleRollbackFile restores a Smart Form file to a prior version.
 // POST /papi/1.0/file_history/<actorId>/<fileId>/rollback
 func handleRollbackFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -96,7 +97,7 @@ func handleRollbackFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -112,8 +113,8 @@ func handleRollbackFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	}
 
 	body, _ := json.Marshal(map[string]string{"versionId": versionID})
-	apiURL := fmt.Sprintf("%s/file_history/%s/%d/rollback", buildBaseURL(), seg(actorID), fileID)
-	respBytes, err := papiPOST(apiURL, body)
+	apiURL := fmt.Sprintf("%s/file_history/%s/%d/rollback", ecore.BuildBaseURL(), ecore.Seg(actorID), fileID)
+	respBytes, err := ecore.PapiPOST(apiURL, body)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] rollback file: %v", err)), nil
 	}
@@ -124,7 +125,7 @@ func handleRollbackFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 // GET /papi/1.0/file_history/trash/<actorId>/<envId>
 // Accepts env name (e.g. "develop") and resolves to numeric envId internally.
 func handleListTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -133,7 +134,7 @@ func handleListTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToo
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -146,8 +147,8 @@ func handleListTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToo
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] resolve env: %v", err)), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/file_history/trash/%s/%d", buildBaseURL(), seg(actorID), envID)
-	respBytes, err := papiGET(apiURL)
+	apiURL := fmt.Sprintf("%s/file_history/trash/%s/%d", ecore.BuildBaseURL(), ecore.Seg(actorID), envID)
+	respBytes, err := ecore.PapiGET(apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] list trash: %v", err)), nil
 	}
@@ -157,7 +158,7 @@ func handleListTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToo
 // handleRestoreFromTrash restores a soft-deleted object from the Smart Form trash.
 // POST /papi/1.0/file_history/trash/<actorId>/restore
 func handleRestoreFromTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -166,7 +167,7 @@ func handleRestoreFromTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -176,8 +177,8 @@ func handleRestoreFromTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 	}
 
 	body, _ := json.Marshal(map[string]string{"id": objectID})
-	apiURL := fmt.Sprintf("%s/file_history/trash/%s/restore", buildBaseURL(), seg(actorID))
-	respBytes, err := papiPOST(apiURL, body)
+	apiURL := fmt.Sprintf("%s/file_history/trash/%s/restore", ecore.BuildBaseURL(), ecore.Seg(actorID))
+	respBytes, err := ecore.PapiPOST(apiURL, body)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] restore from trash: %v", err)), nil
 	}

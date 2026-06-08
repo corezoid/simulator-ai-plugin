@@ -1,4 +1,4 @@
-package engines
+package graph
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -46,7 +47,7 @@ type compactEdge struct {
 }
 
 func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 	args := req.GetArguments()
@@ -54,7 +55,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
-	if r := requireUUID("layerId", layerID); r != nil {
+	if r := ecore.RequireUUID("layerId", layerID); r != nil {
 		return r, nil
 	}
 	strategy, _ := args["strategy"].(string)
@@ -86,10 +87,10 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 		nodeDY = 95
 	}
 
-	client := apiHTTPClient()
+	client := ecore.APIHTTPClient()
 	apiGet := func(url string) ([]byte, error) {
 		hr, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-		hr.Header.Set("Authorization", authHeader())
+		hr.Header.Set("Authorization", ecore.AuthHeader())
 		resp, err := client.Do(hr)
 		if err != nil {
 			return nil, err
@@ -110,7 +111,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",
-			buildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURL(), layerID, limit, offset)
 		body, err := apiGet(u)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch placements: %v", err)), nil
@@ -142,7 +143,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	offset = 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d",
-			buildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURL(), layerID, limit, offset)
 		body, err := apiGet(u)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch edges: %v", err)), nil
@@ -324,11 +325,14 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 			})
 		}
 	}
+	// suppress unused variable warning
+	_ = allPlacements
+
 	// 8) Push in chunks of 100.
 	apiPut := func(url string, body interface{}) error {
 		bodyBytes, _ := json.Marshal(body)
 		hr, _ := http.NewRequestWithContext(ctx, "PUT", url, strings.NewReader(string(bodyBytes)))
-		hr.Header.Set("Authorization", authHeader())
+		hr.Header.Set("Authorization", ecore.AuthHeader())
 		hr.Header.Set("Content-Type", "application/json")
 		resp, err := client.Do(hr)
 		if err != nil {
@@ -348,7 +352,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 			end = len(items)
 		}
 		batch := items[i:end]
-		u := fmt.Sprintf("%s/graph_layers/actors/%s", buildBaseURL(), layerID)
+		u := fmt.Sprintf("%s/graph_layers/actors/%s", ecore.BuildBaseURL(), layerID)
 		if err := apiPut(u, map[string]interface{}{"items": batch}); err != nil {
 			return mcp.NewToolResultError(
 				fmt.Sprintf("[Error] applyPositions batch %d: %v", i/batchSize, err)), nil

@@ -1,4 +1,4 @@
-package engines
+package smartform
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -13,7 +14,7 @@ import (
 // with two environments (develop + production) via POST /papi/1.0/applications/:accId.
 // After creation the caller should run pullSmartForm to download the initial file tree.
 func handleCreateSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -80,8 +81,8 @@ func handleCreateSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] marshal: %v", err)), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/applications/%s", buildBaseURL(), seg(accID))
-	respBytes, err := papiPOST(apiURL, bodyBytes)
+	apiURL := fmt.Sprintf("%s/applications/%s", ecore.BuildBaseURL(), ecore.Seg(accID))
+	respBytes, err := ecore.PapiPOST(apiURL, bodyBytes)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] create application: %v", err)), nil
 	}

@@ -1,10 +1,11 @@
-package engines
+package smartform
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -29,7 +30,7 @@ func resolveEnvID(actorID, envTitle string) (int, error) {
 // handleDeploySmartForm deploys one environment of a Smart Form to another
 // by POSTing to POST /papi/1.0/applications/deploy/<actorId>.
 func handleDeploySmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -38,7 +39,7 @@ func handleDeploySmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -64,8 +65,8 @@ func handleDeploySmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		"sourceEnvId": sourceID,
 		"targetEnvId": targetID,
 	})
-	apiURL := fmt.Sprintf("%s/applications/deploy/%s", buildBaseURL(), seg(actorID))
-	respBytes, err := papiPOST(apiURL, body)
+	apiURL := fmt.Sprintf("%s/applications/deploy/%s", ecore.BuildBaseURL(), ecore.Seg(actorID))
+	respBytes, err := ecore.PapiPOST(apiURL, body)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] deploy: %v", err)), nil
 	}
@@ -96,7 +97,7 @@ func handleDeploySmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 // handleListReleases lists releases for one environment of a Smart Form.
 // Calls GET /papi/1.0/releases/<actorId>?envId=<envId>.
 func handleListReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -105,7 +106,7 @@ func handleListReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -118,8 +119,8 @@ func handleListReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] resolve env: %v", err)), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/releases/%s?envId=%d", buildBaseURL(), seg(actorID), envID)
-	respBytes, err := papiGET(apiURL)
+	apiURL := fmt.Sprintf("%s/releases/%s?envId=%d", ecore.BuildBaseURL(), ecore.Seg(actorID), envID)
+	respBytes, err := ecore.PapiGET(apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] list releases: %v", err)), nil
 	}
@@ -143,7 +144,7 @@ func handleListReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 // handleDiffReleases returns the diff (added/removed/modified) between two releases.
 // Calls GET /papi/1.0/releases/<actorId>/<releaseId>/diff?vs=<vsReleaseId>.
 func handleDiffReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -152,7 +153,7 @@ func handleDiffReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -166,8 +167,8 @@ func handleDiffReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	}
 
 	apiURL := fmt.Sprintf("%s/releases/%s/%s/diff?vs=%s",
-		buildBaseURL(), seg(actorID), seg(releaseID), seg(vsReleaseID))
-	respBytes, err := papiGET(apiURL)
+		ecore.BuildBaseURL(), ecore.Seg(actorID), ecore.Seg(releaseID), ecore.Seg(vsReleaseID))
+	respBytes, err := ecore.PapiGET(apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] diff releases: %v", err)), nil
 	}
@@ -178,7 +179,7 @@ func handleDiffReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 // Calls POST /papi/1.0/releases/<actorId>/<releaseId>/rollback.
 // Rollback is forward-only: a new active release is created with the target's content.
 func handleRollbackRelease(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -187,7 +188,7 @@ func handleRollbackRelease(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -196,8 +197,8 @@ func handleRollbackRelease(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultError("[Error] releaseId is required"), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/releases/%s/%s/rollback", buildBaseURL(), seg(actorID), seg(releaseID))
-	respBytes, err := papiPOST(apiURL, []byte("{}"))
+	apiURL := fmt.Sprintf("%s/releases/%s/%s/rollback", ecore.BuildBaseURL(), ecore.Seg(actorID), ecore.Seg(releaseID))
+	respBytes, err := ecore.PapiPOST(apiURL, []byte("{}"))
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] rollback: %v", err)), nil
 	}

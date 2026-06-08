@@ -1,64 +1,16 @@
-package engines
+package smartform
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/cduschema"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
-
-// papiPOST sends an authenticated POST with a JSON body and returns the response body.
-func papiPOST(apiURL string, body []byte) ([]byte, error) {
-	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", authHeader())
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := apiHTTPClient().Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("POST %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
-	}
-	return data, nil
-}
-
-// papiPUT sends an authenticated PUT with a JSON body and returns the response body.
-func papiPUT(apiURL string, body []byte) ([]byte, error) {
-	req, err := http.NewRequest("PUT", apiURL, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", authHeader())
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := apiHTTPClient().Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("PUT %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
-	}
-	return data, nil
-}
 
 // appContentItem is one entry in the PUT /app_content/:actorId batch.
 type appContentItem struct {
@@ -74,7 +26,7 @@ type appContentItem struct {
 // hashes stored in .manifest.json, and sends changed files to the server in a
 // single batch PUT. Updates .manifest.json hashes on success.
 func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -83,7 +35,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 
@@ -158,8 +110,8 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] marshal batch: %v", err)), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/app_content/%s", buildBaseURL(), seg(actorID))
-	if _, err := papiPUT(apiURL, bodyBytes); err != nil {
+	apiURL := fmt.Sprintf("%s/app_content/%s", ecore.BuildBaseURL(), ecore.Seg(actorID))
+	if _, err := ecore.PapiPUT(apiURL, bodyBytes); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] push: %v", err)), nil
 	}
 
