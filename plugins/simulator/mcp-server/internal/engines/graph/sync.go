@@ -171,7 +171,7 @@ func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	if r := ecore.RequireUUID("layerId", layerID); r != nil {
 		return r, nil
 	}
-	filePath := layerID + ".yaml"
+	filePath := ecore.ResolvePath(layerID + ".yaml")
 
 	rawData, err := os.ReadFile(filePath)
 	if err != nil {
@@ -215,7 +215,8 @@ func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 }
 
 // handlePullGraphFile fetches all actors and edges from a layer and writes
-// them to <layerId>.yaml in the current working directory.
+// them to <SIMULATOR_WORK_DIR>/<layerId>.yaml (falling back to cwd when the
+// env var is unset — see ecore.WorkDir).
 func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
@@ -229,7 +230,7 @@ func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	if r := ecore.RequireUUID("layerId", layerID); r != nil {
 		return r, nil
 	}
-	filePath := layerID + ".yaml"
+	filePath := ecore.ResolvePath(layerID + ".yaml")
 
 	// Fetch actors
 	serverActors, err := fetchLayerActors(layerID)

@@ -122,9 +122,10 @@ func writeEnvTree(node appTreeNode, dir, relDir string, files map[string]manifes
 }
 
 // handlePullSmartForm fetches the full file tree of every environment of a smart
-// form and writes the files to <actorId>/<envTitle>/... in the current working
-// directory. A .manifest.json is written in each env folder to track file IDs and
-// content hashes (used by pushSmartForm for diffing).
+// form and writes the files to <SIMULATOR_WORK_DIR>/<actorId>/<envTitle>/...
+// (falling back to cwd when the env var is unset — see ecore.WorkDir). A
+// .manifest.json is written in each env folder to track file IDs and content
+// hashes (used by pushSmartForm for diffing).
 func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
@@ -154,12 +155,13 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	}
 	var summary []envSummary
 
+	baseDir := ecore.ResolvePath(actorID)
 	for _, env := range envs {
 		tree, err := fetchEnvStruct(actorID, env.ID)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch struct for env %q (id=%d): %v", env.Title, env.ID, err)), nil
 		}
-		envDir := filepath.Join(actorID, env.Title)
+		envDir := filepath.Join(baseDir, env.Title)
 		files := make(map[string]manifestNode)
 		n, err := writeEnvTree(*tree, envDir, "", files)
 		if err != nil {
@@ -182,7 +184,7 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 
 	out, _ := json.Marshal(map[string]interface{}{
 		"actorId": actorID,
-		"baseDir": actorID,
+		"baseDir": baseDir,
 		"envs":    summary,
 	})
 	return mcp.NewToolResultText(string(out)), nil

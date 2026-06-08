@@ -6,10 +6,31 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
+// WorkDir returns the directory engine tools should anchor file I/O to. The
+// MCP server is launched from `plugins/simulator/mcp-server` so the process
+// cwd is the server source tree, not the user's session directory; the launch
+// wrapper exports SIMULATOR_WORK_DIR with the original $PWD so engines can
+// recover it. Falls back to "." when the env var is unset (running outside the
+// plugin wrapper).
+func WorkDir() string {
+	if dir := os.Getenv("SIMULATOR_WORK_DIR"); dir != "" {
+		return dir
+	}
+	return "."
+}
+
+// ResolvePath joins WorkDir with the given path elements, so callers can write
+// `ecore.ResolvePath(actorID, env, name)` instead of repeatedly prefixing.
+func ResolvePath(elem ...string) string {
+	return filepath.Join(append([]string{WorkDir()}, elem...)...)
+}
 
 // uuidRe matches a standard UUID (case-insensitive).
 var uuidRe = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)

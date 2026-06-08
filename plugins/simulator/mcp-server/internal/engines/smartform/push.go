@@ -40,7 +40,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	}
 
 	// Only develop is writable; production is readonly on the server side.
-	envDir := filepath.Join(actorID, "develop")
+	envDir := ecore.ResolvePath(actorID, "develop")
 	manifestPath := filepath.Join(envDir, manifestFileName)
 
 	raw, err := os.ReadFile(manifestPath)
