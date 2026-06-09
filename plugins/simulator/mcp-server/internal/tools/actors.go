@@ -163,7 +163,7 @@ var actorOps = []Operation{
 			{Name: "accountNameId", In: InQuery, Type: "string", Desc: "Account name id to read the balance from (see getAccountNames). Required to filter/rank by balance."},
 			{Name: "currencyId", In: InQuery, Type: "number", Desc: "Currency id of the account (see getCurrencies). Pairs with accountNameId."},
 			{Name: "incomeType", In: InQuery, Type: "string", Enum: []string{"credit", "debit"}, Desc: "Restrict the balance to one direction. Omit to net credit minus debit."},
-			{Name: "accountType", In: InQuery, Type: "string", Enum: []string{"fact", "plan", "min", "max", "avg"}, Desc: "Ledger account type (the account's `type` column). Defaults to fact. Note: this is NOT the asset/liability/... classification used by getAccounts."},
+			{Name: "accountType", In: InQuery, Type: "string", Enum: []string{"fact", "plan", "min", "max", "avg"}, Desc: "Account value type (fact (default) | plan | min | max | avg) — same enum as createAccount/getAccounts. The account's meaning comes from its name, not this type."},
 			{Name: "amountFrom", In: InQuery, Type: "number", Desc: "Only actors whose account balance is >= this value (\"greater than\")."},
 			{Name: "amountTo", In: InQuery, Type: "number", Desc: "Only actors whose account balance is <= this value (\"less than\")."},
 			{Name: "orderBy", In: InQuery, Type: "string", Enum: []string{"updated_at", "created_at", "title", "owner", "balance", "reacted_at"}, Desc: "Sort field. Use balance to rank by the selected account's balance."},
@@ -177,6 +177,26 @@ var actorOps = []Operation{
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (0-200, default 20)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
 			fieldFilterParam("id,title,data.status"),
+		},
+	},
+	{
+		Name: "getSystemActor", Method: "GET", Path: "/actors/system/{accId}/{objType}/{objId}",
+		Summary: "Resolve the system 'twin' actor of a workspace entity — currently a user's actor. " +
+			"Pass objType=user and objId=<userId> to get the actor that represents that user (so you can " +
+			"attach accounts to it / transfer between users). Find the userId first with searchUsers/getUsers.",
+		Params: []Param{
+			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
+			{Name: "objType", In: InPath, Type: "string", Required: true, Enum: []string{"user"}, Desc: "Entity kind whose twin actor to fetch (currently only user)."},
+			{Name: "objId", In: InPath, Type: "string", Required: true, Desc: "The entity id — for objType=user, the user id (see searchUsers/getUsers)."},
+			fieldFilterParam("id,title,formId"),
+		},
+	},
+	{
+		Name: "getCorezoidProcesses", Method: "GET", Path: "/actors/corezoid_processes/{actorId}",
+		Summary: "List the Corezoid processes available to an actor — the processes shared to it via its access API keys. " +
+			"Use to answer \"what functions/processes can this actor call?\" (the actor's callable integrations).",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID whose connected Corezoid processes to list."},
 		},
 	},
 }

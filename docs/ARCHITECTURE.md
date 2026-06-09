@@ -25,7 +25,10 @@ files and the [entity docs](../plugins/simulator/docs/entities/README.md).
 │   ├── simulator-smart-forms    │   calls MCP tools over stdio         │
 │   ├── simulator-actors         │   calls MCP tools over stdio         │
 │   ├── simulator-finance        │                                      │
-│   └── simulator-charts       ──┘                                      │
+│   ├── simulator-charts          │                                      │
+│   ├── simulator-reactions       │                                      │
+│   ├── simulator-attachments     │                                      │
+│   └── simulator-access        ──┘                                      │
 └───────────────────────────────────────┬─────────────────────────────┘
                                          │ MCP (stdio)
                                          ▼
@@ -52,9 +55,10 @@ Two layers cooperate:
 
 - **Skills** carry *domain knowledge* — what an actor/form/account is, which tools to call
   in what order, common workflows. They are plain markdown and ship no code.
-- **The MCP server** exposes a *curated, typed tool set* (~46 tools) scoped to the core
-  scenarios — forms, actors, accounts, transactions, graph building, applications/smart
-  forms — rather than the entire REST surface. Each tool is a compile-time descriptor, not
+- **The MCP server** exposes a *curated, typed tool set* (~95 tools) scoped to the core
+  scenarios — forms, actors, accounts, transactions, transfers, counters, graph building,
+  links/layers, reactions, attachments, access rules, applications/smart forms — rather than
+  the entire REST surface. Each tool is a compile-time descriptor, not
   a generic passthrough; a drift gate keeps those descriptors honest against the backend.
 
 This separation is deliberate: the tool set can evolve without touching the skills, and the
@@ -85,7 +89,7 @@ simulator-ai-plugin/
     ├── .codex-plugin/plugin.json     # Codex manifest
     ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
-    ├── skills/                       # 7 skills (markdown only)
+    ├── skills/                       # 11 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
 ```
 
@@ -224,19 +228,24 @@ Refresh the spec with pong-server's `yarn dump-openapi` and copy it into `testda
 
 ## 4. Curated tool set & engines
 
-The server registers ~46 tools in two groups.
+The server registers ~95 curated tools (plus engine + auth helpers) in two groups.
 
 **Curated API operations** (`internal/tools`, declared per domain) — one MCP tool per
 backend operation, with typed parameters:
 
 | Domain        | Tools                                                                                  |
 |---------------|----------------------------------------------------------------------------------------|
-| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` |
-| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` |
-| Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
-| Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
-| Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
+| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` `createFormAccount` `getFormAccounts` `removeFormAccount` `getLinkedForms` `getFormsTree` |
+| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` `getSystemActor` `getCorezoidProcesses` |
+| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Counters      | `saveCounters` `setCounters` `getCounters` |
+| Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` |
+| Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
+| Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `getLinkedActors` `getActorLinks` `manageLayerActors` `moveActors` `existLayerElement` `cleanGraphLayer` `layerStats` |
+| Reactions     | `createReaction` `updateReaction` `deleteReaction` `getReactions` `getReactionsStats` `markReactionsRead` `getPinnedReactions` `togglePinnedReaction` |
+| Attachments   | `getAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
+| Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
 

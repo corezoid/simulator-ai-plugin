@@ -122,11 +122,11 @@ Visual organization containers:
 
 ### Accounts
 Financial and metric tracking attached to actors:
-- Types: `asset`, `liability`, `expense`, `income`, `counter`, `state`, `boolean`
-- `income_type`: `debit` or `credit` (which direction increases the balance)
-- Have a `currency_id` and `name_id`
-- Can use formulas for calculated values
-- `tree_calculation`: whether to aggregate up the actor hierarchy
+- `accountType` (value type): `fact` (actual, default) | `plan` | `min`/`max`/`avg` (aggregates). No asset/liability/income enum — the account NAME carries the meaning.
+- `counterType`: `amount` (normal balance, default) | `counter`/`uniqCounter` (Scylla tally, no history) | `systemCounter`
+- `incomeType`: `debit` or `credit` (which direction increases the balance)
+- Keyed by `currencyId` + `nameId` (+ accountType) on an actor
+- `treeCalculation`: whether to aggregate up the actor hierarchy
 
 ### Transactions
 Financial operations on accounts:
@@ -181,17 +181,17 @@ post-graph_layers-actors-layerId(layerId="<layer-id>",
 
 ```
 # Create currency and account name first if needed
-post-currencies-accId(accId="<accId>", body='{"title": "USD", "symbol": "$"}')
-post-account_names-accId(accId="<accId>", body='{"title": "Budget"}')
+createCurrency(accId="<accId>", name="USD", symbol="$", precision=2)
+createAccountName(accId="<accId>", name="Budget")
 
-# Create account for actor
-post-accounts-actorId(actorId="<actor-id>",
-  body='{"nameId": "<name-id>", "currencyId": "<currency-id>", "type": "asset", "incomeType": "credit"}')
+# Attach an account to an actor (accountType defaults to fact; counterType to amount)
+createAccount(actorId="<actor-id>", nameId="<name-id>", currencyId=1)
 
-# Record a transaction
-post-transactions-accountId(accountId="<account-id>",
-  body='{"amount": 1000, "description": "Initial funding"}')
+# Record a transaction (note: `comment`, not `description`; `ref` for idempotency)
+createTransaction(accountId="<account-id>", amount=1000, comment="Initial funding", ref="fund-1")
 ```
+> See `/simulator-finance` for the full account model (accountType fact/plan, counterType,
+> transfers, counters) — these are just the headline calls.
 
 ## Curated tool set (v2 server)
 
@@ -233,8 +233,12 @@ For domain-specific workflows use the specialized skills:
 - `/simulator-graph` — actors, links, layers, graph building (graph STRUCTURE)
 - `/simulator-forms` — form templates / Account Templates («Шаблон рахунків»): field structure
 - `/simulator-actors` — actor instances (records) of a form: the `data` value protocol, create/update/search/filter
-- `/simulator-finance` — accounts, transactions, transfers
+- `/simulator-finance` — accounts, transactions, transfers, currencies, counters (Scylla tallies)
 - `/simulator-charts` — dashboard charts and time-series visualisation on layers
+- `/simulator-smart-forms` — Smart Forms (CDU / Script applications): pages, releases
+- `/simulator-reactions` — comments / events / approvals / ratings on actors (threaded)
+- `/simulator-attachments` — files: upload, attach/detach to actors & reactions
+- `/simulator-access` — access rules: share/grant/revoke who can view/modify an object
 
 ## Reference Documents
 

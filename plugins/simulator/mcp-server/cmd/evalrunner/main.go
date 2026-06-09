@@ -55,6 +55,12 @@ type scenario struct {
 	// LiveOnly scenarios need real backend state (ids returned by earlier tools)
 	// to complete, so they only run under --execute; dry mode skips them.
 	LiveOnly bool `json:"liveOnly,omitempty"`
+	// DryOnlyTools are required only in dry mode. Use for the second step of a
+	// real-dependency flow (e.g. finalizeTransaction after authorize): dry
+	// fixtures make step 1 "succeed" so the model proceeds, but live step 1 hits
+	// a 404 on the placeholder id and the model correctly stops — so don't require
+	// the follow-up tool live. They still validate the full flow in dry.
+	DryOnlyTools []string `json:"dryOnlyTools,omitempty"`
 	// ArgChecks optionally assert on the JSON arguments the model passed to a
 	// tool: every substring must appear in that tool's canonical-compact args
 	// (across all of its calls in the scenario). Use it to verify data shapes
@@ -67,6 +73,9 @@ type argCheck struct {
 	MustContain    []string `json:"mustContain,omitempty"`    // substrings that must appear in the tool's args
 	MustNotContain []string `json:"mustNotContain,omitempty"` // substrings that must NOT appear (regression guards)
 	MustMatch      []string `json:"mustMatch,omitempty"`      // regexp patterns the args must match
+	// DryOnly: only enforce this check in dry mode (e.g. it asserts on the args of
+	// a follow-up call that is only reached when dry fixtures let step 1 succeed).
+	DryOnly bool `json:"dryOnly,omitempty"`
 }
 
 type mcpTool struct {
@@ -144,8 +153,22 @@ func main() {
 			fmt.Printf("✗ %s — error: %v\n", sc.Name, err)
 			continue
 		}
-		missing := missingTools(sc.Tools, called)
-		argFails := failedArgChecks(sc.ArgChecks, argsByTool)
+		expectedTools := sc.Tools
+		argChecks := sc.ArgChecks
+		if !*execute {
+			expectedTools = append(append([]string{}, sc.Tools...), sc.DryOnlyTools...)
+		} else {
+			// Live: drop dry-only argChecks (they assert on follow-up calls that
+			// a placeholder-id 404 prevents the model from reaching).
+			argChecks = nil
+			for _, ac := range sc.ArgChecks {
+				if !ac.DryOnly {
+					argChecks = append(argChecks, ac)
+				}
+			}
+		}
+		missing := missingTools(expectedTools, called)
+		argFails := failedArgChecks(argChecks, argsByTool)
 		if len(missing) == 0 && len(argFails) == 0 {
 			passed++
 			fmt.Printf("✓ %s — called: %v\n", sc.Name, keys(called))
@@ -300,8 +323,8 @@ var dryFixtures = map[string]string{
 	"searchAll":             `{"data":{"actors":[{"id":"11111111-1111-1111-1111-111111111111","title":"Camry"}]}}`,
 	"getAccountNames":       `{"data":[{"id":"aaaaaaaa-0000-0000-0000-000000000001","name":"Maintenance"}]}`,
 	"getCurrencies":         `{"data":[{"id":1,"name":"USD","symbol":"$"},{"id":2,"name":"Km"}]}`,
-	"getAccounts":           `{"data":[{"nameId":"aaaaaaaa-0000-0000-0000-000000000001","currencyId":1,"amount":1500}]}`,
-	"getBalance":            `{"data":{"amount":1500}}`,
+	"getAccounts":           `{"data":[{"id":"acc-1","nameId":"aaaaaaaa-0000-0000-0000-000000000001","currencyId":1,"amount":1500}]}`,
+	"getBalance":            `{"data":{"id":"acc-1","amount":1500}}`,
 	"getEdgeTypes":          `{"data":[{"id":1,"name":"hierarchy"},{"id":2,"name":"link"}]}`,
 	"getEdge":               `{"data":{"id":"eeeeeeee-0000-0000-0000-000000000001","source":"11111111-1111-1111-1111-111111111111","target":"22222222-2222-2222-2222-222222222222","edgeTypeId":1,"name":"link"}}`,
 	"existLink":             `{"data":[{"id":"eeeeeeee-0000-0000-0000-000000000001","source":"11111111-1111-1111-1111-111111111111","target":"22222222-2222-2222-2222-222222222222","edgeTypeId":1}]}`,
@@ -317,6 +340,38 @@ var dryFixtures = map[string]string{
 	"createAccountName": `{"data":{"id":"aaaaaaaa-0000-0000-0000-000000000002","name":"Mileage"}}`,
 	"createCurrency":    `{"data":{"id":3,"name":"Km","symbol":"km"}}`,
 	"createAccount":     `{"data":{"id":"acc-1"}}`,
+
+	// New-domain fixtures so multi-step chains resolve in dry mode.
+	"searchUsers":            `{"data":[{"id":4210,"nick":"Olena"},{"id":4310,"nick":"Petro"}]}`,
+	"getUsers":               `{"data":[{"id":4210,"nick":"Olena"},{"id":4310,"nick":"Petro"}]}`,
+	"getUser":                `{"data":{"id":4210,"nick":"Olena"}}`,
+	"getSystemActor":         `{"data":{"id":"99999999-0000-0000-0000-000000000001","title":"Olena (user)","formId":1}}`,
+	"getAttachments":         `{"data":[{"id":5521,"title":"report.pdf"}]}`,
+	"getFormAccounts":        `{"data":[{"id":7788,"nameId":"aaaaaaaa-0000-0000-0000-000000000001","currencyId":1,"accountType":"fact"}]}`,
+	"getFormsTree":           `{"data":[{"id":16950,"title":"People"},{"id":16951,"title":"Position"}]}`,
+	"getLinkedForms":         `{"data":[{"id":16951,"title":"Position"}]}`,
+	"getLinkedActors":        `{"data":[{"id":"22222222-2222-2222-2222-222222222222","title":"Wheel"}]}`,
+	"getActorLinks":          `{"data":[{"id":"eeeeeeee-0000-0000-0000-000000000001","source":"11111111-1111-1111-1111-111111111111","target":"22222222-2222-2222-2222-222222222222","edgeTypeId":1}]}`,
+	"getReactions":           `{"data":[{"id":"rx-100","description":"Looks good"}]}`,
+	"getPinnedReactions":     `{"data":[{"id":"rx-100","pinned":true}]}`,
+	"getReactionsStats":      `{"data":{"comment":3,"total":3}}`,
+	"getTransferByRef":       `{"data":{"id":"tr-1","amount":200}}`,
+	"getAccountTransactions": `{"data":[{"id":"tx-1","amount":450}]}`,
+	"getTransactionByRef":    `{"data":{"id":"tx-1","amount":450}}`,
+	"getCounters":            `{"data":[{"actorRef":"car-camry","accountName":"mileage","amount":45000}]}`,
+	"getChildAccounts":       `{"data":[{"id":"acc-2","amount":100}]}`,
+	"searchCurrencies":       `{"data":[{"id":1,"name":"USD","symbol":"$"}]}`,
+	"searchAccountNames":     `{"data":[{"id":"aaaaaaaa-0000-0000-0000-000000000001","name":"Maintenance"}]}`,
+	"getAccount":             `{"data":{"id":"acc-1","amount":1500,"currencyId":1,"nameId":"aaaaaaaa-0000-0000-0000-000000000001"}}`,
+	// create/mutating tools that scenarios chain off of.
+	"createReaction":        `{"data":{"id":"rx-100"}}`,
+	"uploadBase64":          `{"data":{"attachId":5521,"fileName":"report.pdf"}}`,
+	"createFormAccount":     `{"data":{"id":7788}}`,
+	"createTransfer":        `{"data":{"id":"tr-1"}}`,
+	"createTransferTwoStep": `{"data":{"id":"tr-1","status":"authorized"}}`,
+	"createTransaction":     `{"data":{"id":"tx-1","status":"completed"}}`,
+	"atomCreateTransaction": `{"data":[{"id":"tx-1"},{"id":"tx-2"}]}`,
+	"saveAccessRules":       `{"data":[],"taskId":"task-1"}`,
 }
 
 // ---- skill injection ----
@@ -570,10 +625,21 @@ func loadScenarios(path string) ([]scenario, error) {
 	return s, json.Unmarshal(data, &s)
 }
 
+// missingTools reports expected tools the model did not call. An expected entry
+// may be an any-of group written as "a|b|c": it is satisfied if ANY of the
+// alternatives was called — used for genuinely interchangeable tools (e.g.
+// "getForms|searchForms", "getRelatedActors|getLinkedActors").
 func missingTools(expected []string, called map[string]bool) []string {
 	var missing []string
 	for _, e := range expected {
-		if !called[e] {
+		satisfied := false
+		for _, alt := range strings.Split(e, "|") {
+			if called[strings.TrimSpace(alt)] {
+				satisfied = true
+				break
+			}
+		}
+		if !satisfied {
 			missing = append(missing, e)
 		}
 	}

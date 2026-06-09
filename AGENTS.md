@@ -10,9 +10,9 @@ A plugin for Claude Code and Codex that connects the **Simulator.Company** platf
 (backend: `pong-server` / `control-api`) to the host via MCP. It bundles:
 
 - a **Go MCP server** (`plugins/simulator/mcp-server/`) that exposes the Simulator
-  `/papi/1.0` public API as a **curated, typed set of ~46 MCP tools** (declared in Go, not a
+  `/papi/1.0` public API as a **curated, typed set of ~95 MCP tools** (declared in Go, not a
   generic spec passthrough), scoped to the core scenarios;
-- **7 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
+- **11 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
   platform's entity model and common workflows.
 
 Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before making non-trivial changes.
@@ -30,7 +30,7 @@ plugins/simulator/mcp-server/   Go MCP server (Go 1.24+, mark3labs/mcp-go)
     testdata/                   papi-openapi.json (drift gate) + eval-scenarios.json
   internal/engines/             graph sync, layout, prune, placements, upload, chart
   app/auth/                     set-environment (public config → account URL) + OAuth2 PKCE + .env credential storage
-plugins/simulator/skills/       7 skills (markdown only, ship with the plugin)
+plugins/simulator/skills/       11 skills (markdown only, ship with the plugin)
 plugins/simulator/docs/         entity & user-flow reference (ships with the plugin)
 docs/                           contributor docs (ARCHITECTURE.md, INTEGRATION.md) — repo-level
 public/                         generated AI-discovery artifacts (do not hand-edit)
@@ -80,7 +80,7 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   compiled binary to the repo.
 - **Tools are declared in Go, curated.** Each domain file under `internal/tools/`
   (`forms.go`, `actors.go`, …) declares a slice of typed `Operation`s; `build.go` registers
-  them. The server exposes ~46 tools, not the full REST surface — keep it curated.
+  them. The server exposes ~95 tools, not the full REST surface — keep it curated.
 - **Drift gate.** `internal/tools/drift_test.go` validates every declared op (method, path,
   operationId) against `internal/tools/testdata/papi-openapi.json` (the backend contract,
   dumped by pong-server `yarn dump-openapi`). After changing tools or the backend, refresh
@@ -127,6 +127,17 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
    names a tool that isn't registered (or an `argChecks.tool` not listed in `tools`). Use
    `argChecks` (`mustContain` / `mustNotContain` / `mustMatch`) to assert on the model's
    arguments where the shape matters (data keys, value discriminators, regression guards).
+   Scenario knobs for robustness:
+   - A `tools` entry may be an **any-of group** `"a|b"` — satisfied if the model calls *either*
+     (for genuinely interchangeable tools, e.g. `"getTransfer|getTransferByRef"`).
+   - **`dryOnlyTools`** lists follow-up tools required only in dry mode — the second step of a
+     real-dependency flow (e.g. `finalizeTransaction` after authorize) that dry fixtures let the
+     model reach but a placeholder-id 404 stops it from reaching live. An `argCheck` can carry
+     `"dryOnly": true` for the same reason.
+   - For **live** (`make eval-live`): the runner scores tool *selection*, not backend success
+     (a 404 still counts as "called"). Give prompts concrete ids/refs (or have them discover
+     real entities via `getUsers`/`getForms`) so the model actually issues the call; add a
+     **dry fixture** in `evalrunner/main.go` for any new read tool a multi-step chain reads from.
 
 For a multi-call/computational tool, add it under `internal/engines/` and register it in
 `engines/register.go` instead.
