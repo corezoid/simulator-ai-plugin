@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -12,10 +13,11 @@ import (
 // arguments the model passed to a tool (substring match over canonical-compact
 // args) — used to verify data shapes, not just that a tool was reached.
 type evalScenario struct {
-	Name      string     `json:"name"`
-	Prompt    string     `json:"prompt"`
-	Tools     []string   `json:"tools"`
-	ArgChecks []argCheck `json:"argChecks,omitempty"`
+	Name         string     `json:"name"`
+	Prompt       string     `json:"prompt"`
+	Tools        []string   `json:"tools"`
+	DryOnlyTools []string   `json:"dryOnlyTools,omitempty"`
+	ArgChecks    []argCheck `json:"argChecks,omitempty"`
 }
 
 type argCheck struct {
@@ -69,14 +71,18 @@ func TestEvalScenariosReferenceRealTools(t *testing.T) {
 		if len(s.Tools) == 0 {
 			t.Errorf("scenario %q lists no tools", s.Name)
 		}
-		for _, tool := range s.Tools {
-			if !known[tool] {
-				t.Errorf("scenario %q references unknown tool %q", s.Name, tool)
-			}
-		}
+		// A tools entry may be an any-of group "a|b" (see missingTools in
+		// evalrunner) — every alternative must be a real tool. dryOnlyTools are
+		// validated the same way.
 		expected := map[string]bool{}
-		for _, tool := range s.Tools {
-			expected[tool] = true
+		for _, tool := range append(append([]string{}, s.Tools...), s.DryOnlyTools...) {
+			for _, alt := range strings.Split(tool, "|") {
+				alt = strings.TrimSpace(alt)
+				if !known[alt] {
+					t.Errorf("scenario %q references unknown tool %q", s.Name, alt)
+				}
+				expected[alt] = true
+			}
 		}
 		for _, ac := range s.ArgChecks {
 			if !known[ac.Tool] {

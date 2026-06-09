@@ -147,7 +147,7 @@ var graphOps = []Operation{
 	},
 	{
 		Name: "getRelatedActors", Method: "GET", Path: "/graph/{type}/{actorId}",
-		Summary: "List actors linked to an actor. `type` selects direction: linked (both), parents (incoming edges), children (outgoing edges). Traverses the workspace's hierarchy link type by default — only pass edgeTypeId to traverse a different edge type. Returns a paginated, sortable, filterable list of related actors with a total.",
+		Summary: "List actors linked to an actor. `type` selects direction: linked (both), parents (incoming edges), children (outgoing edges). Traverses the workspace's hierarchy link type by default — only pass edgeTypeId to traverse a different edge type. Returns a paginated, sortable, filterable list of related actors with a total. For neighbours across multiple edge types or to include system/pinned links, use getLinkedActors instead.",
 		Resolve: resolveHierarchyEdgeType,
 		Params: []Param{
 			{Name: "type", In: InPath, Type: "string", Required: true, Enum: []string{"linked", "parents", "children"}, Desc: "Relation direction relative to the anchor actor."},
@@ -164,6 +164,64 @@ var graphOps = []Operation{
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
 			{Name: "pinned", In: InQuery, Type: "boolean", Desc: "Only pinned edges."},
 			fieldFilterParam("id,title,formId,data.status"),
+		},
+	},
+	{
+		Name: "getActorLinks", Method: "GET", Path: "/graph/actor_links/{actorId}",
+		Summary: "List the links (edges) of an actor — every edge where it is the source or target.",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID whose links to list."},
+			{Name: "edgeTypeId", In: InQuery, Type: "number", Desc: "Only links of this edge type (see getEdgeTypes)."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,source,target,edgeTypeId"),
+		},
+	},
+	{
+		Name: "getLinkedActors", Method: "GET", Path: "/graph/linked_actors/{actorId}",
+		Summary: "List the actors directly linked to an actor (across edge types), with edge-type and system filters. " +
+			"Use getRelatedActors instead when you need a single hierarchy direction (parents/children).",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Anchor actor UUID."},
+			{Name: "edgeTypeId", In: InQuery, Type: "number", Desc: "Only neighbours reached via this edge type."},
+			{Name: "edgeTypes", In: InQuery, Type: "string", Desc: "Comma-separated edge type ids to traverse."},
+			{Name: "withSystem", In: InQuery, Type: "boolean", Desc: "Include system edges/actors."},
+			{Name: "pinned", In: InQuery, Type: "boolean", Desc: "Only neighbours reached via pinned edges."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,title,formId"),
+		},
+	},
+	{
+		Name: "layerStats", Method: "GET", Path: "/graph_layers/stats/{actorId}",
+		Summary: "Get statistics for a layer (node/edge counts and related aggregates).",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
+		},
+	},
+	{
+		Name: "existLayerElement", Method: "POST", Path: "/graph_layers/exist/{actorId}",
+		Summary: "Check whether a node or edge is present on a layer (use before placing to avoid duplicates).",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
+			{Name: "id", In: InBody, Type: "string", Required: true, Desc: "Element id (actor UUID for a node, edge UUID for an edge)."},
+			{Name: "type", In: InBody, Type: "string", Required: true, Enum: []string{"node", "edge"}, Desc: "Element kind."},
+		},
+	},
+	{
+		Name: "moveActors", Method: "POST", Path: "/graph_layers/move/{sourceActorId}/{targetActorId}",
+		Summary: "Move actors from one layer to another (up to 10 at once), optionally at given positions.",
+		Params: []Param{
+			{Name: "sourceActorId", In: InPath, Type: "string", Required: true, Desc: "Source layer actor UUID."},
+			{Name: "targetActorId", In: InPath, Type: "string", Required: true, Desc: "Target layer actor UUID."},
+			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array (1-10) of {actorId:string (required), laId?:int (layer-actor placement id), position?:{x:number,y:number}}."},
+		},
+	},
+	{
+		Name: "cleanGraphLayer", Method: "DELETE", Path: "/graph_layers/clean/{actorId}",
+		Summary: "Remove ALL actors and links from a layer (the layer actor itself stays). Irreversible — confirm first.",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID to clear."},
 		},
 	},
 }

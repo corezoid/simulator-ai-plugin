@@ -7,14 +7,32 @@ description: >
   value protocol right. Activate when the user says "create an actor", "add a
   record", "create a record from this template", "fill in a form", "update actor
   data", "find actors where field = …", "filter actors by balance", "создай актор",
-  "заполни шаблон", or "добавь запись". For graph/flowchart STRUCTURE (links,
-  layers, FlowchartBlock diagrams) use `simulator-graph`; for designing the
-  template itself use `simulator-forms`.
+  "заполни шаблон", or "добавь запись". ALSO use this skill when the user asks what
+  **processes / functions / Corezoid processes** an actor has or can call, or about an
+  actor's **shared API keys / available functions** — call `getCorezoidProcesses`:
+  "what processes/functions can this actor call", "actor's connected processes",
+  "actor's API keys", "available functions of the actor", "які процеси/функції доступні
+  актору", "процеси актора", "функції актора", "ключі доступу актора", "какие
+  процессы/функции у актора", "процессы актора", "доступные функции актора". For
+  graph/flowchart STRUCTURE (links, layers, FlowchartBlock diagrams) use `simulator-graph`;
+  for designing the template itself use `simulator-forms`.
 ---
 
 > **Curated tool names (v2 server):** `createActor`, `getActor`, `getActorByRef`,
 > `updateActor`, `setActorStatus`, `deleteActor`, `searchActors`, `filterActors`,
-> `searchLayerActors`. Call them by these exact names.
+> `searchLayerActors`, `getSystemActor`, `getCorezoidProcesses`. Call them by these exact names.
+>
+> **`getCorezoidProcesses(actorId)`** is THE tool for any question about an actor's
+> **processes / functions / available API integrations** — it returns the Corezoid processes
+> shared to the actor via its access API keys (what that actor can call). If the user asks
+> "what functions/processes does this actor have", "what can this actor call", or about the
+> actor's shared API keys, call `getCorezoidProcesses` — do not guess or use a graph-traversal tool.
+>
+> **`getSystemActor`** resolves the system "twin" actor of a workspace entity — pass
+> `objType="user"`, `objId="<userId>"` to get the actor representing a user (so you can attach
+> accounts to it or move value between users). Find the `userId` first with `searchUsers` /
+> `getUsers`. Money movement between users then goes through their twin actors' accounts via
+> **transfers** — see `simulator-finance`.
 
 # Simulator.Company Actor (Record) Specialist
 
@@ -100,9 +118,10 @@ by a key prefix:
 The prefix changes only the **key** — the value still follows the per-class shapes above.
 Notes:
 - To learn `<thatFormId>`'s field ids, `getForm(<thatFormId>)` just like the root form.
-- Attaching the *set* of forms to an actor (`PUT /actors/actor_forms`) and traversing the
-  form tree (`forms_graph`) are **not** curated MCP tools yet — but you can already write/read
-  multiform `data` through `createActor`/`updateActor`/`getActor` using these keys.
+- **Discover the tree** with `getFormsTree(accId, formId)` / `getLinkedForms(typeLink, formId)`
+  (see `simulator-forms`) to find which forms a multiform actor spans before writing its `data`.
+- Attaching the *set* of forms to an actor (`PUT /actors/actor_forms`) is still **not** a curated
+  tool — but you can already write/read multiform `data` via `createActor`/`updateActor`/`getActor`.
 
 #### Creating under the tree when asked for a CHILD (leaf) form
 
@@ -261,3 +280,4 @@ createAccount(actorId="<new UUID>", nameId="<aname>", currencyId=1, accountType=
 - `createActor` accepts `formName` (resolved in the active workspace) when you don't have the id.
 - `updateActor` is partial; `deleteActor` is irreversible — confirm first.
 - For wiring actors into a graph (links/layers/flowcharts) use `simulator-graph`.
+- `getCorezoidProcesses(actorId)` lists the Corezoid processes shared to an actor via its access API keys — i.e. the functions/processes that actor can call.

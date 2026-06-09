@@ -16,7 +16,11 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator-forms`    | "create form", "design template", "Account Template"     | Form templates (Account Templates), field classes, system forms |
 | `simulator-actors`   | "create a record", "fill in a template", "update actor data" | Actor instances of a form, the `data` value protocol, search & filter |
 | `simulator-smart-forms` | "smart form", "CDU", "edit page config", "push smart form" | Smart Form lifecycle, pages, CDU protocol, releases  |
-| `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies           |
+| `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies, counters |
+| `simulator-charts`   | "chart", "dashboard", "visualise on layer"               | Dashboard charts & time-series visualisation on layers  |
+| `simulator-reactions`| "comment on this actor", "reply", "pin comment"          | Reactions: comments / events / approvals / ratings (threaded) |
+| `simulator-attachments` | "upload a file", "attach document", "rename file"     | Files: upload, attach/detach to actors & reactions      |
+| `simulator-access`   | "share with", "grant access", "who can edit this"        | Access rules: grant/revoke view/modify/… on objects     |
 
 ## Requirements
 
@@ -156,7 +160,7 @@ Pull layer 1a2b3c4d-... to a local YAML, let me edit it, then push it back.
 
 ## MCP Tools
 
-The MCP server exposes a **curated, typed tool set (~46 tools)** scoped to the core
+The MCP server exposes a **curated, typed tool set (~95 tools)** scoped to the core
 scenarios — forms, actors, accounts, transactions, graph building, applications/smart forms
 — rather than the entire REST surface. Each tool maps to a backend operation by its
 `operationId`; a drift gate keeps the set in sync with the live `/papi/1.0` contract.
@@ -166,21 +170,26 @@ to return (e.g. `id,title,data.status`; dotted paths pick nested `data` fields).
 prunes the response to just those fields, so prefer it whenever only part of an entity is
 needed to keep responses (and token cost) small. Available on every read/lookup/list tool:
 `getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `filterActors`, `getForm`,
-`getForms`, `searchForms`, `getAccounts`, `getBalance`, `getCurrencies`, `getAccountNames`,
-`getTransactions`, `getTransfer`, `getRelatedActors`, `getLayerActors`, `getEdgeTypes`,
-`searchAll`, `getWorkspaces`. (For `getLayerActors`/`searchAll` it projects
+`getForms`, `searchForms`, `getAccount`, `getAccounts`, `getBalance`, `getCurrencies`, `getAccountNames`,
+`getTransactions`, `getTransfer`, `getRelatedActors`, `getLinkedActors`, `getActorLinks`,
+`getLayerActors`, `getEdgeTypes`, `searchAll`, `getWorkspaces`. (For `getLayerActors`/`searchAll` it projects
 the actor/node items.)
 
 **Curated API operations** (one tool per backend operation):
 
 | Domain        | Tools                                                                                  |
 |---------------|----------------------------------------------------------------------------------------|
-| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` |
-| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` |
-| Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
-| Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
-| Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
+| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` `createFormAccount` `getFormAccounts` `removeFormAccount` `getLinkedForms` `getFormsTree` |
+| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` `getSystemActor` `getCorezoidProcesses` |
+| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Counters      | `saveCounters` `setCounters` `getCounters` |
+| Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` |
+| Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
+| Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `getLinkedActors` `getActorLinks` `manageLayerActors` `moveActors` `existLayerElement` `cleanGraphLayer` `layerStats` |
+| Reactions     | `createReaction` `updateReaction` `deleteReaction` `getReactions` `getReactionsStats` `markReactionsRead` `getPinnedReactions` `togglePinnedReaction` |
+| Attachments   | `getAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
+| Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 
 

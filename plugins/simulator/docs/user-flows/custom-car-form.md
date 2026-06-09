@@ -143,21 +143,26 @@ Each call returns an account-name id (`nameId`). `getAccountNames(accId)` lists 
 
 ### 3c. Create the accounts on the actor
 
-Use `createAccount(actorId, nameId, currencyId, accountType="fact", treeCalculation?, search?)`. Valid `accountType` values are `asset`, `liability`, `expense`, `income`, `counter`, `state`.
+Use `createAccount(actorId, nameId, currencyId, treeCalculation?, search?)`. `accountType` is the
+**value** type — `fact` (actual, the default), `plan`, or the aggregates `min`/`max`/`avg` — so a
+normal account omits it. There is **no** asset/liability/expense/income type: an account's meaning
+comes from its **name** (`nameId`). For a metric counter (mileage), set `counterType="counter"`.
 
 ```json
-{ "actorId": "<car-actor-id>", "nameId": "<purchase-value-name-id>", "currencyId": 101, "accountType": "asset" }
+{ "actorId": "<car-actor-id>", "nameId": "<purchase-value-name-id>", "currencyId": 101 }
 ```
 
 ```json
-{ "actorId": "<car-actor-id>", "nameId": "<maintenance-name-id>", "currencyId": 101, "accountType": "expense" }
+{ "actorId": "<car-actor-id>", "nameId": "<maintenance-name-id>", "currencyId": 101 }
 ```
 
 ```json
-{ "actorId": "<car-actor-id>", "nameId": "<mileage-name-id>", "currencyId": 102, "accountType": "counter" }
+{ "actorId": "<car-actor-id>", "nameId": "<mileage-name-id>", "currencyId": 102, "counterType": "counter" }
 ```
 
-This gives the car three accounts: **Purchase Value** (USD, asset), **Maintenance** (USD, expense), and **Mileage** (Km, counter). Use `getAccounts(actorId)` to list all accounts on the actor with their balances, and `getBalance(actorId, currencyId, nameId)` for a single account.
+This gives the car three accounts — **Purchase Value** (USD), **Maintenance** (USD), and **Mileage**
+(Km, a counter). Use `getAccounts(actorId)` to list all accounts on the actor with their balances, and
+`getBalance(actorId, currencyId, nameId)` for a single account.
 
 See [Accounts](../entities/accounts.md) (which also documents **currencies** and account names) and the `simulator-finance` skill.
 

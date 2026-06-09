@@ -9,11 +9,25 @@
       "name": "simulator"
     },
     {
-      "description": "Simulator.Company actor (record) specialist. Use when the user wants to create, update, read, search, or filter the *instances* of a form template (a.k.a. Account Template records) — i.e. data-bearing actors — and needs the `data` value protocol right. Activate when the user says \"create an actor\", \"add a record\", \"create a record from this template\", \"fill in a form\", \"update actor data\", \"find actors where field = …\", \"filter actors by balance\", \"создай актор\", \"заполни шаблон\", or \"добавь запись\". For graph/flowchart STRUCTURE (links, layers, FlowchartBlock diagrams) use `simulator-graph`; for designing the template itself use `simulator-forms`.",
+      "description": "Simulator.Company access-control specialist — who can view/modify/remove/sign/execute an object (actor, form, account, template, tree layer). Use when the user wants to share or unshare an object, grant or revoke permissions, list who has access, or bulk-share. Activate when the user says \"share this with\", \"give access to\", \"grant permission\", \"revoke access\", \"who can see/edit this\", \"set permissions\", \"make read-only\", \"поділись з\", \"надай доступ\", \"забери доступ\", \"хто має доступ\", \"права доступу\", \"дай доступ\", \"открой доступ\", \"отзови доступ\", \"кто имеет доступ\", \"права доступа\". For the object's own data use the domain skill (`simulator-actors` / `simulator-forms` / `simulator-finance`).",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-access/SKILL.md"
+      ],
+      "name": "simulator-access"
+    },
+    {
+      "description": "Simulator.Company actor (record) specialist. Use when the user wants to create, update, read, search, or filter the *instances* of a form template (a.k.a. Account Template records) — i.e. data-bearing actors — and needs the `data` value protocol right. Activate when the user says \"create an actor\", \"add a record\", \"create a record from this template\", \"fill in a form\", \"update actor data\", \"find actors where field = …\", \"filter actors by balance\", \"создай актор\", \"заполни шаблон\", or \"добавь запись\". ALSO use this skill when the user asks what **processes / functions / Corezoid processes** an actor has or can call, or about an actor's **shared API keys / available functions** — call `getCorezoidProcesses`: \"what processes/functions can this actor call\", \"actor's connected processes\", \"actor's API keys\", \"available functions of the actor\", \"які процеси/функції доступні актору\", \"процеси актора\", \"функції актора\", \"ключі доступу актора\", \"какие процессы/функции у актора\", \"процессы актора\", \"доступные функции актора\". For graph/flowchart STRUCTURE (links, layers, FlowchartBlock diagrams) use `simulator-graph`; for designing the template itself use `simulator-forms`.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-actors/SKILL.md"
       ],
       "name": "simulator-actors"
+    },
+    {
+      "description": "Simulator.Company files \u0026 attachments specialist. Use when the user wants to upload a file, attach a document/image to an actor or comment, list/rename/detach workspace files. Activate when the user says \"upload a file\", \"attach this document\", \"add an attachment\", \"rename the file\", \"detach the file\", \"list workspace files\", \"завантаж файл\", \"прикріпи файл/документ\", \"відкріпи вкладення\", \"загрузи файл\", \"прикрепи документ\". For setting an actor's picture/avatar use the `uploadActorPicture` engine tool; for comments that carry files use `simulator-reactions`.",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-attachments/SKILL.md"
+      ],
+      "name": "simulator-attachments"
     },
     {
       "description": "Simulator.Company chart and dashboard specialist. Use when the user wants to create, configure, or query charts (line, bar, area), dashboards, or financial time-series visualisations on a graph layer.",
@@ -23,7 +37,7 @@
       "name": "simulator-charts"
     },
     {
-      "description": "Simulator.Company financial management specialist. Use when the user wants to manage financial accounts (asset, liability, expense, income), record transactions, create transfers between accounts, work with currencies, set up account name definitions, use formula accounts, manage counters and state accounts, or generate financial reports. Activate when the user mentions \"record transaction\", \"transfer funds\", \"account balance\", \"financial tracking\", \"depreciation\", \"expense\", \"budget\", \"counter\", or \"mileage tracking\".",
+      "description": "Simulator.Company financial management specialist. Use when the user wants to manage financial and metric accounts on actors (balances, counters, plan vs fact), record transactions, transfer value between accounts, work with currencies and account-name categories, track non-financial metrics, or read balances and turnover. Activate when the user mentions \"record transaction\", \"transfer funds\", \"account balance\", \"financial tracking\", \"depreciation\", \"expense\", \"budget\", \"counter\", \"mileage tracking\", \"запиши транзакцію\", \"переказ коштів\", \"баланс рахунку\", \"лічильник\", \"пробіг\", \"запиши транзакцию\", \"перевод средств\", \"баланс счёта\", \"счётчик\", \"пробег\". Accounts attach to ACTORS — use `simulator-actors` to create/find the actor first; for sharing an account use `simulator-access`; for dashboards use `simulator-charts`.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-finance/SKILL.md"
       ],
@@ -49,6 +63,20 @@
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-init/SKILL.md"
       ],
       "name": "simulator-init"
+    },
+    {
+      "description": "Simulator.Company reactions specialist — comments, events, approvals, ratings and other feedback attached under an actor. Use when the user wants to comment on an actor, reply in a thread, read/like/pin the discussion, mark comments read, or get reaction stats. Activate when the user says \"comment on this actor\", \"leave a note\", \"reply to\", \"show the comments/discussion\", \"pin this comment\", \"mark as read\", \"прокоментуй актор\", \"залиш коментар\", \"відповісти на коментар\", \"закріпи коментар\", \"оставь комментарий\", \"ответь в треде\", \"закрепи комментарий\". For attaching FILES to a reaction use `simulator-attachments`; for the actor's own fields use `simulator-actors`.",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-reactions/SKILL.md"
+      ],
+      "name": "simulator-reactions"
+    },
+    {
+      "description": "Simulator.Company Smart Form (CDU / Script / Application) specialist. Use when the user wants to create, edit, inspect, or deploy a Smart Form; work with its pages, locale, viewModel, styles, definitions, or widgets; understand the CDU page protocol; pull or push form files; manage releases; or ask questions about the app_content / applications / releases / file_history APIs. Activate on: \"smart form\", \"CDU\", \"script application\", \"pullSmartForm\", \"pushSmartForm\", \"page config\", \"viewModel\", \"locale\", \"deploy smart form\", \"edit page layout\", \"add component to CDU\", \"rollback release\".",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms/SKILL.md"
+      ],
+      "name": "simulator-smart-forms"
     }
   ]
 }

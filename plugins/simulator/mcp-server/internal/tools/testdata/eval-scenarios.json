@@ -1,7 +1,7 @@
 [
   {
     "name": "Connect and choose a workspace",
-    "prompt": "Log in to Simulator and use workspace 64f1...",
+    "prompt": "Log in to Simulator, then set the active workspace to 64f1abcd by calling set-workspace.",
     "tools": ["login", "set-workspace"],
     "liveOnly": true
   },
@@ -49,7 +49,7 @@
   },
   {
     "name": "Update a form",
-    "prompt": "Rename form 42 to \"Vehicle (2024)\", keeping its existing fields.",
+    "prompt": "Rename form 42 to \"Vehicle (2024)\". It has one text field \"Make\" (id item_make) — keep it. Call updateForm with the new title and that section.",
     "tools": ["updateForm"],
     "argChecks": [
       { "tool": "updateForm", "mustContain": ["sections", "Vehicle (2024)"] }
@@ -72,7 +72,7 @@
   {
     "name": "Create actors of a form",
     "prompt": "Add three Car actors: a Camry, a Civic and a Model 3.",
-    "tools": ["getForms", "createActor"]
+    "tools": ["getForms|searchForms", "createActor"]
   },
   {
     "name": "Actor dynamic-select value shape",
@@ -131,12 +131,12 @@
   },
   {
     "name": "Delete an actor",
-    "prompt": "Delete actor 11111111-1111-1111-1111-111111111111.",
+    "prompt": "Delete actor 11111111-1111-1111-1111-111111111111. Yes, I'm sure — go ahead and delete it now.",
     "tools": ["deleteActor"]
   },
   {
     "name": "Filter/rank actors by account balance",
-    "prompt": "From the actors of form 42, list those whose maintenance account balance is greater than 1000, ranked from the highest balance.",
+    "prompt": "From the actors of form 42, list those whose maintenance account (currency id 1) balance is greater than 1000, ranked from the highest balance.",
     "tools": ["filterActors"],
     "argChecks": [
       { "tool": "filterActors", "mustContain": ["amountFrom", "balance"] }
@@ -181,13 +181,17 @@
   },
   {
     "name": "Two-step transaction (authorize then finalize)",
-    "prompt": "Authorize a $450 maintenance charge on the Camry's maintenance account, then complete (finalize) it.",
-    "tools": ["createTransaction", "finalizeTransaction"]
+    "prompt": "Authorize a 450 charge on account acc-1 with ref \"chg-1\" (createTransaction, authorized), then finalize it on account acc-1 with type completed and ref \"chg-1\" (finalizeTransaction).",
+    "tools": ["createTransaction"],
+    "dryOnlyTools": ["finalizeTransaction"]
   },
   {
     "name": "Transfer value between accounts",
-    "prompt": "Move $200 from the budget account to the Camry maintenance account.",
-    "tools": ["createTransfer"]
+    "prompt": "Transfer 200 USD from account acc-1 to account acc-2.",
+    "tools": ["createTransfer"],
+    "argChecks": [
+      { "tool": "createTransfer", "mustContain": ["\"from\"", "\"to\"", "acc-1", "acc-2"] }
+    ]
   },
   {
     "name": "Read all accounts on an actor",
@@ -201,13 +205,13 @@
   },
   {
     "name": "Read transaction history",
-    "prompt": "Show the transaction history of actor 11111111-1111-1111-1111-111111111111.",
-    "tools": ["getTransactions"]
+    "prompt": "Using getTransactions, list the transactions on actor 11111111-1111-1111-1111-111111111111 for currency 1, account name aaaaaaaa-0000-0000-0000-000000000001.",
+    "tools": ["getTransactions|getAccountTransactions"]
   },
   {
     "name": "Get a transfer",
     "prompt": "Show the details of transfer tr-1.",
-    "tools": ["getTransfer"]
+    "tools": ["getTransfer|getTransferByRef"]
   },
   {
     "name": "Update an account",
@@ -233,7 +237,7 @@
   {
     "name": "Get related actors",
     "prompt": "Which actors are directly linked to actor 11111111-1111-1111-1111-111111111111?",
-    "tools": ["getRelatedActors"]
+    "tools": ["getRelatedActors|getLinkedActors"]
   },
   {
     "name": "Get actors on a layer",
@@ -282,13 +286,13 @@
   {
     "name": "Build a process graph on a layer",
     "prompt": "Build an onboarding process: Collect -> Review -> Approve, linked on a layer.",
-    "tools": ["createActor", "getEdgeTypes", "createLink", "manageLayerActors", "getLayerActors"],
+    "tools": ["createActor", "createLink"],
     "liveOnly": true
   },
 
   {
     "name": "Auto-layout a layer",
-    "prompt": "Tidy up the layout of layer 1a2b....",
+    "prompt": "Run the auto-layout engine (compactGraphLayout) on layer 1a2b0000-0000-0000-0000-000000000001.",
     "tools": ["compactGraphLayout"],
     "liveOnly": true
   },
@@ -298,13 +302,13 @@
     "tools": ["pruneLongEdges"]
   },
   {
-    "name": "List an actor's layer placements",
-    "prompt": "On which layers is actor 11111111-1111-1111-1111-111111111111 placed?",
+    "name": "List a layer's placements",
+    "prompt": "List every actor placed on layer 14b284e0-5f77-4b40-bdde-f7058b05939f in one call, with their positions.",
     "tools": ["getAllLayerPlacements"]
   },
   {
     "name": "Chart top accounts on a layer",
-    "prompt": "Add a chart of the top maintenance spenders to the layer.",
+    "prompt": "Create a chart (use createChart) of the top maintenance spenders on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
     "tools": ["createChart"],
     "liveOnly": true
   },
@@ -318,13 +322,423 @@
   },
   {
     "name": "Bulk-upload actor pictures",
-    "prompt": "Upload pictures for several actors of form 42 at once from the local ./pics folder, matched by actor id.",
+    "prompt": "Set pictures for two actors at once: actor 11111111-1111-1111-1111-111111111111 from https://ex.com/a.png and actor 22222222-2222-2222-2222-222222222222 from https://ex.com/b.png.",
     "tools": ["uploadActorPictureBulk"]
   },
   {
     "name": "Edit a graph via local file",
-    "prompt": "Pull layer 1a2b... to YAML, let me edit it, then push it back.",
-    "tools": ["pullGraphFile", "pushGraphFile"],
+    "prompt": "Pull layer 1a2b0000-0000-0000-0000-000000000001 to a local YAML file with pullGraphFile.",
+    "tools": ["pullGraphFile"],
     "liveOnly": true
+  },
+  {
+    "name": "List who has access to an actor",
+    "prompt": "Who has access to actor 9f3c0000-0000-0000-0000-000000000001 and what can they do?",
+    "tools": ["getAccessRules"],
+    "argChecks": [
+      {
+        "tool": "getAccessRules",
+        "mustContain": ["actor", "9f3c"]
+      }
+    ]
+  },
+  {
+    "name": "Grant a user access to an actor",
+    "prompt": "Give user 4210 view and modify rights on actor 9f3c0000-0000-0000-0000-000000000001, but not the ability to delete it.",
+    "tools": ["saveAccessRules"],
+    "argChecks": [
+      {
+        "tool": "saveAccessRules",
+        "mustContain": ["actor", "create", "privs", "\"view\"", "\"modify\""]
+      }
+    ]
+  },
+  {
+    "name": "Revoke access to an account",
+    "prompt": "Remove group 88's access to account 5521 entirely.",
+    "tools": ["saveAccessRules"],
+    "argChecks": [
+      {
+        "tool": "saveAccessRules",
+        "mustContain": ["account", "delete", "groupId"]
+      }
+    ]
+  },
+  {
+    "name": "Bulk-share an account category",
+    "prompt": "Share every account named with the prefix \"fuel\" with user 4210 (view + modify) across the workspace.",
+    "tools": ["bulkSaveAccountPairsAccessRules"],
+    "argChecks": [
+      {
+        "tool": "bulkSaveAccountPairsAccessRules",
+        "mustContain": ["fuel", "rules", "privs"]
+      }
+    ]
+  },
+  {
+    "name": "Bulk-grant access to several objects",
+    "prompt": "In one go, give user 4210 view rights on form 42 and on actor 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["bulkSaveAccessRules"],
+    "argChecks": [
+      {
+        "tool": "bulkSaveAccessRules",
+        "mustContain": ["objType", "rules", "privs"]
+      }
+    ]
+  },
+  {
+    "name": "Who can use a form template's actors",
+    "prompt": "List everyone who has access to the actors created from form template 42.",
+    "tools": ["getTemplateActorsAccess"],
+    "argChecks": [
+      {
+        "tool": "getTemplateActorsAccess",
+        "mustContain": ["42"]
+      }
+    ]
+  },
+  {
+    "name": "Grant access to a template's actors",
+    "prompt": "Give group 88 view and modify rights on all actors of form template 42.",
+    "tools": ["saveTemplateActorsAccess"],
+    "argChecks": [
+      {
+        "tool": "saveTemplateActorsAccess",
+        "mustContain": ["groupId", "privs", "\"modify\""]
+      }
+    ]
+  },
+  {
+    "name": "List access on a tree layer",
+    "prompt": "Show who has access to the actors on tree layer 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["getTreeLayerAccess"],
+    "argChecks": [
+      {
+        "tool": "getTreeLayerAccess",
+        "mustContain": ["9f3c"]
+      }
+    ]
+  },
+  {
+    "name": "Grant access to a tree layer",
+    "prompt": "Give user 4210 view rights to every actor on tree layer 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["saveTreeLayerAccess"],
+    "argChecks": [
+      {
+        "tool": "saveTreeLayerAccess",
+        "mustContain": ["userId", "privs", "\"view\""]
+      }
+    ]
+  },
+  {
+    "name": "Comment on an actor",
+    "prompt": "Add a comment \"Looks good to me\" on actor 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["createReaction"],
+    "argChecks": [
+      { "tool": "createReaction", "mustContain": ["comment", "Looks good to me"] }
+    ]
+  },
+  {
+    "name": "Reply to a reaction",
+    "prompt": "On actor 9f3c0000-0000-0000-0000-000000000001, reply \"Agreed\" under the comment whose id is rx-100.",
+    "tools": ["createReaction"],
+    "argChecks": [
+      { "tool": "createReaction", "mustContain": ["parentId", "rx-100", "Agreed"] }
+    ]
+  },
+  {
+    "name": "Edit a reaction",
+    "prompt": "On actor 9f3c0000-0000-0000-0000-000000000001, change comment rx-100's text to \"Updated note\".",
+    "tools": ["updateReaction"],
+    "argChecks": [
+      { "tool": "updateReaction", "mustContain": ["reactionId", "rx-100", "Updated note"] }
+    ]
+  },
+  {
+    "name": "Delete a reaction",
+    "prompt": "Delete comment rx-100 from actor 9f3c0000-0000-0000-0000-000000000001 — yes, I confirm, delete it now.",
+    "tools": ["deleteReaction"],
+    "argChecks": [
+      { "tool": "deleteReaction", "mustContain": ["reactionId", "rx-100"] }
+    ]
+  },
+  {
+    "name": "List reactions on an actor",
+    "prompt": "Show me the comments on actor 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["getReactions"]
+  },
+  {
+    "name": "Reaction stats",
+    "prompt": "How many reactions of each type does actor 9f3c0000-0000-0000-0000-000000000001 have?",
+    "tools": ["getReactionsStats"]
+  },
+  {
+    "name": "Mark reactions read",
+    "prompt": "Mark all 12 comments on actor 9f3c0000-0000-0000-0000-000000000001 as read.",
+    "tools": ["markReactionsRead"]
+  },
+  {
+    "name": "List pinned reactions",
+    "prompt": "List the pinned reactions of actor 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["getPinnedReactions"]
+  },
+  {
+    "name": "Pin a reaction",
+    "prompt": "Pin comment rx-100 on actor 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["togglePinnedReaction"],
+    "argChecks": [
+      { "tool": "togglePinnedReaction", "mustContain": ["reactionId", "rx-100", "\"pinned\":true"] }
+    ]
+  },
+  {
+    "name": "Upload a file (base64)",
+    "prompt": "Call uploadBase64 to upload a file to the workspace with originalName=\"report.pdf\" and file=\"JVBERi0xLjQK\".",
+    "tools": ["uploadBase64"],
+    "argChecks": [
+      { "tool": "uploadBase64", "mustContain": ["file", "originalName", "report.pdf"] }
+    ]
+  },
+  {
+    "name": "List workspace attachments",
+    "prompt": "What files are attached in this workspace?",
+    "tools": ["getAttachments"]
+  },
+  {
+    "name": "Attach a file to an actor",
+    "prompt": "Attach uploaded file 5521 to actor 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["addAttachments"],
+    "argChecks": [
+      { "tool": "addAttachments", "mustContain": ["attachId", "actorId"] }
+    ]
+  },
+  {
+    "name": "Rename an attachment",
+    "prompt": "Rename attachment 5521 to \"Q3 report.pdf\".",
+    "tools": ["updateAttachment"],
+    "argChecks": [
+      { "tool": "updateAttachment", "mustContain": ["title", "Q3 report.pdf"] }
+    ]
+  },
+  {
+    "name": "Detach a file from an actor",
+    "prompt": "Remove the link between attachment 5521 and actor 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["removeAttachments"],
+    "argChecks": [
+      { "tool": "removeAttachments", "mustContain": ["attachId", "actorId"] }
+    ]
+  },
+  {
+    "name": "List an actor's links",
+    "prompt": "What edges does actor 9f3c0000-0000-0000-0000-000000000001 have?",
+    "tools": ["getActorLinks"]
+  },
+  {
+    "name": "List directly linked actors",
+    "prompt": "List the actors directly linked to actor 11111111-1111-1111-1111-111111111111 across all edge types, including system links.",
+    "tools": ["getLinkedActors|getRelatedActors"]
+  },
+  {
+    "name": "Layer statistics",
+    "prompt": "How many nodes and edges are on layer 14b284e0-5f77-4b40-bdde-f7058b05939f?",
+    "tools": ["layerStats"]
+  },
+  {
+    "name": "Check element on layer",
+    "prompt": "Is actor 9f3c0000-0000-0000-0000-000000000001 already placed on layer 14b284e0-5f77-4b40-bdde-f7058b05939f?",
+    "tools": ["existLayerElement"],
+    "argChecks": [
+      { "tool": "existLayerElement", "mustContain": ["\"type\":\"node\"", "9f3c"] }
+    ]
+  },
+  {
+    "name": "Move actors between layers",
+    "prompt": "Move actor 9f3c0000-0000-0000-0000-000000000001 from layer 14b284e0-5f77-4b40-bdde-f7058b05939f to layer 22c399f1-0000-4b40-bdde-f7058b05939f.",
+    "tools": ["moveActors"],
+    "argChecks": [
+      { "tool": "moveActors", "mustContain": ["actorId", "9f3c"] }
+    ]
+  },
+  {
+    "name": "Clear a layer",
+    "prompt": "Remove every actor and link from layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
+    "tools": ["cleanGraphLayer"]
+  },
+  {
+    "name": "Search currencies",
+    "prompt": "Is there a currency containing \"USD\" in this workspace?",
+    "tools": ["searchCurrencies"]
+  },
+  {
+    "name": "Search account names",
+    "prompt": "Find account-name categories matching \"fuel\".",
+    "tools": ["searchAccountNames"]
+  },
+  {
+    "name": "Rename an account name",
+    "prompt": "Rename account-name category aaaaaaaa-0000-0000-0000-000000000001 to \"Fuel costs\".",
+    "tools": ["updateAccountName"],
+    "argChecks": [
+      { "tool": "updateAccountName", "mustContain": ["\"name\"", "Fuel costs"] }
+    ]
+  },
+  {
+    "name": "Get one account by id",
+    "prompt": "Show account 778899 with its transaction count.",
+    "tools": ["getAccount"]
+  },
+  {
+    "name": "Set a fixed account balance",
+    "prompt": "Correct account 778899's balance to exactly 1500.",
+    "tools": ["setAccountAmount"],
+    "argChecks": [
+      { "tool": "setAccountAmount", "mustContain": ["\"amount\":1500"] }
+    ]
+  },
+  {
+    "name": "List child accounts",
+    "prompt": "List the maintenance USD accounts (name aaaaaaaa-0000-0000-0000-000000000001, currency 1) on the children of actor 9f3c0000-0000-0000-0000-000000000001.",
+    "tools": ["getChildAccounts"],
+    "argChecks": [
+      { "tool": "getChildAccounts", "mustContain": ["nameId", "currencyId"] }
+    ]
+  },
+  {
+    "name": "Two-step transfer (authorize then complete)",
+    "prompt": "Authorize a 200 USD transfer from account acc-1 to account acc-2 with ref \"tr-x\" (createTransferTwoStep, type authorized), then complete it (createTransferTwoStep, type completed).",
+    "tools": ["createTransferTwoStep"],
+    "argChecks": [
+      { "tool": "createTransferTwoStep", "mustContain": ["completed"], "dryOnly": true }
+    ]
+  },
+  {
+    "name": "Atomic multi-transaction",
+    "prompt": "In one atomic batch (all-or-nothing), record two independent transactions: +100 on account acc-1 and +50 on account acc-2.",
+    "tools": ["atomCreateTransaction"],
+    "argChecks": [
+      { "tool": "atomCreateTransaction", "mustContain": ["accountId", "amount"] }
+    ]
+  },
+  {
+    "name": "Filter transfers",
+    "prompt": "List transfers in this workspace between Jan 1 and Feb 1 2026.",
+    "tools": ["filterTransfers"],
+    "argChecks": [
+      { "tool": "filterTransfers", "mustContain": ["\"from\"", "\"to\""] }
+    ]
+  },
+  {
+    "name": "Account transactions by id",
+    "prompt": "Show the latest 20 transactions on account 778899.",
+    "tools": ["getAccountTransactions"]
+  },
+  {
+    "name": "Find transaction by ref",
+    "prompt": "Did the transaction with ref \"order-42\" land on account 778899?",
+    "tools": ["getTransactionByRef"],
+    "argChecks": [
+      { "tool": "getTransactionByRef", "mustContain": ["order-42"] }
+    ]
+  },
+  {
+    "name": "Get transfer by ref",
+    "prompt": "Fetch the transfer with ref \"payout-99\" in this workspace.",
+    "tools": ["getTransferByRef"],
+    "argChecks": [
+      { "tool": "getTransferByRef", "mustContain": ["payout-99"] }
+    ]
+  },
+  {
+    "name": "Record a mileage counter",
+    "prompt": "Record an odometer reading of 45000 km on the car with actor ref \"car-camry\" (form 42), account \"mileage\", currency \"Km\", as a debit counter.",
+    "tools": ["saveCounters"],
+    "argChecks": [
+      { "tool": "saveCounters", "mustContain": ["actorRef", "\"type\":\"counter\""] }
+    ]
+  },
+  {
+    "name": "Set counter values",
+    "prompt": "Set the mileage counter for actor ref \"car-camry\" (form 42, account \"mileage\", currency \"Km\", debit) to exactly 50000.",
+    "tools": ["setCounters"],
+    "argChecks": [
+      { "tool": "setCounters", "mustContain": ["actorRef", "\"amount\":50000"] }
+    ]
+  },
+  {
+    "name": "Read counters",
+    "prompt": "What is the current mileage counter for actor ref \"car-camry\" (form 42, account \"mileage\", currency \"Km\", debit)?",
+    "tools": ["getCounters"],
+    "argChecks": [
+      { "tool": "getCounters", "mustContain": ["actorRef", "accountName"] }
+    ]
+  },
+  {
+    "name": "List workspace members",
+    "prompt": "Who are the members of this workspace?",
+    "tools": ["getUsers"]
+  },
+  {
+    "name": "Find a user then share",
+    "prompt": "List the workspace members (getUsers), take the first member's id, and grant that user view + modify on actor 9f3c0000-0000-0000-0000-000000000001 by calling saveAccessRules.",
+    "tools": ["getUsers", "saveAccessRules"],
+    "argChecks": [
+      { "tool": "saveAccessRules", "mustContain": ["actor", "privs"] }
+    ]
+  },
+  {
+    "name": "Get one workspace member",
+    "prompt": "Show me the workspace member with user id 4210.",
+    "tools": ["getUser"]
+  },
+  {
+    "name": "Resolve a user's twin actor",
+    "prompt": "Resolve the system twin actor of the user with id 4210 (the actor representing that user, objType=user).",
+    "tools": ["getSystemActor"],
+    "argChecks": [
+      { "tool": "getSystemActor", "mustContain": ["user", "4210"] }
+    ]
+  },
+  {
+    "name": "Transfer between two users",
+    "prompt": "List the workspace members (getUsers), then for the first member call getSystemActor with objType=user and that member's id to get their twin actor (the actor that carries their accounts).",
+    "tools": ["getUsers", "getSystemActor"],
+    "argChecks": [
+      { "tool": "getSystemActor", "mustContain": ["user"] }
+    ]
+  },
+  {
+    "name": "Define a default account on a form",
+    "prompt": "Every Car (form 42) should track a USD maintenance account (name <mnt>, currency 1) — add it to the template so all cars get it.",
+    "tools": ["createFormAccount"],
+    "argChecks": [
+      { "tool": "createFormAccount", "mustContain": ["nameId", "currencyId"] }
+    ]
+  },
+  {
+    "name": "List a form's default accounts",
+    "prompt": "Which accounts are defined on the Car form (42) template?",
+    "tools": ["getFormAccounts"]
+  },
+  {
+    "name": "Remove a default account from a form",
+    "prompt": "Stop putting the maintenance account on Car actors — remove form-account definition 7788.",
+    "tools": ["removeFormAccount"]
+  },
+  {
+    "name": "Inspect a form tree (UAT)",
+    "prompt": "What forms make up the tree that form 42 belongs to?",
+    "tools": ["getFormsTree"]
+  },
+  {
+    "name": "Get child forms",
+    "prompt": "What are the child forms of form 16950?",
+    "tools": ["getLinkedForms"],
+    "argChecks": [
+      { "tool": "getLinkedForms", "mustContain": ["children"] }
+    ]
+  },
+  {
+    "name": "Actor's Corezoid processes",
+    "prompt": "What Corezoid processes (functions) can actor 11111111-1111-1111-1111-111111111111 call — the ones shared to it via its API keys?",
+    "tools": ["getCorezoidProcesses"]
   }
 ]
