@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest a new tool, skill, or capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: The workflow or scenario that the plugin doesn't support today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: New MCP tool, skill behaviour, or doc. If it maps to a backend operation, name the operationId / route.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - MCP server / tools
+        - Skill behaviour
+        - Graph / layers
+        - Forms
+        - Finance (accounts / transactions)
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

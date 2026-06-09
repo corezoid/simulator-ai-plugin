@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.7.1]
+
+### Added
+- **Open-source community files.** Added a top-level `LICENSE` (MIT — previously only declared in the plugin manifest), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and a `.github/` directory with issue templates (bug / feature + config), a pull-request template, and a `dependabot.yml` (gomod + github-actions, weekly). Added status badges and a "Contributing & support" section to the README. Bumped all manifests to 1.7.1.
+
 ## [Unreleased]
 
 ### Removed
