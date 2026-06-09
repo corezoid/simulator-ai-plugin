@@ -34,7 +34,7 @@ func Register(s *server.MCPServer) {
 
 	s.AddTool(
 		mcp.NewTool("pushSmartForm",
-			mcp.WithDescription("Diff local develop files against .manifest.json hashes and push changed files to the server in a single batch. Only the develop env is writable; run pullSmartForm first to create the manifest. Requires actors.management scope."),
+			mcp.WithDescription("Reconcile the local develop tree with the server: POST any new folders (parents first) and new files (e.g. a new page like pages/<id>/config + locale), PUT any modified files, and update .manifest.json with the returned ids and content hashes. Files/folders present in the manifest but missing locally are reported as orphanFiles but never deleted server-side. MIME defaults: text/css under styles/, application/json elsewhere. Only the develop env is writable; run pullSmartForm first to create the manifest. Requires actors.management scope."),
 			mcp.WithString("actorId", mcp.Description("Smart form actor UUID — directory <actorId>/develop/ must exist with a .manifest.json."), mcp.Required()),
 		),
 		handlePushSmartForm,

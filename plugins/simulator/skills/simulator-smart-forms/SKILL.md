@@ -122,11 +122,12 @@ pullSmartForm(actorId="<uuid>")
     (page config, locale, viewModel, styles, definitions)
 
 3.  pushSmartForm(actorId="<uuid>")
-    → validates changed files against the CDU page protocol schema
+    → walks <actorId>/develop/, diffs every file/folder against .manifest.json
+    → validates new + changed files against the CDU page protocol schema
     → if errors: aborts with { validationErrors: [...] } — fix and retry
-    → sends only changed files to server in one batch PUT
-    → updates .manifest.json hashes
-    → returns { changed: N, unchanged: M }
+    → POSTs new folders (parents first) and new files, then PUTs modified files
+    → updates .manifest.json with returned ids + content hashes
+    → returns { created: { folders, files }, updated, unchanged, orphanFiles }
 
 4.  Deploy (when ready to publish):
     deploySmartForm(actorId="<uuid>")
@@ -504,9 +505,15 @@ pullSmartForm(actorId="69bbd03e-0d4c-4122-9234-e06ffe9ca1eb")
 
 // 2. Edit pages/index/config — add a new label item to the body section
 
-// 3. Push changes
+// 3. Push changes (also creates new pages/folders if you added them locally)
 pushSmartForm(actorId="69bbd03e-0d4c-4122-9234-e06ffe9ca1eb")
-→ { changed: 1, unchanged: 10 }
+→ { created: { folders: 0, files: 0 }, updated: 1, unchanged: 10, orphanFiles: [] }
+
+// Adding a new page? Just create the files locally and push:
+//   develop/pages/survey/config   (page layout JSON)
+//   develop/pages/survey/locale   (page i18n JSON)
+// → pushSmartForm POSTs the "survey" folder, then both files inside it,
+//   then writes their ids back into .manifest.json. No PUT/PATCH needed.
 
 // 4. Deploy to production
 deploySmartForm(actorId="69bbd03e-0d4c-4122-9234-e06ffe9ca1eb")

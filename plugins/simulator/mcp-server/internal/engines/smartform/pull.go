@@ -26,6 +26,7 @@ type appEnvItem struct {
 type appTreeNode struct {
 	ID       int           `json:"id"`
 	FolderID int           `json:"folderId"` // parent folder id (files only)
+	ParentID int           `json:"parentId"` // parent folder id (folders only)
 	Title    string        `json:"title"`
 	ObjType  string        `json:"objType"` // "folder" or "file"
 	Type     string        `json:"type"`    // MIME type (files only)
@@ -43,10 +44,12 @@ type manifestNode struct {
 }
 
 type smartFormManifest struct {
-	ActorID string                  `json:"actorId"`
-	EnvID   int                     `json:"envId"`
-	EnvName string                  `json:"envName"`
-	Files   map[string]manifestNode `json:"files"` // env-relative path → node
+	ActorID         string                  `json:"actorId"`
+	EnvID           int                     `json:"envId"`
+	EnvName         string                  `json:"envName"`
+	EnvRootFolderID int                     `json:"envRootFolderId,omitempty"`
+	Folders         map[string]int          `json:"folders,omitempty"` // env-relative dir → folder id ("" = env root)
+	Files           map[string]manifestNode `json:"files"`             // env-relative path → node
 }
 
 const manifestFileName = ".manifest.json"
@@ -86,14 +89,28 @@ func fetchEnvStruct(actorID string, envID int) (*appTreeNode, error) {
 	return &resp.Data, nil
 }
 
-// writeEnvTree recursively writes file sources to disk and populates files with
-// manifest entries (env-relative path → manifestNode). Returns total files written.
-func writeEnvTree(node appTreeNode, dir, relDir string, files map[string]manifestNode) (int, error) {
+// writeEnvTree recursively writes file sources to disk and populates the
+// manifest maps: files (env-relative path → node) and folders (env-relative
+// dir → folder id). rootFolderID receives the env root folder id when the
+// top-level call discovers it from a child's parent reference. Returns total
+// files written.
+func writeEnvTree(node appTreeNode, dir, relDir string, files map[string]manifestNode, folders map[string]int, rootFolderID *int) (int, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return 0, err
 	}
 	count := 0
 	for _, child := range node.Children {
+		// At the top level any child's parent reference (folderId on files,
+		// parentId on folders) equals the env root folder id — capture it
+		// for the manifest so push can create new top-level objects.
+		if relDir == "" && rootFolderID != nil && *rootFolderID == 0 {
+			switch child.ObjType {
+			case "file":
+				*rootFolderID = child.FolderID
+			case "folder":
+				*rootFolderID = child.ParentID
+			}
+		}
 		childRel := child.Title
 		if relDir != "" {
 			childRel = relDir + "/" + child.Title
@@ -111,7 +128,8 @@ func writeEnvTree(node appTreeNode, dir, relDir string, files map[string]manifes
 			}
 			count++
 		case "folder":
-			n, err := writeEnvTree(child, filepath.Join(dir, child.Title), childRel, files)
+			folders[childRel] = child.ID
+			n, err := writeEnvTree(child, filepath.Join(dir, child.Title), childRel, files, folders, rootFolderID)
 			count += n
 			if err != nil {
 				return count, err
@@ -163,16 +181,20 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		}
 		envDir := filepath.Join(baseDir, env.Title)
 		files := make(map[string]manifestNode)
-		n, err := writeEnvTree(*tree, envDir, "", files)
+		folders := make(map[string]int)
+		var rootFolderID int
+		n, err := writeEnvTree(*tree, envDir, "", files, folders, &rootFolderID)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] write env %q: %v", env.Title, err)), nil
 		}
 
 		manifest := smartFormManifest{
-			ActorID: actorID,
-			EnvID:   env.ID,
-			EnvName: env.Title,
-			Files:   files,
+			ActorID:         actorID,
+			EnvID:           env.ID,
+			EnvName:         env.Title,
+			EnvRootFolderID: rootFolderID,
+			Folders:         folders,
+			Files:           files,
 		}
 		manifestBytes, _ := json.MarshalIndent(manifest, "", "  ")
 		if err := os.WriteFile(filepath.Join(envDir, manifestFileName), manifestBytes, 0600); err != nil {
