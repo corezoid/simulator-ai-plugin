@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Simulator.Company documentation
+    url: https://doc.simulator.company
+    about: Platform and API documentation.
+  - name: Security vulnerability
+    url: https://github.com/corezoid/simulator-ai-plugin/security/advisories/new
+    about: Report security issues privately — do not open a public issue.

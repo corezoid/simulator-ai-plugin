@@ -1,0 +1,62 @@
+name: Bug report
+description: Report a problem with the MCP server, a tool, or a skill
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. For security-sensitive issues, do **not** file here —
+        follow [SECURITY.md](../blob/main/SECURITY.md) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+      placeholder: When I call `pullGraphFile` with …, the server returns … but I expected …
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The MCP call sequence, prompt, or graph file that triggers it.
+      placeholder: |
+        1. /simulator-init and log in to mw.simulator.company
+        2. Ask Claude to "…"
+        3. See error
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: "1.7.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: client
+    attributes:
+      label: Client
+      options:
+        - Claude Code
+        - Codex
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS + version, `go version`, and the gateway URL (cloud preset / custom / local).
+      placeholder: |
+        macOS 14.4 arm64
+        go version go1.25.5 darwin/arm64
+        gateway: mw.simulator.company
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste any error output. **Redact tokens and `.env` contents.**
+      render: text

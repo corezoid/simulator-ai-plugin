@@ -1,5 +1,11 @@
 # Simulator.Company — Claude Code & Codex Plugin
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
+[![MCP](https://img.shields.io/badge/MCP-2025--03--26-555)](https://modelcontextprotocol.io)
+[![Release](https://img.shields.io/github/v/release/corezoid/simulator-ai-plugin?sort=semver)](https://github.com/corezoid/simulator-ai-plugin/releases)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](https://claude.ai/code)
+
 > **Status:** stable — released, actively maintained. Supported clients: Claude Code ≥ 1.x, Codex. Go 1.24+ required. macOS and Linux tested.
 
 A plugin for [Claude Code](https://claude.ai/code) and [Codex](https://codex.openai.com) that connects the [Simulator.Company](https://simulator.company) platform to Claude via MCP (Model Context Protocol). Claude gets direct access to the Simulator REST API and domain knowledge to manage actors, graphs, forms, and financial accounts through natural conversation.
@@ -445,6 +451,13 @@ go test ./...
 - [Claude Code](https://claude.ai/code)
 - [MCP Protocol](https://modelcontextprotocol.io)
 
+## Contributing & support
+
+- [Contributing guide](CONTRIBUTING.md) — layout, build/verify, conventions
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md) — report vulnerabilities privately
+- [Open an issue](https://github.com/corezoid/simulator-ai-plugin/issues)
+
 ## License
 
-MIT
+[MIT](LICENSE) © Simulator.Company (Corezoid)
