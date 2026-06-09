@@ -106,6 +106,15 @@ A **currency** (`currencyId`) and an **account name** (`nameId`) must exist in t
 first. There is **no** single "account+currency pair" tool — create the two separately, then
 attach the account to an actor.
 
+**One more prerequisite that is easy to miss: pair access.** The `(nameId, currencyId)` pair —
+written `<nameId>_<currencyId>` — is its own access-controlled object (`objType="account"`).
+`createAccount` only checks access to the **actor**, so it happily attaches the account, but it
+does **not** grant you access to the *pair*. Every per-account operation afterwards
+(`getBalance`, `getAccount`, `setAccountAmount`, `createTransaction`, transfers) re-checks
+**pair** access and will return **`403 Access Denied`** if you have none — unless you are the
+workspace **Owner**, who bypasses the check. See **Account-pair access** below before you write
+balances. (This is why creating an account "succeeds" yet the very next transaction 403s.)
+
 ---
 
 ## Currencies
@@ -167,6 +176,74 @@ deleteAccount(actorId="<actor UUID>", currencyId=1, nameId="<aname>", accountTyp
 
 > **Formula / block accounts** are documented in `accounts.md` but are **not** curated MCP tools
 > yet — configure those in the UI; don't fabricate a tool call.
+
+---
+
+## Account-pair access (the usual cause of `403 Access Denied`)
+
+Account-level access is **not** granted per actor — it is granted on the workspace-level
+**pair** `<nameId>_<currencyId>` (`objType="account"`). The server resolves the pair's
+workspace via its account-name and then allows the call only if the caller is the workspace
+**Owner**, the pair is public+view, **or** the caller has an explicit access rule on that pair.
+`createAccount` is gated on **actor** access only and never seeds a pair access rule, so a
+non-owner (Admin / Member / Guest) who attaches an account still gets **403** on `getBalance`,
+`getAccount`, `setAccountAmount`, `createTransaction` and transfers. (Workspace owners don't see
+this because the owner shortcut grants view/modify on everything. System account-names are also
+exempt for `view`.)
+
+**Bootstrapping your own access to a fresh pair — `POST /accounts/pair/{accId}`.** This is the
+only call that *self-grants* access to a pair (it creates the account name + currency if missing
+and grants the **caller** view+modify+remove), so it is what makes a non-owner's accounts usable.
+The UI modal `CreateActorAccount` runs it (check pair → create pair → manage access → attach to
+actor). It is **not yet a curated MCP tool** — until one is added, a non-owner reaches it via the
+UI or a direct call:
+
+```
+POST {apiBaseURL}/accounts/pair/{accId}
+  Authorization: Simulator <token>
+  { "accountName": "Deal Value", "currencyName": "USD" }
+# → creates the (name, currency) pair if needed and grants YOU access to it.
+# Afterwards createAccount + createTransaction + getBalance on that pair work.
+```
+
+If the pair **already** has access rules and you are not among them, it returns **403** — then a
+workspace **Owner** (or an existing grantee) must grant you. Workspace Owners skip all of this
+(the owner shortcut covers them). To manage who else may use a pair you already hold:
+
+```
+# Grant a user/group access to ONE pair. objId = "<nameId>_<currencyId>" (composite, NOT the per-row account UUID).
+saveAccessRules(
+  objType="account",
+  objId="<nameId>_<currencyId>",
+  rules=[{ "action": "create",
+           "data": { "saId": <saId>,                 # or userId / groupId
+                     "privs": { "view": true, "modify": true, "remove": true } } }])
+
+# Grant a WHOLE account category (all currencies of a name) across every actor.
+# objId is the account-NAME id prefix — it matches all accounts named "<nameId>_*".
+bulkSaveAccountPairsAccessRules(
+  accId="ws_xxx",
+  items=[{ "objId": "<nameId>",
+           "rules": [{ "action": "create",
+                       "data": { "saId": <saId>, "privs": { "view": true, "modify": true } } }] }])
+
+# Inspect who currently has pair access (use the composite pair id, NOT the per-row account UUID):
+getAccessRules(objType="account", objId="<nameId>_<currencyId>")
+```
+
+> `saveAccessRules` / `bulkSaveAccountPairsAccessRules` require you to **already** hold the pair
+> (or be the workspace Owner) — they do **not** self-grant. For your own first access to a brand
+> new pair, the `/accounts/pair` endpoint is the only bootstrap.
+
+Notes & gotchas:
+- The pair id is `<nameId>_<currencyId>` (e.g. `c16d1bd0-…-…_933`), **not** the per-row account
+  UUID that `createAccount` returns. Using the bare UUID with the access-rule tools also 403s.
+- Granting pair access itself needs access to grant: only the workspace **Owner** (or someone who
+  already holds the pair) can seed the first rule. If you are a non-owner facing a pair nobody can
+  reach, an Owner must grant it (or create it through the UI's `/accounts/pair` flow, which
+  self-grants). Making the user the workspace Owner also resolves it globally.
+- This pair model is why account ops can 403 on a fresh local workspace where the user is only a
+  Member/Guest, while the same flow works on cloud where the user is the workspace Owner.
 
 ---
 
