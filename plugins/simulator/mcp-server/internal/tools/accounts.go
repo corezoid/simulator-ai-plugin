@@ -188,4 +188,19 @@ var accountOps = []Operation{
 			{Name: "accountType", In: InQuery, Type: "string", Enum: accountTypes, Desc: "Optional account type filter."},
 		},
 	},
+	{
+		Name: "createAccountPair", Method: "POST", Path: "/accounts/pair/{accId}",
+		Summary: "Create the workspace-level (account-name + currency) PAIR and GRANT THE CALLER access to it. " +
+			"Account access is enforced on the pair `<nameId>_<currencyId>` (objType=account), NOT per actor: `createAccount` attaches an account to an actor but never seeds pair access, so a non-owner then gets 403 on getBalance / getAccount / setAccountAmount / createTransaction / transfers. " +
+			"Call this once per (name, currency) to bootstrap access BEFORE recording values — it creates the account name and the currency if they are missing, then grants you view+modify+remove on the pair. " +
+			"Identified BY NAME (accountName / currencyName), not ids. Safe to repeat. Note: if the pair already has access rules and you are not among them it returns 403 — then a workspace Owner (or an existing grantee) must grant you via saveAccessRules. Workspace Owners don't need this at all.",
+		Params: []Param{
+			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
+			{Name: "accountName", In: InBody, Type: "string", Required: true, Desc: "Account-name category BY NAME (e.g. \"Deal Value\"). Created if it does not exist."},
+			{Name: "currencyName", In: InBody, Type: "string", Required: true, Desc: "Currency BY NAME (e.g. \"USD\"). Created if it does not exist (using symbol/precision/type below)."},
+			{Name: "symbol", In: InBody, Type: "string", Desc: "Display symbol — only used when the currency is created."},
+			{Name: "precision", In: InBody, Type: "number", Desc: "Decimal places shown (display only; default 2) — only used when the currency is created."},
+			{Name: "type", In: InBody, Type: "string", Desc: "Currency type (default \"number\") — only used when the currency is created."},
+		},
+	},
 }

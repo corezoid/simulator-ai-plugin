@@ -6090,6 +6090,7 @@
     },
     "/papi/1.0/accounts/pair/{accId}": {
       "post": {
+        "operationId": "createAccountPair",
         "tags": [
           "Accounts"
         ],
