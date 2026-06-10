@@ -180,9 +180,13 @@ post-graph_layers-actors-layerId(layerId="<layer-id>",
 ### 4. Manage Financial Accounts
 
 ```
-# Create currency and account name first if needed
-createCurrency(accId="<accId>", name="USD", symbol="$", precision=2)
-createAccountName(accId="<accId>", name="Budget")
+# MANDATORY first: bootstrap the (name, currency) pair AND grant yourself pair access.
+# Creates the account-name + currency if missing. Always run this BEFORE createAccount —
+# skipping it leaves the pair without an access rule and the next transaction/balance call
+# returns 403 on any non-owner workspace. Prefer this over bare createCurrency +
+# createAccountName.
+createAccountPair(accId="<accId>", accountName="Budget", currencyName="USD",
+                  symbol="$", precision=2)
 
 # Attach an account to an actor (accountType defaults to fact; counterType to amount)
 createAccount(actorId="<actor-id>", nameId="<name-id>", currencyId=1)
@@ -200,7 +204,7 @@ Call tools by these exact names:
 
 - **Forms:** `createForm`, `getForm`, `getForms`, `searchForms`, `updateForm`, `deleteForm`, `setFormStatus`
 - **Actors:** `createActor`, `getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `updateActor`, `deleteActor`, `setActorStatus`
-- **Accounts:** `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
+- **Accounts:** `createAccountPair` (REQUIRED bootstrap — creates name + currency if missing AND grants pair access), `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
 - **Transactions:** `createTransaction`, `finalizeTransaction`, `getTransactions`, `createTransfer`, `getTransfer`
 - **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`
 - **Applications / smart forms:** `createApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent` (read an application with `getActor` — it is an actor)
@@ -265,7 +269,7 @@ Use the `Read` tool to load these files when you need deeper detail:
 - The `accId` (workspace ID) is required for most list/create operations — confirm it with the user
 - Actor `ref` fields must be unique within a workspace — use slugified names
 - System form IDs change per workspace — always look them up with `get-forms-templates-system-accId`
-- When creating accounts, you need both a `currencyId` AND a `nameId` — create them if they don't exist
+- When creating accounts, always run `createAccountPair` first — it ensures both the `currencyId` and the `nameId` exist AND grants you pair access (otherwise the next balance/transaction call 403s)
 - Use `post-actors-mass_links-accId` for creating multiple links at once (much more efficient)
 - Transactions are permanent — use 2-step (authorize → complete/cancel) for reversible operations
 - **Save tokens with `filter`** — on any read/list/search tool, pass `filter` with only the fields you need (e.g. `filter="id,title"`) so the server trims the response instead of returning the full model

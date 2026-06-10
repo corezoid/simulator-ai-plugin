@@ -86,7 +86,8 @@ var accountOps = []Operation{
 	},
 	{
 		Name: "createCurrency", Method: "POST", Path: "/currencies/{accId}",
-		Summary: "Create a currency / unit of value in the workspace (e.g. USD, Km, Units).",
+		Summary: "Create a currency / unit of value in the workspace (e.g. USD, Km, Units). " +
+			"PREFER `createAccountPair` when this currency is being created so it can be used on an account: `createAccountPair` creates the currency (and the account-name) if missing AND grants the caller pair-level access in one call — bare `createCurrency` leaves the resulting (name, currency) pair without an access rule, so the next balance/transaction call 403s on any non-owner workspace. Only use bare `createCurrency` for the rare case of a workspace currency that no account will use.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "name", In: InBody, Type: "string", Required: true, Desc: "Currency name."},
@@ -107,7 +108,8 @@ var accountOps = []Operation{
 	},
 	{
 		Name: "createAccountName", Method: "POST", Path: "/account_names/{accId}",
-		Summary: "Create an account-name category (e.g. \"Cash\", \"Revenue\") in the workspace.",
+		Summary: "Create an account-name category (e.g. \"Cash\", \"Revenue\") in the workspace. " +
+			"PREFER `createAccountPair` when this account-name is being created so it can be used on an account: `createAccountPair` creates the account-name (and the currency) if missing AND grants the caller pair-level access in one call — bare `createAccountName` leaves the resulting (name, currency) pair without an access rule, so the next balance/transaction call 403s on any non-owner workspace. Only use bare `createAccountName` for the rare case of a workspace category that no account will use.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "name", In: InBody, Type: "string", Required: true, Desc: "Account name."},

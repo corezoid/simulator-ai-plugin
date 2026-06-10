@@ -17,6 +17,7 @@ description: >
 >
 > | Operation | Tools |
 > |---|---|
+> | **Pair bootstrap (required first)** | **`createAccountPair`** (creates name + currency if missing AND self-grants access — the only way to avoid 403s on a non-owner workspace) |
 > | Accounts | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` |
 > | Currencies | `createCurrency` `getCurrencies` `searchCurrencies` |
 > | Account names | `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
@@ -26,6 +27,13 @@ description: >
 >
 > Tools take **typed named arguments** (not a JSON `body` string). `accId` defaults to the
 > configured workspace if omitted.
+>
+> **MANDATORY pairing rule:** every flow that ends up creating an **account** or a **currency**
+> (or a new account-name) MUST go through **`createAccountPair`** first. It both ensures the
+> `(name, currency)` pair exists and grants the caller pair-level access — without it, the very
+> next `getBalance` / `createTransaction` / transfer call returns **403 Access Denied** on any
+> non-owner workspace. Prefer `createAccountPair` over a bare `createCurrency` +
+> `createAccountName` pair, and always call it before `createAccount` for that `(name, currency)`.
 >
 > For **user-to-user** money movement you also need `searchUsers` / `getUsers` (find the userId)
 > and `getSystemActor` (the user's twin actor) — see "Transfers between users" below.
@@ -103,17 +111,20 @@ both). A mileage counter is `counterType=counter`.
 ### Prerequisites for an account
 
 A **currency** (`currencyId`) and an **account name** (`nameId`) must exist in the workspace
-first. There is **no** single "account+currency pair" tool — create the two separately, then
-attach the account to an actor.
+first, AND the caller must have access to the `(nameId, currencyId)` **pair**. Use
+**`createAccountPair`** to do both at once — it creates the account name and the currency if
+they are missing, and self-grants the caller view+modify+remove on the pair. **Do not** call a
+bare `createCurrency` + `createAccountName` and skip `createAccountPair`: the pair would still
+have no access rules, so the next `getBalance`/`createTransaction`/transfer 403s on any
+non-owner workspace.
 
-**One more prerequisite that is easy to miss: pair access.** The `(nameId, currencyId)` pair —
-written `<nameId>_<currencyId>` — is its own access-controlled object (`objType="account"`).
-`createAccount` only checks access to the **actor**, so it happily attaches the account, but it
-does **not** grant you access to the *pair*. Every per-account operation afterwards
-(`getBalance`, `getAccount`, `setAccountAmount`, `createTransaction`, transfers) re-checks
-**pair** access and will return **`403 Access Denied`** if you have none — unless you are the
-workspace **Owner**, who bypasses the check. See **Account-pair access** below before you write
-balances. (This is why creating an account "succeeds" yet the very next transaction 403s.)
+**Why the pair matters.** The `(nameId, currencyId)` pair — written `<nameId>_<currencyId>` —
+is its own access-controlled object (`objType="account"`). `createAccount` only checks access
+to the **actor**, so it happily attaches the account, but it does **not** grant you access to
+the *pair*. Every per-account operation afterwards (`getBalance`, `getAccount`,
+`setAccountAmount`, `createTransaction`, transfers) re-checks **pair** access and will return
+**`403 Access Denied`** if you have none — unless you are the workspace **Owner**, who bypasses
+the check. See **Account-pair access** below.
 
 ---
 
@@ -131,6 +142,13 @@ createCurrency(accId="ws_xxx", name="Units", symbol="u",  precision=0)
 
 Args are `name` / `symbol` / `precision` (not `title` / `decimals`).
 
+> **Prefer `createAccountPair` over a bare `createCurrency`** when you are creating a currency
+> in order to use it on an account. `createAccountPair(accId, accountName, currencyName, symbol?,
+> precision?, type?)` creates the currency (and the account name) if missing AND self-grants pair
+> access in one call — `createCurrency` on its own leaves the pair without an access rule. Only
+> call the bare `createCurrency` when you genuinely need a workspace currency that no `(name,
+> currency)` pair will use (rare).
+
 ## Account names (categories)
 
 ```
@@ -141,12 +159,23 @@ createAccountName(accId="ws_xxx", name="Maintenance", abbreviation="MNT")
 updateAccountName(nameId="<account-name id>", name="Maintenance costs")
 ```
 
+> Same rule as currencies: **prefer `createAccountPair`** when you are creating an account name
+> that will be used on an account — it creates the name (and currency) if missing AND grants
+> pair access. Reserve bare `createAccountName` for rare workspace-level housekeeping that does
+> not lead to an account.
+
 ---
 
 ## Accounts (on an actor)
 
 ```
-# Attach an account to an actor (currency + name must already exist).
+# MANDATORY first: bootstrap the (name, currency) pair AND grant yourself access.
+# This creates the account-name + currency if missing. Always run it for the (name, currency)
+# you are about to use, BEFORE createAccount. Idempotent / safe to repeat.
+createAccountPair(accId="ws_xxx", accountName="Maintenance", currencyName="USD",
+                  symbol="$", precision=2)
+
+# Attach an account to an actor (the pair must already exist + you must have pair access).
 # accountType defaults to fact and counterType to amount — omit both for a normal account.
 createAccount(actorId="<actor UUID>", nameId="<account-name id>", currencyId=1,
               treeCalculation=false,         # aggregate child-actor balances into this one
@@ -383,13 +412,17 @@ getCounters(accId="ws_xxx", items=[
 ## End-to-end: car financial tracking
 
 ```
-# 1. One-time workspace setup
-createCurrency(accId="ws", name="USD", symbol="$", precision=2)        → currencyId 1
-createCurrency(accId="ws", name="Km",  symbol="km", precision=0)        → currencyId 2
-createAccountName(accId="ws", name="Purchase Value")                    → nameId <val>
-createAccountName(accId="ws", name="Depreciation")                      → nameId <dep>
-createAccountName(accId="ws", name="Maintenance")                       → nameId <mnt>
-createAccountName(accId="ws", name="Mileage")                           → nameId <mil>
+# 1. One-time workspace setup — createAccountPair creates the account-name + currency if
+#    missing AND grants the caller pair access in one call. Do this for EVERY (name, currency)
+#    you plan to attach to an actor — never skip it, even if the currency already exists.
+createAccountPair(accId="ws", accountName="Purchase Value", currencyName="USD",
+                  symbol="$", precision=2)    # → nameId <val>, currencyId 1
+createAccountPair(accId="ws", accountName="Depreciation",   currencyName="USD")
+                                                            # → nameId <dep>, reuses currencyId 1
+createAccountPair(accId="ws", accountName="Maintenance",    currencyName="USD")
+                                                            # → nameId <mnt>, reuses currencyId 1
+createAccountPair(accId="ws", accountName="Mileage",        currencyName="Km",
+                  symbol="km", precision=0)   # → nameId <mil>, currencyId 2
 
 # 2. The actor (a simulator-actors task) — get its UUID, e.g. searchActors / createActor
 car = "<car actor UUID>"
@@ -443,7 +476,10 @@ filterActors(formId=42, accountNameId="<aname>", currencyId=1, amountFrom=10000)
 ## Tips
 
 - **Amounts are real decimal values** — `amount: 500` is 500 USD; never scale by `10^precision`.
-- **Create the currency and account name before the account** — `currencyId` and `nameId` are required; there is no account+currency "pair" tool.
+- **Always call `createAccountPair` before `createAccount`** for any `(name, currency)` you are
+  about to use on an actor. It creates the account-name and the currency if missing AND grants
+  you pair access — without it, the next `getBalance`/`createTransaction`/transfer 403s on any
+  non-owner workspace. Prefer it over bare `createCurrency` + `createAccountName`.
 - `accountType` is the **value** type (`fact` default | `plan` | `min`/`max`/`avg`) and `counterType` selects `amount` (default) vs `counter`/`uniqCounter`; the account **name** carries the cash/expense/revenue meaning. There is no asset/liability/income enum. `incomeType` (debit/credit) is a read/counter dimension, not a `createAccount` arg.
 - Transactions use **`comment`** (not `description`); pass a stable **`ref`** for idempotency and to finalize 2-step holds.
 - Transfers use **`from`/`to` arrays of legs** `{accountId, amount}` — not `fromAccountId`/`toAccountId`.
