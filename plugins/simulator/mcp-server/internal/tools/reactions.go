@@ -1,13 +1,25 @@
 package tools
 
 // reactionTypes are the backend REACTION_TYPES — the kind of reaction/event
-// placed under an actor. `comment` is the everyday "post a note" type.
+// placed under an actor. `comment` is the everyday "post a note" type; `ai` is
+// the AI agent's reply, normally produced by the platform's agent (see the
+// `extra.mcp` flag and the AI-agent flow in docs/entities/reactions.md).
 var reactionTypes = []string{"view", "comment", "ai", "rating", "sign", "ds", "done", "reject", "freeze"}
 
 // reactionExtraDesc documents the optional `extra` presentation object.
 const reactionExtraDesc = "Optional presentation object: " +
 	"{commentStyleType:\"primary\"|\"secondary\"|\"text\", linkedActorId:string, " +
-	"layerPosition:{x:number,y:number}}."
+	"layerPosition:{x:number,y:number}, mcp:boolean}. " +
+	"mcp:true hands the reaction to the AI agent — it processes the reaction under " +
+	"the requesting user's access (via this MCP server) and posts its answer back " +
+	"as a child `ai` reaction. See docs/entities/reactions.md."
+
+// reactionReasoningDesc documents the optional `reasoning` object — the AI
+// agent's progress/answer trace, carried on `ai` reactions.
+const reactionReasoningDesc = "Optional AI-agent trace: " +
+	"{inProgress:boolean, thoughts:[{id:string,text:string,createdAt:number}]}. " +
+	"On `ai` reactions the agent streams progress here (inProgress=true while " +
+	"running, thoughts = step log) while the answer text fills `description`."
 
 // reactionOps — reactions are events/comments that live under a parent actor
 // (and are themselves actors). In every path, `{actorId}` is the PARENT (root)
@@ -19,13 +31,14 @@ var reactionOps = []Operation{
 		Summary: "Add a reaction (comment/event) under an actor. Use type=comment for a plain text note. " +
 			"The reaction becomes a child of the actor; reply to another reaction by passing its id as parentId.",
 		Params: []Param{
-			{Name: "type", In: InPath, Type: "string", Required: true, Enum: reactionTypes, Desc: "Reaction kind (comment for a note)."},
+			{Name: "type", In: InPath, Type: "string", Required: true, Enum: reactionTypes, Desc: "Reaction kind (comment for a note; ai is the agent's reply, usually platform-produced)."},
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Parent (root) actor UUID the reaction is placed under."},
 			{Name: "description", In: InBody, Type: "string", Desc: "The reaction text (e.g. the comment body)."},
 			{Name: "data", In: InBody, Type: "object", Desc: "Optional structured payload carried on the reaction."},
 			{Name: "parentId", In: InBody, Type: "string", Desc: "Optional id of the reaction this one replies to (threading)."},
 			{Name: "hidden", In: InBody, Type: "boolean", Desc: "Create the reaction hidden."},
 			{Name: "extra", In: InBody, Type: "object", Desc: reactionExtraDesc},
+			{Name: "reasoning", In: InBody, Type: "object", Desc: reactionReasoningDesc},
 			{Name: "attachments", In: InBody, Type: "array", Desc: "Optional attachments: array (1-20) of {attachId:int} (ids from uploadBase64 / getAttachments)."},
 			{Name: "notify", In: InQuery, Type: "boolean", KeepFalse: true, Desc: "Send notifications about the new reaction (default true). Set false to post quietly."},
 			{Name: "sipTranscription", In: InQuery, Type: "boolean", Desc: "Mark the reaction as a SIP transcription entry."},
@@ -42,6 +55,7 @@ var reactionOps = []Operation{
 			{Name: "parentId", In: InBody, Type: "string", Desc: "New parent reaction id (re-thread)."},
 			{Name: "hidden", In: InBody, Type: "boolean", Desc: "Hide/unhide the reaction."},
 			{Name: "extra", In: InBody, Type: "object", Desc: reactionExtraDesc},
+			{Name: "reasoning", In: InBody, Type: "object", Desc: reactionReasoningDesc},
 		},
 	},
 	{

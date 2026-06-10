@@ -35,6 +35,8 @@ Reactions are organized in a hierarchical tree structure using the ActorsTreeEdg
 | edge_type_id | Integer | ID of the edge type (defining the reaction type) |
 | level | Integer | Nesting level in the reaction tree |
 | path | Text | Path string representing the position in the tree |
+| extra | JSON | Presentation/flags: `commentStyleType`, `linkedActorId`, `layerPosition`, and `mcp` (see [AI Reaction Agent](#ai-reaction-agent-mcp)) |
+| reasoning | JSON | AI-agent trace on `ai` reactions: `{ inProgress, thoughts:[{id,text,createdAt}] }` (see below) |
 | created_at | Integer | Unix timestamp of creation time |
 | updated_at | Integer | Unix timestamp of last update |
 
@@ -48,6 +50,56 @@ The platform supports various reaction types:
 - **Reactions** - Emoji-based quick reactions (like, love, etc.)
 - **Mentions** - References to other users
 - **Tasks** - Assigned work items
+- **AI (`ai`)** - The AI agent's reply, produced by the platform's agent in
+  response to a reaction flagged `extra.mcp` (see [AI Reaction Agent](#ai-reaction-agent-mcp))
+
+## AI Reaction Agent (MCP)
+
+Any reaction created with **`extra.mcp = true`** is handed to the platform's AI
+agent. The agent is a Claude run (hosted by the claude-code-api gateway) that uses
+**this MCP server** to read and act on the platform — so it operates strictly under
+the **requesting user's** access rules (PAPI authorizes every call with a delegated,
+short-lived token minted for that user). Its answer is posted back as a child
+**`ai`** reaction under the same actor.
+
+### Interaction scheme
+
+```
+User (or automation) creates a reaction with extra.mcp=true on actor A
+        │
+        ▼
+Platform dispatches the AI agent for actor A   (per-actor lock → turns are sequential)
+        │   • runs as the requesting user (delegated Simulator token)
+        │   • the agent calls THIS MCP server (scoped to that user's access)
+        ▼
+Agent reads/acts via MCP tools (actors, forms, graph, finance, reactions, …)
+        │
+        ▼
+Platform posts a child `ai` reaction and streams the result:
+        • description   ← the answer text (streamed live, then finalized)
+        • reasoning.inProgress = true while running, false when done
+        • reasoning.thoughts  ← step log (e.g. which tools were used)
+```
+
+### Fields
+
+| Field | Where | Meaning |
+|-------|-------|---------|
+| `extra.mcp` | on the reaction you create | `true` ⇒ hand this reaction to the AI agent |
+| `ai` (reaction type) | the agent's reply | child reaction holding the agent's answer |
+| `reasoning.inProgress` | on the `ai` reply | `true` while the answer is still being produced |
+| `reasoning.thoughts` | on the `ai` reply | `[{id,text,createdAt}]` — the agent's step log |
+| `description` | on the `ai` reply | the answer text (partial while `inProgress`) |
+
+### Notes
+
+- **One shared thread per actor.** Turns on a given actor are serialized; the agent
+  keeps context across turns, so a follow-up `extra.mcp` reaction continues the same
+  discussion.
+- **Reading mid-stream.** An `ai` reaction with `reasoning.inProgress = true` is still
+  being written — treat its `description` as partial.
+- **Avoid loops.** Set `extra.mcp` only on genuine (human) requests, not on the agent's
+  own output. The platform bounds runaway chains, but it still wastes turns.
 
 ## API Endpoints
 
