@@ -313,7 +313,7 @@ var dryFixtures = map[string]string{
 		`{"id":"item_make","class":"edit","title":"Make"},` +
 		`{"id":"item_year","type":"int","class":"edit","title":"Year"},` +
 		`{"id":"item_owner","class":"select","title":"Owner","extra":{"optionsSource":{"type":"workspaceMembers"}}}]}]}}`,
-	"getForms":              `{"data":[{"id":42,"title":"Vehicle"},{"id":16951,"title":"Position"}]}`,
+	"getForms":              `{"data":[{"id":42,"title":"Vehicle"},{"id":16951,"title":"Position"},{"id":7,"title":"Tags"},{"id":8,"title":"AccountTriggers"}]}`,
 	"searchForms":           `{"data":[{"id":42,"title":"Vehicle"}]}`,
 	"getActor":              `{"data":{"id":"11111111-1111-1111-1111-111111111111","title":"Camry","formId":42,"data":{"item_make":"Toyota"}}}`,
 	"getActorByRef":         `{"data":{"id":"11111111-1111-1111-1111-111111111111","title":"Camry","formId":42}}`,
@@ -372,6 +372,12 @@ var dryFixtures = map[string]string{
 	"createTransaction":     `{"data":{"id":"tx-1","status":"completed"}}`,
 	"atomCreateTransaction": `{"data":[{"id":"tx-1"},{"id":"tx-2"}]}`,
 	"saveAccessRules":       `{"data":[],"taskId":"task-1"}`,
+	// Account tags & triggers (account_to_actors).
+	"saveAccountActors":          `{"data":"ok"}`,
+	"saveDataFieldActorsByActor": `{"data":"ok"}`,
+	"saveDataFieldActorsByForm":  `{"data":"ok"}`,
+	"getDataFieldActorsByActor":  `{"data":[{"actorId":"44444444-4444-4444-4444-444444444444","title":"Low balance alarm","dataField":"item_make"}]}`,
+	"getDataFieldActorsByForm":   `{"data":[{"actorId":"44444444-4444-4444-4444-444444444444","title":"Low balance alarm","dataField":"item_make"}]}`,
 }
 
 // ---- skill injection ----

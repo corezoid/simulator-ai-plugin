@@ -740,5 +740,34 @@
     "name": "Actor's Corezoid processes",
     "prompt": "What Corezoid processes (functions) can actor 11111111-1111-1111-1111-111111111111 call — the ones shared to it via its API keys?",
     "tools": ["getCorezoidProcesses"]
+  },
+  {
+    "name": "Tag an account pair",
+    "prompt": "Create a 'VIP' tag and put it on the Maintenance/USD account pair (nameId aaaaaaaa-0000-0000-0000-000000000001, currencyId 1). The tag must be an actor on the Tags system form, and the link must be scoped to the Tags form id.",
+    "tools": ["getForms", "createActor", "saveAccountActors"],
+    "argChecks": [
+      { "tool": "saveAccountActors", "mustContain": ["formId"] }
+    ]
+  },
+  {
+    "name": "Low-balance trigger on one account",
+    "prompt": "Set up a low-balance alarm for account acc-1 of the pair nameId aaaaaaaa-0000-0000-0000-000000000001 / currencyId 1: it should fire when the balance drops below 100. Create the AccountTriggers actor (valueType=amount, lowerValue=100) and bind it to that specific account only.",
+    "tools": ["getForms", "createActor", "saveAccountActors"],
+    "argChecks": [
+      { "tool": "saveAccountActors", "mustContain": ["accountId"] }
+    ]
+  },
+  {
+    "name": "Data trigger on an actor field",
+    "prompt": "Bind trigger actor 44444444-4444-4444-4444-444444444444 (an AccountTriggers actor with valueType=data) so it fires when the data field item_make changes on actor 11111111-1111-1111-1111-111111111111.",
+    "tools": ["saveDataFieldActorsByActor"],
+    "argChecks": [
+      { "tool": "saveDataFieldActorsByActor", "mustContain": ["item_make"] }
+    ]
+  },
+  {
+    "name": "List data triggers watching a form field",
+    "prompt": "Which trigger actors watch the data field item_make across all actors of form 42?",
+    "tools": ["getDataFieldActorsByForm"]
   }
 ]

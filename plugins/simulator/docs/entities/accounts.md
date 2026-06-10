@@ -142,6 +142,33 @@ The platform supports hierarchical balance calculation through the `tree_calcula
 - Hierarchical relationships are defined through actor links with the hierarchy edge type
 - This enables organizational rollups and departmental aggregations
 
+## Account Tags and Triggers (account_to_actors)
+
+Accounts can be linked to actors of two system forms through the `account_to_actors`
+mechanism — one table powering three features:
+
+- **Tags** — actors of the system form `Tags` linked to a workspace-level
+  `(name_id, currency_id)` pair. The tag labels every account of that pair (on every
+  actor). Used for grouping/filtering accounts (`getAccounts` supports `withTags`,
+  `tag=<tag actor UUID>`, `ungrouped`).
+- **Account triggers** — actors of the system form `AccountTriggers` linked to a pair
+  (all its accounts) or to one specific account (`account_id`). On every transaction the
+  watched value (balance or transaction count, optionally over a calendar period) is
+  classified into `lowerZone` / `normalZone` / `upperZone`, and the trigger fires only on
+  a zone **transition**, delivering a `type: "trigger"` webhook to API users with access
+  to the trigger actor. Trigger settings live in the actor's `data`: `valueType`
+  (`amount` | `count` | `data`), `accountIncomeType` (`total`/`debit`/`credit`),
+  `lowerValue`/`upperValue`, `periodName`+`periodValue`, `endDate`, `customParams`.
+- **Data triggers** — `AccountTriggers` actors with `valueType=data`, an `operator`
+  (`=`/`!=`) and a `comparisonValue`, bound to a data field of one actor
+  (`target_actor_id`) or of every actor of a form (`target_form_id`). They fire when the
+  watched field changes and the comparison outcome flips (matched ↔ unmatched).
+
+Linking is a **replace** operation: saving a new set first removes the existing links in
+scope (pair + linked-actor form, account, or target+dataField), then inserts the new
+list. MCP tools: `saveAccountActors`, `getDataFieldActorsByActor`,
+`saveDataFieldActorsByActor`, `getDataFieldActorsByForm`, `saveDataFieldActorsByForm`.
+
 ## External Integrations
 
 Accounts can integrate with external systems through:

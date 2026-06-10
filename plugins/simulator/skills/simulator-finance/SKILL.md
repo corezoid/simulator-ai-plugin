@@ -4,11 +4,14 @@ description: >
   Simulator.Company financial management specialist. Use when the user wants to manage
   financial and metric accounts on actors (balances, counters, plan vs fact), record
   transactions, transfer value between accounts, work with currencies and account-name
-  categories, track non-financial metrics, or read balances and turnover. Activate when the
-  user mentions "record transaction", "transfer funds", "account balance", "financial
-  tracking", "depreciation", "expense", "budget", "counter", "mileage tracking", "запиши
-  транзакцію", "переказ коштів", "баланс рахунку", "лічильник", "пробіг", "запиши
-  транзакцию", "перевод средств", "баланс счёта", "счётчик", "пробег". Accounts attach to
+  categories, track non-financial metrics, read balances and turnover, tag accounts for
+  grouping, or set up account triggers (balance / transaction-count / data-field alerts).
+  Activate when the user mentions "record transaction", "transfer funds", "account balance", "financial
+  tracking", "depreciation", "expense", "budget", "counter", "mileage tracking", "account
+  tag", "account trigger", "balance alert", "запиши
+  транзакцію", "переказ коштів", "баланс рахунку", "лічильник", "пробіг", "тег рахунку",
+  "тригер на рахунок", "запиши транзакцию", "перевод средств", "баланс счёта", "счётчик",
+  "пробег", "тег счёта", "триггер на счёт". Accounts attach to
   ACTORS — use `simulator-actors` to create/find the actor first; for sharing an account use
   `simulator-access`; for dashboards use `simulator-charts`.
 ---
@@ -19,6 +22,7 @@ description: >
 > |---|---|
 > | **Pair bootstrap (required first)** | **`createAccountPair`** (creates name + currency if missing AND self-grants access — the only way to avoid 403s on a non-owner workspace) |
 > | Accounts | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` |
+> | Tags & triggers | `saveAccountActors` (link tag/trigger actors to a pair or one account) · `getDataFieldActorsByActor` `saveDataFieldActorsByActor` `getDataFieldActorsByForm` `saveDataFieldActorsByForm` (data triggers) · read via `getAccounts(withTags/withTriggers)` |
 > | Currencies | `createCurrency` `getCurrencies` `searchCurrencies` |
 > | Account names | `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
 > | Counters | `saveCounters` `setCounters` `getCounters` |
@@ -205,6 +209,118 @@ deleteAccount(actorId="<actor UUID>", currencyId=1, nameId="<aname>", accountTyp
 
 > **Formula / block accounts** are documented in `accounts.md` but are **not** curated MCP tools
 > yet — configure those in the UI; don't fabricate a tool call.
+
+---
+
+## Account tags & triggers (actors linked to accounts)
+
+Both features ride one mechanism: an ordinary **actor of a system form is LINKED to an
+account**. So tag/trigger CRUD is actor CRUD (`createActor` / `updateActor` / `deleteActor`
+— `simulator-graph` tools) plus the link tools below; deleting the actor removes the
+tag/trigger everywhere.
+
+| Feature | System form | Linked to | Effect |
+|---|---|---|---|
+| **Tag** | `Tags` | the `(nameId, currencyId)` pair | labels/groups every account of the pair |
+| **Balance / count trigger** | `AccountTriggers` | the pair, or ONE account (`accountId`) | evaluated on every transaction of the linked account(s) |
+| **Data trigger** | `AccountTriggers` (`valueType=data`) | an actor's or a form's data field | evaluated when the watched field changes |
+
+Find the two system form ids once per workspace:
+
+```
+getForms(accId="ws", formTypes="system", filter="id,title")   # → Tags id, AccountTriggers id
+```
+
+### Tags
+
+```
+# 1. A tag is an actor on the Tags system form
+createActor(formId=<Tags form id>, title="VIP")                  # → tag actor UUID
+
+# 2. Link tags to the account PAIR — REPLACE semantics; ALWAYS scope with formId
+saveAccountActors(nameId="<aname>", currencyId=1,
+                  formId=<Tags form id>,                         # replace tags only
+                  actors=["<tag1 UUID>", "<tag2 UUID>"])
+
+# 3. Read / filter
+getAccounts(actorId="<actor>", withTags=true)            # each account + its tags
+getAccounts(actorId="<actor>", tag="<tag actor UUID>")   # only accounts carrying that tag
+getAccounts(actorId="<actor>", ungrouped=true)           # only accounts with NO tags
+
+# 4. Untag / rename / delete the tag itself
+saveAccountActors(nameId="<aname>", currencyId=1, formId=<Tags form id>, actors=[])
+updateActor(...) / deleteActor(...)                      # the tag actor itself
+```
+
+- Tags sit on the **workspace-level pair**, so the tag shows on that `(name, currency)`
+  account of **every** actor — they are not per-actor labels.
+- **`saveAccountActors` REPLACES the linked set.** To *add* a tag: read the current set
+  (`getAccounts(withTags=true)`) and resend it plus the new UUID. **Never omit `formId`**
+  on a pair-level call — an unscoped replace also wipes the pair's triggers.
+
+### Balance & transaction-count triggers
+
+A trigger is an actor on the `AccountTriggers` system form. Its `data` fields (select /
+multiSelect values use the `[{"title": "...", "value": "..."}]` shape):
+
+| `data` field | Values | Meaning |
+|---|---|---|
+| `valueType` (required) | `amount` \| `count` \| `data` | what to watch: account balance, number of transactions, or an actor data field |
+| `accountIncomeType` | multi: `total` \| `debit` \| `credit` | which balance(s) to watch (default Total) |
+| `lowerValue` / `upperValue` | float | the target-zone boundaries |
+| `periodName` + `periodValue` | `day`/`month`/`quarter`/`year` + int | optional calendar window — watch the period turnover instead of the lifetime balance |
+| `endDate` | `{"endDate": <unixtime>}` | the trigger stops firing after this moment |
+| `operator` + `comparisonValue` | `=` \| `!=` + value | **data triggers only**: comparison against the watched field |
+| `customParams` | JSON string | passed through to the webhook payload |
+
+```
+# 1. Create the trigger actor
+createActor(formId=<AccountTriggers form id>, title="Low balance alarm", data={
+  "valueType": [{"title": "Account amount", "value": "amount"}],
+  "accountIncomeType": [{"title": "Total", "value": "total"}],
+  "lowerValue": 100, "upperValue": 100000
+})
+
+# 2. Link it — pair-wide, or to ONE account via accountId
+saveAccountActors(nameId="<aname>", currencyId=1, formId=<AccountTriggers form id>,
+                  actors=["<trigger UUID>"])                            # all accounts of the pair
+saveAccountActors(nameId="<aname>", currencyId=1, formId=<AccountTriggers form id>,
+                  accountId="<account id>", actors=["<trigger UUID>"])  # just this account
+
+# 3. Inspect
+getAccounts(actorId="<actor>", withTriggers=true)
+```
+
+**Firing semantics.** On each transaction of a linked account the watched value (balance
+or count, optionally over the period window) is classified into `lowerZone`
+(< `lowerValue`), `upperZone` (> `upperValue`) or `normalZone` — and the trigger fires
+**only when the zone CHANGES** since its previous call (no re-fire while the value stays
+in a zone). The event goes out as a `type: "trigger"` webhook to the API users that have
+access to the **trigger actor** (share it via `simulator-access`); `customParams` rides
+along in the payload.
+
+### Data triggers (watch an actor data field)
+
+The same `AccountTriggers` actor with `valueType=data` + `operator` + `comparisonValue`,
+bound **not to an account** but to a data field — of one actor, or of every actor of a form:
+
+```
+saveDataFieldActorsByActor(actorId="<watched actor>", dataField="status",
+                           actors=["<trigger UUID>"])          # one actor's field
+saveDataFieldActorsByForm(formId=<watched form id>, dataField="status",
+                          actors=["<trigger UUID>"])           # the field on ALL the form's actors
+
+getDataFieldActorsByActor(actorId="<watched actor>", dataField="status")  # read back
+getDataFieldActorsByForm(formId=<watched form id>, dataField="status")
+```
+
+Fires when the watched field changes **and the `=`/`!=` outcome flips** (matched ↔
+unmatched) — not on every write. Both save tools REPLACE the bound set; `actors=[]`
+unbinds all.
+
+> `dataField` is the field **id** from the watched form, not its title — on user-created
+> forms ids look like `item_<digits>` (semantic ids such as `status` exist only on system
+> forms). Read the form (`getForm`) to find the right id — see `simulator-actors`.
 
 ---
 
@@ -487,5 +603,6 @@ filterActors(formId=42, accountNameId="<aname>", currencyId=1, amountFrom=10000)
 - `atomCreateTransaction` for entries that must balance (double-entry).
 - `getAccountTransactions` requires **both** `limit` and `offset`; `getTransactions` requires `currencyId` + `nameId`.
 - **Counters API** = Scylla tallies, no history (analytics/anti-fraud); distinct from `counter`-type accounts.
+- **Tags & triggers are actors** (system forms `Tags` / `AccountTriggers`) linked to accounts via `saveAccountActors` — which **replaces** the linked set, so always scope it with `formId` and resend the full list when adding. Read them back with `getAccounts(withTags=true / withTriggers=true)`; data triggers bind to a data field via `saveDataFieldActorsByActor/Form`.
 - **Save tokens with `filter`** on reads (`getAccount`, `getAccounts`, `getBalance`, `getTransactions`, `getTransfer`, `getCurrencies`, `getAccountNames`) — a comma-separated field allow-list (`filter="id,amount,currencyId"`), NOT a row filter.
 - Sharing an account (who can view/modify) → `simulator-access`; the actor itself → `simulator-actors`.

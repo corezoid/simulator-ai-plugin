@@ -187,7 +187,8 @@ the actor/node items.)
 |---------------|----------------------------------------------------------------------------------------|
 | Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` `createFormAccount` `getFormAccounts` `removeFormAccount` `getLinkedForms` `getFormsTree` |
 | Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` `getSystemActor` `getCorezoidProcesses` |
-| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createAccountPair` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Account tags & triggers | `saveAccountActors` (link Tags/AccountTriggers actors to a pair or one account) `getDataFieldActorsByActor` `saveDataFieldActorsByActor` `getDataFieldActorsByForm` `saveDataFieldActorsByForm` (data triggers on a data field) |
 | Counters      | `saveCounters` `setCounters` `getCounters` |
 | Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` |
 | Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
