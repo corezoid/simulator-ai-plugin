@@ -23,6 +23,7 @@ func allOps() []Operation {
 	ops = append(ops, formGraphOps...)
 	ops = append(ops, actorOps...)
 	ops = append(ops, accountOps...)
+	ops = append(ops, accountActorOps...)
 	ops = append(ops, counterOps...)
 	ops = append(ops, accessRuleOps...)
 	ops = append(ops, transactionOps...)

@@ -3367,6 +3367,9 @@
                           "x",
                           "y"
                         ]
+                      },
+                      "mcp": {
+                        "type": "boolean"
                       }
                     }
                   },
@@ -3602,6 +3605,9 @@
                           "x",
                           "y"
                         ]
+                      },
+                      "mcp": {
+                        "type": "boolean"
                       }
                     }
                   },
@@ -3967,6 +3973,9 @@
                           "x",
                           "y"
                         ]
+                      },
+                      "mcp": {
+                        "type": "boolean"
                       }
                     }
                   },
@@ -6154,6 +6163,7 @@
     },
     "/papi/1.0/accounts/actors/actor/{actorId}": {
       "get": {
+        "operationId": "getDataFieldActorsByActor",
         "tags": [
           "Accounts"
         ],
@@ -6190,6 +6200,7 @@
         }
       },
       "post": {
+        "operationId": "saveDataFieldActorsByActor",
         "tags": [
           "Accounts"
         ],
@@ -6245,6 +6256,7 @@
     },
     "/papi/1.0/accounts/actors/form/{formId}": {
       "get": {
+        "operationId": "getDataFieldActorsByForm",
         "tags": [
           "Accounts"
         ],
@@ -6281,6 +6293,7 @@
         }
       },
       "post": {
+        "operationId": "saveDataFieldActorsByForm",
         "tags": [
           "Accounts"
         ],
@@ -6328,6 +6341,7 @@
     },
     "/papi/1.0/accounts/actors/{nameId}/{currencyId}": {
       "post": {
+        "operationId": "saveAccountActors",
         "tags": [
           "Accounts"
         ],
@@ -15348,7 +15362,7 @@
         "tags": [
           "Scripts"
         ],
-        "description": "Returns snapshots of an app file ordered by createdAt DESC. Each row captures the file state before a write (create/update/rename/move/delete/restore/rollback). Per-file retention is configured via `applications.history.perFileVersionLimit` (default 50).",
+        "description": "Returns snapshots of an app file ordered by createdAt DESC. Each row captures the file state before a write (create/update/rename/move/delete/restore/rollback). Rollback rows include `rollbackToVersionId` with the selected target version id. Per-file retention is configured via `applications.history.perFileVersionLimit` (default 50).",
         "parameters": [
           {
             "schema": {
@@ -15400,7 +15414,7 @@
         "tags": [
           "Scripts"
         ],
-        "description": "Returns one row from app_file_versions for the file.",
+        "description": "Returns one row from app_file_versions for the file. Rollback rows include `rollbackToVersionId` with the selected target version id.",
         "parameters": [
           {
             "schema": {

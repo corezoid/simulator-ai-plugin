@@ -228,7 +228,7 @@ Refresh the spec with pong-server's `yarn dump-openapi` and copy it into `testda
 
 ## 4. Curated tool set & engines
 
-The server registers ~95 curated tools (plus engine + auth helpers) in two groups.
+The server registers ~100 curated tools (plus engine + auth helpers) in two groups.
 
 **Curated API operations** (`internal/tools`, declared per domain) — one MCP tool per
 backend operation, with typed parameters:
@@ -237,7 +237,8 @@ backend operation, with typed parameters:
 |---------------|----------------------------------------------------------------------------------------|
 | Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` `createFormAccount` `getFormAccounts` `removeFormAccount` `getLinkedForms` `getFormsTree` |
 | Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` `getSystemActor` `getCorezoidProcesses` |
-| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createAccountPair` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Account tags & triggers | `saveAccountActors` (link Tags/AccountTriggers actors to a pair or one account) `getDataFieldActorsByActor` `saveDataFieldActorsByActor` `getDataFieldActorsByForm` `saveDataFieldActorsByForm` (data triggers on a data field) |
 | Counters      | `saveCounters` `setCounters` `getCounters` |
 | Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` |
 | Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
