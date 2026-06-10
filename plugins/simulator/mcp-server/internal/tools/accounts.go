@@ -1,19 +1,28 @@
 package tools
 
-// accountTypes are the FORM_VALUE_ACCOUNT_TYPES surfaced for guidance.
-var accountTypes = []string{"asset", "liability", "expense", "income", "counter", "state"}
+// accountTypes are the FORM_VALUE_ACCOUNT_TYPES — the account's VALUE type:
+// fact (the actual recorded value) | plan (a planned/budget value) | min | max | avg
+// (aggregates over children). Default fact. This is NOT an accounting category
+// (there is no asset/liability/expense/income field on an account).
+var accountTypes = []string{"fact", "plan", "min", "max", "avg"}
+
+// counterTypes are the ACCOUNT_COUNTER_TYPE values — whether an account is a plain
+// amount account or a counter. `counter`/`uniqCounter` make it a Scylla-backed,
+// history-less tally (see the counters API). Default amount.
+var counterTypes = []string{"amount", "counter", "systemCounter", "uniqCounter"}
 
 // accountOps — accounts on actors, plus the workspace-level currency and
 // account-name reference data they depend on.
 var accountOps = []Operation{
 	{
 		Name: "createAccount", Method: "POST", Path: "/accounts/{actorId}",
-		Summary: "Create a financial/metric account on an actor. Identified by (nameId, currencyId); accountType selects the ledger semantics.",
+		Summary: "Attach an account to an actor. Identified by (nameId, currencyId, accountType). Use counterType=counter/uniqCounter for a fast Scylla-backed metric (mileage, counts); leave it amount for a normal balance account.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID the account belongs to."},
 			{Name: "nameId", In: InBody, Type: "string", Required: true, Desc: "Account name id (see getAccountNames / createAccountName)."},
 			{Name: "currencyId", In: InBody, Type: "number", Required: true, Desc: "Currency id (see getCurrencies / createCurrency)."},
-			{Name: "accountType", In: InBody, Type: "string", Enum: accountTypes, Desc: "Ledger type."},
+			{Name: "accountType", In: InBody, Type: "string", Enum: accountTypes, Desc: "Value type: fact (actual, default) | plan (planned/budget) | min | max | avg (aggregates)."},
+			{Name: "counterType", In: InBody, Type: "string", Enum: counterTypes, Desc: "amount (normal balance, default) | counter | uniqCounter (Scylla tally, no history) | systemCounter."},
 			{Name: "treeCalculation", In: InBody, Type: "boolean", Desc: "Aggregate child actor balances into this account."},
 			{Name: "minLimit", In: InBody, Type: "number", Desc: "Optional minimum balance limit."},
 			{Name: "maxLimit", In: InBody, Type: "number", Desc: "Optional maximum balance limit."},
@@ -37,7 +46,7 @@ var accountOps = []Operation{
 			{Name: "total", In: InQuery, Type: "boolean", Desc: "Return the total count instead of the list."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 100)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			{Name: "filter", In: InQuery, Type: "string", Desc: "Filter expression on accounts."},
+			fieldFilterParam("id,amount,currencyId,nameId"),
 			{Name: "highPrecision", In: InQuery, Type: "boolean", Desc: "Return transaction sums with high precision."},
 		},
 	},
@@ -48,6 +57,7 @@ var accountOps = []Operation{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "currencyId", In: InPath, Type: "number", Required: true, Desc: "Currency id."},
 			{Name: "nameId", In: InPath, Type: "string", Required: true, Desc: "Account name id."},
+			fieldFilterParam("id,amount,currencyId,nameId"),
 		},
 	},
 	{
@@ -57,7 +67,7 @@ var accountOps = []Operation{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "currencyId", In: InPath, Type: "number", Required: true, Desc: "Currency id."},
 			{Name: "nameId", In: InPath, Type: "string", Required: true, Desc: "Account name id."},
-			{Name: "accountType", In: InPath, Type: "string", Required: true, Enum: accountTypes, Desc: "Account type."},
+			{Name: "accountType", In: InPath, Type: "string", Required: true, Enum: accountTypes, Desc: "Value type identifying the account (usually \"fact\")."},
 			{Name: "treeCalculation", In: InBody, Type: "boolean", Desc: "Aggregate child balances."},
 			{Name: "minLimit", In: InBody, Type: "number", Desc: "Minimum balance limit."},
 			{Name: "maxLimit", In: InBody, Type: "number", Desc: "Maximum balance limit."},
@@ -71,12 +81,13 @@ var accountOps = []Operation{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "currencyId", In: InPath, Type: "number", Required: true, Desc: "Currency id."},
 			{Name: "nameId", In: InPath, Type: "string", Required: true, Desc: "Account name id."},
-			{Name: "accountType", In: InPath, Type: "string", Required: true, Enum: accountTypes, Desc: "Account type."},
+			{Name: "accountType", In: InPath, Type: "string", Required: true, Enum: accountTypes, Desc: "Value type identifying the account (usually \"fact\")."},
 		},
 	},
 	{
 		Name: "createCurrency", Method: "POST", Path: "/currencies/{accId}",
-		Summary: "Create a currency / unit of value in the workspace (e.g. USD, Km, Units).",
+		Summary: "Create a currency / unit of value in the workspace (e.g. USD, Km, Units). " +
+			"PREFER `createAccountPair` when this currency is being created so it can be used on an account: `createAccountPair` creates the currency (and the account-name) if missing AND grants the caller pair-level access in one call — bare `createCurrency` leaves the resulting (name, currency) pair without an access rule, so the next balance/transaction call 403s on any non-owner workspace. Only use bare `createCurrency` for the rare case of a workspace currency that no account will use.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "name", In: InBody, Type: "string", Required: true, Desc: "Currency name."},
@@ -92,11 +103,13 @@ var accountOps = []Operation{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,name,symbol"),
 		},
 	},
 	{
 		Name: "createAccountName", Method: "POST", Path: "/account_names/{accId}",
-		Summary: "Create an account-name category (e.g. \"Cash\", \"Revenue\") in the workspace.",
+		Summary: "Create an account-name category (e.g. \"Cash\", \"Revenue\") in the workspace. " +
+			"PREFER `createAccountPair` when this account-name is being created so it can be used on an account: `createAccountPair` creates the account-name (and the currency) if missing AND grants the caller pair-level access in one call — bare `createAccountName` leaves the resulting (name, currency) pair without an access rule, so the next balance/transaction call 403s on any non-owner workspace. Only use bare `createAccountName` for the rare case of a workspace category that no account will use.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "name", In: InBody, Type: "string", Required: true, Desc: "Account name."},
@@ -110,6 +123,86 @@ var accountOps = []Operation{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+			fieldFilterParam("id,name,abbreviation"),
+		},
+	},
+	{
+		Name: "updateAccountName", Method: "PUT", Path: "/account_names/{nameId}",
+		Summary: "Rename an account-name category (and/or its abbreviation).",
+		Params: []Param{
+			{Name: "nameId", In: InPath, Type: "string", Required: true, Desc: "Account name id."},
+			{Name: "name", In: InBody, Type: "string", Required: true, Desc: "New account name."},
+			{Name: "abbreviation", In: InBody, Type: "string", Desc: "New short label."},
+		},
+	},
+	{
+		Name: "searchAccountNames", Method: "GET", Path: "/account_names/search/{accId}/{query}",
+		Summary: "Search account-name categories by name in a workspace.",
+		Params: []Param{
+			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
+			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search text (name or fragment)."},
+			{Name: "withStats", In: InQuery, Type: "boolean", Desc: "Include usage stats per name."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 50)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+		},
+	},
+	{
+		Name: "searchCurrencies", Method: "GET", Path: "/currencies/search/{accId}/{query}",
+		Summary: "Search currencies by name in a workspace.",
+		Params: []Param{
+			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
+			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search text (name or fragment)."},
+			{Name: "withStats", In: InQuery, Type: "boolean", Desc: "Include usage stats per currency."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 50)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
+		},
+	},
+	{
+		Name: "getAccount", Method: "GET", Path: "/accounts/single/{accountId}",
+		Summary: "Get one account by its id (balance, settings, optional privileges/turnover). " +
+			"The `amount` is the real balance value as a decimal — do NOT scale by the currency precision.",
+		Params: []Param{
+			{Name: "accountId", In: InPath, Type: "string", Required: true, Desc: "Account id."},
+			{Name: "from", In: InQuery, Type: "number", Desc: "Period start, unixtime in MILLISECONDS (turns the balance into the period turnover)."},
+			{Name: "to", In: InQuery, Type: "number", Desc: "Period end, unixtime in MILLISECONDS."},
+			{Name: "trsCount", In: InQuery, Type: "boolean", Desc: "Include the transaction count."},
+			{Name: "withPrivs", In: InQuery, Type: "boolean", Desc: "Include the caller's privileges on the account."},
+			{Name: "highPrecision", In: InQuery, Type: "boolean", Desc: "Return sums with high precision."},
+			fieldFilterParam("id,amount,currencyId,nameId"),
+		},
+	},
+	{
+		Name: "setAccountAmount", Method: "PUT", Path: "/accounts/amount/{accountId}",
+		Summary: "Set an account's balance to a fixed value (a correction/override, not a transaction). " +
+			"Pass the real value as a decimal — not scaled by the currency precision. Irreversible adjustment — confirm first.",
+		Params: []Param{
+			{Name: "accountId", In: InPath, Type: "string", Required: true, Desc: "Account id."},
+			{Name: "amount", In: InBody, Type: "number", Required: true, Desc: "The new fixed balance, as the real value in the account's currency."},
+		},
+	},
+	{
+		Name: "getChildAccounts", Method: "GET", Path: "/accounts/children/{actorId}",
+		Summary: "List the matching accounts on the child actors of an actor (for one account name + currency).",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Parent actor UUID."},
+			{Name: "nameId", In: InQuery, Type: "string", Required: true, Desc: "Account name id to look up on each child."},
+			{Name: "currencyId", In: InQuery, Type: "string", Required: true, Desc: "Currency id to look up on each child."},
+			{Name: "accountType", In: InQuery, Type: "string", Enum: accountTypes, Desc: "Optional account type filter."},
+		},
+	},
+	{
+		Name: "createAccountPair", Method: "POST", Path: "/accounts/pair/{accId}",
+		Summary: "Create the workspace-level (account-name + currency) PAIR and GRANT THE CALLER access to it. " +
+			"Account access is enforced on the pair `<nameId>_<currencyId>` (objType=account), NOT per actor: `createAccount` attaches an account to an actor but never seeds pair access, so a non-owner then gets 403 on getBalance / getAccount / setAccountAmount / createTransaction / transfers. " +
+			"Call this once per (name, currency) to bootstrap access BEFORE recording values — it creates the account name and the currency if they are missing, then grants you view+modify+remove on the pair. " +
+			"Identified BY NAME (accountName / currencyName), not ids. Safe to repeat. Note: if the pair already has access rules and you are not among them it returns 403 — then a workspace Owner (or an existing grantee) must grant you via saveAccessRules. Workspace Owners don't need this at all.",
+		Params: []Param{
+			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
+			{Name: "accountName", In: InBody, Type: "string", Required: true, Desc: "Account-name category BY NAME (e.g. \"Deal Value\"). Created if it does not exist."},
+			{Name: "currencyName", In: InBody, Type: "string", Required: true, Desc: "Currency BY NAME (e.g. \"USD\"). Created if it does not exist (using symbol/precision/type below)."},
+			{Name: "symbol", In: InBody, Type: "string", Desc: "Display symbol — only used when the currency is created."},
+			{Name: "precision", In: InBody, Type: "number", Desc: "Decimal places shown (display only; default 2) — only used when the currency is created."},
+			{Name: "type", In: InBody, Type: "string", Desc: "Currency type (default \"number\") — only used when the currency is created."},
 		},
 	},
 }

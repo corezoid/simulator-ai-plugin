@@ -28,7 +28,7 @@ description: >
   traversal operations, layer management, and FlowchartBlock diagram creation.
 ---
 
-> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read layer membership with `getLayerActors` / `getAllLayerPlacements`; create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge types with `getEdgeTypes`. List actors linked to an actor with `getRelatedActors` (type = linked | parents | children; traverses the hierarchy link type by default; paginated, filterable, sortable). Other link-traversal queries (`getActorLinks`, `getLayerActorsByFormId`) are not in the current curated set. See `/simulator` for the full list.
+> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read layer membership with `getLayerActors` / `getAllLayerPlacements`; create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge CRUD with `getEdge` / `updateEdge` / `deleteEdge` / `existLink` / `deleteEdgesByNodes`; edge types with `getEdgeTypes`. Traverse from an actor with `getRelatedActors` (type = linked | parents | children; hierarchy link type by default; paginated/filterable/sortable), `getLinkedActors` (directly-linked actors across edge types, with `edgeTypes`/`withSystem`/`pinned` filters), and `getActorLinks` (every edge of an actor). Layer ops: `layerStats` (node/edge counts), `existLayerElement` (is a node/edge on a layer — dedup before placing), `moveActors` (move ≤10 actors between layers), `cleanGraphLayer` (wipe a layer — destructive). See `/simulator` for the full list.
 
 # Simulator.Company Graph Builder
 
@@ -563,6 +563,13 @@ filterActors(formId=<formId>, linkedToActorId="<anchorActorId>",
              accountNameId="<nameId>", currencyId=<id>,
              amountFrom=<min>, amountTo=<max>,        // amountFrom = balance >=, amountTo = balance <=
              orderBy="balance", orderValue="DESC")    // omit linkedToActorId for a form-wide ranking
+
+// Save tokens: every read/traversal tool above (getRelatedActors, getActor,
+// getLayerActors, searchLayerActors, searchActors, filterActors, ...) accepts an
+// optional `filter` field-selection arg — comma-separated fields to return, e.g.
+// filter="id,title,formId" (dotted paths like data.status pick nested data fields).
+// The server returns only those fields. NOT a row filter (that's search / q).
+getRelatedActors(type="children", actorId="<actorId>", filter="id,title,formId")
 ```
 
 ---

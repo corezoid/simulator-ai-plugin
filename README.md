@@ -19,8 +19,14 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator`          | "use Simulator", "call Simulator API"                    | Full platform overview, all entities, MCP tools         |
 | `simulator-init`     | "setup", "connect to simulator", "login to simulator"    | OAuth login, workspace selection, environment setup     |
 | `simulator-graph`    | "create actor", "link nodes", "add to layer"             | Actors, links, layers, graph traversal, bulk push/pull  |
-| `simulator-forms`    | "create form", "design template", "field structure"      | Form templates, field types, system forms               |
-| `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies           |
+| `simulator-forms`    | "create form", "design template", "Account Template"     | Form templates (Account Templates), field classes, system forms |
+| `simulator-actors`   | "create a record", "fill in a template", "update actor data" | Actor instances of a form, the `data` value protocol, search & filter |
+| `simulator-smart-forms` | "smart form", "CDU", "edit page config", "push smart form" | Smart Form lifecycle, pages, CDU protocol, releases  |
+| `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies, counters |
+| `simulator-charts`   | "chart", "dashboard", "visualise on layer"               | Dashboard charts & time-series visualisation on layers  |
+| `simulator-reactions`| "comment on this actor", "reply", "pin comment"          | Reactions: comments / events / approvals / ratings (threaded) |
+| `simulator-attachments` | "upload a file", "attach document", "rename file"     | Files: upload, attach/detach to actors & reactions      |
+| `simulator-access`   | "share with", "grant access", "who can edit this"        | Access rules: grant/revoke view/modify/… on objects     |
 
 ## Requirements
 
@@ -160,23 +166,38 @@ Pull layer 1a2b3c4d-... to a local YAML, let me edit it, then push it back.
 
 ## MCP Tools
 
-The MCP server exposes a **curated, typed tool set (~46 tools)** scoped to the core
+The MCP server exposes a **curated, typed tool set (~95 tools)** scoped to the core
 scenarios — forms, actors, accounts, transactions, graph building, applications/smart forms
 — rather than the entire REST surface. Each tool maps to a backend operation by its
 `operationId`; a drift gate keeps the set in sync with the live `/papi/1.0` contract.
+
+Read tools take an optional **`filter`** parameter — a comma-separated allow-list of fields
+to return (e.g. `id,title,data.status`; dotted paths pick nested `data` fields). The backend
+prunes the response to just those fields, so prefer it whenever only part of an entity is
+needed to keep responses (and token cost) small. Available on every read/lookup/list tool:
+`getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `filterActors`, `getForm`,
+`getForms`, `searchForms`, `getAccount`, `getAccounts`, `getBalance`, `getCurrencies`, `getAccountNames`,
+`getTransactions`, `getTransfer`, `getRelatedActors`, `getLinkedActors`, `getActorLinks`,
+`getLayerActors`, `getEdgeTypes`, `searchAll`, `getWorkspaces`. (For `getLayerActors`/`searchAll` it projects
+the actor/node items.)
 
 **Curated API operations** (one tool per backend operation):
 
 | Domain        | Tools                                                                                  |
 |---------------|----------------------------------------------------------------------------------------|
-| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` |
-| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` |
-| Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
-| Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
-| Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
-| Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
+| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` `createFormAccount` `getFormAccounts` `removeFormAccount` `getLinkedForms` `getFormsTree` |
+| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` `getSystemActor` `getCorezoidProcesses` |
+| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Counters      | `saveCounters` `setCounters` `getCounters` |
+| Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` |
+| Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
+| Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `getLinkedActors` `getActorLinks` `manageLayerActors` `moveActors` `existLayerElement` `cleanGraphLayer` `layerStats` |
+| Reactions     | `createReaction` `updateReaction` `deleteReaction` `getReactions` `getReactionsStats` `markReactionsRead` `getPinnedReactions` `togglePinnedReaction` |
+| Attachments   | `getAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
+| Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
+
 
 **Engine tools** (multi-call workflows + client-side computation):
 
@@ -188,6 +209,18 @@ scenarios — forms, actors, accounts, transactions, graph building, application
 | `compactGraphLayout`     | Auto-layout a layer into domain-clustered grids (replaces the pull → edit → push loop)               |
 | `pruneLongEdges`         | Delete edges longer than a distance threshold; preserves hierarchy edges                             |
 | `uploadActorPicture` / `uploadActorPictureBulk` | Set actor pictures from URL / file / base64; auto-rasterise SVG → PNG; bulk dedupes by SHA-256 |
+| `createSmartForm`        | Create a new Smart Form actor with develop + production environments                                 |
+| `pullSmartForm`          | Download all env file trees of a Smart Form to `<actorId>/<env>/` with `.manifest.json`              |
+| `pushSmartForm`          | Diff local develop files against `.manifest.json`, validate, and push changed files in one batch     |
+| `deploySmartForm`        | Deploy one Smart Form env to another (develop → production); creates a new release                   |
+| `listReleases`           | List releases for a Smart Form environment                                                           |
+| `diffReleases`           | Show added / removed / modified files between two releases                                           |
+| `rollbackRelease`        | Roll back to a prior release (forward-only: creates a new active release)                            |
+| `getFileHistory`         | List version history for a Smart Form file (fileId from `.manifest.json`)                            |
+| `getFileVersion`         | Fetch the source of one specific file version                                                        |
+| `rollbackFile`           | Restore a file to a prior version                                                                    |
+| `listTrash`              | List soft-deleted objects in a Smart Form environment                                                |
+| `restoreFromTrash`       | Restore a soft-deleted object from trash                                                             |
 | `createChart`            | Create a dashboard chart actor (dynamic `actorFilter` or explicit accounts mode)                     |
 
 ## Architecture
@@ -244,11 +277,26 @@ Specialist for graph structure operations:
 - Pull a whole layer to YAML, edit locally, push it back
 
 ### `/simulator-forms`
-Specialist for form template design:
-- Create custom forms with typed fields (text, number, select, date, file, formula, reference)
-- Define default account structures within forms (auto-created for every new actor)
+Specialist for form template (Account Template / «Шаблон рахунків») design:
+- Create custom forms as `sections[]` of typed field items (`edit`, `check`, `radio`, `select`, `multiSelect`, `calendar`, `upload`, `label`, `button`, `image`)
+- Use static or dynamic `select` sources (layer, actorFilter, actors, currencies, accountNames, workspaceMembers, …)
 - Work with system forms (Graph, Layer, Event, Script/CDU, Account, Currency, Transaction...)
-- Update, version, and manage form status
+- Update, version, and manage form status; attach accounts to the actors created from the form
+
+### `/simulator-actors`
+Specialist for actor instances (the *records* of a form / Account Template):
+- Create and update actors with a `data` object keyed by the form's field `id`s (`item_<digits>`)
+- Get the per-class `data` value shapes right (string / number / boolean / option arrays / `{type,title,value}` references / calendar objects)
+- Read by UUID or `(formId, ref)`, set status, delete
+- Search across the workspace (`searchActors`) and list/rank a form's actors, optionally by account balance (`filterActors`)
+
+### `/simulator-smart-forms`
+Specialist for Smart Form (CDU / Script / Application) authoring:
+- Pull all env files to disk with `pullSmartForm`, push changes with `pushSmartForm`
+- Edit page `config` (grid → form → section → item), `locale`, `viewModel`, `definitions`, `styles`
+- Full CDU page protocol: 28 component types, templating (`[[locale]]` / `{{viewModel}}` / `$ref`), change protocol (200/205/302)
+- Deploy `develop → production` as an immutable release, list/diff/rollback releases
+- File history, version restore, and trash management
 
 ### `/simulator-finance`
 Specialist for financial and metric tracking:
@@ -303,7 +351,9 @@ simulator-ai-plugin/
     │   │   └── references/api-operations.md
     │   ├── simulator-init/                 # Environment setup skill
     │   ├── simulator-graph/                # Graph specialist skill
-    │   ├── simulator-forms/                # Forms specialist skill
+    │   ├── simulator-forms/                # Forms (Account Templates) specialist skill
+    │   ├── simulator-actors/               # Actor-instance / data-protocol specialist skill
+    │   ├── simulator-smart-forms/          # Smart Form (CDU) authoring specialist skill
     │   ├── simulator-finance/              # Finance specialist skill
     │   └── simulator-charts/               # Dashboard charts specialist skill
     └── docs/                    # Plugin-shipped reference (referenced by skills)

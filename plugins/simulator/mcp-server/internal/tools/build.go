@@ -19,13 +19,20 @@ import (
 func allOps() []Operation {
 	var ops []Operation
 	ops = append(ops, formOps...)
+	ops = append(ops, formAccountOps...)
+	ops = append(ops, formGraphOps...)
 	ops = append(ops, actorOps...)
 	ops = append(ops, accountOps...)
+	ops = append(ops, counterOps...)
+	ops = append(ops, accessRuleOps...)
 	ops = append(ops, transactionOps...)
 	ops = append(ops, graphOps...)
-	ops = append(ops, appOps...)
+	ops = append(ops, reactionOps...)
+	ops = append(ops, attachmentOps...)
+	ops = append(ops, uploadOps...)
 	ops = append(ops, searchOps...)
 	ops = append(ops, workspaceOps...)
+	ops = append(ops, userOps...)
 	return ops
 }
 

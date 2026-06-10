@@ -20,7 +20,10 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
 - **Skills.** The `simulator*` skills here are the ones surfaced as `/simulator`,
   `/simulator-graph`, etc. When editing a skill's behaviour, edit its `SKILL.md`; if you
   change the frontmatter, regenerate discovery artifacts with `make discovery` (don't
-  hand-edit `public/`).
+  hand-edit `public/`). **Write instructions in English** and have Claude reply in the
+  user's own language — never hardcode a non-English sentence for it to say. See the
+  "Skill language" convention in [`AGENTS.md`](AGENTS.md) for the trilingual policy
+  (en primary; uk/ru activation triggers and product aliases are the kept exceptions).
 - **`$CLAUDE_PLUGIN_ROOT` = `plugins/simulator/`.** Skills load reference docs as
   `$CLAUDE_PLUGIN_ROOT/docs/entities/*.md`. Those files must stay under
   `plugins/simulator/docs/` (only the plugin dir is shipped on install). Contributor docs
@@ -35,7 +38,9 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
 
 ## House rules
 
-- Graph-sync logic (`internal/engines/sync_graph.go` / `push_graph.go`) has no dedicated
-  unit tests yet — change it carefully and consider adding them.
+- Graph-sync logic (`internal/engines/sync_graph.go` / `push_graph.go`) now has unit tests for
+  its core helpers and diff / inject paths (`graphsync_test.go`), but the full create/recreate
+  orchestration and edge-placement branches are only partly covered — change it carefully and
+  extend the tests when you touch those paths.
 - Keep TLS verification on by default; never log or commit tokens / `.env`.
 - Bump the plugin version in all manifests + `CHANGELOG.md` together.

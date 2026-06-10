@@ -4,15 +4,27 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // evalScenario is one natural-language task and the tool sequence a correct run
-// is expected to use (at minimum).
+// is expected to use (at minimum). argChecks optionally assert on the JSON
+// arguments the model passed to a tool (substring match over canonical-compact
+// args) — used to verify data shapes, not just that a tool was reached.
 type evalScenario struct {
-	Name   string   `json:"name"`
-	Prompt string   `json:"prompt"`
-	Tools  []string `json:"tools"`
+	Name         string     `json:"name"`
+	Prompt       string     `json:"prompt"`
+	Tools        []string   `json:"tools"`
+	DryOnlyTools []string   `json:"dryOnlyTools,omitempty"`
+	ArgChecks    []argCheck `json:"argChecks,omitempty"`
+}
+
+type argCheck struct {
+	Tool           string   `json:"tool"`
+	MustContain    []string `json:"mustContain,omitempty"`
+	MustNotContain []string `json:"mustNotContain,omitempty"`
+	MustMatch      []string `json:"mustMatch,omitempty"`
 }
 
 // knownToolNames is the full set of tool names the server registers: curated
@@ -59,9 +71,28 @@ func TestEvalScenariosReferenceRealTools(t *testing.T) {
 		if len(s.Tools) == 0 {
 			t.Errorf("scenario %q lists no tools", s.Name)
 		}
-		for _, tool := range s.Tools {
-			if !known[tool] {
-				t.Errorf("scenario %q references unknown tool %q", s.Name, tool)
+		// A tools entry may be an any-of group "a|b" (see missingTools in
+		// evalrunner) — every alternative must be a real tool. dryOnlyTools are
+		// validated the same way.
+		expected := map[string]bool{}
+		for _, tool := range append(append([]string{}, s.Tools...), s.DryOnlyTools...) {
+			for _, alt := range strings.Split(tool, "|") {
+				alt = strings.TrimSpace(alt)
+				if !known[alt] {
+					t.Errorf("scenario %q references unknown tool %q", s.Name, alt)
+				}
+				expected[alt] = true
+			}
+		}
+		for _, ac := range s.ArgChecks {
+			if !known[ac.Tool] {
+				t.Errorf("scenario %q argCheck references unknown tool %q", s.Name, ac.Tool)
+			}
+			if !expected[ac.Tool] {
+				t.Errorf("scenario %q argChecks tool %q but does not list it in tools", s.Name, ac.Tool)
+			}
+			if len(ac.MustContain)+len(ac.MustNotContain)+len(ac.MustMatch) == 0 {
+				t.Errorf("scenario %q argCheck for %q has no assertions (mustContain/mustNotContain/mustMatch)", s.Name, ac.Tool)
 			}
 		}
 	}

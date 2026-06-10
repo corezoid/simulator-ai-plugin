@@ -17,6 +17,15 @@
     "schemas": {}
   },
   "paths": {
+    "/papi/1.0/config": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/config/system": {
       "post": {
         "requestBody": {
@@ -96,6 +105,14 @@
             "in": "query",
             "name": "withStats",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
+            "required": false
           }
         ],
         "responses": {
@@ -129,6 +146,7 @@
     },
     "/papi/1.0/users/{accId}/{userId}": {
       "get": {
+        "operationId": "getUser",
         "tags": [
           "Users"
         ],
@@ -179,6 +197,7 @@
     },
     "/papi/1.0/users/{accId}": {
       "get": {
+        "operationId": "getUsers",
         "tags": [
           "Users"
         ],
@@ -220,6 +239,7 @@
     },
     "/papi/1.0/users/search/{accId}/{query}": {
       "get": {
+        "operationId": "searchUsers",
         "tags": [
           "Users"
         ],
@@ -413,6 +433,7 @@
     },
     "/papi/1.0/upload/base64/{accId}": {
       "post": {
+        "operationId": "uploadBase64",
         "tags": [
           "Upload"
         ],
@@ -734,6 +755,7 @@
     },
     "/papi/1.0/attachments/{accId}": {
       "get": {
+        "operationId": "getAttachments",
         "tags": [
           "Attachments"
         ],
@@ -800,6 +822,7 @@
         }
       },
       "post": {
+        "operationId": "addAttachments",
         "tags": [
           "Attachments"
         ],
@@ -846,6 +869,7 @@
         }
       },
       "delete": {
+        "operationId": "removeAttachments",
         "tags": [
           "Attachments"
         ],
@@ -893,6 +917,7 @@
     },
     "/papi/1.0/attachments/{attachId}": {
       "put": {
+        "operationId": "updateAttachment",
         "tags": [
           "Attachments"
         ],
@@ -1127,6 +1152,7 @@
     },
     "/papi/1.0/actors/link/{edgeId}": {
       "get": {
+        "operationId": "getEdge",
         "tags": [
           "Graph"
         ],
@@ -1155,6 +1181,7 @@
         }
       },
       "delete": {
+        "operationId": "deleteEdge",
         "tags": [
           "Graph"
         ],
@@ -1175,6 +1202,7 @@
         }
       },
       "put": {
+        "operationId": "updateEdge",
         "tags": [
           "Graph"
         ],
@@ -1204,6 +1232,9 @@
                         ]
                       }
                     ]
+                  },
+                  "pinned": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -1270,6 +1301,7 @@
     },
     "/papi/1.0/actors/exist_link": {
       "post": {
+        "operationId": "existLink",
         "tags": [
           "Graph"
         ],
@@ -1287,6 +1319,9 @@
                   },
                   "edgeTypeId": {
                     "type": "integer"
+                  },
+                  "bidirected": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -2297,6 +2332,14 @@
           },
           {
             "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "integer"
             },
             "in": "path",
@@ -2329,6 +2372,14 @@
             },
             "in": "query",
             "name": "edgeTypes",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -2445,6 +2496,7 @@
     },
     "/papi/1.0/actors/system/{accId}/{objType}/{objId}": {
       "get": {
+        "operationId": "getSystemActor",
         "tags": [
           "Graph"
         ],
@@ -2481,6 +2533,29 @@
             },
             "in": "path",
             "name": "objId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/actors/corezoid_processes/{actorId}": {
+      "get": {
+        "operationId": "getCorezoidProcesses",
+        "tags": [
+          "Graph"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
             "required": true
           }
         ],
@@ -2585,6 +2660,7 @@
     },
     "/papi/1.0/actors/bulk/actors_link": {
       "delete": {
+        "operationId": "deleteEdgesByNodes",
         "tags": [
           "Graph"
         ],
@@ -2604,6 +2680,9 @@
                     },
                     "edgeTypeId": {
                       "type": "integer"
+                    },
+                    "bidirected": {
+                      "type": "boolean"
                     }
                   },
                   "required": [
@@ -3156,6 +3235,10 @@
     },
     "/papi/1.0/reactions/read/{actorId}": {
       "post": {
+        "operationId": "markReactionsRead",
+        "tags": [
+          "Reactions"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3193,6 +3276,7 @@
     },
     "/papi/1.0/reactions/{type}/{actorId}": {
       "post": {
+        "operationId": "createReaction",
         "tags": [
           "Reactions"
         ],
@@ -3424,6 +3508,7 @@
     },
     "/papi/1.0/reactions/{actorId}": {
       "put": {
+        "operationId": "updateReaction",
         "tags": [
           "Reactions"
         ],
@@ -3588,6 +3673,7 @@
         }
       },
       "delete": {
+        "operationId": "deleteReaction",
         "tags": [
           "Reactions"
         ],
@@ -3628,6 +3714,7 @@
     },
     "/papi/1.0/reactions/list/{actorId}": {
       "get": {
+        "operationId": "getReactions",
         "tags": [
           "Reactions"
         ],
@@ -3767,6 +3854,7 @@
     },
     "/papi/1.0/reactions/stats/{actorId}": {
       "get": {
+        "operationId": "getReactionsStats",
         "tags": [
           "Reactions"
         ],
@@ -4051,6 +4139,7 @@
     },
     "/papi/1.0/reactions/pinned/{actorId}": {
       "get": {
+        "operationId": "getPinnedReactions",
         "tags": [
           "Reactions"
         ],
@@ -4100,6 +4189,7 @@
         }
       },
       "put": {
+        "operationId": "togglePinnedReaction",
         "tags": [
           "Reactions"
         ],
@@ -4144,6 +4234,7 @@
     },
     "/papi/1.0/graph/linked_actors/{actorId}": {
       "get": {
+        "operationId": "getLinkedActors",
         "tags": [
           "Graph"
         ],
@@ -4439,6 +4530,7 @@
     },
     "/papi/1.0/graph/actor_links/{actorId}": {
       "get": {
+        "operationId": "getActorLinks",
         "tags": [
           "Graph"
         ],
@@ -5318,6 +5410,7 @@
     },
     "/papi/1.0/accounts/children/{actorId}": {
       "get": {
+        "operationId": "getChildAccounts",
         "tags": [
           "Accounts"
         ],
@@ -5739,6 +5832,7 @@
     },
     "/papi/1.0/accounts/single/{accountId}": {
       "get": {
+        "operationId": "getAccount",
         "tags": [
           "Accounts"
         ],
@@ -5955,6 +6049,7 @@
     },
     "/papi/1.0/accounts/amount/{accountId}": {
       "put": {
+        "operationId": "setAccountAmount",
         "tags": [
           "Accounts"
         ],
@@ -5995,6 +6090,7 @@
     },
     "/papi/1.0/accounts/pair/{accId}": {
       "post": {
+        "operationId": "createAccountPair",
         "tags": [
           "Accounts"
         ],
@@ -6756,6 +6852,7 @@
     },
     "/papi/1.0/counters/{accId}": {
       "post": {
+        "operationId": "saveCounters",
         "tags": [
           "Accounts"
         ],
@@ -6883,6 +6980,7 @@
     },
     "/papi/1.0/counters/set/{accId}": {
       "post": {
+        "operationId": "setCounters",
         "tags": [
           "Accounts"
         ],
@@ -6962,6 +7060,7 @@
     },
     "/papi/1.0/counters/list/{accId}": {
       "post": {
+        "operationId": "getCounters",
         "tags": [
           "Accounts"
         ],
@@ -7403,6 +7502,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -7417,6 +7524,10 @@
     },
     "/papi/1.0/currencies/search/{accId}/{query}": {
       "get": {
+        "operationId": "searchCurrencies",
+        "tags": [
+          "Accounts"
+        ],
         "parameters": [
           {
             "schema": {
@@ -7522,6 +7633,14 @@
             },
             "in": "query",
             "name": "isSystem",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -8218,6 +8337,7 @@
     },
     "/papi/1.0/transactions/atom/{accId}": {
       "post": {
+        "operationId": "atomCreateTransaction",
         "tags": [
           "Accounts"
         ],
@@ -8444,6 +8564,7 @@
     },
     "/papi/1.0/transactions/ref/{accountId}/{ref}": {
       "get": {
+        "operationId": "getTransactionByRef",
         "tags": [
           "Accounts"
         ],
@@ -8475,6 +8596,7 @@
     },
     "/papi/1.0/transactions/list/{accountId}": {
       "get": {
+        "operationId": "getAccountTransactions",
         "tags": [
           "Accounts"
         ],
@@ -8916,6 +9038,7 @@
     },
     "/papi/1.0/transfers/{accId}/{type}": {
       "post": {
+        "operationId": "createTransferTwoStep",
         "tags": [
           "Accounts"
         ],
@@ -9289,6 +9412,7 @@
     },
     "/papi/1.0/transfers/filter/{accId}": {
       "post": {
+        "operationId": "filterTransfers",
         "tags": [
           "Accounts"
         ],
@@ -9443,6 +9567,14 @@
         "parameters": [
           {
             "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "string",
               "format": "uuid"
             },
@@ -9460,6 +9592,7 @@
     },
     "/papi/1.0/transfers/{accId}/{ref}": {
       "get": {
+        "operationId": "getTransferByRef",
         "tags": [
           "Accounts"
         ],
@@ -9611,6 +9744,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -9669,6 +9810,14 @@
             },
             "in": "query",
             "name": "withRelations",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -10210,6 +10359,14 @@
             },
             "in": "query",
             "name": "withRelations",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -10953,6 +11110,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -10976,6 +11141,10 @@
     },
     "/papi/1.0/form_accounts/{formId}": {
       "post": {
+        "operationId": "createFormAccount",
+        "tags": [
+          "Forms"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -11044,6 +11213,10 @@
         }
       },
       "get": {
+        "operationId": "getFormAccounts",
+        "tags": [
+          "Forms"
+        ],
         "parameters": [
           {
             "schema": {
@@ -11063,6 +11236,10 @@
     },
     "/papi/1.0/form_accounts/{id}": {
       "delete": {
+        "operationId": "removeFormAccount",
+        "tags": [
+          "Forms"
+        ],
         "parameters": [
           {
             "schema": {
@@ -11080,8 +11257,74 @@
         }
       }
     },
+    "/papi/1.0/forms_graph/tree/{accId}/{formId}": {
+      "get": {
+        "operationId": "getFormsTree",
+        "tags": [
+          "Forms"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "accId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "formId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/forms_graph/{typeLink}/{formId}": {
+      "get": {
+        "operationId": "getLinkedForms",
+        "tags": [
+          "Forms"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "enum": [
+                "children",
+                "parents"
+              ]
+            },
+            "in": "path",
+            "name": "typeLink",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "formId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/access_rules/templateActors/{objId}": {
       "post": {
+        "operationId": "saveTemplateActorsAccess",
         "tags": [
           "Access rules"
         ],
@@ -11155,6 +11398,7 @@
         }
       },
       "get": {
+        "operationId": "getTemplateActorsAccess",
         "tags": [
           "Access rules"
         ],
@@ -11196,6 +11440,7 @@
     },
     "/papi/1.0/access_rules/treeLayer/{objId}": {
       "post": {
+        "operationId": "saveTreeLayerAccess",
         "tags": [
           "Access rules"
         ],
@@ -11269,6 +11514,7 @@
         }
       },
       "get": {
+        "operationId": "getTreeLayerAccess",
         "tags": [
           "Access rules"
         ],
@@ -11310,6 +11556,7 @@
     },
     "/papi/1.0/access_rules/{objType}/{objId}": {
       "post": {
+        "operationId": "saveAccessRules",
         "tags": [
           "Access rules"
         ],
@@ -11406,6 +11653,7 @@
         }
       },
       "get": {
+        "operationId": "getAccessRules",
         "tags": [
           "Access rules"
         ],
@@ -11462,6 +11710,7 @@
     },
     "/papi/1.0/access_rules/bulk": {
       "post": {
+        "operationId": "bulkSaveAccessRules",
         "tags": [
           "Access rules"
         ],
@@ -11525,6 +11774,78 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/access_rules/bulk/accounts_pairs/{accId}": {
+      "post": {
+        "operationId": "bulkSaveAccountPairsAccessRules",
+        "tags": [
+          "Access rules"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "objId": {
+                      "type": "string"
+                    },
+                    "recursive": {
+                      "type": "boolean"
+                    },
+                    "rules": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "action": {
+                            "enum": [
+                              "create",
+                              "update",
+                              "delete"
+                            ]
+                          },
+                          "data": {
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "action",
+                          "data"
+                        ]
+                      },
+                      "minItems": 1,
+                      "maxItems": 100
+                    }
+                  },
+                  "required": [
+                    "objId"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 50
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "accId",
+            "required": true
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response"
@@ -12316,6 +12637,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -12615,6 +12944,7 @@
     },
     "/papi/1.0/graph_layers/clean/{actorId}": {
       "delete": {
+        "operationId": "cleanGraphLayer",
         "tags": [
           "Graph"
         ],
@@ -12656,6 +12986,14 @@
             },
             "in": "query",
             "name": "graphFolderId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
             "required": false
           },
           {
@@ -12809,8 +13147,32 @@
         }
       }
     },
+    "/papi/1.0/graph_layers/stats/{actorId}": {
+      "get": {
+        "operationId": "layerStats",
+        "tags": [
+          "Graph"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/graph_layers/exist/{actorId}": {
       "post": {
+        "operationId": "existLayerElement",
         "tags": [
           "Graph"
         ],
@@ -12992,6 +13354,7 @@
     },
     "/papi/1.0/graph_layers/move/{sourceActorId}/{targetActorId}": {
       "post": {
+        "operationId": "moveActors",
         "tags": [
           "Graph"
         ],
@@ -13706,6 +14069,14 @@
             "schema": {
               "type": "string"
             },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
             "in": "path",
             "name": "accId",
             "required": true
@@ -13720,6 +14091,10 @@
     },
     "/papi/1.0/account_names/{nameId}": {
       "put": {
+        "operationId": "updateAccountName",
+        "tags": [
+          "Accounts"
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -13762,6 +14137,10 @@
     },
     "/papi/1.0/account_names/search/{accId}/{query}": {
       "get": {
+        "operationId": "searchAccountNames",
+        "tags": [
+          "Accounts"
+        ],
         "parameters": [
           {
             "schema": {
@@ -14237,6 +14616,46 @@
         }
       }
     },
+    "/papi/1.0/applications/{actorId}": {
+      "get": {
+        "operationId": "getApplication",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/applications/envs/{actorId}": {
+      "get": {
+        "operationId": "getApplicationEnvs",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/applications/{accId}": {
       "post": {
         "operationId": "createApplication",
@@ -14362,6 +14781,71 @@
         }
       }
     },
+    "/papi/1.0/applications/env/{actorId}/{envId}": {
+      "put": {
+        "operationId": "updateApplicationEnv",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "apiLogin": {
+                    "type": "string"
+                  },
+                  "apiSecret": {
+                    "type": "string"
+                  },
+                  "alias": {
+                    "type": "string"
+                  },
+                  "stageId": {
+                    "type": "string"
+                  },
+                  "companyId": {
+                    "type": "string"
+                  },
+                  "procId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "apiLogin",
+                  "apiSecret"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "envId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/applications/deploy/{actorId}": {
       "post": {
         "requestBody": {
@@ -14404,6 +14888,78 @@
       }
     },
     "/papi/1.0/app_content/{actorId}": {
+      "post": {
+        "operationId": "createAppContent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "folderId": {
+                      "type": "integer"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "objType": {
+                      "enum": [
+                        "folder",
+                        "file"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "folderId",
+                    "title",
+                    "objType"
+                  ],
+                  "if": {
+                    "properties": {
+                      "objType": {
+                        "enum": [
+                          "file"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "source": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  }
+                },
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
       "put": {
         "operationId": "manageAppContent",
         "requestBody": {
@@ -14478,6 +15034,52 @@
             "description": "Default Response"
           }
         }
+      },
+      "delete": {
+        "operationId": "deleteAppContent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "objType": {
+                      "enum": [
+                        "folder",
+                        "file"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "objType"
+                  ]
+                },
+                "minItems": 1
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
       }
     },
     "/papi/1.0/app_content/struct/{actorId}/{envId}": {
@@ -14507,10 +15109,489 @@
         }
       }
     },
+    "/papi/1.0/app_content/{actorId}/{folderId}": {
+      "get": {
+        "operationId": "getAppContentFolder",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "folderId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}": {
+      "get": {
+        "operationId": "listReleases",
+        "summary": "List production releases of an app",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns release manifests filtered by env / status. Ordered by createdAt DESC. Status enum: active | archived | rolled_back | failed.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "envId",
+            "required": false
+          },
+          {
+            "schema": {
+              "enum": [
+                "active",
+                "archived",
+                "rolled_back"
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}/{releaseId}": {
+      "get": {
+        "operationId": "getRelease",
+        "summary": "Get a single release manifest",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns one row from app_releases.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "releaseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}/{releaseId}/struct": {
+      "get": {
+        "operationId": "getReleaseStruct",
+        "summary": "Get the immutable folder/file snapshot of a release",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns { release, objects } where objects is the full app_release_objects payload (folders + files with source bytes). Used by UI to preview a release content.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "releaseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}/{releaseId}/diff": {
+      "get": {
+        "operationId": "diffReleases",
+        "summary": "Diff two releases (added/removed/modified)",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Server-side path-level diff between release `:releaseId` and release `:vs`. Identity per object is (objType, originalId). Modifications detected via source_hash so no TEXT bytes leave the server.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "vs",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "releaseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/releases/{actorId}/{releaseId}/rollback": {
+      "post": {
+        "operationId": "rollbackRelease",
+        "summary": "Roll an env back to a previous release",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Creates a NEW release (linear forward history) by copying the target release objects, then wipes + materializes the env from the new release. Original target is marked status=rolled_back. Rejected with 400 if the target release content was already pruned by retention GC (configured via `applications.history.releaseLimit`, default 5).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "releaseId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/{actorId}/{fileId}": {
+      "get": {
+        "operationId": "listFileVersions",
+        "summary": "List version history of a single file",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns snapshots of an app file ordered by createdAt DESC. Each row captures the file state before a write (create/update/rename/move/delete/restore/rollback). Per-file retention is configured via `applications.history.perFileVersionLimit` (default 50).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "fileId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/{actorId}/{fileId}/{versionId}": {
+      "get": {
+        "operationId": "getFileVersion",
+        "summary": "Get a single file version snapshot",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns one row from app_file_versions for the file.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "fileId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "versionId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/{actorId}/{fileId}/rollback": {
+      "post": {
+        "operationId": "rollbackFile",
+        "summary": "Roll back a file to a previous version",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Overwrites the file in place with the chosen version (id stays stable for live editors). Records a new `rollback` version row holding the pre-rollback state. If the file was soft-deleted, it is also restored. Not allowed for readonly envs (e.g. production).",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "versionId": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "versionId"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "fileId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/trash/{actorId}/{envId}": {
+      "get": {
+        "operationId": "listAppTrash",
+        "summary": "List soft-deleted folders and files of an env",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Returns app_folders / app_files rows where deleted_at IS NOT NULL for the given env. Folders first, then files; newest deletions first. Each row has an `objType` discriminator.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "path",
+            "name": "envId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/file_history/trash/{actorId}/restore": {
+      "post": {
+        "operationId": "restoreAppContent",
+        "summary": "Restore soft-deleted items from trash",
+        "tags": [
+          "Scripts"
+        ],
+        "description": "Clears deleted_at on the provided ids. Files also get a `restore` version row. Folder restore does NOT cascade to descendants — pass each descendant explicitly if you want them back too. Items that are not currently soft-deleted are silently skipped.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "objType": {
+                          "enum": [
+                            "folder",
+                            "file"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "objType"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/smart_forms/list/{accId}": {
       "get": {
         "operationId": "listSmartForms",
         "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "filter",
+            "required": false
+          },
           {
             "schema": {
               "type": "string"

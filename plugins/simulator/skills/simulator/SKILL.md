@@ -26,7 +26,7 @@ a fallback when `operationId` is missing from the spec.
 1. Check whether `accId` is already known: current message, conversation history, or `WORKSPACE_ID` env var / `.env` file in the project directory.
 2. If `accId` is **not** provided, immediately ask:
 
-   > "В каком воркспейсе нужно работать? Укажите, пожалуйста, Workspace ID (`accId`). Если вы ещё не настроили окружение — запустите `/simulator-init`."
+   > Ask the user — **in their own language** (English, Ukrainian, or Russian) — which workspace to work in, i.e. for the Workspace ID (`accId`). If they haven't set up the environment yet, suggest running `/simulator-init`.
 
    Do **not** call any MCP tools until the user provides `accId`.
 3. Once `accId` is known, proceed normally and use it in all subsequent API calls.
@@ -59,6 +59,12 @@ server substitutes them into the URL path automatically.
 **Parameter rules:**
 - Path and query parameters → individual named string arguments
 - Request body → `body` argument as a JSON string
+- **`filter` (field selection)** — every read/lookup/list/search tool accepts an
+  optional `filter`: a comma-separated allow-list of fields to return
+  (e.g. `filter="id,title,data.status"`; dotted paths pick nested `data` fields).
+  The server prunes the response to just those fields. Use it actively to save
+  tokens — request only the fields you actually need instead of the whole entity.
+  Don't confuse it with the row filters `q` / `query` (text/data search).
 
 ## Platform Architecture
 
@@ -116,11 +122,11 @@ Visual organization containers:
 
 ### Accounts
 Financial and metric tracking attached to actors:
-- Types: `asset`, `liability`, `expense`, `income`, `counter`, `state`, `boolean`
-- `income_type`: `debit` or `credit` (which direction increases the balance)
-- Have a `currency_id` and `name_id`
-- Can use formulas for calculated values
-- `tree_calculation`: whether to aggregate up the actor hierarchy
+- `accountType` (value type): `fact` (actual, default) | `plan` | `min`/`max`/`avg` (aggregates). No asset/liability/income enum — the account NAME carries the meaning.
+- `counterType`: `amount` (normal balance, default) | `counter`/`uniqCounter` (Scylla tally, no history) | `systemCounter`
+- `incomeType`: `debit` or `credit` (which direction increases the balance)
+- Keyed by `currencyId` + `nameId` (+ accountType) on an actor
+- `treeCalculation`: whether to aggregate up the actor hierarchy
 
 ### Transactions
 Financial operations on accounts:
@@ -174,18 +180,22 @@ post-graph_layers-actors-layerId(layerId="<layer-id>",
 ### 4. Manage Financial Accounts
 
 ```
-# Create currency and account name first if needed
-post-currencies-accId(accId="<accId>", body='{"title": "USD", "symbol": "$"}')
-post-account_names-accId(accId="<accId>", body='{"title": "Budget"}')
+# MANDATORY first: bootstrap the (name, currency) pair AND grant yourself pair access.
+# Creates the account-name + currency if missing. Always run this BEFORE createAccount —
+# skipping it leaves the pair without an access rule and the next transaction/balance call
+# returns 403 on any non-owner workspace. Prefer this over bare createCurrency +
+# createAccountName.
+createAccountPair(accId="<accId>", accountName="Budget", currencyName="USD",
+                  symbol="$", precision=2)
 
-# Create account for actor
-post-accounts-actorId(actorId="<actor-id>",
-  body='{"nameId": "<name-id>", "currencyId": "<currency-id>", "type": "asset", "incomeType": "credit"}')
+# Attach an account to an actor (accountType defaults to fact; counterType to amount)
+createAccount(actorId="<actor-id>", nameId="<name-id>", currencyId=1)
 
-# Record a transaction
-post-transactions-accountId(accountId="<account-id>",
-  body='{"amount": 1000, "description": "Initial funding"}')
+# Record a transaction (note: `comment`, not `description`; `ref` for idempotency)
+createTransaction(accountId="<account-id>", amount=1000, comment="Initial funding", ref="fund-1")
 ```
+> See `/simulator-finance` for the full account model (accountType fact/plan, counterType,
+> transfers, counters) — these are just the headline calls.
 
 ## Curated tool set (v2 server)
 
@@ -194,7 +204,7 @@ Call tools by these exact names:
 
 - **Forms:** `createForm`, `getForm`, `getForms`, `searchForms`, `updateForm`, `deleteForm`, `setFormStatus`
 - **Actors:** `createActor`, `getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `updateActor`, `deleteActor`, `setActorStatus`
-- **Accounts:** `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
+- **Accounts:** `createAccountPair` (REQUIRED bootstrap — creates name + currency if missing AND grants pair access), `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
 - **Transactions:** `createTransaction`, `finalizeTransaction`, `getTransactions`, `createTransfer`, `getTransfer`
 - **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`
 - **Applications / smart forms:** `createApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent` (read an application with `getActor` — it is an actor)
@@ -224,10 +234,15 @@ Key rules:
 
 For domain-specific workflows use the specialized skills:
 - `/simulator-init` — OAuth login, workspace selection, environment setup
-- `/simulator-graph` — actors, links, layers, graph building
-- `/simulator-forms` — creating and managing form templates for actors
-- `/simulator-finance` — accounts, transactions, transfers
+- `/simulator-graph` — actors, links, layers, graph building (graph STRUCTURE)
+- `/simulator-forms` — form templates / Account Templates («Шаблон рахунків»): field structure
+- `/simulator-actors` — actor instances (records) of a form: the `data` value protocol, create/update/search/filter
+- `/simulator-finance` — accounts, transactions, transfers, currencies, counters (Scylla tallies)
 - `/simulator-charts` — dashboard charts and time-series visualisation on layers
+- `/simulator-smart-forms` — Smart Forms (CDU / Script applications): pages, releases
+- `/simulator-reactions` — comments / events / approvals / ratings on actors (threaded)
+- `/simulator-attachments` — files: upload, attach/detach to actors & reactions
+- `/simulator-access` — access rules: share/grant/revoke who can view/modify an object
 
 ## Reference Documents
 
@@ -254,6 +269,7 @@ Use the `Read` tool to load these files when you need deeper detail:
 - The `accId` (workspace ID) is required for most list/create operations — confirm it with the user
 - Actor `ref` fields must be unique within a workspace — use slugified names
 - System form IDs change per workspace — always look them up with `get-forms-templates-system-accId`
-- When creating accounts, you need both a `currencyId` AND a `nameId` — create them if they don't exist
+- When creating accounts, always run `createAccountPair` first — it ensures both the `currencyId` and the `nameId` exist AND grants you pair access (otherwise the next balance/transaction call 403s)
 - Use `post-actors-mass_links-accId` for creating multiple links at once (much more efficient)
 - Transactions are permanent — use 2-step (authorize → complete/cancel) for reversible operations
+- **Save tokens with `filter`** — on any read/list/search tool, pass `filter` with only the fields you need (e.g. `filter="id,title"`) so the server trims the response instead of returning the full model

@@ -1,4 +1,4 @@
-package engines
+package graph
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -104,15 +105,15 @@ func uploadFile(ctx context.Context, accID string, filename string, contentType 
 	// POST request — `ttl=0` mirrors the UI request and the Postman collection
 	// (`Simulator_public_API.postman_collection.json`).  Without `ttl=0` the
 	// file is sometimes uploaded with a TTL that hides it from the graph UI.
-	apiURL := fmt.Sprintf("%s/upload/%s?ttl=0", buildBaseURL(), accID)
+	apiURL := fmt.Sprintf("%s/upload/%s?ttl=0", ecore.BuildBaseURL(), accID)
 	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, &buf)
 	if err != nil {
 		return "", fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Authorization", authHeader())
+	req.Header.Set("Authorization", ecore.AuthHeader())
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 
-	client := apiHTTPClient()
+	client := ecore.APIHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("http request: %w", err)
@@ -144,15 +145,15 @@ func setActorPicture(ctx context.Context, formID int, actorID, picture string) e
 	bodyBytes, _ := json.Marshal(body)
 
 	apiURL := fmt.Sprintf("%s/actors/actor/%d/%s?replaceEmpty=false",
-		buildBaseURL(), formID, actorID)
+		ecore.BuildBaseURL(), formID, actorID)
 	req, err := http.NewRequestWithContext(ctx, "PUT", apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Authorization", authHeader())
+	req.Header.Set("Authorization", ecore.AuthHeader())
 	req.Header.Set("Content-Type", "application/json")
 
-	client := apiHTTPClient()
+	client := ecore.APIHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("http request: %w", err)
@@ -175,7 +176,7 @@ func fetchImageFromURL(ctx context.Context, url string) ([]byte, string, error) 
 	req.Header.Set("User-Agent",
 		"simulator-ai-plugin/uploadActorPicture (+https://github.com/corezoid/simulator-ai-plugin)")
 
-	client := apiHTTPClient()
+	client := ecore.APIHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
@@ -238,7 +239,7 @@ func guessContentType(filename string) string {
 // One of the three is required. `filename` overrides the auto-derived name
 // and is used both as multipart filename and to pick the Content-Type.
 func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -247,7 +248,7 @@ func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mc
 	if actorID == "" {
 		return mcp.NewToolResultError("[Error] actorId is required"), nil
 	}
-	if r := requireUUID("actorId", actorID); r != nil {
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
 	formID := toInt(args["formId"])
@@ -353,7 +354,7 @@ type uploadBulkItemResult struct {
 // (`imageUrl` / `localPath` / `base64`), plus an explicit `picture` shortcut
 // that skips the upload and binds an already-known storage path to the actor.
 func handleUploadActorPictureBulk(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -401,7 +402,7 @@ func handleUploadActorPictureBulk(ctx context.Context, req mcp.CallToolRequest) 
 			})
 			continue
 		}
-		if !isUUID(actorID) {
+		if !ecore.IsUUID(actorID) {
 			results = append(results, uploadBulkItemResult{
 				ActorID: actorID,
 				Status:  "error",

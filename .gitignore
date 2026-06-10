@@ -2,3 +2,9 @@
 bin/
 /plugins/simulator/mcp-server/.env
 .claude/settings.local.json
+
+# Stray Go binaries built into the module dir (e.g. `go build ./cmd/<x>`).
+# The server/tools run via `go run` — compiled binaries must never be committed.
+/plugins/simulator/mcp-server/server
+/plugins/simulator/mcp-server/evalrunner
+/plugins/simulator/mcp-server/gendiscovery

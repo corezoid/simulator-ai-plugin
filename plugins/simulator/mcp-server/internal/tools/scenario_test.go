@@ -94,8 +94,6 @@ func TestScenarios(t *testing.T) {
 		{"createTransaction", map[string]any{"accountId": "acc1", "amount": float64(450)}, "POST", "/transactions/acc1", "amount", false},
 		{"createLink", map[string]any{"source": "s", "target": "t", "edgeTypeId": float64(7)}, "POST", "/actors/link/WS", "source", false},
 		{"massLink", map[string]any{"links": []any{map[string]any{"source": "s", "target": "t"}}}, "POST", "/actors/mass_links/WS", "", true},
-		{"createApplication", map[string]any{"ref": "app", "title": "App", "corezoidCredentials": map[string]any{}}, "POST", "/applications/WS", "ref", false},
-		{"createSmartForm", map[string]any{"fileUrl": "u", "smartFormRef": "r", "title": "T", "ref": "x"}, "POST", "/smart_forms/WS", "fileUrl", false},
 		{"getForm", map[string]any{"formId": float64(12)}, "GET", "/forms/12", "", false},
 	}
 
@@ -230,6 +228,52 @@ func TestOptionalBooleanQueryOmittedWhenFalse(t *testing.T) {
 	call(t, c2, opByName(t, "getForms"), map[string]any{"withRelations": true})
 	if rec2.query != "withRelations=true" {
 		t.Errorf("query = %q, want withRelations=true", rec2.query)
+	}
+}
+
+// TestKeepFalseQueryFlagSentWhenFalse verifies a KeepFalse boolean query flag
+// (one whose backend default is true, e.g. saveAccessRules' `recursive`) is sent
+// even when explicitly false — so an opt-out is honoured rather than dropped and
+// silently overridden by the backend default.
+func TestKeepFalseQueryFlagSentWhenFalse(t *testing.T) {
+	c, rec := setup(t)
+	call(t, c, opByName(t, "saveAccessRules"), map[string]any{
+		"objType":   "actor",
+		"objId":     "a1",
+		"rules":     []any{map[string]any{"action": "delete", "data": map[string]any{"userId": float64(1)}}},
+		"recursive": false,
+	})
+	if rec.path != "/access_rules/actor/a1" {
+		t.Errorf("path = %q, want /access_rules/actor/a1", rec.path)
+	}
+	if rec.query != "recursive=false" {
+		t.Errorf("query = %q, want recursive=false (KeepFalse flag must be sent)", rec.query)
+	}
+}
+
+// TestWireDecouplesArgFromBodyKey verifies a Param.Wire override sends the body
+// field under its wire name while the MCP arg keeps a distinct name — the reactions
+// case where the root actor is the path `{actorId}` and the reaction's own id is the
+// body `actorId`, exposed as the `reactionId` argument.
+func TestWireDecouplesArgFromBodyKey(t *testing.T) {
+	c, rec := setup(t)
+	call(t, c, opByName(t, "updateReaction"), map[string]any{
+		"actorId":     "root-1",
+		"reactionId":  "rx-9",
+		"description": "edited",
+	})
+	if rec.path != "/reactions/root-1" {
+		t.Errorf("path = %q, want /reactions/root-1 (root actor in path)", rec.path)
+	}
+	m, ok := rec.body.(map[string]any)
+	if !ok {
+		t.Fatalf("expected object body, got %T", rec.body)
+	}
+	if m["actorId"] != "rx-9" {
+		t.Errorf("body actorId = %v, want rx-9 (reactionId mapped to wire name actorId)", m["actorId"])
+	}
+	if _, leaked := m["reactionId"]; leaked {
+		t.Errorf("body should not carry the MCP arg name reactionId: %v", m)
 	}
 }
 

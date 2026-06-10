@@ -36,6 +36,22 @@ type Param struct {
 	Required bool
 	Desc     string
 	Enum     []string // allowed values, surfaced in the description
+
+	// Wire overrides the name used on the wire (the path placeholder, query key,
+	// or body field) while Name stays the MCP argument the model sees. Defaults to
+	// Name. Needed when the backend reuses one name for two slots — e.g. reactions
+	// take the root actor as the path `{actorId}` AND the reaction's own id as the
+	// body `actorId`; the tool exposes them as distinct args (actorId, reactionId)
+	// with the body param set to Wire:"actorId".
+	Wire string
+
+	// KeepFalse forces an optional boolean query flag to be sent even when the
+	// caller sets it to false. Needed for flags whose backend default is TRUE
+	// (e.g. recursive, notify): for those, omitting "false" would let the
+	// backend re-apply its true default and silently ignore an explicit opt-out.
+	// Leave false for the common case (default-false flags), where omitting a
+	// false value is correct — see the InQuery handling in makeHandler.
+	KeepFalse bool
 }
 
 // Operation is a curated API operation exposed as one MCP tool. Name is the
@@ -51,6 +67,25 @@ type Operation struct {
 	// Resolve, if set, runs before the request is assembled and may mutate args
 	// (e.g. resolve a friendly name to an id). A returned error aborts the call.
 	Resolve func(ctx context.Context, args map[string]any, c *apiclient.Client) error
+}
+
+// fieldFilterParam returns the standard `filter` query parameter for read
+// operations whose backend supports server-side field selection (projection).
+//
+// The pong-server API applies `filter` via filterActorData / filterData: it is a
+// comma-separated allow-list of top-level fields to keep in the response. Dotted
+// paths like `data.status` select nested fields inside the free-form `data`
+// object (its parent `data` is preserved, pruned to the listed sub-fields).
+// Using it keeps responses — and token cost — small, so prefer it whenever only
+// part of the entity is needed. `example` shows entity-appropriate field names.
+func fieldFilterParam(example string) Param {
+	return Param{
+		Name: "filter", In: InQuery, Type: "string",
+		Desc: "Comma-separated allow-list of fields to return (server-side projection). " +
+			"Only the listed fields are kept; use dotted paths like `data.status` for nested data fields. " +
+			"Prefer setting this to just the fields you need — it sharply reduces response size and token cost. " +
+			"Omit to return the full object. Example: \"" + example + "\".",
+	}
 }
 
 // register builds the MCP tool for op and wires its handler to the client.
@@ -114,20 +149,28 @@ func makeHandler(c *apiclient.Client, op Operation) server.ToolHandlerFunc {
 				}
 				continue
 			}
+			// wire is the name used on the request (path placeholder / query key /
+			// body field); defaults to the MCP arg name unless Wire overrides it.
+			wire := p.Name
+			if p.Wire != "" {
+				wire = p.Wire
+			}
 			switch p.In {
 			case InPath:
-				path = strings.ReplaceAll(path, "{"+p.Name+"}", url.PathEscape(toString(val)))
+				path = strings.ReplaceAll(path, "{"+wire+"}", url.PathEscape(toString(val)))
 			case InQuery:
 				// Optional boolean query flags are presence-truthy on the backend;
 				// omit them when false so "false" is not misread as "enabled".
-				if p.Type == "boolean" && !p.Required {
+				// KeepFalse opts out (for flags whose backend default is true, an
+				// explicit false must be sent or the default silently wins).
+				if p.Type == "boolean" && !p.Required && !p.KeepFalse {
 					if b, ok := val.(bool); ok && !b {
 						continue
 					}
 				}
-				query.Set(p.Name, toString(val))
+				query.Set(wire, toString(val))
 			case InBody:
-				body[p.Name] = val
+				body[wire] = val
 			case InBodyRoot:
 				bodyRoot = val
 			case InLocal:

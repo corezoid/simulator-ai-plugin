@@ -35,6 +35,65 @@ The platform supports various actor types based on their purpose:
 - **Reaction Actors** - Actors representing user interactions (comments, approvals, etc.)
 - **Application Actors** - Actors representing applications or integrations
 
+## Actor Data Protocol
+
+An actor is an **instance of a form** (a.k.a. Account Template — see [forms.md](forms.md)).
+Its `data` object holds the field values, and the contract is strict:
+
+- **Keys are the form field `id`s** — `item_<digits>` — **not** the field `title` and **not** the field's `key`. Always read the form with `getForm` first to learn the ids.
+- **Each value's shape is dictated by that field's `class`** (and, for `edit`, its `type`).
+- **Display-only fields** (`label`, `button`, `image`) have **no** entry in `data`.
+- Fields the user did not fill (and `disabled` fields) may simply be omitted.
+
+| Form field class / source | Value in actor `data` | Example |
+|---|---|---|
+| `edit` text / password / email / phone | string | `"dsdf@fsdf.com"` |
+| `edit` int / float | number | `1` |
+| `check` | boolean | `true` |
+| `radio` | the selected option's `value` (string) | `"1780650831765_266361868"` |
+| `select` (static) | array of chosen option objects | `[{"color":"#863434","title":"one","value":"…"}]` |
+| `select` → `layer`/`actorFilter`/`actorsBag`/`actors`/`formFilter` | `[{type:"actor", title, value:<actor UUID>}]` (formFilter = the actors of a given form) | `[{"type":"actor","title":"Simple","value":"e948822e-…"}]` |
+| `select` → `forms` | `[{type:"form", title, value:<form id number>}]` | `[{"type":"form","title":"Car","value":42}]` |
+| `select` → `currencies` | `[{type:"currency", title, value:<currency id number>}]` | `[{"type":"currency","title":"done","value":9}]` |
+| `select` → `accountNames` | `[{type:"accountName", title, value:<account-name UUID>}]` | `[{"type":"accountName","title":"Child Actors","value":"d67e90e0-…"}]` |
+| `select` → `workspaceMembers` | `[{type:"workspaceMembers", title, value:<user id number>}]` | `[{"type":"workspaceMembers","title":"Alex Kulo","value":1}]` |
+| `select` → `api`/`corezoidSyncApi` | array of synced option objects (`[]` until synced) | `[]` |
+| `multiSelect` | array `[{title,value}, …]` | `[{"title":"one","value":"…"},{"title":"two","value":"…"}]` |
+| `calendar` | `{startDate,endDate,timeZoneOffset,sendInvite}` (unix **seconds**) | `{"startDate":1780736400,"endDate":1780736400,"timeZoneOffset":-180,"sendInvite":false}` |
+| `upload` | array of file refs (`[]` when empty) | `[]` |
+
+> The `type` discriminator (`actor` / `currency` / `accountName` / `workspaceMembers` / `form`) only appears on **dynamic** `select` values, so the platform can resolve the referenced entity. Static `select`/`multiSelect` values carry no `type`.
+
+See [forms.md → Worked example](forms.md#worked-example--every-field-class) for a side-by-side form `sections` ↔ actor `data` pairing.
+
+### Multiform actors (`__form__<formId>:<itemId>`)
+
+An actor can instantiate **more than one form at once** (a *multiform* actor — see
+[forms.md → Form trees and multiform actors](forms.md#form-trees-and-multiform-actors-uat)).
+Its `data` then mixes fields from several forms, disambiguated by a key prefix:
+
+- Fields of the actor's own **root** `form_id` → the **plain** field `id` (e.g. `"name"`).
+  (The namespaced form `__form__<rootFormId>:<itemId>` is also accepted and aliased.)
+- Fields of **any other** form → **`__form__<thatFormId>:<itemId>`**.
+
+```json
+{
+  "name": "Kulo Oleksandr",                 // root-form field, plain id
+  "__form__16951:position": "Software engineer"  // field "position" of form 16951
+}
+```
+
+The prefix changes only the **key** — the value still follows the per-class shapes in the
+table above. When you write multiform data, use the plain id for the form you are creating
+the actor under and the `__form__<id>:` form for fields owned by the other attached forms.
+
+> **Create under the UAT root, not a leaf.** In a UAT workspace the `form_id` you create an
+> actor under must be the **root** of the tree. If the form you want has a non-empty
+> `parent_id` (it's a leaf/child), creating directly under it fails with
+> `400: Form <id> is not UAT` — walk up `parent_id` to the root, create under the root, and
+> put the leaf form's fields under `__form__<leafFormId>:<itemId>`. See
+> [forms.md → Creating actors under a UAT tree](forms.md#creating-actors-under-a-uat-tree-root-vs-leaf).
+
 ## API Endpoints
 
 For detailed API documentation on actors, including request parameters, response formats, and authentication requirements, please refer to the official API documentation:

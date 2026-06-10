@@ -9,6 +9,7 @@ The Simulator.Company platform provides a comprehensive API for managing busines
 1. **Form Management** - Creating custom form templates and actor instances
 2. **Graph Management** - Creating and managing actors, links, and layers
 3. **Financial Management** - Managing accounts, transactions, and transfers
+4. **Smart Forms (Applications)** - Building, versioning, deploying, and serving interactive apps
 
 ## User Flow Documentation
 
@@ -20,6 +21,11 @@ The Simulator.Company platform provides a comprehensive API for managing busines
 
 - [Graph Functionality](graph-functionality.md) - Creating and managing actors, links, and layers in graph structures
 - [Actor Graph Management](actor-graph-management.md) - Managing actors on graphs: creating links, organizing on layers, searching and filtering
+
+### Smart Forms (Applications / CDU)
+
+- [Smart Forms](smart-forms.md) - Full lifecycle and behaviour of Smart Forms: catalog & install, project editing, file history, deploy/release, rollback, and serving pages to end users
+- [CDU Page Protocol](cdu-page-protocol.md) - The runtime page JSON contract: `get`/`send` protocol & response codes, the Page/grid/forms/sections/component model, the `changes` patch protocol, templating (`viewModel`/`locale`/`definitions`/`contentLoop`/`bbcode`), the full component catalogue, and server-side save validation
 
 ## Related Entity Documentation
 

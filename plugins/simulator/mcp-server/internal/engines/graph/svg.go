@@ -1,4 +1,4 @@
-package engines
+package graph
 
 import (
 	"bytes"

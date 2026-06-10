@@ -22,9 +22,13 @@ files and the [entity docs](../plugins/simulator/docs/entities/README.md).
 │   ├── simulator-init           │   domain knowledge + tool-call       │
 │   ├── simulator-graph          │   guidance is injected into the      │
 │   ├── simulator-forms          ├─▶ model context; the model then      │
-│   ├── simulator-finance        │   calls MCP tools over stdio         │
-│   ├── simulator-charts         │                                      │
-│   └── software-migration-...─┘                                        │
+│   ├── simulator-smart-forms    │   calls MCP tools over stdio         │
+│   ├── simulator-actors         │   calls MCP tools over stdio         │
+│   ├── simulator-finance        │                                      │
+│   ├── simulator-charts          │                                      │
+│   ├── simulator-reactions       │                                      │
+│   ├── simulator-attachments     │                                      │
+│   └── simulator-access        ──┘                                      │
 └───────────────────────────────────────┬─────────────────────────────┘
                                          │ MCP (stdio)
                                          ▼
@@ -51,9 +55,10 @@ Two layers cooperate:
 
 - **Skills** carry *domain knowledge* — what an actor/form/account is, which tools to call
   in what order, common workflows. They are plain markdown and ship no code.
-- **The MCP server** exposes a *curated, typed tool set* (~46 tools) scoped to the core
-  scenarios — forms, actors, accounts, transactions, graph building, applications/smart
-  forms — rather than the entire REST surface. Each tool is a compile-time descriptor, not
+- **The MCP server** exposes a *curated, typed tool set* (~95 tools) scoped to the core
+  scenarios — forms, actors, accounts, transactions, transfers, counters, graph building,
+  links/layers, reactions, attachments, access rules, applications/smart forms — rather than
+  the entire REST surface. Each tool is a compile-time descriptor, not
   a generic passthrough; a drift gate keeps those descriptors honest against the backend.
 
 This separation is deliberate: the tool set can evolve without touching the skills, and the
@@ -84,7 +89,7 @@ simulator-ai-plugin/
     ├── .codex-plugin/plugin.json     # Codex manifest
     ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
-    ├── skills/                       # 6 skills (markdown only)
+    ├── skills/                       # 11 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
 ```
 
@@ -180,7 +185,7 @@ Tools are **declared in Go**, not generated from a spec at runtime. `op.go` defi
 `Operation` (name = operationId, HTTP method, path template, typed `Param`s) and a generic
 `register()` that turns any `Operation` into a typed MCP tool whose handler maps
 arguments → path/query/body → one `apiclient.Do` call. The per-domain files
-(`forms.go`, `actors.go`, `accounts.go`, `transactions.go`, `graph.go`, `apps.go`) each
+(`forms.go`, `actors.go`, `accounts.go`, `transactions.go`, `graph.go`) each
 declare a slice of `Operation`s; `build.go` registers them all plus the `set-environment` /
 `login` / `set-workspace` helpers.
 
@@ -188,7 +193,16 @@ Conventions baked into the registry:
 
 - `accId` path/query params default to the active workspace when omitted;
 - a POST/PUT whose object-body fields are all omitted still sends `{}`;
-- required params missing → a clear error result (not a malformed request).
+- required params missing → a clear error result (not a malformed request);
+- every read operation exposes a `filter` field-selection param (`fieldFilterParam` in
+  `op.go`): a comma-separated allow-list of fields the backend prunes the response to
+  (`filterActorData` / `filterData` server-side), with dotted paths like `data.status`
+  for nested fields. It is optional and meant to be used actively to keep responses —
+  and token cost — small. On the single/lookup, list, and search tools across forms,
+  actors, accounts, transactions, graph, apps, search and workspaces (for `getLayerActors`
+  and `searchAll` it projects the actor/node items). The backend support for these routes
+  was added in pong-server alongside this change; refresh `testdata/papi-openapi.json`
+  (`yarn dump-openapi`) once that deploys so the dumped spec reflects the new params.
 
 ### 3.4 Workspace & auth context
 
@@ -214,21 +228,26 @@ Refresh the spec with pong-server's `yarn dump-openapi` and copy it into `testda
 
 ## 4. Curated tool set & engines
 
-The server registers ~46 tools in two groups.
+The server registers ~95 curated tools (plus engine + auth helpers) in two groups.
 
 **Curated API operations** (`internal/tools`, declared per domain) — one MCP tool per
 backend operation, with typed parameters:
 
 | Domain        | Tools                                                                                  |
 |---------------|----------------------------------------------------------------------------------------|
-| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` |
-| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` |
-| Accounts      | `createAccount` `getAccounts` `getBalance` `updateAccount` `deleteAccount` `createCurrency` `getCurrencies` `createAccountName` `getAccountNames` |
-| Transactions  | `createTransaction` `finalizeTransaction` `getTransactions` `createTransfer` `getTransfer` |
-| Graph         | `createLink` `massLink` `getEdgeTypes` `getLayerActors` `getRelatedActors` `manageLayerActors` |
-| Applications  | `createApplication` `createSmartForm` `listSmartForms` `manageAppContent`              |
+| Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` `createFormAccount` `getFormAccounts` `removeFormAccount` `getLinkedForms` `getFormsTree` |
+| Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` `getSystemActor` `getCorezoidProcesses` |
+| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Counters      | `saveCounters` `setCounters` `getCounters` |
+| Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` |
+| Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
+| Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `getLinkedActors` `getActorLinks` `manageLayerActors` `moveActors` `existLayerElement` `cleanGraphLayer` `layerStats` |
+| Reactions     | `createReaction` `updateReaction` `deleteReaction` `getReactions` `getReactionsStats` `markReactionsRead` `getPinnedReactions` `togglePinnedReaction` |
+| Attachments   | `getAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
+| Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
+
 
 **Engine tools** (`internal/engines`) — multi-call workflows and client-side computation
 ported from the original implementation:
@@ -241,7 +260,19 @@ ported from the original implementation:
 | `compactGraphLayout`     | `compact_layout.go`      | Auto-layout a layer into domain-clustered grids                     |
 | `pruneLongEdges`         | `prune_edges.go`         | Delete edges longer than a distance threshold; preserves hierarchy  |
 | `uploadActorPicture(Bulk)`| `upload.go` + `svg.go`  | Set actor pictures (URL/file/base64); auto-rasterise SVG→PNG        |
-| `createChart`            | `create_chart.go`        | Create a dashboard chart actor (dynamic filter or explicit accounts) |
+| `createSmartForm`        | `create_smart_form.go`   | Create Smart Form actor with develop + production envs              |
+| `pullSmartForm`          | `pull_smart_form.go`     | Download all env file trees of a Smart Form to `<actorId>/<env>/` with `.manifest.json` |
+| `pushSmartForm`          | `push_smart_form.go`     | Diff local develop files against `.manifest.json`, validate, and push changes in one batch |
+| `deploySmartForm`        | `smart_form_releases.go` | Deploy one env to another; resolves env names to IDs internally     |
+| `listReleases`           | `smart_form_releases.go` | List releases for a Smart Form env                                  |
+| `diffReleases`           | `smart_form_releases.go` | Diff two releases (added/removed/modified, by source_hash)          |
+| `rollbackRelease`        | `smart_form_releases.go`      | Roll back to a prior release (forward-only)                    |
+| `getFileHistory`         | `smart_form_file_history.go`  | List version history for a Smart Form file                     |
+| `getFileVersion`         | `smart_form_file_history.go`  | Fetch source of one file version                               |
+| `rollbackFile`           | `smart_form_file_history.go`  | Restore a file to a prior version                              |
+| `listTrash`              | `smart_form_file_history.go`  | List soft-deleted objects in an env                            |
+| `restoreFromTrash`       | `smart_form_file_history.go`  | Restore a soft-deleted object from trash                       |
+| `createChart`            | `create_chart.go`             | Create a dashboard chart actor (dynamic filter or explicit accounts) |
 
 Engines share a small runtime config (`engines.Configure`: base URL + TLS) and read the
 auth header / `WORKSPACE_ID` per call. The graph sync (`sync_graph.go` + `push_graph.go`,

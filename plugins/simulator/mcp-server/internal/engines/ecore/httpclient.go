@@ -1,4 +1,4 @@
-package engines
+package ecore
 
 import (
 	"crypto/tls"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// apiHTTPClient returns a process-wide shared HTTP client for all outbound API
+// APIHTTPClient returns a process-wide shared HTTP client for all outbound API
 // calls. Centralising it gives us (a) a real request Timeout so a stalled
 // upstream can't pin a goroutine forever, (b) connection reuse instead of a
 // fresh Transport per call, and (c) a single place where TLS verification is
@@ -21,7 +21,7 @@ var (
 	sharedClient   *http.Client
 )
 
-func apiHTTPClient() *http.Client {
+func APIHTTPClient() *http.Client {
 	httpClientOnce.Do(func() {
 		tr := &http.Transport{
 			MaxIdleConns:        100,

@@ -1,0 +1,88 @@
+name: CI
+
+# Triggers: branch pushes to main/develop, all PRs, and manual dispatch.
+# workflow_dispatch is also the only trigger that runs the (opt-in) behavioural eval.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      anthropic_model:
+        description: "Model id for the behavioural eval (ANTHROPIC_MODEL)."
+        required: false
+        default: ""
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Required gate. No secrets needed — build, vet, test, discovery freshness,
+  # and (advisory) lint. This is what must stay green for a PR to merge.
+  # --------------------------------------------------------------------------
+  gate:
+    name: Gate (build / vet / test / discovery)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Keep the toolchain in sync with the module's go.mod.
+          go-version-file: plugins/simulator/mcp-server/go.mod
+          # Cache Go modules + build cache keyed off the module's go.sum.
+          cache: true
+          cache-dependency-path: plugins/simulator/mcp-server/go.sum
+
+      - name: Build
+        run: make build
+
+      - name: Vet
+        run: make vet
+
+      - name: Test
+        run: make test
+
+      # Regenerate the committed AI-discovery artifacts and fail if they drift.
+      # A PR that changed SKILL.md frontmatter but forgot `make discovery` will
+      # produce a non-empty diff here and fail with a clear message.
+      - name: Discovery freshness (regenerate public/)
+        run: make discovery
+
+      - name: Discovery freshness (assert no drift)
+        run: |
+          if ! git diff --exit-code -- public/; then
+            echo "::error::public/ is out of date. Run 'make discovery' locally and commit the result (do not hand-edit public/)."
+            exit 1
+          fi
+
+      # Lint is advisory per AGENTS.md — never block the gate on it.
+      - name: Lint (advisory)
+        continue-on-error: true
+        run: make lint
+
+  # --------------------------------------------------------------------------
+  # Behavioural eval. Opt-in, non-blocking, manual only — it spends Anthropic
+  # API credits, so it must never run on push/PR. Runs only on workflow_dispatch.
+  # If ANTHROPIC_API_KEY is absent, `make eval` self-skips and exits 0.
+  # --------------------------------------------------------------------------
+  behavioural-eval:
+    name: Behavioural eval (opt-in)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: plugins/simulator/mcp-server/go.mod
+          cache: true
+          cache-dependency-path: plugins/simulator/mcp-server/go.sum
+
+      - name: Run behavioural eval
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ github.event.inputs.anthropic_model }}
+        run: make eval

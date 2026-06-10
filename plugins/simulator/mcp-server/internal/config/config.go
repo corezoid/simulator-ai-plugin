@@ -5,7 +5,7 @@
 //
 //  1. explicit per-field env vars (SIMULATOR_API_BASE_URL, SIMULATOR_ACCOUNT_URL,
 //     SIMULATOR_OAUTH_CLIENT_ID)
-//  2. a profiles.json file in the working directory, keyed by the active profile name
+//  2. a profiles.json file in SIMULATOR_WORK_DIR (or cwd), keyed by the active profile name
 //  3. the built-in profile (local / prod)
 //
 // The active profile name comes from the --profile flag (passed to Resolve) or the
@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -180,7 +181,11 @@ func Resolve(flagProfile string) (Profile, error) {
 }
 
 func loadProfilesFile() (*profilesFile, error) {
-	data, err := os.ReadFile("profiles.json")
+	path := "profiles.json"
+	if dir := os.Getenv("SIMULATOR_WORK_DIR"); dir != "" {
+		path = filepath.Join(dir, "profiles.json")
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

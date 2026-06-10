@@ -3,6 +3,7 @@ package engines
 import (
 	"testing"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -16,7 +17,7 @@ func TestRegisterToolsNoPanic(t *testing.T) {
 // TestBuildBaseURL verifies the engine base URL comes from the configured profile.
 func TestBuildBaseURL(t *testing.T) {
 	Configure("http://localhost:9000/papi/1.0", false)
-	if got := buildBaseURL(); got != "http://localhost:9000/papi/1.0" {
+	if got := ecore.BuildBaseURL(); got != "http://localhost:9000/papi/1.0" {
 		t.Errorf("buildBaseURL() = %q, want the configured base", got)
 	}
 }

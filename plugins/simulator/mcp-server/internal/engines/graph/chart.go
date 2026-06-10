@@ -1,4 +1,4 @@
-package engines
+package graph
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -124,7 +125,7 @@ func chartHTTPGet(ctx context.Context, apiURL, auth string) ([]byte, error) {
 		return nil, err
 	}
 	req.Header.Set("Authorization", auth)
-	resp, err := apiHTTPClient().Do(req)
+	resp, err := ecore.APIHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +148,7 @@ func chartHTTPJSON(ctx context.Context, method, apiURL, auth string, body interf
 	}
 	req.Header.Set("Authorization", auth)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := apiHTTPClient().Do(req)
+	resp, err := ecore.APIHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -495,7 +496,7 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 // ---- MCP handler ----
 
 func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	if authResult := ensureAuth(ctx); authResult != nil {
+	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
 	}
 
@@ -505,7 +506,7 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	if layerID == "" {
 		return mcp.NewToolResultError("[Error] layerId is required"), nil
 	}
-	if r := requireUUID("layerId", layerID); r != nil {
+	if r := ecore.RequireUUID("layerId", layerID); r != nil {
 		return r, nil
 	}
 
@@ -522,12 +523,12 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	filterTitle, _ := args["filterTitle"].(string)
 	accountNameID, _ := args["accountNameId"].(string)
 	if filterActorID != "" {
-		if r := requireUUID("filterActorId", filterActorID); r != nil {
+		if r := ecore.RequireUUID("filterActorId", filterActorID); r != nil {
 			return r, nil
 		}
 	}
 	if accountNameID != "" {
-		if r := requireUUID("accountNameId", accountNameID); r != nil {
+		if r := ecore.RequireUUID("accountNameId", accountNameID); r != nil {
 			return r, nil
 		}
 	}
@@ -609,7 +610,7 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		Accounts:      accounts,
 	}
 
-	result, err := CreateChart(ctx, cfg, os.Getenv("WORKSPACE_ID"), authHeader(), buildBaseURL())
+	result, err := CreateChart(ctx, cfg, os.Getenv("WORKSPACE_ID"), ecore.AuthHeader(), ecore.BuildBaseURL())
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] createChart: %v", err)), nil
 	}
