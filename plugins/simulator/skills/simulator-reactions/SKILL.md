@@ -48,7 +48,7 @@ target actor's UUID (use `simulator-actors` / `searchActors` to find it) before 
 
 ```
 createReaction(
-  type="comment",                 # the everyday note; other types: view, ai, rating, sign, ds, done, reject, freeze
+  type="comment",                 # everyday note; other types: view, rating, sign, ds, done, reject, freeze; ai = agent reply (see below)
   actorId="<parent actor UUID>",
   description="Looks good to me",  # the comment text
   notify=true)                     # default true; set false to post quietly
@@ -86,6 +86,33 @@ getReactionsStats(actorId="<parent actor UUID>")                     # counts by
 
 - `view=tree` returns the nested reply tree; `flat` a flat list; `thread` a single thread.
 - `parentId` narrows to the replies under one reaction; `from`/`to` filter by created time.
+
+## AI agent reactions (`extra.mcp`)
+
+A reaction can be handed to the platform's **AI agent** by creating it with
+`extra.mcp = true`. The platform then runs the agent on that reaction **under the
+requesting user's access** (the agent uses this same MCP server, so it can only
+read/write what the user can) and posts the answer back as a child **`ai`** reaction.
+
+```
+createReaction(type="comment", actorId="<actor UUID>",
+  description="Summarize this actor and flag anything unusual",
+  extra={ "mcp": true })            # → triggers the AI agent; its reply appears as a child `ai` reaction
+```
+
+The `ai` reply carries a `reasoning` object that the agent streams while it works:
+
+- `reasoning.inProgress` — `true` while the agent is still producing the answer.
+- `reasoning.thoughts` — `[{ id, text, createdAt }]`, a step log (e.g. tools it used).
+- `description` — fills with the answer text (streamed live over WebSocket, then finalized).
+
+So when reading a discussion (`getReactions`), an `ai` reaction with
+`reasoning.inProgress = true` is still being written; treat its `description` as partial.
+
+> **Don't loop:** the agent already replies on its own. Only set `extra.mcp` on a
+> *human* request you want the agent to handle — not on the agent's own output. The
+> platform bounds runaway chains, but creating `extra.mcp` reactions from agent
+> output wastes turns.
 
 ## Pin & read state
 
