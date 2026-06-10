@@ -321,7 +321,7 @@ simulator-ai-plugin/
 ├── .agents/
 │   └── plugins/
 │       └── marketplace.json     # Codex marketplace listing (points to plugins/simulator)
-├── Makefile                     # build / vet / test / discovery / run-local / run-prod
+├── Makefile                     # build / vet / test / discovery / run-local / run-prod / inspect
 ├── CHANGELOG.md
 ├── CLAUDE.md                    # Repo guide for Claude Code (points to AGENTS.md)
 ├── AGENTS.md                    # Repo guide for coding agents (canonical)
@@ -458,11 +458,20 @@ and `.env`. Check `/mcp` again if a server shows as failed (see its **Errors** t
 ```bash
 make run-local      # go run ./cmd/server --profile local
 make run-prod       # against the public gateway
+make inspect        # MCP Inspector web UI wrapping the server (PROFILE=local|prod)
 make test           # unit + scenario + drift + eval tests
 make lint           # golangci-lint v2 (gosec clean; style backlog)
 make eval           # behavioural eval, dry (needs ANTHROPIC_API_KEY)
 make eval-live      # behavioural eval executing tools against the backend
 ```
+
+`make inspect` launches the [MCP Inspector](https://github.com/modelcontextprotocol/inspector)
+(needs Node.js / `npx`) — a browser UI to list and call the server's tools and read its
+resources by hand. It prints a `localhost:6274` URL with a session token; open it, hit
+**Connect**, then browse **Tools** / **Resources**. Authenticate first (the `login` tool or
+a valid `.env`) since calls hit the real backend. See the
+[MCP server README](plugins/simulator/mcp-server/README.md#inspecting--debugging-with-the-mcp-inspector)
+for the headless `--cli` mode.
 
 ## Debugging
 

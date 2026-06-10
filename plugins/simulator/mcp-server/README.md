@@ -39,6 +39,34 @@ Profiles are overridable per-field via `SIMULATOR_API_BASE_URL`, `SIMULATOR_ACCO
 profile also makes the `set-environment` tool offer a `local` preset (`localhost:9000`);
 `prod` hides it.
 
+## Inspecting / debugging with the MCP Inspector
+
+The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is the official
+browser UI for poking at an MCP server by hand — list and call tools, inspect their JSON
+schemas, and read resources (e.g. `simulator://actor/{id}`) — without wiring the server
+into Claude. Requires Node.js (`npx`); no global install needed.
+
+From the **repository root**:
+
+```bash
+make inspect              # wrap the server on the local profile (pong-server :9000)
+make inspect PROFILE=prod # wrap the server on the public gateway
+```
+
+This runs `npx @modelcontextprotocol/inspector go run ./cmd/server --profile $(PROFILE)`
+in this module dir, so the server picks up `.env` from here exactly as the `run-*` targets
+do. The command prints a `http://localhost:6274` URL with a session token — open it, then
+**Connect** → **Tools** / **Resources**. Tool calls hit the real backend, so authenticate
+first (run the `login` tool, or have a valid `ACCESS_TOKEN`/`WORKSPACE_ID` in `.env`).
+
+For scripted/CI use, the Inspector also has a headless CLI mode — handy for diffing the
+tool surface without the UI:
+
+```bash
+cd plugins/simulator/mcp-server
+npx @modelcontextprotocol/inspector --cli go run ./cmd/server --profile local --method tools/list
+```
+
 ## Layout
 
 ```
@@ -67,6 +95,7 @@ make test          # go test ./...   — config, apiclient, tools (scenarios, -r
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
 make run-local     # go run ./cmd/server --profile local
 make run-prod      # go run ./cmd/server --profile prod
+make inspect       # launch the MCP Inspector web UI wrapping the server (PROFILE=local|prod)
 make eval          # behavioural eval, dry — stubbed tool results (needs ANTHROPIC_API_KEY)
 make eval-live     # behavioural eval executing tools against the backend (throwaway workspace)
 ```
