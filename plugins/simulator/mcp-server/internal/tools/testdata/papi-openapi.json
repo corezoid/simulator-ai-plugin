@@ -915,6 +915,48 @@
         }
       }
     },
+    "/papi/1.0/attachments/actor/{actorId}": {
+      "get": {
+        "operationId": "getActorAttachments",
+        "tags": [
+          "Attachments"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "offset",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/attachments/{attachId}": {
       "put": {
         "operationId": "updateAttachment",
@@ -3367,9 +3409,6 @@
                           "x",
                           "y"
                         ]
-                      },
-                      "mcp": {
-                        "type": "boolean"
                       }
                     }
                   },
@@ -3605,9 +3644,6 @@
                           "x",
                           "y"
                         ]
-                      },
-                      "mcp": {
-                        "type": "boolean"
                       }
                     }
                   },
@@ -3973,9 +4009,6 @@
                           "x",
                           "y"
                         ]
-                      },
-                      "mcp": {
-                        "type": "boolean"
                       }
                     }
                   },
