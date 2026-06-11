@@ -19,7 +19,7 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 	if name == "" {
 		return nil // neither given — the path check reports the missing formId
 	}
-	accID := c.WorkspaceID()
+	accID := c.WorkspaceIDForContext(ctx)
 	if accID == "" {
 		return fmt.Errorf("resolving formName needs a workspace — run set-workspace or pass formId")
 	}

@@ -32,7 +32,7 @@ func handleGetFileHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	}
 	fileID := int(fileIDFloat)
 
-	apiURL := fmt.Sprintf("%s/file_history/%s/%d", ecore.BuildBaseURL(), ecore.Seg(actorID), fileID)
+	apiURL := fmt.Sprintf("%s/file_history/%s/%d", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID), fileID)
 
 	sep := "?"
 	if limit, ok := args["limit"].(float64); ok && limit > 0 {
@@ -43,7 +43,7 @@ func handleGetFileHistory(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		apiURL += fmt.Sprintf("%soffset=%d", sep, int(offset))
 	}
 
-	respBytes, err := ecore.PapiGET(apiURL)
+	respBytes, err := ecore.PapiGET(ctx, apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] get file history: %v", err)), nil
 	}
@@ -77,8 +77,8 @@ func handleGetFileVersion(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		return mcp.NewToolResultError("[Error] versionId is required"), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/file_history/%s/%d/%s", ecore.BuildBaseURL(), ecore.Seg(actorID), fileID, ecore.Seg(versionID))
-	respBytes, err := ecore.PapiGET(apiURL)
+	apiURL := fmt.Sprintf("%s/file_history/%s/%d/%s", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID), fileID, ecore.Seg(versionID))
+	respBytes, err := ecore.PapiGET(ctx, apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] get file version: %v", err)), nil
 	}
@@ -113,8 +113,8 @@ func handleRollbackFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	}
 
 	body, _ := json.Marshal(map[string]string{"versionId": versionID})
-	apiURL := fmt.Sprintf("%s/file_history/%s/%d/rollback", ecore.BuildBaseURL(), ecore.Seg(actorID), fileID)
-	respBytes, err := ecore.PapiPOST(apiURL, body)
+	apiURL := fmt.Sprintf("%s/file_history/%s/%d/rollback", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID), fileID)
+	respBytes, err := ecore.PapiPOST(ctx, apiURL, body)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] rollback file: %v", err)), nil
 	}
@@ -142,13 +142,13 @@ func handleListTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToo
 	if envName == "" {
 		envName = "develop"
 	}
-	envID, err := resolveEnvID(actorID, envName)
+	envID, err := resolveEnvID(ctx, actorID, envName)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] resolve env: %v", err)), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/file_history/trash/%s/%d", ecore.BuildBaseURL(), ecore.Seg(actorID), envID)
-	respBytes, err := ecore.PapiGET(apiURL)
+	apiURL := fmt.Sprintf("%s/file_history/trash/%s/%d", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID), envID)
+	respBytes, err := ecore.PapiGET(ctx, apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] list trash: %v", err)), nil
 	}
@@ -177,8 +177,8 @@ func handleRestoreFromTrash(ctx context.Context, req mcp.CallToolRequest) (*mcp.
 	}
 
 	body, _ := json.Marshal(map[string]string{"id": objectID})
-	apiURL := fmt.Sprintf("%s/file_history/trash/%s/restore", ecore.BuildBaseURL(), ecore.Seg(actorID))
-	respBytes, err := ecore.PapiPOST(apiURL, body)
+	apiURL := fmt.Sprintf("%s/file_history/trash/%s/restore", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID))
+	respBytes, err := ecore.PapiPOST(ctx, apiURL, body)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] restore from trash: %v", err)), nil
 	}

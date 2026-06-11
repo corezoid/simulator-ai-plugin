@@ -2,6 +2,7 @@ package ecore
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,12 +60,13 @@ func RequireUUID(name, v string) *mcp.CallToolResult {
 func Seg(s string) string { return url.PathEscape(s) }
 
 // PapiGET sends an authenticated GET and returns the response body.
-func PapiGET(apiURL string) ([]byte, error) {
-	req, err := http.NewRequest("GET", apiURL, nil)
+// The ctx supplies the per-request Authorization in stateless mode.
+func PapiGET(ctx context.Context, apiURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", AuthHeader())
+	req.Header.Set("Authorization", AuthHeaderForContext(ctx))
 	resp, err := APIHTTPClient().Do(req)
 	if err != nil {
 		return nil, err
@@ -84,12 +86,12 @@ func PapiGET(apiURL string) ([]byte, error) {
 }
 
 // PapiPOST sends an authenticated POST with a JSON body and returns the response body.
-func PapiPOST(apiURL string, body []byte) ([]byte, error) {
-	req, err := http.NewRequest("POST", apiURL, bytes.NewReader(body))
+func PapiPOST(ctx context.Context, apiURL string, body []byte) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", AuthHeader())
+	req.Header.Set("Authorization", AuthHeaderForContext(ctx))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := APIHTTPClient().Do(req)
 	if err != nil {
@@ -107,12 +109,12 @@ func PapiPOST(apiURL string, body []byte) ([]byte, error) {
 }
 
 // PapiPUT sends an authenticated PUT with a JSON body and returns the response body.
-func PapiPUT(apiURL string, body []byte) ([]byte, error) {
-	req, err := http.NewRequest("PUT", apiURL, bytes.NewReader(body))
+func PapiPUT(ctx context.Context, apiURL string, body []byte) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "PUT", apiURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", AuthHeader())
+	req.Header.Set("Authorization", AuthHeaderForContext(ctx))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := APIHTTPClient().Do(req)
 	if err != nil {

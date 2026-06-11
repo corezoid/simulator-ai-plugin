@@ -105,12 +105,12 @@ func uploadFile(ctx context.Context, accID string, filename string, contentType 
 	// POST request — `ttl=0` mirrors the UI request and the Postman collection
 	// (`Simulator_public_API.postman_collection.json`).  Without `ttl=0` the
 	// file is sometimes uploaded with a TTL that hides it from the graph UI.
-	apiURL := fmt.Sprintf("%s/upload/%s?ttl=0", ecore.BuildBaseURL(), accID)
+	apiURL := fmt.Sprintf("%s/upload/%s?ttl=0", ecore.BuildBaseURLForContext(ctx), accID)
 	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, &buf)
 	if err != nil {
 		return "", fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Authorization", ecore.AuthHeader())
+	req.Header.Set("Authorization", ecore.AuthHeaderForContext(ctx))
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 
 	client := ecore.APIHTTPClient()
@@ -145,12 +145,12 @@ func setActorPicture(ctx context.Context, formID int, actorID, picture string) e
 	bodyBytes, _ := json.Marshal(body)
 
 	apiURL := fmt.Sprintf("%s/actors/actor/%d/%s?replaceEmpty=false",
-		ecore.BuildBaseURL(), formID, actorID)
+		ecore.BuildBaseURLForContext(ctx), formID, actorID)
 	req, err := http.NewRequestWithContext(ctx, "PUT", apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("Authorization", ecore.AuthHeader())
+	req.Header.Set("Authorization", ecore.AuthHeaderForContext(ctx))
 	req.Header.Set("Content-Type", "application/json")
 
 	client := ecore.APIHTTPClient()
@@ -256,7 +256,7 @@ func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mc
 		return mcp.NewToolResultError("[Error] formId is required"), nil
 	}
 
-	accID := os.Getenv("WORKSPACE_ID")
+	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
 		return mcp.NewToolResultError("[Error] WORKSPACE_ID is not set"), nil
 	}
@@ -367,7 +367,7 @@ func handleUploadActorPictureBulk(ctx context.Context, req mcp.CallToolRequest) 
 		return mcp.NewToolResultError("[Error] items[] capped at 500 per call"), nil
 	}
 
-	accID := os.Getenv("WORKSPACE_ID")
+	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
 		return mcp.NewToolResultError("[Error] WORKSPACE_ID is not set"), nil
 	}

@@ -62,7 +62,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	client := ecore.APIHTTPClient()
 	apiGet := func(url string) ([]byte, error) {
 		hr, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-		hr.Header.Set("Authorization", ecore.AuthHeader())
+		hr.Header.Set("Authorization", ecore.AuthHeaderForContext(ctx))
 		resp, err := client.Do(hr)
 		if err != nil {
 			return nil, err
@@ -76,7 +76,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	}
 	apiDelete := func(url string) error {
 		hr, _ := http.NewRequestWithContext(ctx, "DELETE", url, nil)
-		hr.Header.Set("Authorization", ecore.AuthHeader())
+		hr.Header.Set("Authorization", ecore.AuthHeaderForContext(ctx))
 		resp, err := client.Do(hr)
 		if err != nil {
 			return err
@@ -104,7 +104,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",
-			ecore.BuildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURLForContext(ctx), layerID, limit, offset)
 		body, err := apiGet(u)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch placements: %v", err)), nil
@@ -135,7 +135,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	offset = 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d",
-			ecore.BuildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURLForContext(ctx), layerID, limit, offset)
 		body, err := apiGet(u)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch edges: %v", err)), nil
@@ -191,7 +191,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		}
 		// Delete it.
 		if !dryRun {
-			u := fmt.Sprintf("%s/actors/link/%s", ecore.BuildBaseURL(), e.ID)
+			u := fmt.Sprintf("%s/actors/link/%s", ecore.BuildBaseURLForContext(ctx), e.ID)
 			if err := apiDelete(u); err != nil {
 				stats.Errors = append(stats.Errors,
 					fmt.Sprintf("%s→%s: %v", titleOf[e.Source], titleOf[e.Target], err))

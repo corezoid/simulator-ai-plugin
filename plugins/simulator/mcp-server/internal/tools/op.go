@@ -139,7 +139,7 @@ func makeHandler(c *apiclient.Client, op Operation) server.ToolHandlerFunc {
 			val, present := args[p.Name]
 			// accId defaults to the configured workspace when the caller omits it.
 			if !present && p.Name == "accId" {
-				if ws := c.WorkspaceID(); ws != "" {
+				if ws := c.WorkspaceIDForContext(ctx); ws != "" {
 					val, present = ws, true
 				}
 			}

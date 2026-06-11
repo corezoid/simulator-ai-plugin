@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -29,7 +28,7 @@ func handleCreateSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultError("[Error] ref is required"), nil
 	}
 
-	accID := os.Getenv("WORKSPACE_ID")
+	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
 		return mcp.NewToolResultError("[Error] WORKSPACE_ID not set — run set-workspace first"), nil
 	}
@@ -81,8 +80,8 @@ func handleCreateSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] marshal: %v", err)), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/applications/%s", ecore.BuildBaseURL(), ecore.Seg(accID))
-	respBytes, err := ecore.PapiPOST(apiURL, bodyBytes)
+	apiURL := fmt.Sprintf("%s/applications/%s", ecore.BuildBaseURLForContext(ctx), ecore.Seg(accID))
+	respBytes, err := ecore.PapiPOST(ctx, apiURL, bodyBytes)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] create application: %v", err)), nil
 	}

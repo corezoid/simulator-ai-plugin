@@ -90,13 +90,13 @@ type layerEdge struct {
 
 // ---- Layer fetch helpers ----
 
-func fetchLayerActors(layerID string) ([]layerActor, error) {
-	base := ecore.BuildBaseURL()
+func fetchLayerActors(ctx context.Context, layerID string) ([]layerActor, error) {
+	base := ecore.BuildBaseURLForContext(ctx)
 	var all []layerActor
 	limit, offset := 50, 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d", base, ecore.Seg(layerID), limit, offset)
-		body, err := ecore.PapiGET(u)
+		body, err := ecore.PapiGET(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -115,13 +115,13 @@ func fetchLayerActors(layerID string) ([]layerActor, error) {
 	return all, nil
 }
 
-func fetchLayerEdges(layerID string) ([]layerEdge, error) {
-	base := ecore.BuildBaseURL()
+func fetchLayerEdges(ctx context.Context, layerID string) ([]layerEdge, error) {
+	base := ecore.BuildBaseURLForContext(ctx)
 	var all []layerEdge
 	limit, offset := 50, 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d", base, ecore.Seg(layerID), limit, offset)
-		body, err := ecore.PapiGET(u)
+		body, err := ecore.PapiGET(ctx, u)
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +183,7 @@ func handlePushGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] cannot parse YAML %s: %v", filePath, parseErr)), nil
 	}
 
-	result, syncErr := PushGraphFile(graph, os.Getenv("WORKSPACE_ID"), layerID, ecore.AuthHeader(), ecore.BuildBaseURL())
+	result, syncErr := PushGraphFile(graph, ecore.WorkspaceIDForContext(ctx), layerID, ecore.AuthHeaderForContext(ctx), ecore.BuildBaseURLForContext(ctx))
 	if syncErr != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] %v", syncErr)), nil
 	}
@@ -233,13 +233,13 @@ func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	filePath := ecore.ResolvePath(layerID + ".yaml")
 
 	// Fetch actors
-	serverActors, err := fetchLayerActors(layerID)
+	serverActors, err := fetchLayerActors(ctx, layerID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch layer actors: %v", err)), nil
 	}
 
 	// Fetch edges
-	serverEdges, err := fetchLayerEdges(layerID)
+	serverEdges, err := fetchLayerEdges(ctx, layerID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch layer edges: %v", err)), nil
 	}

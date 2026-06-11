@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -63,12 +62,12 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",
-			ecore.BuildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURLForContext(ctx), layerID, limit, offset)
 		httpReq, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] new request: %v", err)), nil
 		}
-		httpReq.Header.Set("Authorization", ecore.AuthHeader())
+		httpReq.Header.Set("Authorization", ecore.AuthHeaderForContext(ctx))
 		resp, err := client.Do(httpReq)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] http: %v", err)), nil
@@ -107,7 +106,7 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 	// endpoints — not required for downstream layerActorsPosition / manageLayer.
 	out := map[string]interface{}{
 		"layerId":     layerID,
-		"workspaceId": os.Getenv("WORKSPACE_ID"),
+		"workspaceId": ecore.WorkspaceIDForContext(ctx),
 		"total":       len(rows),
 		"placements":  rows,
 	}

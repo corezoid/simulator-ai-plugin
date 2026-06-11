@@ -61,8 +61,8 @@ func hashSource(s string) string {
 
 // ---- Fetch helpers ----
 
-func fetchAppEnvs(actorID string) ([]appEnvItem, error) {
-	body, err := ecore.PapiGET(fmt.Sprintf("%s/applications/envs/%s", ecore.BuildBaseURL(), ecore.Seg(actorID)))
+func fetchAppEnvs(ctx context.Context, actorID string) ([]appEnvItem, error) {
+	body, err := ecore.PapiGET(ctx, fmt.Sprintf("%s/applications/envs/%s", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID)))
 	if err != nil {
 		return nil, err
 	}
@@ -75,8 +75,8 @@ func fetchAppEnvs(actorID string) ([]appEnvItem, error) {
 	return resp.Data, nil
 }
 
-func fetchEnvStruct(actorID string, envID int) (*appTreeNode, error) {
-	body, err := ecore.PapiGET(fmt.Sprintf("%s/app_content/struct/%s/%d", ecore.BuildBaseURL(), ecore.Seg(actorID), envID))
+func fetchEnvStruct(ctx context.Context, actorID string, envID int) (*appTreeNode, error) {
+	body, err := ecore.PapiGET(ctx, fmt.Sprintf("%s/app_content/struct/%s/%d", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID), envID))
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		return r, nil
 	}
 
-	envs, err := fetchAppEnvs(actorID)
+	envs, err := fetchAppEnvs(ctx, actorID)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch envs: %v", err)), nil
 	}
@@ -175,7 +175,7 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 
 	baseDir := ecore.ResolvePath(actorID)
 	for _, env := range envs {
-		tree, err := fetchEnvStruct(actorID, env.ID)
+		tree, err := fetchEnvStruct(ctx, actorID, env.ID)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch struct for env %q (id=%d): %v", env.Title, env.ID, err)), nil
 		}

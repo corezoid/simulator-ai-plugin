@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"sync"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
@@ -610,7 +609,7 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		Accounts:      accounts,
 	}
 
-	result, err := CreateChart(ctx, cfg, os.Getenv("WORKSPACE_ID"), ecore.AuthHeader(), ecore.BuildBaseURL())
+	result, err := CreateChart(ctx, cfg, ecore.WorkspaceIDForContext(ctx), ecore.AuthHeaderForContext(ctx), ecore.BuildBaseURLForContext(ctx))
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] createChart: %v", err)), nil
 	}
