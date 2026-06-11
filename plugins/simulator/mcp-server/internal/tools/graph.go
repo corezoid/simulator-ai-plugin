@@ -16,7 +16,7 @@ func resolveHierarchyEdgeType(ctx context.Context, args map[string]any, c *apicl
 	if _, ok := args["edgeTypeId"]; ok {
 		return nil // explicit edgeTypeId wins
 	}
-	accID := c.WorkspaceID()
+	accID := c.WorkspaceIDForContext(ctx)
 	if accID == "" {
 		return fmt.Errorf("resolving the hierarchy edge type needs a workspace — run set-workspace or pass edgeTypeId")
 	}

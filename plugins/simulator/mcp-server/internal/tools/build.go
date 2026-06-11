@@ -47,6 +47,15 @@ func BuildAll(s *server.MCPServer, c *apiclient.Client, prof config.Profile, ins
 	registerAuth(s, c, prof, insecure)
 }
 
+// BuildAllStateless registers only the curated API tools (no login / set-workspace
+// / set-environment helpers). Use for embedded SSE deployments where credentials
+// arrive per request via ctx and the server must not read or write .env.
+func BuildAllStateless(s *server.MCPServer, c *apiclient.Client) {
+	for _, op := range allOps() {
+		register(s, c, op)
+	}
+}
+
 // Count reports how many curated API tools are registered (auth helpers excluded).
 func Count() int { return len(allOps()) }
 

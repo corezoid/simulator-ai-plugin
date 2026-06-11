@@ -75,6 +75,75 @@ func (c *Client) SetWorkspaceID(id string) {
 	c.workspaceID = id
 }
 
+// ctxKey is the unexported type for per-request context override keys.
+// Use the WithXxx / XxxFromContext helpers below — callers never touch this directly.
+type ctxKey int
+
+const (
+	authCtxKey ctxKey = iota
+	baseURLCtxKey
+	workspaceCtxKey
+)
+
+// WithAuthorization stores the full Authorization header value on ctx so that
+// Client.Do uses it instead of calling the Client's AuthHeader callback.
+// Empty value is ignored.
+func WithAuthorization(ctx context.Context, value string) context.Context {
+	if value == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, authCtxKey, value)
+}
+
+// WithBaseURL stores a per-request API base URL override on ctx so that
+// Client.Do routes against it instead of the Client's stored base URL.
+// Empty value is ignored.
+func WithBaseURL(ctx context.Context, value string) context.Context {
+	if value == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, baseURLCtxKey, strings.TrimRight(value, "/"))
+}
+
+// WithWorkspaceID stores a per-request workspace id override on ctx so that
+// Client.WorkspaceIDForContext returns it instead of the stored default.
+// Empty value is ignored.
+func WithWorkspaceID(ctx context.Context, value string) context.Context {
+	if value == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, workspaceCtxKey, value)
+}
+
+// AuthorizationFromContext returns the per-request Authorization header value,
+// or "" if none was attached.
+func AuthorizationFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(authCtxKey).(string)
+	return v
+}
+
+// BaseURLFromContext returns the per-request API base URL override, or "".
+func BaseURLFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(baseURLCtxKey).(string)
+	return v
+}
+
+// WorkspaceIDFromContext returns the per-request workspace id override, or "".
+func WorkspaceIDFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(workspaceCtxKey).(string)
+	return v
+}
+
+// WorkspaceIDForContext returns the per-request workspace id (from ctx) if set,
+// otherwise the Client's stored default. Tool handlers that read the workspace
+// should call this so stateless/SSE deployments can override per request.
+func (c *Client) WorkspaceIDForContext(ctx context.Context) string {
+	if id := WorkspaceIDFromContext(ctx); id != "" {
+		return id
+	}
+	return c.WorkspaceID()
+}
+
 // IsInsecureCredentialTransport reports whether baseURL would send the bearer
 // token over plaintext HTTP to a non-loopback host. The token is attached to every
 // request, so a remote http:// endpoint would expose it on the wire.
@@ -104,7 +173,11 @@ func (e *APIError) Error() string {
 // be nil; body may be nil, or any JSON-serialisable value. On a 2xx it returns the
 // raw response body; on a non-2xx it returns an *APIError.
 func (c *Client) Do(ctx context.Context, method, path string, query url.Values, body any) ([]byte, error) {
-	full := c.BaseURL() + path
+	base := BaseURLFromContext(ctx)
+	if base == "" {
+		base = c.BaseURL()
+	}
+	full := base + path
 	if len(query) > 0 {
 		full += "?" + query.Encode()
 	}
@@ -125,7 +198,9 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if c.AuthHeader != nil {
+	if ctxAuth := AuthorizationFromContext(ctx); ctxAuth != "" {
+		req.Header.Set("Authorization", ctxAuth)
+	} else if c.AuthHeader != nil {
 		auth, err := c.AuthHeader()
 		if err != nil {
 			return nil, err

@@ -10,8 +10,8 @@ import (
 )
 
 // resolveEnvID finds an env by title (case-insensitive) and returns its numeric ID.
-func resolveEnvID(actorID, envTitle string) (int, error) {
-	envs, err := fetchAppEnvs(actorID)
+func resolveEnvID(ctx context.Context, actorID, envTitle string) (int, error) {
+	envs, err := fetchAppEnvs(ctx, actorID)
 	if err != nil {
 		return 0, err
 	}
@@ -52,11 +52,11 @@ func handleDeploySmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		targetEnv = "production"
 	}
 
-	sourceID, err := resolveEnvID(actorID, sourceEnv)
+	sourceID, err := resolveEnvID(ctx, actorID, sourceEnv)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] resolve source env: %v", err)), nil
 	}
-	targetID, err := resolveEnvID(actorID, targetEnv)
+	targetID, err := resolveEnvID(ctx, actorID, targetEnv)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] resolve target env: %v", err)), nil
 	}
@@ -65,8 +65,8 @@ func handleDeploySmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		"sourceEnvId": sourceID,
 		"targetEnvId": targetID,
 	})
-	apiURL := fmt.Sprintf("%s/applications/deploy/%s", ecore.BuildBaseURL(), ecore.Seg(actorID))
-	respBytes, err := ecore.PapiPOST(apiURL, body)
+	apiURL := fmt.Sprintf("%s/applications/deploy/%s", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID))
+	respBytes, err := ecore.PapiPOST(ctx, apiURL, body)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] deploy: %v", err)), nil
 	}
@@ -114,13 +114,13 @@ func handleListReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	if envName == "" {
 		envName = "production"
 	}
-	envID, err := resolveEnvID(actorID, envName)
+	envID, err := resolveEnvID(ctx, actorID, envName)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] resolve env: %v", err)), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/releases/%s?envId=%d", ecore.BuildBaseURL(), ecore.Seg(actorID), envID)
-	respBytes, err := ecore.PapiGET(apiURL)
+	apiURL := fmt.Sprintf("%s/releases/%s?envId=%d", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID), envID)
+	respBytes, err := ecore.PapiGET(ctx, apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] list releases: %v", err)), nil
 	}
@@ -167,8 +167,8 @@ func handleDiffReleases(ctx context.Context, req mcp.CallToolRequest) (*mcp.Call
 	}
 
 	apiURL := fmt.Sprintf("%s/releases/%s/%s/diff?vs=%s",
-		ecore.BuildBaseURL(), ecore.Seg(actorID), ecore.Seg(releaseID), ecore.Seg(vsReleaseID))
-	respBytes, err := ecore.PapiGET(apiURL)
+		ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID), ecore.Seg(releaseID), ecore.Seg(vsReleaseID))
+	respBytes, err := ecore.PapiGET(ctx, apiURL)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] diff releases: %v", err)), nil
 	}
@@ -197,8 +197,8 @@ func handleRollbackRelease(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		return mcp.NewToolResultError("[Error] releaseId is required"), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/releases/%s/%s/rollback", ecore.BuildBaseURL(), ecore.Seg(actorID), ecore.Seg(releaseID))
-	respBytes, err := ecore.PapiPOST(apiURL, []byte("{}"))
+	apiURL := fmt.Sprintf("%s/releases/%s/%s/rollback", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID), ecore.Seg(releaseID))
+	respBytes, err := ecore.PapiPOST(ctx, apiURL, []byte("{}"))
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("[Error] rollback: %v", err)), nil
 	}

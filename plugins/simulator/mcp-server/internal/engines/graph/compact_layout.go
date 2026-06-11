@@ -90,7 +90,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	client := ecore.APIHTTPClient()
 	apiGet := func(url string) ([]byte, error) {
 		hr, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-		hr.Header.Set("Authorization", ecore.AuthHeader())
+		hr.Header.Set("Authorization", ecore.AuthHeaderForContext(ctx))
 		resp, err := client.Do(hr)
 		if err != nil {
 			return nil, err
@@ -111,7 +111,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",
-			ecore.BuildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURLForContext(ctx), layerID, limit, offset)
 		body, err := apiGet(u)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch placements: %v", err)), nil
@@ -143,7 +143,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	offset = 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=edges&limit=%d&offset=%d",
-			ecore.BuildBaseURL(), layerID, limit, offset)
+			ecore.BuildBaseURLForContext(ctx), layerID, limit, offset)
 		body, err := apiGet(u)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch edges: %v", err)), nil
@@ -332,7 +332,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	apiPut := func(url string, body interface{}) error {
 		bodyBytes, _ := json.Marshal(body)
 		hr, _ := http.NewRequestWithContext(ctx, "PUT", url, strings.NewReader(string(bodyBytes)))
-		hr.Header.Set("Authorization", ecore.AuthHeader())
+		hr.Header.Set("Authorization", ecore.AuthHeaderForContext(ctx))
 		hr.Header.Set("Content-Type", "application/json")
 		resp, err := client.Do(hr)
 		if err != nil {
@@ -352,7 +352,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 			end = len(items)
 		}
 		batch := items[i:end]
-		u := fmt.Sprintf("%s/graph_layers/actors/%s", ecore.BuildBaseURL(), layerID)
+		u := fmt.Sprintf("%s/graph_layers/actors/%s", ecore.BuildBaseURLForContext(ctx), layerID)
 		if err := apiPut(u, map[string]interface{}{"items": batch}); err != nil {
 			return mcp.NewToolResultError(
 				fmt.Sprintf("[Error] applyPositions batch %d: %v", i/batchSize, err)), nil

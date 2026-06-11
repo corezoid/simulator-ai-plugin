@@ -93,7 +93,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	// map and the env root folder id. Re-fetch the env tree to backfill them
 	// so creates can resolve parent ids — no force-repull required.
 	if manifest.EnvRootFolderID == 0 || len(manifest.Folders) == 0 {
-		if err := backfillManifestFromServer(actorID, &manifest); err != nil {
+		if err := backfillManifestFromServer(ctx, actorID, &manifest); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] backfill manifest: %v", err)), nil
 		}
 	}
@@ -178,7 +178,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultText(string(out)), nil
 	}
 
-	apiURL := fmt.Sprintf("%s/app_content/%s", ecore.BuildBaseURL(), ecore.Seg(actorID))
+	apiURL := fmt.Sprintf("%s/app_content/%s", ecore.BuildBaseURLForContext(ctx), ecore.Seg(actorID))
 
 	// Phase 1 — create missing folders, parents first, one POST per folder so
 	// we can pair the returned id back to its path deterministically.
@@ -194,7 +194,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			Title:    filepath.Base(relPath),
 		}}
 		body, _ := json.Marshal(batch)
-		respBytes, err := ecore.PapiPOST(apiURL, body)
+		respBytes, err := ecore.PapiPOST(ctx, apiURL, body)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] create folder %q: %v", relPath, err)), nil
 		}
@@ -224,7 +224,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			})
 		}
 		body, _ := json.Marshal(batch)
-		respBytes, err := ecore.PapiPOST(apiURL, body)
+		respBytes, err := ecore.PapiPOST(ctx, apiURL, body)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] create files: %v", err)), nil
 		}
@@ -277,7 +277,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			})
 		}
 		body, _ := json.Marshal(batch)
-		if _, err := ecore.PapiPUT(apiURL, body); err != nil {
+		if _, err := ecore.PapiPUT(ctx, apiURL, body); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] update files: %v", err)), nil
 		}
 		for _, relPath := range modifiedFilePaths {
@@ -416,11 +416,11 @@ func defaultMimeType(relPath string) string {
 // backfillManifestFromServer fetches the env struct and rebuilds the folder
 // map + env root folder id on a manifest pulled before folder tracking was
 // added. Files already in the manifest are left untouched.
-func backfillManifestFromServer(actorID string, manifest *smartFormManifest) error {
+func backfillManifestFromServer(ctx context.Context, actorID string, manifest *smartFormManifest) error {
 	if manifest.EnvID == 0 {
 		return fmt.Errorf("manifest has no envId — run pullSmartForm to refresh")
 	}
-	tree, err := fetchEnvStruct(actorID, manifest.EnvID)
+	tree, err := fetchEnvStruct(ctx, actorID, manifest.EnvID)
 	if err != nil {
 		return err
 	}
