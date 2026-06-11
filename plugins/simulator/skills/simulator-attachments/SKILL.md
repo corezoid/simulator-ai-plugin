@@ -10,9 +10,9 @@ description: >
   comments that carry files use `simulator-reactions`.
 ---
 
-> **Curated tool names (v2 server):** `uploadBase64`, `getAttachments`, `addAttachments`,
-> `updateAttachment`, `removeAttachments`. Plus the engine tools `uploadActorPicture` /
-> `uploadActorPictureBulk` for actor avatars. Call them by these exact names.
+> **Curated tool names (v2 server):** `uploadBase64`, `getAttachments`, `getActorAttachments`,
+> `addAttachments`, `updateAttachment`, `removeAttachments`. Plus the engine tools
+> `uploadActorPicture` / `uploadActorPictureBulk` for actor avatars. Call them by these exact names.
 
 # Simulator.Company Files & Attachments Specialist
 
@@ -67,9 +67,13 @@ removeAttachments(accId="ws_xxx", items=[
 ## List & rename
 
 ```
-getAttachments(accId="ws_xxx", limit=50, orderBy="created_at", orderValue="DESC")
+getAttachments(accId="ws_xxx", limit=50, orderBy="created_at", orderValue="DESC")  # all files in the workspace
+getActorAttachments(actorId="<actor UUID>", limit=100)                             # only files linked to one actor
 updateAttachment(attachId=5521, title="Q3 report.pdf")
 ```
+
+> Use `getActorAttachments` when you want a single actor's files; `getAttachments` lists the
+> whole workspace. `getActorAttachments` is addressed by `actorId` (no `accId`).
 
 ## End-to-end: attach a PDF to an actor
 

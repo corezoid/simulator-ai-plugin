@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
 	"strings"
 
@@ -90,11 +91,29 @@ func fieldFilterParam(example string) Param {
 
 // register builds the MCP tool for op and wires its handler to the client.
 func register(s *server.MCPServer, c *apiclient.Client, op Operation) {
+	registerBound(s, c, op, nil)
+}
+
+// registerBound is register with pre-bound argument values. Params named in bound
+// are NOT exposed in the tool's input schema (the model cannot set them) and are
+// injected authoritatively at call time. Used to bind actor-scoped params — e.g.
+// `actorId` taken from the per-actor URL — so a per-actor tool takes only the
+// meaningful arguments.
+func registerBound(s *server.MCPServer, c *apiclient.Client, op Operation, bound map[string]any) {
+	s.AddTool(mcp.NewTool(op.Name, toolOptions(op, bound)...), makeHandlerBound(c, op, bound))
+}
+
+// toolOptions builds the MCP tool options for op, skipping any pre-bound param
+// (hidden from the model).
+func toolOptions(op Operation, bound map[string]any) []mcp.ToolOption {
 	opts := []mcp.ToolOption{mcp.WithDescription(op.Summary)}
 	for _, p := range op.Params {
+		if _, ok := bound[p.Name]; ok {
+			continue
+		}
 		opts = append(opts, paramOption(p))
 	}
-	s.AddTool(mcp.NewTool(op.Name, opts...), makeHandler(c, op))
+	return opts
 }
 
 // paramOption converts a Param into the matching mcp.With* tool option.
@@ -123,8 +142,40 @@ func paramOption(p Param) mcp.ToolOption {
 
 // makeHandler returns the tool handler that assembles and issues the request.
 func makeHandler(c *apiclient.Client, op Operation) server.ToolHandlerFunc {
+	return makeHandlerBound(c, op, nil)
+}
+
+// makeHandlerBound is makeHandler with pre-bound argument values injected
+// (authoritative) before resolution and request assembly.
+func makeHandlerBound(c *apiclient.Client, op Operation, bound map[string]any) server.ToolHandlerFunc {
+	return makeHandlerRewrite(c, op, bound, nil)
+}
+
+// prepareArgs applies the pre-bound values (authoritative) and an optional
+// rewrite hook to the caller's arguments, returning the (possibly newly
+// allocated) map. A no-op when there is nothing to inject.
+func prepareArgs(args, bound map[string]any, rewrite func(map[string]any)) map[string]any {
+	if len(bound) == 0 && rewrite == nil {
+		return args
+	}
+	if args == nil {
+		args = map[string]any{}
+	}
+	maps.Copy(args, bound)
+	if rewrite != nil {
+		rewrite(args)
+	}
+	return args
+}
+
+// makeHandlerRewrite is makeHandlerBound with an extra hook that may mutate the
+// assembled args after pre-bound injection and before Resolve. It exists for the
+// per-actor server, where a bound identity must be injected into each element of
+// a root-array body (e.g. setting actorId on every attachment link item) — which
+// a flat key bind cannot express. rewrite may be nil.
+func makeHandlerRewrite(c *apiclient.Client, op Operation, bound map[string]any, rewrite func(map[string]any)) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		args := req.GetArguments()
+		args := prepareArgs(req.GetArguments(), bound, rewrite)
 		if op.Resolve != nil {
 			if err := op.Resolve(ctx, args, c); err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("[Error] %s: %v", op.Name, err)), nil

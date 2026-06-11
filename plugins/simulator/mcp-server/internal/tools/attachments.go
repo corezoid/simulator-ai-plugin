@@ -21,6 +21,15 @@ var attachmentOps = []Operation{
 		},
 	},
 	{
+		Name: "getActorAttachments", Method: "GET", Path: "/attachments/actor/{actorId}",
+		Summary: "List the files (attachments) linked to a specific actor.",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor whose attachments to list."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (1-100, default 100)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset (default 0)."},
+		},
+	},
+	{
 		Name: "addAttachments", Method: "POST", Path: "/attachments/{accId}",
 		Summary: "Link one or more existing uploaded files to actors/reactions in a workspace.",
 		Params: []Param{

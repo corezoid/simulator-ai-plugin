@@ -244,7 +244,7 @@ backend operation, with typed parameters:
 | Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
 | Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `getLinkedActors` `getActorLinks` `manageLayerActors` `moveActors` `existLayerElement` `cleanGraphLayer` `layerStats` |
 | Reactions     | `createReaction` `updateReaction` `deleteReaction` `getReactions` `getReactionsStats` `markReactionsRead` `getPinnedReactions` `togglePinnedReaction` |
-| Attachments   | `getAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` |
+| Attachments   | `getAttachments` `getActorAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
