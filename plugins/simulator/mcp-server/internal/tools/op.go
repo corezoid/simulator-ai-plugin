@@ -151,31 +151,39 @@ func makeHandlerBound(c *apiclient.Client, op Operation, bound map[string]any) s
 	return makeHandlerRewrite(c, op, bound, nil)
 }
 
-// prepareArgs applies the pre-bound values (authoritative) and an optional
-// rewrite hook to the caller's arguments, returning the (possibly newly
-// allocated) map. A no-op when there is nothing to inject.
-func prepareArgs(args, bound map[string]any, rewrite func(map[string]any)) map[string]any {
-	if len(bound) == 0 && rewrite == nil {
-		return args
-	}
-	if args == nil {
-		args = map[string]any{}
-	}
-	maps.Copy(args, bound)
-	if rewrite != nil {
-		rewrite(args)
-	}
-	return args
-}
-
 // makeHandlerRewrite is makeHandlerBound with an extra hook that may mutate the
 // assembled args after pre-bound injection and before Resolve. It exists for the
 // per-actor server, where a bound identity must be injected into each element of
 // a root-array body (e.g. setting actorId on every attachment link item) — which
 // a flat key bind cannot express. rewrite may be nil.
 func makeHandlerRewrite(c *apiclient.Client, op Operation, bound map[string]any, rewrite func(map[string]any)) server.ToolHandlerFunc {
+	if len(bound) == 0 && rewrite == nil {
+		return makeHandlerCtxAware(c, op, nil)
+	}
+	adjust := func(_ context.Context, args map[string]any) {
+		if len(bound) > 0 {
+			maps.Copy(args, bound)
+		}
+		if rewrite != nil {
+			rewrite(args)
+		}
+	}
+	return makeHandlerCtxAware(c, op, adjust)
+}
+
+// makeHandlerCtxAware is the canonical handler factory: it lets the caller
+// mutate args on every call with full ctx visibility. The unified server's
+// per-request actor mode uses it to inject the ctx-bound actor id into the
+// args before the request is assembled. adjust may be nil.
+func makeHandlerCtxAware(c *apiclient.Client, op Operation, adjust func(context.Context, map[string]any)) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		args := prepareArgs(req.GetArguments(), bound, rewrite)
+		args := req.GetArguments()
+		if adjust != nil {
+			if args == nil {
+				args = map[string]any{}
+			}
+			adjust(ctx, args)
+		}
 		if op.Resolve != nil {
 			if err := op.Resolve(ctx, args, c); err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("[Error] %s: %v", op.Name, err)), nil

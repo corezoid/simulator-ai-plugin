@@ -83,6 +83,7 @@ const (
 	authCtxKey ctxKey = iota
 	baseURLCtxKey
 	workspaceCtxKey
+	actorCtxKey
 )
 
 // WithAuthorization stores the full Authorization header value on ctx so that
@@ -131,6 +132,24 @@ func BaseURLFromContext(ctx context.Context) string {
 // WorkspaceIDFromContext returns the per-request workspace id override, or "".
 func WorkspaceIDFromContext(ctx context.Context) string {
 	v, _ := ctx.Value(workspaceCtxKey).(string)
+	return v
+}
+
+// WithActorID stores a per-request actor id on ctx, switching the session into
+// actor-scoped mode. Tools/list returns only the per-actor subset (with the
+// actor identity hidden from every schema), and tool handlers inject the
+// actor id into every request that needs it. Empty value is ignored.
+func WithActorID(ctx context.Context, value string) context.Context {
+	if value == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, actorCtxKey, value)
+}
+
+// ActorIDFromContext returns the per-request actor id, or "" if none was
+// attached. A non-empty value means the request runs in actor-scoped mode.
+func ActorIDFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(actorCtxKey).(string)
 	return v
 }
 

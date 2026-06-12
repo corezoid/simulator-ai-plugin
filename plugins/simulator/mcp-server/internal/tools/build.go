@@ -41,9 +41,7 @@ func allOps() []Operation {
 // login, set-workspace) on the MCP server. insecure is threaded through so the
 // set-environment tool's public-config probe honours the same TLS mode as the client.
 func BuildAll(s *server.MCPServer, c *apiclient.Client, prof config.Profile, insecure bool) {
-	for _, op := range allOps() {
-		register(s, c, op)
-	}
+	BuildUnified(s, c, true)
 	registerAuth(s, c, prof, insecure)
 }
 
@@ -51,7 +49,30 @@ func BuildAll(s *server.MCPServer, c *apiclient.Client, prof config.Profile, ins
 // / set-environment helpers). Use for embedded SSE deployments where credentials
 // arrive per request via ctx and the server must not read or write .env.
 func BuildAllStateless(s *server.MCPServer, c *apiclient.Client) {
+	BuildUnified(s, c, true)
+}
+
+// BuildUnified registers every curated API tool with ctx-aware actor-mode
+// support. A request that arrives with apiclient.WithActorID(ctx, id) set
+// switches the session into per-actor mode for both routing
+// (ActorToolFilter hides workspace-wide tools and strips bound params from
+// the actor-scoped subset's schema) and execution (handlers inject the
+// actor id where the binding spec — actorBindings() — requires it).
+// Auth helpers (set-environment, login, set-workspace) and engine tools are
+// registered separately by the caller; both are hidden in actor mode.
+//
+// includeActorMode=false skips the ctx-aware wrapping (handlers behave
+// identically, since the wrapper is a no-op when ctx has no actor id), which
+// is useful for callers that explicitly never want actor mode to engage.
+func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode bool) {
+	bindings := actorBindings()
 	for _, op := range allOps() {
+		if includeActorMode {
+			if b, ok := bindings[op.Name]; ok {
+				registerCtxActor(s, c, op, b)
+				continue
+			}
+		}
 		register(s, c, op)
 	}
 }

@@ -58,6 +58,12 @@ type Options struct {
 	// workspace id and API base URL must arrive on every request via ctx using
 	// apiclient.WithAuthorization / WithWorkspaceID / WithBaseURL — typically wired
 	// from HTTP headers by the SSE transport's WithSSEContextFunc.
+	//
+	// When stateless, the same server also supports per-request actor-scoped mode:
+	// a request that arrives with WithActorID(ctx, id) gets the per-actor tools/list
+	// (workspace-wide tools hidden, actor identity stripped from schemas) and the
+	// actor id is injected into the underlying API calls. Requests without an actor
+	// id see the full curated set as before, so one server serves both modes.
 	Stateless bool
 }
 
@@ -112,10 +118,14 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 		version = defaultVersion
 	}
 
-	s := server.NewMCPServer(name, version)
+	// In stateless mode the same server serves both full-workspace and per-actor
+	// sessions; the filter switches the visible tool set based on ctx
+	// (WithActorID). In stateful (stdio) mode there is only one client and no ctx
+	// actor id is ever attached, so the filter is a passthrough.
+	s := server.NewMCPServer(name, version, server.WithToolFilter(tools.ActorToolFilter))
 	ecore.SetStateless(opts.Stateless)
 	if opts.Stateless {
-		tools.BuildAllStateless(s, client)
+		tools.BuildUnified(s, client, true)
 	} else {
 		tools.BuildAll(s, client, prof, opts.Insecure)
 	}
@@ -156,6 +166,15 @@ func WithWorkspaceID(ctx context.Context, value string) context.Context {
 // WithBaseURL stores a per-request API base URL override on ctx.
 func WithBaseURL(ctx context.Context, value string) context.Context {
 	return apiclient.WithBaseURL(ctx, value)
+}
+
+// WithActorID switches the request into per-actor mode: tools/list returns only
+// the actor-scoped subset (with actor identity hidden from schemas) and tool
+// handlers inject the actor id where needed. Pass "" to leave the request in
+// full mode. Set this from your transport (e.g. an HTTP header) before invoking
+// any tool, so the model sees the actor-scoped schemas from the start.
+func WithActorID(ctx context.Context, value string) context.Context {
+	return apiclient.WithActorID(ctx, value)
 }
 
 func defaultAuthHeader() (string, error) {

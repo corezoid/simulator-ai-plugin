@@ -17,6 +17,11 @@ import (
 // base URL arrive per request via ctx (WithAuthorization / WithWorkspaceID /
 // WithBaseURL), and no .env / login helpers are registered. Serve it over any
 // transport; the hosting gateway routes /mcp/actors/{actorId} to one of these.
+//
+// Use this when the URL itself selects the actor (one server instance per
+// actor). For a single server that switches between full and per-actor mode
+// based on a per-request ctx value, use New(Options{Stateless: true}) and
+// attach WithActorID(ctx, id) from your transport instead.
 func NewActorServer(actorID string, opts Options) (*server.MCPServer, Info, error) {
 	prof, err := config.Resolve(opts.Profile)
 	if err != nil {
