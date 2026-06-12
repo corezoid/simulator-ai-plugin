@@ -52,8 +52,10 @@ type CloudEnv struct {
 	APIBaseURL string // public API root incl. /papi/1.0 prefix
 }
 
-// CloudEnvironments are the shipped cloud gateways, in presentation order (mw is the
-// default). Users may also enter a custom/local URL instead of picking a preset.
+// CloudEnvironments are the shipped cloud gateways, in presentation order (mw is
+// listed first by convention, not as a default — set-environment has no default and
+// always requires an explicit choice). Users may also enter a custom/local URL
+// instead of picking a preset.
 var CloudEnvironments = []CloudEnv{
 	{Name: "mw", Label: "Simulator Cloud — mw.simulator.company", APIBaseURL: "https://mw.simulator.company/papi/1.0"},
 	{Name: "sim", Label: "Simulator Cloud — sim.simulator.company", APIBaseURL: "https://sim.simulator.company/papi/1.0"},
