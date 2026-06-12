@@ -246,9 +246,9 @@ Every item has `class` + base fields (`id`, `value`, `visibility`, `required`, `
 | `class` | `value` type | Key `extra` / options |
 |---|---|---|
 | `edit` | string | `type`: `text` `email` `int` `float` `phone` `multiline` `date` `password` `colorPicker`; `placeholder`, `regexp`, `mask`, `submitOnEnter` |
-| `select` | string | `options: [{id, title}]`; `type`: `default` `autocomplete`; `submitOnChange` |
-| `multiselect` | string[] | `options: [{id, title}]`; `extra.length` (max) |
-| `radio` | string | `options: [{id, title}]`; `extra.direction`: `row`\|`column` |
+| `select` | string | `options: [{title, value, visibility, icon, tooltip, avatar, badge, styleClass}]`; `type`: `default` `autocomplete`; `submitOnChange` |
+| `multiselect` | string[] | `options: [{title, value, visibility, tooltip}]`; `extra.length` (max) |
+| `radio` | string | `options: [{title, value, visibility}]`; `extra.direction`: `row`\|`column` |
 | `check` | boolean | checkbox |
 | `toggle` | boolean | `title` label on the switch |
 | `slider` | number | `extra: { min, max, step }` |
