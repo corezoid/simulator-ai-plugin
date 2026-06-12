@@ -123,7 +123,12 @@ func paramOption(p Param) mcp.ToolOption {
 		desc = strings.TrimSpace(desc + " (one of: " + strings.Join(p.Enum, ", ") + ")")
 	}
 	propOpts := []mcp.PropertyOption{mcp.Description(desc)}
-	if p.Required {
+	// accId is special: the handler defaults it to the configured workspace
+	// (Client.WorkspaceIDForContext) when the caller omits it. Don't mark it
+	// required in the schema — otherwise clients like MCP Inspector force a
+	// value into the field, and the empty string overrides the ctx-scoped
+	// workspace before the fallback can fire.
+	if p.Required && p.Name != "accId" {
 		propOpts = append(propOpts, mcp.Required())
 	}
 	switch p.Type {
@@ -196,10 +201,15 @@ func makeHandlerCtxAware(c *apiclient.Client, op Operation, adjust func(context.
 
 		for _, p := range op.Params {
 			val, present := args[p.Name]
-			// accId defaults to the configured workspace when the caller omits it.
-			if !present && p.Name == "accId" {
-				if ws := c.WorkspaceIDForContext(ctx); ws != "" {
-					val, present = ws, true
+			// accId defaults to the configured workspace when the caller omits it,
+			// or passes an empty string — MCP Inspector etc. force a value into
+			// fields named in the schema, so "" is the common "I have nothing"
+			// signal and must not override the ctx-scoped workspace.
+			if p.Name == "accId" {
+				if s, ok := val.(string); !present || (ok && s == "") {
+					if ws := c.WorkspaceIDForContext(ctx); ws != "" {
+						val, present = ws, true
+					}
 				}
 			}
 			if !present {

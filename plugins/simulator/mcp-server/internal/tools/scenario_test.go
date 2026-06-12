@@ -139,6 +139,56 @@ func TestAccIdDefaulting(t *testing.T) {
 	}
 }
 
+// TestAccIdEmptyStringDefaulting verifies an explicit accId="" also falls back
+// to the workspace — MCP Inspector forces a value into required-looking fields,
+// so the empty string is the common "I have nothing" signal and must not leak
+// into the request path (which would resolve to /forms/templates/).
+func TestAccIdEmptyStringDefaulting(t *testing.T) {
+	c, rec := setup(t)
+	res := call(t, c, opByName(t, "getCurrencies"), map[string]any{"accId": ""})
+	if res.IsError {
+		t.Fatalf("unexpected error: %+v", res.Content)
+	}
+	if rec.path != "/currencies/WS" {
+		t.Errorf("path = %s, want /currencies/WS (empty accId defaulted to workspace)", rec.path)
+	}
+}
+
+// TestAccIdDefaultingFromContext verifies a per-request workspace id attached
+// via apiclient.WithWorkspaceID (stateless / URL-scoped deployments) reaches
+// the request when accId is omitted or empty.
+func TestAccIdDefaultingFromContext(t *testing.T) {
+	c, rec := setup(t)
+	var req mcp.CallToolRequest
+	req.Params.Arguments = map[string]any{"accId": ""}
+	ctx := apiclient.WithWorkspaceID(context.Background(), "CTXWS")
+	res, err := makeHandler(c, opByName(t, "getCurrencies"))(ctx, req)
+	if err != nil {
+		t.Fatalf("handler returned go error: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("unexpected error: %+v", res.Content)
+	}
+	if rec.path != "/currencies/CTXWS" {
+		t.Errorf("path = %s, want /currencies/CTXWS (accId defaulted to ctx workspace)", rec.path)
+	}
+}
+
+// TestAccIdNotRequiredInSchema verifies accId is exposed as optional in the
+// tool input schema even when declared Required at the Operation level — the
+// handler defaults it from the configured / ctx workspace, so marking the
+// field required would force callers (Inspector, models) to invent a value
+// and the fallback would never fire.
+func TestAccIdNotRequiredInSchema(t *testing.T) {
+	op := opByName(t, "getCurrencies")
+	tool := mcp.NewTool(op.Name, toolOptions(op, nil)...)
+	for _, r := range tool.InputSchema.Required {
+		if r == "accId" {
+			t.Errorf("accId must not be in InputSchema.Required (let the handler default it)")
+		}
+	}
+}
+
 // TestMissingRequiredParam verifies a missing required param yields an error result.
 func TestMissingRequiredParam(t *testing.T) {
 	c, _ := setup(t)
