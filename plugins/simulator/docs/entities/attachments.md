@@ -79,6 +79,27 @@ The API provides endpoints for:
 
 All API requests require appropriate OAuth2 scopes (`control.events:attachments.readonly` for read operations and `control.events:attachments.management` for write operations).
 
+## Reading attachment content (AI agent)
+
+Listing endpoints (`getAttachments`, `getActorAttachments`) return only *metadata* —
+including each file's storage `fileName`. To actually read a file's content, use the
+**`readAttachment`** tool with that `fileName`. It downloads the bytes (through the
+PAPI `/download/{fileName}` route, so access follows the caller's own permissions)
+and adapts them to what the model can consume:
+
+- **Textual** files (txt, md, csv, json, xml, yaml, source code, svg) → returned inline as text.
+- **Images** (png, jpeg, gif, webp) → returned as a viewable image block.
+- **PDFs and other binaries** → returned as an embedded resource (base64 blob) for the client to render.
+
+Large files are capped: text is truncated past 256 KiB, images over 5 MiB are
+returned as a metadata note instead of inline, and the overall download is bounded
+at 24 MiB.
+
+To read files attached to a **reaction / comment**, first list them with
+`getActorAttachments` using the reaction's id, then call `readAttachment` for each
+`fileName`. `readAttachment` is available in actor-scoped mode too, so a
+reaction-triggered AI agent can read the files attached to the reaction it handles.
+
 ## Storage Backends
 
 The platform supports multiple storage backends:

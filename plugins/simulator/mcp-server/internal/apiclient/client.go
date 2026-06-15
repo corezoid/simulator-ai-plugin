@@ -235,6 +235,79 @@ func (e *APIError) Error() string {
 // be nil; body may be nil, or any JSON-serialisable value. On a 2xx it returns the
 // raw response body; on a non-2xx it returns an *APIError.
 func (c *Client) Do(ctx context.Context, method, path string, query url.Values, body any) ([]byte, error) {
+	req, err := c.buildRequest(ctx, method, path, query, body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request to %s %s failed: %w", method, path, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response from %s %s: %w", method, path, err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, &APIError{Status: resp.StatusCode, Body: string(respBody)}
+	}
+	return respBody, nil
+}
+
+// RawResponse is the result of DoRaw: the response body, its Content-Type, and
+// whether the body was cut off at the requested byte limit.
+type RawResponse struct {
+	Body        []byte
+	ContentType string
+	Truncated   bool
+}
+
+// DoRaw issues a request and returns the raw body plus its Content-Type, without
+// assuming a JSON response — used to fetch binary content such as file downloads.
+// limit caps the number of body bytes read (limit <= 0 means no cap); Truncated
+// reports the cap was hit (the body was longer). A non-2xx reply yields an
+// *APIError carrying the (capped) body text.
+func (c *Client) DoRaw(ctx context.Context, method, path string, query url.Values, body any, limit int64) (RawResponse, error) {
+	req, err := c.buildRequest(ctx, method, path, query, body)
+	if err != nil {
+		return RawResponse{}, err
+	}
+
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return RawResponse{}, fmt.Errorf("request to %s %s failed: %w", method, path, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	var reader io.Reader = resp.Body
+	if limit > 0 {
+		reader = io.LimitReader(resp.Body, limit+1)
+	}
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return RawResponse{}, fmt.Errorf("read response from %s %s: %w", method, path, err)
+	}
+	truncated := false
+	if limit > 0 && int64(len(data)) > limit {
+		data = data[:limit]
+		truncated = true
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return RawResponse{}, &APIError{Status: resp.StatusCode, Body: string(data)}
+	}
+	return RawResponse{
+		Body:        data,
+		ContentType: resp.Header.Get("Content-Type"),
+		Truncated:   truncated,
+	}, nil
+}
+
+// buildRequest assembles the *http.Request shared by Do and DoRaw — it resolves
+// the base URL (ctx override else stored), appends the query, marshals a JSON
+// body, and attaches the Authorization header (ctx override else AuthHeader).
+func (c *Client) buildRequest(ctx context.Context, method, path string, query url.Values, body any) (*http.Request, error) {
 	base := BaseURLFromContext(ctx)
 	if base == "" {
 		base = c.BaseURL()
@@ -271,19 +344,5 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 			req.Header.Set("Authorization", auth)
 		}
 	}
-
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request to %s %s failed: %w", method, path, err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response from %s %s: %w", method, path, err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, &APIError{Status: resp.StatusCode, Body: string(respBody)}
-	}
-	return respBody, nil
+	return req, nil
 }

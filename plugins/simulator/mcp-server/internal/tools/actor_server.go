@@ -52,7 +52,10 @@ func actorBindings() map[string]actorBinding {
 		m[name] = actorBinding{SetToActor: []string{"source"}}
 	}
 	// (4) Visible in actor mode, no binding (free args from the model).
-	for _, name := range []string{"updateEdge", "deleteEdge", "uploadBase64"} {
+	// readAttachment takes a fileName (from getActorAttachments on this actor),
+	// not an actor id, so it needs no binding — just keep it visible so the
+	// reaction-triggered agent can read files attached to its reaction.
+	for _, name := range []string{"updateEdge", "deleteEdge", "uploadBase64", "readAttachment"} {
 		m[name] = actorBinding{}
 	}
 	// (5) Attachment link/unlink: inject actorId into every items[] element.
@@ -166,6 +169,10 @@ func BuildActorScoped(s *server.MCPServer, c *apiclient.Client, actorID string) 
 		}
 		s.AddTool(mcp.NewTool(local.Name, toolOptions(local, bound)...), makeHandlerRewrite(c, local, bound, rewrite))
 	}
+	// readAttachment is a local (non-Operation) tool, so it is not in allOps() and
+	// must be registered explicitly. It takes a fileName (no actor binding) — the
+	// agent gets it from getActorAttachments on this actor.
+	registerReadAttachment(s, c)
 }
 
 // registerCtxActor registers a curated op on the unified server with a handler
