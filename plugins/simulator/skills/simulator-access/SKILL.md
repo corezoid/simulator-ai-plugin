@@ -51,6 +51,11 @@ never guess:
 - **`getUsers(accId)`** — list all members.
 - **`getUser(accId, userId, type="group")`** — resolve a group id when sharing with a group.
 
+> **Share onto the `user`, never their twin actor.** Each user has a 1:1 digital-twin actor,
+> but access is granted to the **`userId`** — pass `userId` in the rule's `data`, not the twin
+> actor's id. The twin actor is for *transactions / accounts / graph placement*
+> (`getSystemActor`), not for sharing. See `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md`.
+
 ---
 
 ## Read who has access

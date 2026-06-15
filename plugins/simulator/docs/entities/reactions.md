@@ -100,6 +100,9 @@ Platform posts a child `ai` reaction and streams the result:
   being written — treat its `description` as partial.
 - **Avoid loops.** Set `extra.mcp` only on genuine (human) requests, not on the agent's
   own output. The platform bounds runaway chains, but it still wastes turns.
+- **UI context.** When the agent runs, the client passes a `control-events-context` object
+  (where the user is in the UI — `activeActor` / `activeLayer` / `activeGraph` / `page` / …),
+  injected into the agent's prompt. See [`ui-context.md`](ui-context.md).
 
 ## API Endpoints
 

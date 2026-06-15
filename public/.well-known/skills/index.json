@@ -37,6 +37,13 @@
       "name": "simulator-charts"
     },
     {
+      "description": "Simulator.Company chat \u0026 messaging specialist — sending messages to a user, and creating or reusing p2p (1:1) and group chats. In Simulator a chat is an actor of the Events system form (data.chatType = \"p2p\" | \"group\"), its participants are the actor's access-rule members, and its messages are `comment` reactions. Use when the user wants to \"message\", \"write to\", \"DM\", \"send a message to\" someone, \"open a chat with\", \"start a conversation\", or \"reply in the chat\". Activate on \"write a message to user N\", \"send N a message\", \"open a chat with\", \"message someone\", \"напиши повідомлення користувачу\", \"надішли повідомлення\", \"відкрий чат з\", \"почни розмову з\", \"напиши юзеру\", \"напиши сообщение пользователю\", \"отправь сообщение\", \"открой чат с\", \"напиши в чат\". For comments/approvals on an arbitrary actor (not a chat) use `simulator-reactions`; for files use `simulator-attachments`; for sharing/access in general use `simulator-access`.",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-chat/SKILL.md"
+      ],
+      "name": "simulator-chat"
+    },
+    {
       "description": "Simulator.Company financial management specialist. Use when the user wants to manage financial and metric accounts on actors (balances, counters, plan vs fact), record transactions, transfer value between accounts, work with currencies and account-name categories, track non-financial metrics, read balances and turnover, tag accounts for grouping, or set up account triggers (balance / transaction-count / data-field alerts). Activate when the user mentions \"record transaction\", \"transfer funds\", \"account balance\", \"financial tracking\", \"depreciation\", \"expense\", \"budget\", \"counter\", \"mileage tracking\", \"account tag\", \"account trigger\", \"balance alert\", \"запиши транзакцію\", \"переказ коштів\", \"баланс рахунку\", \"лічильник\", \"пробіг\", \"тег рахунку\", \"тригер на рахунок\", \"запиши транзакцию\", \"перевод средств\", \"баланс счёта\", \"счётчик\", \"пробег\", \"тег счёта\", \"триггер на счёт\". Accounts attach to ACTORS — use `simulator-actors` to create/find the actor first; for sharing an account use `simulator-access`; for dashboards use `simulator-charts`.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-finance/SKILL.md"
@@ -77,6 +84,13 @@
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms/SKILL.md"
       ],
       "name": "simulator-smart-forms"
+    },
+    {
+      "description": "Simulator.Company task \u0026 assignment specialist — creating a task and assigning who does it, who approves it, and whose signature it needs. In Simulator a task is an actor of the Events system form (no chatType), and the roles are access privileges, not data fields: the executor gets `execute`, approvers get `sign`, and a legal document's signers get `ds`. Completion and sign-off are then posted as `done` / `sign` / `reject` reactions. Use when the user wants to \"create a task\", \"assign a task to\", \"set an executor/assignee\", \"add approvers\", \"require a signature\", \"who signs this\", \"make a to-do\". Activate on \"create a task\", \"assign to\", \"task for\", \"needs approval\", \"who approves\", \"requires signature\", \"sign-off\", \"створи задачу\", \"постав задачу\", \"признач виконавця\", \"додай погоджувача\", \"потрібен підпис\", \"хто погоджує\", \"хто підписує\", \"создай задачу\", \"назначь исполнителя\", \"добавь согласующего\", \"нужна подпись\", \"кто подписывает\". For a 1:1/group chat use `simulator-chat`; for the reaction mechanics use `simulator-reactions`; for access in general use `simulator-access`.",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-tasks/SKILL.md"
+      ],
+      "name": "simulator-tasks"
     }
   ]
 }

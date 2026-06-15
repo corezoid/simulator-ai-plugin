@@ -8,21 +8,67 @@ import (
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
 )
 
-// resolveHierarchyEdgeType defaults getRelatedActors to the workspace's
-// hierarchy link type when the caller omits edgeTypeId — linked actors are
-// almost always traversed along the hierarchy edge. Edge type ids are
-// workspace-scoped, so the id is resolved by name via the edge_types listing.
+// resolveHierarchyEdgeType defaults a tool's edgeTypeId to the workspace's
+// hierarchy link type when the caller omits it — actor links are almost always
+// the hierarchy edge (both for traversal in getRelatedActors and for creating
+// links in createLink). Edge type ids are workspace-scoped, so the id is resolved
+// by name via the edge_types listing. An explicit edgeTypeId always wins.
 func resolveHierarchyEdgeType(ctx context.Context, args map[string]any, c *apiclient.Client) error {
 	if _, ok := args["edgeTypeId"]; ok {
 		return nil // explicit edgeTypeId wins
 	}
+	id, err := hierarchyEdgeTypeID(ctx, c)
+	if err != nil {
+		return err
+	}
+	args["edgeTypeId"] = float64(id) // JSON-number arg type, like the model would send
+	return nil
+}
+
+// resolveHierarchyForLinks defaults each link's edgeTypeId in a massLink call to
+// the hierarchy type when omitted — same rationale as resolveHierarchyEdgeType,
+// applied per array element. Links with an explicit edgeTypeId are left as-is.
+func resolveHierarchyForLinks(ctx context.Context, args map[string]any, c *apiclient.Client) error {
+	raw, ok := args["links"].([]any)
+	if !ok {
+		return nil
+	}
+	needsDefault := false
+	for _, l := range raw {
+		if m, ok := l.(map[string]any); ok {
+			if _, has := m["edgeTypeId"]; !has {
+				needsDefault = true
+				break
+			}
+		}
+	}
+	if !needsDefault {
+		return nil
+	}
+	id, err := hierarchyEdgeTypeID(ctx, c)
+	if err != nil {
+		return err
+	}
+	for _, l := range raw {
+		if m, ok := l.(map[string]any); ok {
+			if _, has := m["edgeTypeId"]; !has {
+				m["edgeTypeId"] = float64(id)
+			}
+		}
+	}
+	return nil
+}
+
+// hierarchyEdgeTypeID resolves the active workspace's hierarchy edge type id by
+// name (edge type ids are workspace-scoped).
+func hierarchyEdgeTypeID(ctx context.Context, c *apiclient.Client) (int, error) {
 	accID := c.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return fmt.Errorf("resolving the hierarchy edge type needs a workspace — run set-workspace or pass edgeTypeId")
+		return 0, fmt.Errorf("resolving the hierarchy edge type needs a workspace — run set-workspace or pass edgeTypeId")
 	}
 	resp, err := c.Do(ctx, "GET", "/edge_types/"+accID, nil, nil)
 	if err != nil {
-		return fmt.Errorf("list edge types to resolve hierarchy: %w", err)
+		return 0, fmt.Errorf("list edge types to resolve hierarchy: %w", err)
 	}
 	var out struct {
 		Data []struct {
@@ -31,15 +77,14 @@ func resolveHierarchyEdgeType(ctx context.Context, args map[string]any, c *apicl
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(resp, &out); err != nil {
-		return fmt.Errorf("parse edge types list: %w", err)
+		return 0, fmt.Errorf("parse edge types list: %w", err)
 	}
 	for _, et := range out.Data {
 		if et.Name == "hierarchy" {
-			args["edgeTypeId"] = float64(et.ID) // JSON-number arg type, like the model would send
-			return nil
+			return et.ID, nil
 		}
 	}
-	return fmt.Errorf("hierarchy edge type not found in the active workspace — pass edgeTypeId explicitly")
+	return 0, fmt.Errorf("hierarchy edge type not found in the active workspace — pass edgeTypeId explicitly")
 }
 
 // graphOps — build process graphs: links (edges) between actors, placing nodes
@@ -48,12 +93,14 @@ func resolveHierarchyEdgeType(ctx context.Context, args map[string]any, c *apicl
 var graphOps = []Operation{
 	{
 		Name: "createLink", Method: "POST", Path: "/actors/link/{accId}",
-		Summary: "Create a directed link (edge) between two actors.",
+		Summary: "Create a directed link (edge) between two actors. Defaults to the " +
+			"workspace's hierarchy link type — omit edgeTypeId for normal actor links.",
+		Resolve: resolveHierarchyEdgeType,
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "source", In: InBody, Type: "string", Required: true, Desc: "Source actor UUID."},
 			{Name: "target", In: InBody, Type: "string", Required: true, Desc: "Target actor UUID."},
-			{Name: "edgeTypeId", In: InBody, Type: "number", Required: true, Desc: "Edge type id (see getEdgeTypes)."},
+			{Name: "edgeTypeId", In: InBody, Type: "number", Desc: "Edge type id. Defaults to the workspace's hierarchy link type if omitted — omit it for normal actor links; pass it only to use a different edge type (see getEdgeTypes)."},
 			{Name: "name", In: InBody, Type: "string", Desc: "Optional edge label."},
 			{Name: "weight", In: InBody, Type: "number", Desc: "Optional edge weight."},
 			{Name: "curveStyle", In: InBody, Type: "string", Desc: "Optional curve style."},
@@ -64,10 +111,11 @@ var graphOps = []Operation{
 	},
 	{
 		Name: "massLink", Method: "POST", Path: "/actors/mass_links/{accId}",
-		Summary: "Create up to 50 links in one call. Pass an array of {source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?} edge objects.",
+		Summary: "Create up to 50 links in one call. Pass an array of {source, target, edgeTypeId?, name?, weight?, curveStyle?, linkedActorId?, pinned?} edge objects. edgeTypeId defaults to the workspace's hierarchy link type per object when omitted.",
+		Resolve: resolveHierarchyForLinks,
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
-			{Name: "links", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of edge objects: {source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?} (max 50)."},
+			{Name: "links", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of edge objects: {source, target, edgeTypeId?, name?, weight?, curveStyle?, linkedActorId?, pinned?} (max 50). Omit edgeTypeId for normal actor links — it defaults to the workspace's hierarchy link type; set it only for a different edge type (see getEdgeTypes)."},
 			{Name: "forceDirection", In: InQuery, Type: "boolean", Desc: "Force edge directions."},
 		},
 	},

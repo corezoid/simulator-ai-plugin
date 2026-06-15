@@ -114,6 +114,12 @@ So when reading a discussion (`getReactions`), an `ai` reaction with
 > platform bounds runaway chains, but creating `extra.mcp` reactions from agent
 > output wastes turns.
 
+When the agent runs, the client also passes a **UI-context** object (`control-events-context`)
+that says **where the user is** — `activeActor`, `activeLayer`, `activeGraph`, `page`,
+`hostOrigin`, `workspaceId`, `graphDiscovery`. Read it to resolve "here" / "this actor" /
+"this layer" and to default ids the user left implicit. See
+`$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md`.
+
 ## Pin & read state
 
 ```
@@ -134,7 +140,7 @@ markReactionsRead(actorId="<parent actor UUID>", count=12)   # clears the unread
 ## Tips
 
 - `actorId` is always the **parent** actor; the reaction's own id is `reactionId` (update/delete/pin).
-- `type="comment"` is the default note; reserve `sign`/`ds`/`approve`-style types for real approval flows.
+- `type="comment"` is the default note; the full set is `view`/`comment`/`ai`/`rating`/`sign`/`ds`/`done`/`reject`/`freeze` — reserve `sign`/`ds`/`done`/`reject` for real approval / sign-off / completion flows (there is no `approve` type).
 - Reply by setting `parentId`; omit it for a top-level comment.
 - `notify=false` posts without sending notifications (it is honoured — sent explicitly).
 - `deleteReaction` is irreversible — confirm with the user first.

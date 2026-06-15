@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -84,7 +85,49 @@ const (
 	baseURLCtxKey
 	workspaceCtxKey
 	actorCtxKey
+	uiContextCtxKey
 )
+
+// UIContext is the decoded `control-events-context` — where the user is in the
+// Simulator web UI when they triggered the AI agent. Carried per request so
+// tools (e.g. buildLink) can default to the user's current view. All fields are
+// optional; absent ones are "".
+type UIContext struct {
+	HostOrigin  string `json:"hostOrigin"`  // web-app origin, e.g. https://mw.simulator.company
+	WorkspaceID string `json:"workspaceId"` // active workspace (full UUID)
+	ActiveActor string `json:"activeActor"` // UUID of the open/focused actor
+	ActiveLayer string `json:"activeLayer"` // UUID of the open graph layer
+	ActiveGraph string `json:"activeGraph"` // UUID of the open graph (folder)
+}
+
+// ParseUIContext decodes a `control-events-context` header value into a UIContext.
+// The value is base64-encoded JSON (as pong-server sends it); a plain-JSON value
+// is also accepted as a fallback. Any decode error yields a zero UIContext — the
+// caller treats "no context" and "bad context" the same (best-effort awareness).
+func ParseUIContext(headerValue string) UIContext {
+	var ui UIContext
+	if headerValue == "" {
+		return ui
+	}
+	raw := []byte(headerValue)
+	if decoded, err := base64.StdEncoding.DecodeString(headerValue); err == nil {
+		raw = decoded
+	}
+	_ = json.Unmarshal(raw, &ui) // best-effort; zero value on failure
+	return ui
+}
+
+// WithUIContext stores the decoded UI context on ctx. A zero-value context is
+// still stored (harmless); callers read it with UIContextFromContext.
+func WithUIContext(ctx context.Context, ui UIContext) context.Context {
+	return context.WithValue(ctx, uiContextCtxKey, ui)
+}
+
+// UIContextFromContext returns the per-request UI context, or a zero UIContext.
+func UIContextFromContext(ctx context.Context) UIContext {
+	ui, _ := ctx.Value(uiContextCtxKey).(UIContext)
+	return ui
+}
 
 // WithAuthorization stores the full Authorization header value on ctx so that
 // Client.Do uses it instead of calling the Client's AuthHeader callback.

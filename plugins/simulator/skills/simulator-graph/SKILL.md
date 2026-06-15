@@ -62,15 +62,15 @@ Every diagram needs two actors linked together. Do this once per new diagram.
 
 ```
 // 1. Create the graph container
-createActor(formName="Graphs", body='{"title":"<diagram name>"}')
+createActor(formName="Graphs", title="<diagram name>")
 → save returned id as graphId
 
 // 2. Create the visual canvas (layer)
-createActor(formName="Layers", body='{"title":"<diagram name>"}')
+createActor(formName="Layers", title="<diagram name>")
 → save returned id as layerId
 
 // 3. Link graph → layer
-createLink(body='{"source":"<graphId>","target":"<layerId>"}')
+createLink(source="<graphId>", target="<layerId>")
 ```
 
 If `layerId` is already known (from user message or context) — skip this step entirely.
@@ -307,9 +307,9 @@ for each rank with N nodes:
 
 ```
 // Step 1 — Create Graph + Layer (skip if layerId already known)
-createActor(formName="Graphs", body='{"title":"Order Processing"}')  → graphId
-createActor(formName="Layers", body='{"title":"Order Processing"}')  → layerId
-createLink(body='{"source":"<graphId>","target":"<layerId>"}')
+createActor(formName="Graphs", title="Order Processing")  → graphId
+createActor(formName="Layers", title="Order Processing")  → layerId
+createLink(source="<graphId>", target="<layerId>")
 
 // Step 2 — Write <layerId>.yaml
 ```
@@ -511,51 +511,60 @@ The server resolves the name to ID automatically.
 ## Low-Level MCP Tools (one-off operations)
 
 Use these for targeted queries, not for building graphs (use the file workflow instead).
+Call tools with **named arguments** (the curated v2 tools take typed params — there is no
+single `body` blob). A **layer is addressed by its layer-actor UUID** — the `actorId`
+argument of the layer tools below (the same id the file workflow calls the `layerId`).
 
 ### Actor Operations
 
 ```
-createActor(formName="Process", body='{"title":"Step","color":"#539fdf"}')
-createActors(formName="Process", actors='[{"title":"A","color":"#539fdf"},{"title":"B","color":"#539fdf"}]')
+createActor(formName="Process", title="Step", color="#539fdf")   // one actor per call — there is no createActors
 getActor(actorId="<actorId>")
-updateActor(formId=<formId>, actorId="<actorId>", body='{"title":"Updated"}')
-deleteActor(actorId="<actorId>")
-deleteBulk(body='{"actorIds":["<a1>","<a2>"]}')
+getActorByRef(formId=<formId>, ref="<ref>")
+updateActor(formId=<formId>, actorId="<actorId>", title="Updated")
+deleteActor(actorId="<actorId>")                                 // one at a time — there is no bulk-actor delete
 ```
 
-### Link Operations
+### Link (edge) Operations
 
 ```
-// Preferred — creates links AND places them on the layer automatically
-massLink(layerId="<layerId>", body='[{"source":"<a>","target":"<b>"}]')
+// Single link. edgeTypeId defaults to the workspace hierarchy type when omitted —
+// pass it only for a different edge type (see getEdgeTypes).
+createLink(source="<a>", target="<b>")                  → edgeId
 
-// Single link — two calls required (logical + visual)
-createLink(body='{"source":"<a>","target":"<b>"}')   → edgeId
-manageLayerActors(layerId="<layerId>", body='[{"action":"create","data":{"id":"<edgeId>","type":"edge","laIdSource":<laA>,"laIdTarget":<laB>}}]')
+// Up to 50 links in one call; each object's edgeTypeId is optional (same hierarchy default).
+massLink(links=[{"source":"<a>","target":"<b>"}, ...])
 
-existLink(body='{"source":"<a>","target":"<b>"}')
-updateLink(edgeId="<edgeId>", body='{"data":{"weight":5}}')
-deleteLink(edgeId="<edgeId>")
-bulkDeleteLinks(body='{"edgeIds":["<e1>","<e2>"]}')
+// massLink/createLink create the logical edge only. To also show an edge on a layer,
+// place it with manageLayerActors (actorId = the layer-actor UUID):
+manageLayerActors(actorId="<layerActorId>", items=[{"action":"create","data":{"id":"<edgeId>","type":"edge","laIdSource":<laA>,"laIdTarget":<laB>}}])
+
+// existLink REQUIRES edgeTypeId (unlike createLink) — pass it explicitly to find/dedupe an edge by its endpoints:
+existLink(source="<a>", target="<b>", edgeTypeId=<id>)  → edge id if it exists
+getEdge(edgeId="<edgeId>")
+updateEdge(edgeId="<edgeId>", name="New label", pinned=true)     // fields: name, linkedActorId, curveStyle, pinned
+deleteEdge(edgeId="<edgeId>")
+deleteEdgesByNodes(links=[{"source":"<a>","target":"<b>","edgeTypeId":<id>}])   // bulk delete by endpoints (1-200); edgeTypeId required per object
 ```
 
 ### Layer Operations
 
 ```
-getLayer(layerId="<layerId>")            // read full layer state with laIds
-searchLayerActors(layerId="<layerId>", query="...")
-getLayerActorsByFormId(layerId="<layerId>", formId=<formId>)
-cleanLayer(layerId="<layerId>")          // remove all from view (actors remain)
-moveElements(sourceLayerId="<la>", targetLayerId="<lb>", body='{"actorIds":["<a1>"]}')
+getLayerActors(actorId="<layerActorId>")                 // placements on the layer
+getAllLayerPlacements(layerId="<layerActorId>")          // every placement in one paginated call (engine tool)
+searchLayerActors(actorId="<layerActorId>", query="...")
+layerStats(actorId="<layerActorId>")                     // node/edge counts
+existLayerElement(actorId="<layerActorId>", id="<actorOrEdgeId>", type="actor")  // is a node/edge on the layer — dedupe before placing
+moveActors(sourceActorId="<layerA>", targetActorId="<layerB>", items=[{"actorId":"<a1>"}])  // ≤10 actors between layers
+cleanGraphLayer(actorId="<layerActorId>")                // wipe the layer (actors remain) — destructive
 ```
 
 ### Graph Traversal
 
 ```
 getRelatedActors(type="linked", actorId="<actorId>")  // type: "linked"|"parents"|"children"; defaults to the hierarchy link type
-getActorLinks(actorId="<actorId>")
-getLinkedActors(actorId="<actorId>")
-actorGlobalLayers(actorId="<actorId>")
+getActorLinks(actorId="<actorId>")                    // every edge of an actor
+getLinkedActors(actorId="<actorId>")                  // directly-linked actors across edge types
 
 // Related actors filtered/ranked by an account balance, in one query:
 // "the actors related to X whose account N balance is > / < a value".
@@ -576,24 +585,26 @@ getRelatedActors(type="children", actorId="<actorId>", filter="id,title,formId")
 
 ## Financial Operations
 
+> Accounts are a finance concern — see `/simulator-finance` for the full workflow. Quick reference:
+
 ### Accounts
 
 ```
 getAccounts(actorId="<actor>")
 getAccount(accountId="<acc>")
-createAccounts(actorId="<actor>", body='{"nameId":"<name>","currencyId":"<cur>","accountType":"default"}')
-postAccounts(body='{"accountName":"Balance","currencyName":"USD"}')
-setAmount(accountId="<acc>", body='{"amount":1000}')
-delAccounts(actorId="<actor>", currencyId="<cur>", nameId="<name>", accountType="default")
+createAccountPair(accountName="Balance", currencyName="USD")     // bootstrap: creates name + currency if missing AND grants pair access
+createAccount(actorId="<actor>", nameId="<name>", currencyId="<cur>", accountType="default")
+setAccountAmount(accountId="<acc>", amount=1000)                 // fixed-balance correction
+deleteAccount(actorId="<actor>", currencyId="<cur>", nameId="<name>", accountType="default")
 ```
 
 ### Currencies & Account Names
 
 ```
 getCurrencies()
-createCurrency(body='{"name":"USD"}')
+createCurrency(name="USD", symbol="$", precision=2)
 getAccountNames()
-createAccountName(body='{"name":"Balance","abbreviation":"BAL"}')
+createAccountName(name="Balance", abbreviation="BAL")
 ```
 
 ---
@@ -611,6 +622,9 @@ createAccountName(body='{"name":"Balance","abbreviation":"BAL"}')
 - **`pullGraphFile` → edit → `pushGraphFile`** is the standard edit cycle for existing layers.
 - `laId` ≠ `actorId`. The file workflow handles laId management automatically.
 - Space actors ~200–300 px apart; use the layout algorithm for coordinates.
+- **To place a user/person on the graph, use their twin actor** — resolve it with
+  `getSystemActor(objType="user", objId=<userId>)` and place that `actorId`. A bare `userId`
+  is not a graph node. (See `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md`.)
 
 ---
 

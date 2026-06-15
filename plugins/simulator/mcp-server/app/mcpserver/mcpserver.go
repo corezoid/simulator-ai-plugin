@@ -177,6 +177,15 @@ func WithActorID(ctx context.Context, value string) context.Context {
 	return apiclient.WithActorID(ctx, value)
 }
 
+// WithUIContext decodes a `control-events-context` header value (base64 JSON —
+// where the user is in the Simulator UI) and stores it on ctx so tools like
+// buildLink can default to the user's current view (hostOrigin, activeActor,
+// activeLayer, activeGraph, workspaceId). Wire it from the transport header next
+// to WithAuthorization / WithWorkspaceID. A blank or undecodable value is a no-op.
+func WithUIContext(ctx context.Context, headerValue string) context.Context {
+	return apiclient.WithUIContext(ctx, apiclient.ParseUIContext(headerValue))
+}
+
 func defaultAuthHeader() (string, error) {
 	creds, err := auth.Load()
 	if err != nil {

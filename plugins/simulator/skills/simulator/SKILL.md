@@ -19,6 +19,23 @@ operation is exposed as its own MCP tool. The tool name is the swagger
 `createTransfer`). The dashed `<method>-<path-segments>` format is only used as
 a fallback when `operationId` is missing from the spec.
 
+## When unsure, confirm the plan before acting
+
+If you can confidently map the request to specific tools from the platform model and
+the project's conventions, proceed and report what you did. **But when you do not know
+exactly what to do** — the request is ambiguous, could be interpreted several ways, or a
+wrong guess would create/modify/delete the wrong data — **do not guess.** First state a
+short plan of action (which tools you intend to call, on which entities, with what key
+arguments) and confirm it with the user, in **their own language**, before executing.
+
+- Be especially careful before **writes** — `create*`, `update*`, `delete*`,
+  `saveAccessRules`, transfers, status changes. Deletes/transfers are irreversible:
+  confirm the target and intent first.
+- Prefer **one focused question or a brief plan** over many rounds — ask only what you
+  genuinely cannot infer from the message, the conversation, or the repo/platform model.
+- Read-only exploration to *reduce* the uncertainty (`get*`, `search*`, `filter*`) is
+  fine to do first without asking — use it, then propose the plan.
+
 ## Workspace Context Check (MANDATORY FIRST STEP)
 
 **Before doing anything else**, verify the WorkspaceID (`accId`) is known:
@@ -138,6 +155,28 @@ Financial operations on accounts:
 Movement of funds between two accounts (debit one, credit another):
 - Can also be authorized (held) then completed or canceled
 
+### Users & their digital-twin actors
+A `user` is a workspace member; **each user also has a 1:1 digital-twin actor** (a graph node
+representing them, carrying their accounts). Use the right one for the job:
+- **Sharing / access / membership** (who may see/edit an actor, account, form; chat & task
+  participants) → the **`user`**, by `userId` (`saveAccessRules`, access members).
+- **Transactions / accounts / placing the person on the graph** → the user's **twin actor**,
+  resolved with `getSystemActor(objType="user", objId=<userId>)` → then `getAccounts` /
+  `createTransfer` / `manageLayerActors`.
+
+See `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md`.
+
+### UI context (where the user is)
+When you run as the platform **AI agent** (an `extra.mcp` reaction), a UI-context object is
+injected into your prompt describing **where the user is in the interface** — `activeActor`
+(open actor), `activeLayer` (open graph layer), `activeGraph` (open diagram), `page`,
+`hostOrigin`, `workspaceId`, and `graphDiscovery` (the on-screen viewport). **Use it to resolve
+"here" / "this actor" / "this layer" and to default ids the user left implicit** — operate on
+the view they're looking at instead of asking. **`buildLink` auto-uses this context** (web base
+from `hostOrigin`, workspace from `workspaceId`, and the open `activeActor`/`activeLayer` as the
+default id), so `buildLink(entity="actor")` / `buildLink(entity="layer")` link to what's open. See
+`$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md`.
+
 ## Common Workflows
 
 ### 1. Explore the Workspace
@@ -211,6 +250,7 @@ Call tools by these exact names:
 - **Search:** `searchAll` — global workspace search across actors/users, **text or semantic** (vector); `filters` picks targets, `searchType=semantic` for meaning-based lookup
 - **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`
 - **Setup:** `set-environment` (choose a cloud preset or custom/local URL), `login`, `getWorkspaces` (list your workspaces by name), `set-workspace` (by `accId` or `name`)
+- **Web links:** `buildLink` — build a clickable web-app URL for an entity (`actor`, `event`, `chat`, `layer`, `graph`, `form`, `transaction`, `transfer`, `chart`, `meeting`, `settings`, …). Use it **whenever the user asks to "open", "show me", or "share a link to"** something, instead of composing the URL by hand — it resolves the right host (the active environment) and workspace for you.
 
 Key rules:
 - **Check before you create.** To avoid duplicates, first look for an existing entity:
@@ -241,6 +281,8 @@ For domain-specific workflows use the specialized skills:
 - `/simulator-charts` — dashboard charts and time-series visualisation on layers
 - `/simulator-smart-forms` — Smart Forms (CDU / Script applications): pages, releases
 - `/simulator-reactions` — comments / events / approvals / ratings on actors (threaded)
+- `/simulator-chat` — messaging: send a message to a user, open/reuse p2p & group chats (Events-form actors; messages are comment reactions)
+- `/simulator-tasks` — tasks/assignments: create a task (Events-form actor) and assign executor (`execute`), approvers (`sign`), legal signers (`ds`)
 - `/simulator-attachments` — files: upload, attach/detach to actors & reactions
 - `/simulator-access` — access rules: share/grant/revoke who can view/modify an object
 
@@ -259,6 +301,10 @@ Use the `Read` tool to load these files when you need deeper detail:
 | `$CLAUDE_PLUGIN_ROOT/docs/entities/transfers.md` | Transfer mechanics |
 | `$CLAUDE_PLUGIN_ROOT/docs/entities/system-forms.md` | All built-in system form definitions |
 | `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` | Comment/approval reaction types |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md` | The `user` entity vs its 1:1 twin actor — share to users, transact/graph via the twin |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md` | `control-events-context`: where the user is in the UI (activeActor/activeLayer/activeGraph/page) — resolve "here"/"this" |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/chats.md` | Chats: Events-form actors, p2p/group, messages as reactions |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/tasks.md` | Tasks: Events-form actors + execute/sign/ds roles, done/sign/reject lifecycle |
 | `$CLAUDE_PLUGIN_ROOT/docs/entities/attachments.md` | File attachment operations |
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/graph-functionality.md` | Step-by-step graph building walkthrough |
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/actor-graph-management.md` | Actor graph management patterns |

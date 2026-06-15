@@ -75,6 +75,10 @@ func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode boo
 		}
 		register(s, c, op)
 	}
+	// buildLink is a local (non-HTTP) helper, not a curated Operation, so it is
+	// registered outside the op loop. It is exposed in workspace mode only —
+	// ActorToolFilter hides it in actor sessions (it is absent from actorBindings).
+	registerBuildLink(s, c)
 }
 
 // Count reports how many curated API tools are registered (auth helpers excluded).
