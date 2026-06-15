@@ -209,4 +209,26 @@ var accountOps = []Operation{
 			{Name: "type", In: InBody, Type: "string", Desc: "Currency type (default \"number\") — only used when the currency is created."},
 		},
 	},
+	{
+		Name: "setAccountFormula", Method: "POST", Path: "/accounts/formula/{accountId}",
+		Summary: "Turn an account into a COMPUTED (formula) account: its balance is a math expression over OTHER " +
+			"accounts. The `formula` references source accounts by their full account UUID — each UUID is substituted " +
+			"with that account's AVAILABLE balance (amount − hold) — then evaluated (mathjs: + - * / ( ), etc.); the " +
+			"numeric result becomes this account's balance and recalculates automatically when a source account changes. " +
+			"RULE: you CANNOT set a formula on an account that already has transactions. " +
+			"To CLEAR the formula (make it a plain account again), pass an empty string. " +
+			"Get the source account UUIDs from getAccount / getAccounts (the account `id`, not the actor id).",
+		Params: []Param{
+			{Name: "accountId", In: InPath, Type: "string", Required: true, Desc: "Id of the account to make computed (the calc account)."},
+			{Name: "formula", In: InBody, Type: "string", Required: true, Desc: "Math expression referencing source account UUIDs, e.g. \"<accUuidA> + <accUuidB> * 0.2\". Each UUID resolves to that account's available balance (amount − hold). Empty string clears the formula."},
+		},
+	},
+	{
+		Name: "getAccountFormula", Method: "GET", Path: "/accounts/formula_info/{accountId}",
+		Summary: "Inspect a computed account's formula: returns the source accounts it references (their balances + " +
+			"owning actor), or an empty object if the account has no formula. Use to see what a formula account depends on.",
+		Params: []Param{
+			{Name: "accountId", In: InPath, Type: "string", Required: true, Desc: "Id of the computed (formula) account to inspect."},
+		},
+	},
 }

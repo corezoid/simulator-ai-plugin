@@ -27,6 +27,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator-reactions`| "comment on this actor", "reply", "pin comment"          | Reactions: comments / events / approvals / ratings (threaded) |
 | `simulator-chat`     | "write a message to user N", "DM", "open a chat with"    | Messaging: send a message to a user, p2p/group chats (Events-form actors; messages are comment reactions) |
 | `simulator-tasks`    | "create a task", "assign to", "who approves", "needs signature" | Tasks/assignments: an Events-form actor + executor (`execute`) / approver (`sign`) / legal signer (`ds`) roles |
+| `simulator-meetings` | "schedule a meeting", "recurring meeting", "agenda", "join link" | Meetings/video/SIP rooms (Events-form actor, `scheduleMeeting`): schedule, recurrence, agenda, persistent rooms, public & in-app join links |
 | `simulator-attachments` | "upload a file", "attach document", "rename file"     | Files: upload, attach/detach to actors & reactions      |
 | `simulator-access`   | "share with", "grant access", "who can edit this"        | Access rules: grant/revoke view/modify/… on objects     |
 
@@ -189,15 +190,17 @@ the actor/node items.)
 |---------------|----------------------------------------------------------------------------------------|
 | Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` `createFormAccount` `getFormAccounts` `removeFormAccount` `getLinkedForms` `getFormsTree` |
 | Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` `getSystemActor` `getCorezoidProcesses` |
-| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createAccountPair` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createAccountPair` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` `setAccountFormula` `getAccountFormula` |
 | Account tags & triggers | `saveAccountActors` (link Tags/AccountTriggers actors to a pair or one account) `getDataFieldActorsByActor` `saveDataFieldActorsByActor` `getDataFieldActorsByForm` `saveDataFieldActorsByForm` (data triggers on a data field) |
 | Counters      | `saveCounters` `setCounters` `getCounters` |
-| Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` |
+| Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` `requestAccess` |
 | Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
 | Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `getLinkedActors` `getActorLinks` `manageLayerActors` `moveActors` `existLayerElement` `cleanGraphLayer` `layerStats` |
 | Reactions     | `createReaction` `updateReaction` `deleteReaction` `getReactions` `getReactionsStats` `markReactionsRead` `getPinnedReactions` `togglePinnedReaction` |
 | Attachments   | `getAttachments` `getActorAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
+| Public links  | `generatePublicLink` `getPublicLink` `revokePublicLink` (shareable `/m/<hash>` join link to an actor — meeting / SIP access without login) |
+| Meetings      | `getTranscription` (read a meeting call's speech transcription — summarize / extract action items; needs a live room) |
 | Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 

@@ -104,6 +104,39 @@ Platform posts a child `ai` reaction and streams the result:
   (where the user is in the UI — `activeActor` / `activeLayer` / `activeGraph` / `page` / …),
   injected into the agent's prompt. See [`ui-context.md`](ui-context.md).
 
+## Embedding: smart forms, nested actor cards, chips
+
+A reaction (and an actor) can embed richer content than plain text:
+
+- **Run a Smart Form (script) in a reaction.** Set **`appId`** to a Smart Form
+  (CDU/Script application) actor id when creating/updating the reaction — the reaction then
+  renders and runs that smart form. **`appSettings`** configures it:
+  `{autorun, expired (unix s), users:int[], groups:int[], fullWidth}` (or null).
+  ```
+  createReaction(type="comment", actorId="<actor>", appId="<smartFormActorId>",
+                 appSettings={ "autorun": true, "fullWidth": true })
+  ```
+  The **same `appId` / `appSettings`** fields exist on **actors** (`createActor` /
+  `updateActor`) — that's how a regular actor embeds/runs a smart form in its card.
+  Create the smart form with `createSmartForm` (see the `simulator-smart-forms` skill).
+- **Nested actor card.** `extra.linkedActorId` on a reaction embeds **another actor as a
+  card/preview** inside the reaction:
+  `createReaction(type="comment", actorId="<actor>", extra={ "linkedActorId": "<otherActorId>" })`.
+- **Inline chips & formatting (in `description` / comment text).** Both reaction bodies and
+  actor `description`s render **BBCode** — chips and rich formatting:
+  - Chips: `[actor=<id>]Label[/actor]` (nested actor card), `[application=<smartFormId>]Label[/application]`
+    (smart-form chip), plus `[event=…]`, `[graph=…]`, `[graphLayer=…]`, `[user=…]`, `[chat=…]`,
+    `[file=…]`, `[quote=…]`, `[smarttag=…]`.
+  - Formatting: `[b]` `[i]` `[u]`, `[h1]`..`[h6]`, `[color=…]` `[size=…]` `[bg=…]` `[span …]`,
+    `[ul][*]…[/ul]` / `[ol][*]…[/ol]`, `[url=href]…[/url]`, `[img=<id>]` / `[imgSrc=…]`, `[br]`,
+    and `[md]…[/md]` for a markdown block.
+  - **The exact tag set is per-environment** — fetch it with the **`getBbcodeTags`** tool
+    (reads `<web-host>/bbcode-tags.json`: each tag's attributes + an example) before composing
+    a rich description.
+  - **BBCode is processed only OUTSIDE `[md]` blocks.** Inside `[md]…[/md]` the content is
+    markdown, so a chip/BBCode placed there is **not** rendered — keep chips/BBCode outside the
+    `[md]` section (use one or the other in a given span).
+
 ## API Endpoints
 
 For detailed API documentation on reactions, including request parameters, response formats, and authentication requirements, please refer to the official API documentation:

@@ -120,6 +120,22 @@ that says **where the user is** — `activeActor`, `activeLayer`, `activeGraph`,
 "this layer" and to default ids the user left implicit. See
 `$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md`.
 
+## Embed a smart form, an actor card, or chips
+
+A reaction can carry more than text:
+
+- **Run a Smart Form (script) in the reaction** — set `appId` to a Smart Form (CDU/Script app)
+  actor id (+ optional `appSettings` `{autorun, expired, users, groups, fullWidth}`):
+  `createReaction(type="comment", actorId="<actor>", appId="<smartFormActorId>", appSettings={autorun:true})`.
+  (The same `appId`/`appSettings` embed a smart form into a regular actor — see `simulator-smart-forms`.)
+- **Nested actor card** — `extra.linkedActorId` embeds another actor as a preview card:
+  `createReaction(..., extra={ "linkedActorId": "<otherActorId>" })`.
+- **Inline chips / rich text** — `description` renders **BBCode**: chips `[actor=<id>]Label[/actor]`,
+  `[application=<smartFormId>]Label[/application]`, `[user=…]`, `[event=…]`; formatting `[b]`,
+  `[color=…]`, `[h2]`, `[ul][*]…[/ul]`, `[url=…]`; and `[md]…[/md]` for markdown. Fetch the
+  environment's exact tag set with **`getBbcodeTags`**. **BBCode works only OUTSIDE `[md]`
+  blocks** — keep chips/BBCode out of any `[md]…[/md]` section. See `docs/entities/reactions.md`.
+
 ## Pin & read state
 
 ```

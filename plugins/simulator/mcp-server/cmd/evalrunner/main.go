@@ -313,7 +313,7 @@ var dryFixtures = map[string]string{
 		`{"id":"item_make","class":"edit","title":"Make"},` +
 		`{"id":"item_year","type":"int","class":"edit","title":"Year"},` +
 		`{"id":"item_owner","class":"select","title":"Owner","extra":{"optionsSource":{"type":"workspaceMembers"}}}]}]}}`,
-	"getForms":              `{"data":[{"id":42,"title":"Vehicle"},{"id":16951,"title":"Position"},{"id":7,"title":"Tags"},{"id":8,"title":"AccountTriggers"}]}`,
+	"getForms":              `{"data":[{"id":42,"title":"Vehicle"},{"id":16951,"title":"Position"},{"id":7,"title":"Tags"},{"id":8,"title":"AccountTriggers"},{"id":3,"title":"Events"}]}`,
 	"searchForms":           `{"data":[{"id":42,"title":"Vehicle"}]}`,
 	"getActor":              `{"data":{"id":"11111111-1111-1111-1111-111111111111","title":"Camry","formId":42,"data":{"item_make":"Toyota"}}}`,
 	"getActorByRef":         `{"data":{"id":"11111111-1111-1111-1111-111111111111","title":"Camry","formId":42}}`,
@@ -353,6 +353,8 @@ var dryFixtures = map[string]string{
 	"getLinkedActors":        `{"data":[{"id":"22222222-2222-2222-2222-222222222222","title":"Wheel"}]}`,
 	"getActorLinks":          `{"data":[{"id":"eeeeeeee-0000-0000-0000-000000000001","source":"11111111-1111-1111-1111-111111111111","target":"22222222-2222-2222-2222-222222222222","edgeTypeId":1}]}`,
 	"getReactions":           `{"data":[{"id":"rx-100","description":"Looks good"}]}`,
+	"getTranscription":       `{"data":{"items":[{"speaker":"Olena","text":"Let's start the demo."}],"total":1,"hasMore":false}}`,
+	"getBbcodeTags":          `{"version":"1","tags":[{"tag":"actor","example":"[actor=<uuid>]Name[/actor]"},{"tag":"b","example":"[b]Bold[/b]"},{"tag":"md","example":"[md]## H[/md]"}]}`,
 	"getPinnedReactions":     `{"data":[{"id":"rx-100","pinned":true}]}`,
 	"getReactionsStats":      `{"data":{"comment":3,"total":3}}`,
 	"getTransferByRef":       `{"data":{"id":"tr-1","amount":200}}`,
@@ -363,6 +365,8 @@ var dryFixtures = map[string]string{
 	"searchCurrencies":       `{"data":[{"id":1,"name":"USD","symbol":"$"}]}`,
 	"searchAccountNames":     `{"data":[{"id":"aaaaaaaa-0000-0000-0000-000000000001","name":"Maintenance"}]}`,
 	"getAccount":             `{"data":{"id":"acc-1","amount":1500,"currencyId":1,"nameId":"aaaaaaaa-0000-0000-0000-000000000001"}}`,
+	"setAccountFormula":      `{"data":{"amount":2500,"hold":0}}`,
+	"getAccountFormula":      `{"data":{"acc-2":{"id":"acc-2","amount":1000,"actor":{"id":"22222222-2222-2222-2222-222222222222","title":"Wheel"}}}}`,
 	// create/mutating tools that scenarios chain off of.
 	"createReaction":        `{"data":{"id":"rx-100"}}`,
 	"uploadBase64":          `{"data":{"attachId":5521,"fileName":"report.pdf"}}`,
@@ -372,6 +376,10 @@ var dryFixtures = map[string]string{
 	"createTransaction":     `{"data":{"id":"tx-1","status":"completed"}}`,
 	"atomCreateTransaction": `{"data":[{"id":"tx-1"},{"id":"tx-2"}]}`,
 	"saveAccessRules":       `{"data":[],"taskId":"task-1"}`,
+	"requestAccess":         `{"data":{"invite":{"id":901,"status":"sent"},"requestEventId":"ev-901"}}`,
+	"generatePublicLink":    `{"data":{"hash":"ab12cd34","url":"https://mw.simulator.company/m/ab12cd34"}}`,
+	"getPublicLink":         `{"data":{"hash":"ab12cd34","url":"https://mw.simulator.company/m/ab12cd34"}}`,
+	"revokePublicLink":      `{"data":"ok"}`,
 	// Account tags & triggers (account_to_actors).
 	"saveAccountActors":          `{"data":"ok"}`,
 	"saveDataFieldActorsByActor": `{"data":"ok"}`,

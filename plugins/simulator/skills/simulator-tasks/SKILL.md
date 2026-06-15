@@ -81,18 +81,20 @@ document) each **DS signer's** userId.
 ```
 createActor(
   formName="Events",                       # or formId=<EventsFormId>
-  title="<task name>",                     # e.g. "Prepare Q3 supplier contract"
+  title="<task name>",                     # short label, e.g. "Prepare Q3 supplier contract"
+  description="<the task body / instructions>",   # the full text of the task goes HERE
   data={ "startDate": <nowUnixSeconds>,    # required by the Events form
          "endDate":   <deadlineUnixSeconds> })   # the due date
 ```
 
+- **The task body goes in the actor's `description`.** `title` is the short label; the
+  full instructions / brief of the task are the actor's **`description`** field (the
+  `description` argument of `createActor`) — not a comment reaction and not `data`.
 - `startDate` / `endDate` are **required** by the Events form and are **plain unix
   seconds** on Events (not the nested calendar object the generic `data` protocol uses).
   Use `startDate` = now (or the scheduled start) and `endDate` = the **deadline**.
 - **Do not set `chatType`** — a task is not a chat. Setting it would turn the actor into
   a chat (see `simulator-chat`).
-- Put the task's instructions/brief in a **`comment` reaction** (step 5) or, if the
-  workspace's Events form was extended with a description field, in `data`.
 
 ### 4 — Assign the roles (one `saveAccessRules` call)
 
@@ -131,10 +133,13 @@ saveAccessRules(objType="actor", objId="<taskId>", rules=[
 > job id — unrelated to the task actor). Grants take a moment to propagate; that's fine.
 > The creator is the **owner implicitly** — do not add a self access-rule.
 
-### 5 — (Optional) Post the task brief / kick off
+### 5 — (Optional) Add follow-up notes / kick off
+
+The task body itself is the actor's `description` (step 3). Use a **`comment` reaction**
+only for *additional* discussion or to ping someone — not for the task body:
 
 ```
-createReaction(type="comment", actorId="<taskId>", description="<instructions / brief>")
+createReaction(type="comment", actorId="<taskId>", description="<a follow-up note>")
 ```
 
 To notify the executor through the platform AI agent (acts under the requesting user's
@@ -210,7 +215,8 @@ they can):
 
 - `accId`/workspace defaults to the active one — make sure `simulator-init` ran first.
 - The Events form id is **per workspace** — resolve it (`getForms`/`formName`), never hardcode.
-- A task = `createActor(formName="Events", data={startDate,endDate})` **without** `chatType`.
+- A task = `createActor(formName="Events", description="<body>", data={startDate,endDate})` **without** `chatType`.
+- **The task body is the actor's `description`** (`title` = short label); comments are for follow-up only.
 - Roles = one `saveAccessRules` call: `execute` (doer), `sign` (approver), `ds` (legal signature).
 - Order sequential approvals with `reactionOrders.sign` / `.ds` (positive ints, 1 = first).
 - Completion/approval are `done` / `sign` / `reject` reactions posted by the assignees.

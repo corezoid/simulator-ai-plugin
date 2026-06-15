@@ -1436,7 +1436,7 @@
   },
   {
     "name": "Create a task with an executor",
-    "prompt": "Create a task called \"Prepare Q3 supplier contract\" due next Friday and assign Olena as the executor who carries it out.",
+    "prompt": "Create a task titled \"Prepare Q3 supplier contract\", due next Friday, with the instructions: \"Draft the contract, collect legal sign-off, and send it to the supplier.\" Assign Olena as the executor who carries it out.",
     "tools": [
       "searchUsers",
       "createActor",
@@ -1447,7 +1447,9 @@
         "tool": "createActor",
         "mustContain": [
           "startDate",
-          "endDate"
+          "endDate",
+          "\"description\"",
+          "Draft the contract"
         ],
         "mustNotContain": [
           "chatType"
@@ -1566,6 +1568,133 @@
         "tool": "getActor",
         "mustContain": [
           "11111111-1111-1111-1111-111111111111"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Request access to an actor the caller can't see",
+    "prompt": "I can't open the actor a4a7f284-2763-4bce-8b1b-c10bddd207ca — I get access denied. Request access to it for me.",
+    "tools": [
+      "requestAccess"
+    ],
+    "argChecks": [
+      {
+        "tool": "requestAccess",
+        "mustContain": [
+          "\"actor\"",
+          "a4a7f284-2763-4bce-8b1b-c10bddd207ca"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Create a public meeting/SIP join link for an actor",
+    "prompt": "Create a public join link for the meeting actor 11111111-1111-1111-1111-111111111111 so external people can join the SIP meeting without logging in. They should wait for admission.",
+    "tools": [
+      "generatePublicLink"
+    ],
+    "argChecks": [
+      {
+        "tool": "generatePublicLink",
+        "mustContain": [
+          "11111111-1111-1111-1111-111111111111",
+          "waitList"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Schedule a recurring meeting",
+    "prompt": "Schedule a weekly team sync meeting every Monday and Wednesday — set it up as a recurring meeting.",
+    "tools": [
+      "createActor"
+    ],
+    "argChecks": [
+      {
+        "tool": "createActor",
+        "mustContain": [
+          "scheduleMeeting",
+          "startDate",
+          "endDate",
+          "recurrence",
+          "\"freq\"",
+          "weekly"
+        ],
+        "mustNotContain": [
+          "chatType"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Read/summarize a meeting transcription",
+    "prompt": "Summarize what was said on the call for meeting actor 11111111-1111-1111-1111-111111111111 — read its transcription.",
+    "tools": [
+      "getTranscription"
+    ],
+    "argChecks": [
+      {
+        "tool": "getTranscription",
+        "mustContain": [
+          "11111111-1111-1111-1111-111111111111"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Embed a smart form into an actor's card",
+    "prompt": "Embed the smart form (script application) with id 22222222-2222-2222-2222-222222222222 into the card of actor 11111111-1111-1111-1111-111111111111 so it runs there.",
+    "tools": [
+      "updateActor"
+    ],
+    "argChecks": [
+      {
+        "tool": "updateActor",
+        "mustContain": [
+          "appId",
+          "22222222-2222-2222-2222-222222222222"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Run a smart form inside a comment reaction",
+    "prompt": "Post a comment on actor 11111111-1111-1111-1111-111111111111 that embeds and runs the smart form 22222222-2222-2222-2222-222222222222.",
+    "tools": [
+      "createReaction"
+    ],
+    "argChecks": [
+      {
+        "tool": "createReaction",
+        "mustContain": [
+          "appId",
+          "22222222-2222-2222-2222-222222222222"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Fetch the BBCode tag vocabulary before writing a rich description",
+    "prompt": "I want to write an actor description with a clickable actor chip and some formatting. First fetch the BBCode tags available in this environment.",
+    "tools": [
+      "getBbcodeTags"
+    ]
+  },
+  {
+    "name": "Make an account computed from a formula",
+    "prompt": "Set up the account acc-1 so its balance is the sum of accounts aaaa1111-2222-3333-4444-555566667777 and bbbb1111-2222-3333-4444-555566667777 — make it a formula account.",
+    "tools": [
+      "setAccountFormula"
+    ],
+    "argChecks": [
+      {
+        "tool": "setAccountFormula",
+        "mustContain": [
+          "acc-1",
+          "aaaa1111-2222-3333-4444-555566667777",
+          "bbbb1111-2222-3333-4444-555566667777",
+          "formula"
         ]
       }
     ]

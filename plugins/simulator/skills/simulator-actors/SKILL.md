@@ -197,6 +197,17 @@ updateActor(
 are untouched. You can also set `title`/`description`/`color`/`status`. To clear a
 multi-value field, send `[]`.
 
+**Embed a smart form (script) in an actor.** Set `appId` (on `createActor` / `updateActor`)
+to a Smart Form (CDU/Script app) actor id — the actor's card then renders/runs that smart
+form; `appSettings` `{autorun, expired, users, groups, fullWidth}` tunes it. See
+`simulator-smart-forms`.
+
+**Rich `description` (BBCode).** An actor's `description` renders **BBCode** — chips like
+`[actor=<otherActorId>]Label[/actor]` (nested actor card) and `[application=<smartFormId>]Label[/application]`
+(smart-form chip), plus formatting (`[b]`, `[color=…]`, `[h2]`, `[ul][*]…[/ul]`, `[url=…]`) and
+`[md]…[/md]` for markdown. Fetch the environment's exact tag set with **`getBbcodeTags`**.
+**BBCode is processed only OUTSIDE `[md]` blocks.** See `docs/entities/reactions.md` → "Embedding".
+
 ## Status & delete
 
 ```

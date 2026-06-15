@@ -7,14 +7,17 @@ description: >
   when the user says "share this with", "give access to", "grant permission", "revoke access",
   "who can see/edit this", "set permissions", "make read-only", "поділись з", "надай доступ",
   "забери доступ", "хто має доступ", "права доступу", "дай доступ", "открой доступ",
-  "отзови доступ", "кто имеет доступ", "права доступа". For the object's own data use the
-  domain skill (`simulator-actors` / `simulator-forms` / `simulator-finance`).
+  "отзови доступ", "кто имеет доступ", "права доступа". Also activate when a tool fails because
+  the caller has NO access to an object — "request access", "I can't see this actor",
+  "access denied", "403", "no permission", "запроси доступ", "немає доступу", "немає прав",
+  "відмовлено в доступі", "запроси доступ", "нет доступа", "доступ запрещён". For the object's
+  own data use the domain skill (`simulator-actors` / `simulator-forms` / `simulator-finance`).
 ---
 
 > **Curated tool names (v2 server):** `getAccessRules`, `saveAccessRules`,
 > `getTemplateActorsAccess`, `saveTemplateActorsAccess`, `getTreeLayerAccess`,
-> `saveTreeLayerAccess`, `bulkSaveAccessRules`, `bulkSaveAccountPairsAccessRules`.
-> Call them by these exact names.
+> `saveTreeLayerAccess`, `bulkSaveAccessRules`, `bulkSaveAccountPairsAccessRules`,
+> `requestAccess`. Call them by these exact names.
 
 # Simulator.Company Access-Control Specialist
 
@@ -106,11 +109,40 @@ bulkSaveAccountPairsAccessRules(accId="ws_xxx", items=[
 
 ---
 
+## Requesting access (when YOU can't see an object)
+
+Mid-task a tool may fail with **403 / Access Denied** (or `getActor` etc. returns not-found)
+because the current user has **no `view` access** to that object. Don't give up or guess —
+ask the owner for access with **`requestAccess`**:
+
+```
+requestAccess(objType="actor", objId="<actor UUID>")          # request view access
+requestAccess(objType="actor", objId="<actor UUID>", modify=true)   # request view + edit
+```
+
+- `requestAccess` does **not** grant access — it raises a request to the object's **owner(s)**
+  (creates a REQUEST_ACCESS invite + a request-access event they can approve/decline). You then
+  have to wait for approval before the blocked operation will work.
+- **Idempotent:** a pending request for the same object is reused, not duplicated — calling it
+  again is safe and returns the existing invite + `requestEventId`.
+- You do **not** need access to the object to call it (it's the one access tool that works
+  without `view`). `objType` is usually `actor`; it also accepts `form` / `account` / template
+  / `treeLayer`.
+- This is the **requesting** side. **Approving** a request is the owner granting access — i.e.
+  a normal `saveAccessRules(... privs:{view:true})` on the object (or the owner acts on the
+  request-access event in the UI).
+
+> When a read/write step is blocked by access, tell the user it's blocked, call `requestAccess`,
+> and report that approval is pending — rather than failing silently or inventing data.
+
+---
+
 ## Tips
 
 - A save returns a **`taskId`** (applied async); the change may take a moment to fully propagate.
 - Identify the grantee by **exactly one** of `userId` / `saId` / `groupId`.
 - `privs.view/modify/remove` are required; `sign`/`ds`/`execute` optional. Setting any privilege implies `view`.
 - `recursive=false` ⇒ this object only; `notify=false` ⇒ no notifications (both honoured).
+- **Blocked by access?** Use `requestAccess(objType, objId)` — it asks the owner (doesn't grant); approval is needed before retrying. It's the one access tool callable without `view`.
 - Use `action:"delete"` (grantee id only) to revoke; `create`/`update` to grant or change.
 - Resolve user/group ids first (don't guess) — grantees must belong to the workspace or the rule is rejected.

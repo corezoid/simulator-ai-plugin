@@ -76,6 +76,8 @@ var actorOps = []Operation{
 			{Name: "color", In: InBody, Type: "string", Desc: "Hex node color (e.g. #409547)."},
 			{Name: "picture", In: InBody, Type: "string", Desc: "Storage path / URL of the node icon."},
 			{Name: "ref", In: InBody, Type: "string", Desc: "Optional external reference (1-255 chars), unique per form."},
+			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
+			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 			{Name: "contextLayerId", In: InQuery, Type: "string", Desc: "Optional layer to place the new actor on."},
 		},
 	},
@@ -107,6 +109,8 @@ var actorOps = []Operation{
 			{Name: "description", In: InBody, Type: "string", Desc: "New description."},
 			{Name: "color", In: InBody, Type: "string", Desc: "New hex color."},
 			{Name: "status", In: InBody, Type: "string", Desc: "New status value."},
+			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
+			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 		},
 	},
 	{

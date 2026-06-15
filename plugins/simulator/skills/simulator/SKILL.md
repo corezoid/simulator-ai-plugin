@@ -251,6 +251,9 @@ Call tools by these exact names:
 - **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`
 - **Setup:** `set-environment` (choose a cloud preset or custom/local URL), `login`, `getWorkspaces` (list your workspaces by name), `set-workspace` (by `accId` or `name`)
 - **Web links:** `buildLink` — build a clickable web-app URL for an entity (`actor`, `event`, `chat`, `layer`, `graph`, `form`, `transaction`, `transfer`, `chart`, `meeting`, `settings`, …). Use it **whenever the user asks to "open", "show me", or "share a link to"** something, instead of composing the URL by hand — it resolves the right host (the active environment) and workspace for you.
+- **Rich descriptions (BBCode):** actor & reaction `description` text supports **BBCode** tags for nice rendering — chips (`[actor=<uuid>]…[/actor]`, `[user=…]`, `[application=<smartFormId>]…[/application]`, …) and formatting (`[b]`, `[color=…]`, `[h2]`, `[ul][*]…[/ul]`, `[url=…]`, `[md]…[/md]`). Call **`getBbcodeTags`** to fetch the current environment's exact tag vocabulary before composing a rich description. **BBCode is processed only OUTSIDE `[md]` blocks** — inside `[md]…[/md]` the content is markdown, so put chips/BBCode outside the `[md]` section.
+- **Public links (meeting / SIP join):** `generatePublicLink` (create a shareable `/m/<hash>` join link to an actor so people can join a meeting / SIP room **without a login**; `waitList` toggles a waiting room, `ttl`/`dueDate` bound its lifetime), `getPublicLink` (the current link, or null), `revokePublicLink` (kill it). The actor is usually a meeting (an `Events` actor with `scheduleMeeting`). Distinct from `buildLink` (authenticated in-app URL) and from graph **links/edges** (`createLink`/`getActorLinks`). Generating again refreshes/replaces the link.
+- **Access:** `getAccessRules`, `saveAccessRules` (share/grant/revoke), `requestAccess` — when a tool fails with **403 / Access Denied** on an object you can't see, call `requestAccess(objType, objId)` to ask its owner for access (it doesn't grant — approval is pending), then tell the user it's blocked. See `/simulator-access`.
 
 Key rules:
 - **Check before you create.** To avoid duplicates, first look for an existing entity:
@@ -283,8 +286,9 @@ For domain-specific workflows use the specialized skills:
 - `/simulator-reactions` — comments / events / approvals / ratings on actors (threaded)
 - `/simulator-chat` — messaging: send a message to a user, open/reuse p2p & group chats (Events-form actors; messages are comment reactions)
 - `/simulator-tasks` — tasks/assignments: create a task (Events-form actor) and assign executor (`execute`), approvers (`sign`), legal signers (`ds`)
+- `/simulator-meetings` — meetings/video/SIP rooms (Events-form actor, `scheduleMeeting`): schedule, recurrence, agenda, persistent rooms, moderator/invitees, public & in-app join links
 - `/simulator-attachments` — files: upload, attach/detach to actors & reactions
-- `/simulator-access` — access rules: share/grant/revoke who can view/modify an object
+- `/simulator-access` — access rules: share/grant/revoke who can view/modify an object; also **`requestAccess`** when a tool is blocked by 403/Access Denied (asks the owner for access)
 
 ## Reference Documents
 
@@ -305,6 +309,7 @@ Use the `Read` tool to load these files when you need deeper detail:
 | `$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md` | `control-events-context`: where the user is in the UI (activeActor/activeLayer/activeGraph/page) — resolve "here"/"this" |
 | `$CLAUDE_PLUGIN_ROOT/docs/entities/chats.md` | Chats: Events-form actors, p2p/group, messages as reactions |
 | `$CLAUDE_PLUGIN_ROOT/docs/entities/tasks.md` | Tasks: Events-form actors + execute/sign/ds roles, done/sign/reject lifecycle |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/meetings.md` | Meetings: Events-form actors + scheduleMeeting, recurrence/agenda/persistent rooms, join links |
 | `$CLAUDE_PLUGIN_ROOT/docs/entities/attachments.md` | File attachment operations |
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/graph-functionality.md` | Step-by-step graph building walkthrough |
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/actor-graph-management.md` | Actor graph management patterns |
