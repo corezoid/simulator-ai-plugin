@@ -21,7 +21,7 @@ description: >
 > | Operation | Tools |
 > |---|---|
 > | **Pair bootstrap (required first)** | **`createAccountPair`** (creates name + currency if missing AND self-grants access — the only way to avoid 403s on a non-owner workspace) |
-> | Accounts | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` |
+> | Accounts | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `setAccountFormula` `getAccountFormula` |
 > | Tags & triggers | `saveAccountActors` (link tag/trigger actors to a pair or one account) · `getDataFieldActorsByActor` `saveDataFieldActorsByActor` `getDataFieldActorsByForm` `saveDataFieldActorsByForm` (data triggers) · read via `getAccounts(withTags/withTriggers)` |
 > | Currencies | `createCurrency` `getCurrencies` `searchCurrencies` |
 > | Account names | `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
@@ -217,8 +217,27 @@ deleteAccount(actorId="<actor UUID>", currencyId=1, nameId="<aname>", accountTyp
 > different account names can share one currency. (If the named unit IS the account name and the
 > currency is implicit, resolve the name and let `getAccounts` reveal the currency.)
 
-> **Formula / block accounts** are documented in `accounts.md` but are **not** curated MCP tools
-> yet — configure those in the UI; don't fabricate a tool call.
+## Formula (computed) accounts
+
+Make an account's balance a **computed expression over other accounts** with
+**`setAccountFormula`** (and inspect it with **`getAccountFormula`**):
+
+```
+setAccountFormula(accountId="<calcAccountId>",
+  formula="<srcAccUuidA> + <srcAccUuidB> * 0.2")   # numeric mathjs expression
+getAccountFormula(accountId="<calcAccountId>")       # the source accounts it references (or {})
+```
+
+- **Reference source accounts by their account UUID** (the account `id` from
+  `getAccount`/`getAccounts` — NOT the actor id). Each UUID resolves to that account's
+  **available balance (`amount − hold`)**, then the expression is evaluated (mathjs:
+  `+ - * / ( )`, functions). The numeric result is the account's balance and **recomputes
+  automatically** when a source changes.
+- **You cannot set a formula on an account that already has transactions** — the backend
+  rejects it. Use a fresh/formula-only account.
+- **Clear** the formula (back to a plain account) by passing an **empty string** for `formula`.
+- See `accounts.md` → "Formula-Based Accounts". (Block/aggregate-by-config accounts beyond
+  this remain UI-only — don't fabricate a tool call for those.)
 
 ---
 

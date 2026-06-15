@@ -10,9 +10,20 @@ var reactionTypes = []string{"view", "comment", "ai", "rating", "sign", "ds", "d
 const reactionExtraDesc = "Optional presentation object: " +
 	"{commentStyleType:\"primary\"|\"secondary\"|\"text\", linkedActorId:string, " +
 	"layerPosition:{x:number,y:number}, mcp:boolean}. " +
+	"`linkedActorId` embeds another actor as a nested card/preview inside this reaction. " +
 	"mcp:true hands the reaction to the AI agent — it processes the reaction under " +
 	"the requesting user's access (via this MCP server) and posts its answer back " +
 	"as a child `ai` reaction. See docs/entities/reactions.md."
+
+// appIdDesc / appSettingsDesc document embedding a Smart Form (CDU/Script application)
+// into an actor or a reaction — the card then renders/runs that smart form. Shared by
+// createActor/updateActor and createReaction/updateReaction.
+const appIdDesc = "Optional id of a Smart Form (CDU/Script application) actor to embed here — " +
+	"the actor card / reaction then renders and runs that smart form. Create one with " +
+	"createSmartForm (see the simulator-smart-forms skill)."
+const appSettingsDesc = "Optional config for the embedded smart form (used with appId): " +
+	"{autorun:boolean (run it on open), expired:integer (unix seconds after which it stops), " +
+	"users:int[] / groups:int[] (who may run it), fullWidth:boolean}. Or null."
 
 // reactionReasoningDesc documents the optional `reasoning` object — the AI
 // agent's progress/answer trace, carried on `ai` reactions.
@@ -35,6 +46,8 @@ var reactionOps = []Operation{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Parent (root) actor UUID the reaction is placed under."},
 			{Name: "description", In: InBody, Type: "string", Desc: "The reaction text (e.g. the comment body)."},
 			{Name: "data", In: InBody, Type: "object", Desc: "Optional structured payload carried on the reaction."},
+			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
+			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 			{Name: "parentId", In: InBody, Type: "string", Desc: "Optional id of the reaction this one replies to (threading)."},
 			{Name: "hidden", In: InBody, Type: "boolean", Desc: "Create the reaction hidden."},
 			{Name: "extra", In: InBody, Type: "object", Desc: reactionExtraDesc},
@@ -52,6 +65,8 @@ var reactionOps = []Operation{
 			{Name: "reactionId", In: InBody, Wire: "actorId", Type: "string", Required: true, Desc: "UUID of the reaction to update."},
 			{Name: "description", In: InBody, Type: "string", Desc: "New reaction text."},
 			{Name: "data", In: InBody, Type: "object", Desc: "Replacement structured payload."},
+			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
+			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 			{Name: "parentId", In: InBody, Type: "string", Desc: "New parent reaction id (re-thread)."},
 			{Name: "hidden", In: InBody, Type: "boolean", Desc: "Hide/unhide the reaction."},
 			{Name: "extra", In: InBody, Type: "object", Desc: reactionExtraDesc},

@@ -89,7 +89,7 @@ simulator-ai-plugin/
     ├── .codex-plugin/plugin.json     # Codex manifest
     ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
-    ├── skills/                       # 13 skills (markdown only)
+    ├── skills/                       # 14 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
 ```
 
@@ -242,15 +242,17 @@ backend operation, with typed parameters:
 |---------------|----------------------------------------------------------------------------------------|
 | Forms         | `createForm` `getForm` `getForms` `searchForms` `updateForm` `deleteForm` `setFormStatus` `createFormAccount` `getFormAccounts` `removeFormAccount` `getLinkedForms` `getFormsTree` |
 | Actors        | `createActor` `getActor` `getActorByRef` `searchActors` `searchLayerActors` `filterActors` `updateActor` `deleteActor` `setActorStatus` `getSystemActor` `getCorezoidProcesses` |
-| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createAccountPair` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` |
+| Accounts      | `createAccount` `getAccount` `getAccounts` `getBalance` `getChildAccounts` `updateAccount` `setAccountAmount` `deleteAccount` `createAccountPair` `createCurrency` `getCurrencies` `searchCurrencies` `createAccountName` `getAccountNames` `updateAccountName` `searchAccountNames` `setAccountFormula` `getAccountFormula` |
 | Account tags & triggers | `saveAccountActors` (link Tags/AccountTriggers actors to a pair or one account) `getDataFieldActorsByActor` `saveDataFieldActorsByActor` `getDataFieldActorsByForm` `saveDataFieldActorsByForm` (data triggers on a data field) |
 | Counters      | `saveCounters` `setCounters` `getCounters` |
-| Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` |
+| Access rules  | `getAccessRules` `saveAccessRules` `getTemplateActorsAccess` `saveTemplateActorsAccess` `getTreeLayerAccess` `saveTreeLayerAccess` `bulkSaveAccessRules` `bulkSaveAccountPairsAccessRules` `requestAccess` |
 | Transactions  | `createTransaction` `finalizeTransaction` `atomCreateTransaction` `getTransactions` `getAccountTransactions` `getTransactionByRef` `createTransfer` `createTransferTwoStep` `getTransfer` `getTransferByRef` `filterTransfers` |
 | Graph (links) | `createLink` `massLink` `getEdge` `updateEdge` `deleteEdge` `existLink` `deleteEdgesByNodes` `getEdgeTypes` `getLayerActors` `getRelatedActors` `getLinkedActors` `getActorLinks` `manageLayerActors` `moveActors` `existLayerElement` `cleanGraphLayer` `layerStats` |
 | Reactions     | `createReaction` `updateReaction` `deleteReaction` `getReactions` `getReactionsStats` `markReactionsRead` `getPinnedReactions` `togglePinnedReaction` |
 | Attachments   | `getAttachments` `getActorAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
+| Public links  | `generatePublicLink` `getPublicLink` `revokePublicLink` (shareable `/m/<hash>` join link to an actor — meeting / SIP access without login) |
+| Meetings      | `getTranscription` (read a meeting call's speech transcription — summarize / extract action items; needs a live room) |
 | Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 | Web links     | `buildLink` (local, no HTTP — `deeplinks.go`): build an absolute web-app deep-link for an entity (actor / event / chat / layer / transaction / …). Mirrors the web routes published at `<web-base>/routes.json`; derives the web base by dropping `/papi/1.0` from the API base and defaults `acc` to the active workspace. Workspace mode only (hidden by `ActorToolFilter` in actor sessions). |

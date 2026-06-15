@@ -522,6 +522,30 @@ deploySmartForm(actorId="69bbd03e-0d4c-4122-9234-e06ffe9ca1eb")
 
 ---
 
+## Embedding a Smart Form into an actor or a reaction
+
+A Smart Form is an actor — but you can also **embed and run it inside another actor's card or
+inside a reaction**, so the smart form shows up where the user is working:
+
+- **In a regular actor:** set **`appId`** = the Smart Form actor id on `createActor` /
+  `updateActor`; the actor's card then renders/runs that smart form. **`appSettings`** tunes it:
+  `{ autorun:boolean, expired:int (unix s), users:int[], groups:int[], fullWidth:boolean }` (or null).
+  ```
+  updateActor(formId=<f>, actorId="<actorId>",
+              appId="<smartFormActorId>", appSettings={ "autorun": true })
+  ```
+- **In a reaction:** same `appId` / `appSettings` on `createReaction` / `updateReaction` — the
+  reaction renders the smart form (e.g. drop an interactive form into a discussion thread).
+  ```
+  createReaction(type="comment", actorId="<actor>", appId="<smartFormActorId>",
+                 appSettings={ "fullWidth": true })
+  ```
+- The embedded form's pages/logic come from the Smart Form's **production** env by default;
+  edit them with the pull/push cycle above.
+
+> Also see `simulator-reactions` (the `appId` + `extra.linkedActorId` + `[application=…]` chip)
+> and `docs/entities/reactions.md` → "Embedding".
+
 ## Access & Scopes (Public API)
 
 All Smart Form operations use the public API (`/papi/1.0/...`) with an OAuth2 bearer token.

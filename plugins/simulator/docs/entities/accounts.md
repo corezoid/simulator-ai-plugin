@@ -94,6 +94,30 @@ The platform supports formula-based accounts that calculate their balances using
 - Update automatically when source accounts change
 - Can be used for aggregation, allocation, and other financial calculations
 
+### Setting a formula (tools)
+
+Manage formulas with **`setAccountFormula`** (POST) and **`getAccountFormula`** (read):
+
+```
+setAccountFormula(accountId="<calcAccountId>",
+  formula="<srcAccUuidA> + <srcAccUuidB> * 0.2")   # numeric expression over source account UUIDs
+getAccountFormula(accountId="<calcAccountId>")       # → the source accounts it references (or {} if none)
+```
+
+How the formula is evaluated (from the backend):
+
+- **Reference each source account by its full account UUID** (the account `id` from
+  `getAccount`/`getAccounts` — **not** the actor id). At calc time, every UUID in the string is
+  substituted with that account's **available balance = `amount − hold`**, then the whole
+  expression is evaluated with **mathjs** (`+ - * / ( )`, functions, etc.). The result must be
+  **numeric** and becomes the account's balance.
+- The formula account is **derived/computed** — it has no transactions of its own and
+  **recalculates automatically** whenever a referenced source account's balance changes
+  (the recompute cascades to formulas that depend on it).
+- **Rule: you cannot set a formula on an account that already has transactions** — the backend
+  rejects it. Use a fresh account (or one that has only ever been formula-driven).
+- **Clear** a formula (make it a plain account again) by passing an **empty string** for `formula`.
+
 ## Account Types
 
 The platform supports several account types:

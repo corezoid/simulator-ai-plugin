@@ -12,7 +12,7 @@ A plugin for Claude Code and Codex that connects the **Simulator.Company** platf
 - a **Go MCP server** (`plugins/simulator/mcp-server/`) that exposes the Simulator
   `/papi/1.0` public API as a **curated, typed set of ~95 MCP tools** (declared in Go, not a
   generic spec passthrough), scoped to the core scenarios;
-- **13 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
+- **14 skills** (`plugins/simulator/skills/`) — markdown that teaches the model the
   platform's entity model and common workflows.
 
 Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before making non-trivial changes.
@@ -30,7 +30,7 @@ plugins/simulator/mcp-server/   Go MCP server (Go 1.24+, mark3labs/mcp-go)
     testdata/                   papi-openapi.json (drift gate) + eval-scenarios.json
   internal/engines/             graph sync, layout, prune, placements, upload, chart
   app/auth/                     set-environment (public config → account URL) + OAuth2 PKCE + .env credential storage
-plugins/simulator/skills/       13 skills (markdown only, ship with the plugin)
+plugins/simulator/skills/       14 skills (markdown only, ship with the plugin)
 plugins/simulator/docs/         entity & user-flow reference (ships with the plugin)
 docs/                           contributor docs (ARCHITECTURE.md, INTEGRATION.md) — repo-level
 public/                         generated AI-discovery artifacts (do not hand-edit)

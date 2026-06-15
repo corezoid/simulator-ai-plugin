@@ -3156,6 +3156,7 @@
         }
       },
       "get": {
+        "operationId": "getTranscription",
         "parameters": [
           {
             "schema": {
@@ -3409,6 +3410,9 @@
                           "x",
                           "y"
                         ]
+                      },
+                      "mcp": {
+                        "type": "boolean"
                       }
                     }
                   },
@@ -3644,6 +3648,9 @@
                           "x",
                           "y"
                         ]
+                      },
+                      "mcp": {
+                        "type": "boolean"
                       }
                     }
                   },
@@ -4009,6 +4016,9 @@
                           "x",
                           "y"
                         ]
+                      },
+                      "mcp": {
+                        "type": "boolean"
                       }
                     }
                   },
@@ -5754,6 +5764,7 @@
     },
     "/papi/1.0/accounts/formula/{accountId}": {
       "post": {
+        "operationId": "setAccountFormula",
         "tags": [
           "Accounts"
         ],
@@ -5801,6 +5812,7 @@
     },
     "/papi/1.0/accounts/formula_info/{accountId}": {
       "get": {
+        "operationId": "getAccountFormula",
         "tags": [
           "Accounts"
         ],
@@ -11900,6 +11912,54 @@
         }
       }
     },
+    "/papi/1.0/request_access": {
+      "post": {
+        "operationId": "requestAccess",
+        "tags": [
+          "Request access"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "objId": {
+                    "type": "string"
+                  },
+                  "objType": {
+                    "enum": [
+                      "actor",
+                      "form",
+                      "account",
+                      "templateActors",
+                      "formTemplate",
+                      "treeLayer"
+                    ]
+                  },
+                  "modify": {
+                    "type": "boolean"
+                  },
+                  "sendEvent": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "objId",
+                  "objType"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/actors_filters/search/{accId}/{query}": {
       "get": {
         "operationId": "searchActors",
@@ -15865,6 +15925,7 @@
     },
     "/papi/1.0/public_link/info/{hash}": {
       "get": {
+        "operationId": "getPublicLinkByHash",
         "tags": [
           "Graph"
         ],
@@ -15890,6 +15951,7 @@
     },
     "/papi/1.0/public_link/join": {
       "post": {
+        "operationId": "joinPublicLink",
         "requestBody": {
           "content": {
             "application/json": {
@@ -15920,6 +15982,7 @@
     },
     "/papi/1.0/public_link/{actorId}": {
       "post": {
+        "operationId": "generatePublicLink",
         "tags": [
           "Graph"
         ],
@@ -15972,6 +16035,7 @@
         }
       },
       "get": {
+        "operationId": "getPublicLink",
         "tags": [
           "Graph"
         ],
@@ -15992,6 +16056,7 @@
         }
       },
       "delete": {
+        "operationId": "revokePublicLink",
         "tags": [
           "Graph"
         ],

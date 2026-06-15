@@ -111,4 +111,18 @@ var accessRuleOps = []Operation{
 				"recursive?:boolean, rules:[" + ruleDesc + "]}."},
 		},
 	},
+	{
+		Name: "requestAccess", Method: "POST", Path: "/request_access",
+		Summary: "Request access to an object you currently CAN'T see (no view permission). Use when a read/" +
+			"write tool fails with 403 / Access Denied on an actor (or form/account): this raises a request to " +
+			"the object's owner(s) — it does NOT grant access itself, the owner approves or declines. Returns the " +
+			"created invite + a request-access event id. Idempotent: a pending request for the same object is " +
+			"reused, not duplicated. You don't need access to the object to call this.",
+		Params: []Param{
+			{Name: "objId", In: InBody, Type: "string", Required: true, Desc: "Id of the object to request access to (actor UUID, or numeric form/account id as a string)."},
+			{Name: "objType", In: InBody, Type: "string", Required: true, Enum: accessObjTypes, Desc: "Object kind (usually actor)."},
+			{Name: "modify", In: InBody, Type: "boolean", Desc: "Also request modify (edit) access, not just view (default false = view only)."},
+			{Name: "sendEvent", In: InBody, Type: "boolean", Desc: "Raise a request-access event the owner can approve/decline (default true). Pass false to create the invite without an event."},
+		},
+	},
 }

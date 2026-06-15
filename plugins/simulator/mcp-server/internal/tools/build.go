@@ -26,6 +26,8 @@ func allOps() []Operation {
 	ops = append(ops, accountActorOps...)
 	ops = append(ops, counterOps...)
 	ops = append(ops, accessRuleOps...)
+	ops = append(ops, publicLinkOps...)
+	ops = append(ops, meetingOps...)
 	ops = append(ops, transactionOps...)
 	ops = append(ops, graphOps...)
 	ops = append(ops, reactionOps...)
@@ -79,6 +81,9 @@ func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode boo
 	// registered outside the op loop. It is exposed in workspace mode only —
 	// ActorToolFilter hides it in actor sessions (it is absent from actorBindings).
 	registerBuildLink(s, c)
+	// getBbcodeTags is a local reference tool (fetches the env's bbcode-tags.json);
+	// like buildLink it's not a curated Operation and is workspace-mode only.
+	registerBbcodeTags(s, c)
 }
 
 // Count reports how many curated API tools are registered (auth helpers excluded).

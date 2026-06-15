@@ -47,10 +47,15 @@ Create with the generic `createActor` on the Events form — there is **no dedic
 ```
 createActor(
   formName="Events",                       # or formId=<per-workspace Events id>
-  title="<task name>",
+  title="<task name>",                     # short label
+  description="<the task body / instructions>",   # the full task text goes HERE
   data={ "startDate": <nowUnixSec>, "endDate": <deadlineUnixSec> })
 ```
 
+- **The task body goes in the actor's `description`.** `title` is the short label; the
+  task's full instructions are the actor's top-level **`description`** field (the
+  `description` argument of `createActor`) — *not* a comment reaction and *not* `data`.
+  Comment reactions are for later discussion, not the task body.
 - `startDate` / `endDate` are **required** by the Events form and are stored as **plain
   unix seconds** on Events (not the nested `{startDate,endDate,timeZoneOffset}` calendar
   object the generic actor `data` protocol describes). Use `startDate` = start/now and
@@ -61,8 +66,6 @@ createActor(
   workspace with a fresh auto-increment id) — resolve it via
   `getForms(formTypes="system")` (match `title == "Events"`) or pass `formName="Events"`
   to `createActor`. Never hardcode it.
-- The task brief / instructions go in a **`comment` reaction** under the task, or in a
-  `data` field if the workspace's Events form was extended with one.
 
 See [`chats.md`](chats.md) and [`system-forms.md`](system-forms.md) for the full Events
 field list.

@@ -1,5 +1,8 @@
 .idea/
 bin/
+
+# Redis snapshot left behind when running a local Redis from the repo dir.
+dump.rdb
 /plugins/simulator/mcp-server/.env
 .claude/settings.local.json
 
