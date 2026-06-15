@@ -9,12 +9,14 @@
 - [simulator-actors](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-actors/SKILL.md): Simulator.Company actor (record) specialist
 - [simulator-attachments](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-attachments/SKILL.md): Simulator.Company files & attachments specialist
 - [simulator-charts](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-charts/SKILL.md): Simulator.Company chart and dashboard specialist
+- [simulator-chat](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-chat/SKILL.md): Simulator.Company chat & messaging specialist — sending messages to a user, and creating or reusing p2p (1:1) and group chats
 - [simulator-finance](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-finance/SKILL.md): Simulator.Company financial management specialist
 - [simulator-forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-forms/SKILL.md): Simulator.Company form designer specialist
 - [simulator-graph](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-graph/SKILL.md): Simulator.Company graph structure specialist
 - [simulator-init](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-init/SKILL.md): Simulator.Company environment setup specialist
 - [simulator-reactions](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-reactions/SKILL.md): Simulator.Company reactions specialist — comments, events, approvals, ratings and other feedback attached under an actor
 - [simulator-smart-forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms/SKILL.md): Simulator.Company Smart Form (CDU / Script / Application) specialist
+- [simulator-tasks](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-tasks/SKILL.md): Simulator.Company task & assignment specialist — creating a task and assigning who does it, who approves it, and whose signature it needs
 
 ## MCP Tools
 

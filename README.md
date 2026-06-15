@@ -25,6 +25,8 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies, counters |
 | `simulator-charts`   | "chart", "dashboard", "visualise on layer"               | Dashboard charts & time-series visualisation on layers  |
 | `simulator-reactions`| "comment on this actor", "reply", "pin comment"          | Reactions: comments / events / approvals / ratings (threaded) |
+| `simulator-chat`     | "write a message to user N", "DM", "open a chat with"    | Messaging: send a message to a user, p2p/group chats (Events-form actors; messages are comment reactions) |
+| `simulator-tasks`    | "create a task", "assign to", "who approves", "needs signature" | Tasks/assignments: an Events-form actor + executor (`execute`) / approver (`sign`) / legal signer (`ds`) roles |
 | `simulator-attachments` | "upload a file", "attach document", "rename file"     | Files: upload, attach/detach to actors & reactions      |
 | `simulator-access`   | "share with", "grant access", "who can edit this"        | Access rules: grant/revoke view/modify/… on objects     |
 
@@ -223,6 +225,7 @@ the actor/node items.)
 | `listTrash`              | List soft-deleted objects in a Smart Form environment                                                |
 | `restoreFromTrash`       | Restore a soft-deleted object from trash                                                             |
 | `createChart`            | Create a dashboard chart actor (dynamic `actorFilter` or explicit accounts mode)                     |
+| `buildLink`              | Build an absolute web-app deep-link (actor / event / chat / layer / transaction / …) for the user to click; resolves the web base + workspace automatically, and defaults to the user's open actor/layer from the UI context when present |
 
 ## Architecture
 
@@ -234,7 +237,7 @@ Claude Code / Codex
         ├── tools       curated typed operations (forms, actors, accounts,
         │               transactions, graph, apps) — one tool per backend op
         ├── engines     pullGraphFile, pushGraphFile, compactGraphLayout,
-        │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart
+        │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, buildLink
         └── apiclient   HTTP → Simulator /papi/1.0 (local :9000 or mw gateway)
 ```
 

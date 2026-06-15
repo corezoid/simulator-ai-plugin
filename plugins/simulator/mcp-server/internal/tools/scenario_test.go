@@ -25,6 +25,13 @@ func setup(t *testing.T) (*apiclient.Client, *recorded) {
 	t.Helper()
 	rec := &recorded{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Edge-type listing backs the hierarchy-default resolver (createLink/massLink/
+		// getRelatedActors when edgeTypeId is omitted). Don't record it — it's a
+		// pre-request lookup, not the operation's own request under test.
+		if strings.Contains(r.URL.Path, "/edge_types/") {
+			_, _ = w.Write([]byte(`{"data":[{"id":1,"name":"hierarchy"},{"id":2,"name":"link"}]}`))
+			return
+		}
 		rec.method, rec.path, rec.query = r.Method, r.URL.Path, r.URL.RawQuery
 		if b, _ := io.ReadAll(r.Body); len(b) > 0 {
 			_ = json.Unmarshal(b, &rec.body)
@@ -125,6 +132,52 @@ func TestScenarios(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHierarchyEdgeTypeDefault locks in that link creation defaults edgeTypeId to
+// the workspace's hierarchy type when omitted, while an explicit id is preserved.
+func TestHierarchyEdgeTypeDefault(t *testing.T) {
+	t.Run("createLink defaults to hierarchy when omitted", func(t *testing.T) {
+		c, rec := setup(t)
+		res := call(t, c, opByName(t, "createLink"), map[string]any{"source": "s", "target": "t"})
+		if res.IsError {
+			t.Fatalf("createLink: unexpected error: %+v", res.Content)
+		}
+		m, ok := rec.body.(map[string]any)
+		if !ok {
+			t.Fatalf("expected object body, got %T", rec.body)
+		}
+		if m["edgeTypeId"] != float64(1) {
+			t.Errorf("edgeTypeId = %v, want 1 (hierarchy)", m["edgeTypeId"])
+		}
+	})
+
+	t.Run("createLink keeps an explicit edgeTypeId", func(t *testing.T) {
+		c, rec := setup(t)
+		call(t, c, opByName(t, "createLink"), map[string]any{"source": "s", "target": "t", "edgeTypeId": float64(7)})
+		m, _ := rec.body.(map[string]any)
+		if m["edgeTypeId"] != float64(7) {
+			t.Errorf("edgeTypeId = %v, want 7 (explicit wins)", m["edgeTypeId"])
+		}
+	})
+
+	t.Run("massLink defaults each omitted edgeTypeId, keeps explicit", func(t *testing.T) {
+		c, rec := setup(t)
+		call(t, c, opByName(t, "massLink"), map[string]any{"links": []any{
+			map[string]any{"source": "s", "target": "t"},
+			map[string]any{"source": "s2", "target": "t2", "edgeTypeId": float64(9)},
+		}})
+		arr, ok := rec.body.([]any)
+		if !ok {
+			t.Fatalf("expected array body, got %T", rec.body)
+		}
+		if l0, _ := arr[0].(map[string]any); l0["edgeTypeId"] != float64(1) {
+			t.Errorf("link0 edgeTypeId = %v, want 1 (hierarchy default)", l0["edgeTypeId"])
+		}
+		if l1, _ := arr[1].(map[string]any); l1["edgeTypeId"] != float64(9) {
+			t.Errorf("link1 edgeTypeId = %v, want 9 (explicit kept)", l1["edgeTypeId"])
+		}
+	})
 }
 
 // TestAccIdDefaulting verifies an omitted accId path param falls back to the workspace.

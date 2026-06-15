@@ -89,7 +89,7 @@ simulator-ai-plugin/
     ├── .codex-plugin/plugin.json     # Codex manifest
     ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
-    ├── skills/                       # 11 skills (markdown only)
+    ├── skills/                       # 13 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
 ```
 
@@ -215,6 +215,11 @@ environment with `set-environment` clears the token + workspace (workspaces are 
 environment) and updates both the `apiclient` and engine base URLs in place, so it takes
 effect without a restart and forces a fresh `login`.
 
+For embedded/SSE deployments, per-request overrides arrive on `ctx` (wired from headers by
+the transport): `WithAuthorization`, `WithBaseURL`, `WithWorkspaceID`, `WithActorID`, and
+`WithUIContext` (the decoded `control-events-context` — where the user is in the web UI;
+consumed by `buildLink` to default the web base / workspace / open actor & layer).
+
 ### 3.5 Spec drift gate
 
 `internal/tools/drift_test.go` validates every curated `Operation` (method, path,
@@ -248,6 +253,7 @@ backend operation, with typed parameters:
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL; derives the account URL from the gateway's public config) `login` `getWorkspaces` `set-workspace` (by accId or name) |
+| Web links     | `buildLink` (local, no HTTP — `deeplinks.go`): build an absolute web-app deep-link for an entity (actor / event / chat / layer / transaction / …). Mirrors the web routes published at `<web-base>/routes.json`; derives the web base by dropping `/papi/1.0` from the API base and defaults `acc` to the active workspace. Workspace mode only (hidden by `ActorToolFilter` in actor sessions). |
 
 
 **Engine tools** (`internal/engines`) — multi-call workflows and client-side computation

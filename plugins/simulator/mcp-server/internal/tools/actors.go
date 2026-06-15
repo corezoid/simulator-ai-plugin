@@ -169,7 +169,9 @@ var actorOps = []Operation{
 			{Name: "orderBy", In: InQuery, Type: "string", Enum: []string{"updated_at", "created_at", "title", "owner", "balance", "reacted_at"}, Desc: "Sort field. Use balance to rank by the selected account's balance."},
 			{Name: "orderValue", In: InQuery, Type: "string", Enum: []string{"DESC", "ASC"}, Desc: "Sort direction (default DESC)."},
 			{Name: "search", In: InQuery, Type: "string", Desc: "Full-text search on actor title."},
-			{Name: "q", In: InQuery, Type: "string", Desc: "Data-field filter expression on actor data (e.g. status=active)."},
+			{Name: "q", In: InQuery, Type: "string", Desc: "Data-field filter expression on actor data (e.g. status=active; chatType=p2p for p2p-chat Events actors)."},
+			{Name: "members", In: InQuery, Type: "string", Desc: "Filter to actors whose ACCESS RULES include all of these members. Comma-separated `userId:priv` pairs (priv = view|modify|remove|sign|ds|execute), e.g. \"4210:view,4310:view\". The match is containment (actor's access ⊇ the listed pairs). Use with q=chatType=p2p to find the existing p2p chat between specific users before creating a new one (chat participants are access-rule members, not data fields)."},
+			{Name: "userId", In: InQuery, Type: "string", Desc: "Filter to actors a single user has access to (one grantee; see `members` for several)."},
 			{Name: "status", In: InQuery, Type: "string", Desc: "Comma-separated status filter (e.g. verified,pending)."},
 			{Name: "qFormId", In: InQuery, Type: "string", Desc: "Restrict or expand the candidate set across several forms."},
 			{Name: "withStats", In: InQuery, Type: "boolean", Desc: "Include the total count of matching actors."},
@@ -181,12 +183,15 @@ var actorOps = []Operation{
 	},
 	{
 		Name: "getSystemActor", Method: "GET", Path: "/actors/system/{accId}/{objType}/{objId}",
-		Summary: "Resolve the system 'twin' actor of a workspace entity — currently a user's actor. " +
-			"Pass objType=user and objId=<userId> to get the actor that represents that user (so you can " +
-			"attach accounts to it / transfer between users). Find the userId first with searchUsers/getUsers.",
+		Summary: "Get-or-create the 1:1 system 'twin' actor that represents a user as a graph node. " +
+			"Pass objType=user and objId=<userId> to get the actor that carries that user's accounts and is " +
+			"their node on the graph. Use it for ACTOR-level work on a person: transactions/transfers, " +
+			"reading/creating accounts, or placing the user on a layer. For SHARING/access instead, grant to " +
+			"the userId directly (saveAccessRules) — do NOT share onto the twin. Find the userId first with " +
+			"searchUsers/getUsers. objType is user only (other entity twins are not exposed here).",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
-			{Name: "objType", In: InPath, Type: "string", Required: true, Enum: []string{"user"}, Desc: "Entity kind whose twin actor to fetch (currently only user)."},
+			{Name: "objType", In: InPath, Type: "string", Required: true, Enum: []string{"user"}, Desc: "Entity kind whose twin actor to fetch — user only."},
 			{Name: "objId", In: InPath, Type: "string", Required: true, Desc: "The entity id — for objType=user, the user id (see searchUsers/getUsers)."},
 			fieldFilterParam("id,title,formId"),
 		},

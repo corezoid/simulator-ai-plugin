@@ -2,772 +2,1572 @@
   {
     "name": "Connect and choose a workspace",
     "prompt": "Log in to Simulator, then set the active workspace to 64f1abcd by calling set-workspace.",
-    "tools": ["login", "set-workspace"],
+    "tools": [
+      "login",
+      "set-workspace"
+    ],
     "liveOnly": true
   },
   {
     "name": "List workspaces",
     "prompt": "Which Simulator workspaces can I access?",
-    "tools": ["getWorkspaces"]
+    "tools": [
+      "getWorkspaces"
+    ]
   },
-
   {
     "name": "Create a form with fields",
     "prompt": "Create a Car form with fields make, model, year, VIN.",
-    "tools": ["createForm"]
+    "tools": [
+      "createForm"
+    ]
   },
   {
     "name": "Form sections protocol (createForm)",
     "prompt": "Create an Account Template (form) named \"Vehicle\" with a text field \"Make\", an integer field \"Year\", and a single-select \"Owner\" whose options come from the workspace members. Use the proper section/field structure.",
-    "tools": ["createForm"],
+    "tools": [
+      "createForm"
+    ],
     "argChecks": [
-      { "tool": "createForm", "mustContain": ["sections", "\"class\"", "item_", "optionsSource", "workspaceMembers"] }
+      {
+        "tool": "createForm",
+        "mustContain": [
+          "sections",
+          "\"class\"",
+          "item_",
+          "optionsSource",
+          "workspaceMembers"
+        ]
+      }
     ]
   },
   {
     "name": "Form with a layer-sourced select",
     "prompt": "Create a form \"Asset\" with a single-select field \"Location\" whose options are the actors placed on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
-    "tools": ["createForm"],
+    "tools": [
+      "createForm"
+    ],
     "argChecks": [
-      { "tool": "createForm", "mustContain": ["optionsSource", "\"type\":\"layer\"", "14b284e0-5f77-4b40-bdde-f7058b05939f"] }
+      {
+        "tool": "createForm",
+        "mustContain": [
+          "optionsSource",
+          "\"type\":\"layer\"",
+          "14b284e0-5f77-4b40-bdde-f7058b05939f"
+        ]
+      }
     ]
   },
   {
     "name": "Get a form by id",
     "prompt": "Show me the fields defined on form 42.",
-    "tools": ["getForm"]
+    "tools": [
+      "getForm"
+    ]
   },
   {
     "name": "List forms",
     "prompt": "What Account Templates (forms) exist in this workspace?",
-    "tools": ["getForms"]
+    "tools": [
+      "getForms"
+    ]
   },
   {
     "name": "Search forms",
     "prompt": "Is there already a form whose name contains \"Vehicle\"?",
-    "tools": ["searchForms"]
+    "tools": [
+      "searchForms"
+    ]
   },
   {
     "name": "Update a form",
     "prompt": "Rename form 42 to \"Vehicle (2024)\". It has one text field \"Make\" (id item_make) — keep it. Call updateForm with the new title and that section.",
-    "tools": ["updateForm"],
+    "tools": [
+      "updateForm"
+    ],
     "argChecks": [
-      { "tool": "updateForm", "mustContain": ["sections", "Vehicle (2024)"] }
+      {
+        "tool": "updateForm",
+        "mustContain": [
+          "sections",
+          "Vehicle (2024)"
+        ]
+      }
     ]
   },
   {
     "name": "Set form status",
     "prompt": "Activate form 42.",
-    "tools": ["setFormStatus"],
+    "tools": [
+      "setFormStatus"
+    ],
     "argChecks": [
-      { "tool": "setFormStatus", "mustContain": ["active"] }
+      {
+        "tool": "setFormStatus",
+        "mustContain": [
+          "active"
+        ]
+      }
     ]
   },
   {
     "name": "Delete a form",
     "prompt": "Delete form 42.",
-    "tools": ["deleteForm"]
+    "tools": [
+      "deleteForm"
+    ]
   },
-
   {
     "name": "Create actors of a form",
     "prompt": "Add three Car actors: a Camry, a Civic and a Model 3.",
-    "tools": ["getForms|searchForms", "createActor"]
+    "tools": [
+      "getForms|searchForms",
+      "createActor"
+    ]
   },
   {
     "name": "Actor dynamic-select value shape",
     "prompt": "Create an actor under form 42 titled \"Task X\". It has a workspaceMembers select field with id item_owner — set it to the workspace member whose user id is 1. Use the correct stored value shape for that field.",
-    "tools": ["createActor"],
+    "tools": [
+      "createActor"
+    ],
     "argChecks": [
-      { "tool": "createActor", "mustContain": ["item_owner", "\"type\":\"workspaceMembers\"", "\"value\":1"] }
+      {
+        "tool": "createActor",
+        "mustContain": [
+          "item_owner",
+          "\"type\":\"workspaceMembers\"",
+          "\"value\":1"
+        ]
+      }
     ]
   },
   {
     "name": "Multiform actor data keys",
     "prompt": "Create an actor under form 42 titled \"Ann Lee\". Set its own field item_name to \"Ann Lee\", and also set field item_position — which belongs to a DIFFERENT form whose id is 16951 — to \"Engineer\". Use the correct multiform data keys.",
-    "tools": ["createActor"],
+    "tools": [
+      "createActor"
+    ],
     "argChecks": [
-      { "tool": "createActor", "mustContain": ["item_name", "__form__16951:item_position", "Engineer"] }
+      {
+        "tool": "createActor",
+        "mustContain": [
+          "item_name",
+          "__form__16951:item_position",
+          "Engineer"
+        ]
+      }
     ]
   },
   {
     "name": "Actor calendar field value shape",
     "prompt": "Create an actor under form 42 titled \"Service slot\". It has a calendar field with id item_when — set it to a single day. Use the correct stored value shape for a calendar field.",
-    "tools": ["createActor"],
+    "tools": [
+      "createActor"
+    ],
     "argChecks": [
-      { "tool": "createActor", "mustContain": ["item_when", "startDate", "endDate"] }
+      {
+        "tool": "createActor",
+        "mustContain": [
+          "item_when",
+          "startDate",
+          "endDate"
+        ]
+      }
     ]
   },
   {
     "name": "Check before creating (no duplicate)",
     "prompt": "Make sure there is a Camry actor; create one only if it does not already exist.",
-    "tools": ["searchActors"]
+    "tools": [
+      "searchActors"
+    ]
   },
   {
     "name": "Get an actor by id",
     "prompt": "Show me actor 11111111-1111-1111-1111-111111111111.",
-    "tools": ["getActor"]
+    "tools": [
+      "getActor"
+    ]
   },
   {
     "name": "Get an actor by ref",
     "prompt": "Fetch the actor of form 42 whose external ref is \"car-camry\".",
-    "tools": ["getActorByRef"]
+    "tools": [
+      "getActorByRef"
+    ]
   },
   {
     "name": "Update an actor (partial)",
     "prompt": "On actor 11111111-1111-1111-1111-111111111111 (form 42), change only field item_year to 2024. Leave everything else untouched.",
-    "tools": ["updateActor"],
+    "tools": [
+      "updateActor"
+    ],
     "argChecks": [
-      { "tool": "updateActor", "mustContain": ["item_year", "2024"] }
+      {
+        "tool": "updateActor",
+        "mustContain": [
+          "item_year",
+          "2024"
+        ]
+      }
     ]
   },
   {
     "name": "Set actor status",
     "prompt": "Mark actor 11111111-1111-1111-1111-111111111111 as verified.",
-    "tools": ["setActorStatus"],
+    "tools": [
+      "setActorStatus"
+    ],
     "argChecks": [
-      { "tool": "setActorStatus", "mustContain": ["verified"] }
+      {
+        "tool": "setActorStatus",
+        "mustContain": [
+          "verified"
+        ]
+      }
     ]
   },
   {
     "name": "Delete an actor",
     "prompt": "Delete actor 11111111-1111-1111-1111-111111111111. Yes, I'm sure — go ahead and delete it now.",
-    "tools": ["deleteActor"]
+    "tools": [
+      "deleteActor"
+    ]
   },
   {
     "name": "Filter/rank actors by account balance",
     "prompt": "From the actors of form 42, list those whose maintenance account (currency id 1) balance is greater than 1000, ranked from the highest balance.",
-    "tools": ["filterActors"],
+    "tools": [
+      "filterActors"
+    ],
     "argChecks": [
-      { "tool": "filterActors", "mustContain": ["amountFrom", "balance"] }
+      {
+        "tool": "filterActors",
+        "mustContain": [
+          "amountFrom",
+          "balance"
+        ]
+      }
     ]
   },
   {
     "name": "Search actors on a layer",
     "prompt": "On layer 14b284e0-5f77-4b40-bdde-f7058b05939f, find the actors matching \"camry\".",
-    "tools": ["searchLayerActors"]
+    "tools": [
+      "searchLayerActors"
+    ]
   },
-
   {
     "name": "Create a currency",
     "prompt": "Create a kilometre counter currency called \"Km\" (symbol km) that tracks whole kilometres only.",
-    "tools": ["createCurrency"],
+    "tools": [
+      "createCurrency"
+    ],
     "argChecks": [
-      { "tool": "createCurrency", "mustContain": ["\"name\""], "mustNotContain": ["\"title\"", "decimals"] }
+      {
+        "tool": "createCurrency",
+        "mustContain": [
+          "\"name\""
+        ],
+        "mustNotContain": [
+          "\"title\"",
+          "decimals"
+        ]
+      }
     ]
   },
   {
     "name": "Create an account name",
     "prompt": "Create an account-name category called \"Mileage\".",
-    "tools": ["createAccountName"],
+    "tools": [
+      "createAccountName"
+    ],
     "argChecks": [
-      { "tool": "createAccountName", "mustContain": ["\"name\""], "mustNotContain": ["\"title\""] }
+      {
+        "tool": "createAccountName",
+        "mustContain": [
+          "\"name\""
+        ],
+        "mustNotContain": [
+          "\"title\""
+        ]
+      }
     ]
   },
   {
     "name": "List currencies",
     "prompt": "What currencies are defined in this workspace?",
-    "tools": ["getCurrencies"]
+    "tools": [
+      "getCurrencies"
+    ]
   },
   {
     "name": "List account names",
     "prompt": "List the account-name categories in this workspace.",
-    "tools": ["getAccountNames"]
+    "tools": [
+      "getAccountNames"
+    ]
   },
   {
     "name": "Attach an account and record a transaction",
     "prompt": "On the Camry actor, track a USD maintenance expense and record a $450 service.",
-    "tools": ["getCurrencies", "getAccountNames", "createAccount", "createTransaction"]
+    "tools": [
+      "getCurrencies",
+      "getAccountNames",
+      "createAccount",
+      "createTransaction"
+    ]
   },
   {
     "name": "Two-step transaction (authorize then finalize)",
     "prompt": "Authorize a 450 charge on account acc-1 with ref \"chg-1\" (createTransaction, authorized), then finalize it on account acc-1 with type completed and ref \"chg-1\" (finalizeTransaction).",
-    "tools": ["createTransaction"],
-    "dryOnlyTools": ["finalizeTransaction"]
+    "tools": [
+      "createTransaction"
+    ],
+    "dryOnlyTools": [
+      "finalizeTransaction"
+    ]
   },
   {
     "name": "Transfer value between accounts",
     "prompt": "Transfer 200 USD from account acc-1 to account acc-2.",
-    "tools": ["createTransfer"],
+    "tools": [
+      "createTransfer"
+    ],
     "argChecks": [
-      { "tool": "createTransfer", "mustContain": ["\"from\"", "\"to\"", "acc-1", "acc-2"] }
+      {
+        "tool": "createTransfer",
+        "mustContain": [
+          "\"from\"",
+          "\"to\"",
+          "acc-1",
+          "acc-2"
+        ]
+      }
     ]
   },
   {
     "name": "Read all accounts on an actor",
     "prompt": "List all accounts and their balances on actor 11111111-1111-1111-1111-111111111111.",
-    "tools": ["getAccounts"]
+    "tools": [
+      "getAccounts"
+    ]
   },
   {
     "name": "Read one account balance",
     "prompt": "What is the current balance of the USD maintenance account (currency id 1, account name id aaaaaaaa-0000-0000-0000-000000000001) on actor 11111111-1111-1111-1111-111111111111?",
-    "tools": ["getBalance"]
+    "tools": [
+      "getBalance"
+    ]
   },
   {
     "name": "Read transaction history",
     "prompt": "Using getTransactions, list the transactions on actor 11111111-1111-1111-1111-111111111111 for currency 1, account name aaaaaaaa-0000-0000-0000-000000000001.",
-    "tools": ["getTransactions|getAccountTransactions"]
+    "tools": [
+      "getTransactions|getAccountTransactions"
+    ]
   },
   {
     "name": "Get a transfer",
     "prompt": "Show the details of transfer tr-1.",
-    "tools": ["getTransfer|getTransferByRef"]
+    "tools": [
+      "getTransfer|getTransferByRef"
+    ]
   },
   {
     "name": "Update an account",
     "prompt": "Enable tree-calculation on the maintenance account (currency id 1, account name id aaaaaaaa-0000-0000-0000-000000000001, type expense) of actor 11111111-1111-1111-1111-111111111111.",
-    "tools": ["updateAccount"]
+    "tools": [
+      "updateAccount"
+    ]
   },
   {
     "name": "Delete an account",
     "prompt": "Remove the Mileage account (currency id 2, account name id aaaaaaaa-0000-0000-0000-000000000001, type counter) from actor 11111111-1111-1111-1111-111111111111.",
-    "tools": ["deleteAccount"]
+    "tools": [
+      "deleteAccount"
+    ]
   },
-
   {
     "name": "Semantic search",
     "prompt": "Find actors related to \"vehicle maintenance costs\" by meaning, not exact words.",
-    "tools": ["searchAll"]
+    "tools": [
+      "searchAll"
+    ]
   },
   {
     "name": "Get edge/link types",
     "prompt": "What link (edge) types exist in this workspace?",
-    "tools": ["getEdgeTypes"]
+    "tools": [
+      "getEdgeTypes"
+    ]
   },
   {
     "name": "Get related actors",
     "prompt": "Which actors are directly linked to actor 11111111-1111-1111-1111-111111111111?",
-    "tools": ["getRelatedActors|getLinkedActors"]
+    "tools": [
+      "getRelatedActors|getLinkedActors"
+    ]
   },
   {
     "name": "Get actors on a layer",
     "prompt": "List the actors placed on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
-    "tools": ["getLayerActors"]
+    "tools": [
+      "getLayerActors"
+    ]
   },
   {
     "name": "Mass-link actors",
     "prompt": "In one operation, link actors 22222222-2222-2222-2222-222222222222 and 33333333-3333-3333-3333-333333333333 as children of parent 11111111-1111-1111-1111-111111111111.",
-    "tools": ["massLink"]
+    "tools": [
+      "massLink"
+    ]
   },
   {
     "name": "Get a link by id",
     "prompt": "Show me the details of link eeeeeeee-0000-0000-0000-000000000001.",
-    "tools": ["getEdge"]
+    "tools": [
+      "getEdge"
+    ]
   },
   {
     "name": "Update a link",
     "prompt": "Rename link eeeeeeee-0000-0000-0000-000000000001 to \"reports to\" and pin it.",
-    "tools": ["updateEdge"],
+    "tools": [
+      "updateEdge"
+    ],
     "argChecks": [
-      { "tool": "updateEdge", "mustContain": ["reports to", "eeeeeeee-0000-0000-0000-000000000001"] }
+      {
+        "tool": "updateEdge",
+        "mustContain": [
+          "reports to",
+          "eeeeeeee-0000-0000-0000-000000000001"
+        ]
+      }
     ]
   },
   {
     "name": "Delete a link by id",
     "prompt": "Delete link eeeeeeee-0000-0000-0000-000000000001.",
-    "tools": ["deleteEdge"]
+    "tools": [
+      "deleteEdge"
+    ]
   },
   {
     "name": "Check whether a link exists",
     "prompt": "Is there an edge-type-1 link between actor 11111111-1111-1111-1111-111111111111 and actor 22222222-2222-2222-2222-222222222222? Check both directions.",
-    "tools": ["existLink"],
+    "tools": [
+      "existLink"
+    ],
     "argChecks": [
-      { "tool": "existLink", "mustContain": ["\"edgeTypeId\":1", "\"bidirected\":true"] }
+      {
+        "tool": "existLink",
+        "mustContain": [
+          "\"edgeTypeId\":1",
+          "\"bidirected\":true"
+        ]
+      }
     ]
   },
   {
     "name": "Delete links by endpoints (bulk)",
     "prompt": "Remove the edge-type-1 links from actor 11111111-1111-1111-1111-111111111111 to actors 22222222-2222-2222-2222-222222222222 and 33333333-3333-3333-3333-333333333333, identified by their source/target endpoints rather than edge ids.",
-    "tools": ["deleteEdgesByNodes"],
+    "tools": [
+      "deleteEdgesByNodes"
+    ],
     "argChecks": [
-      { "tool": "deleteEdgesByNodes", "mustContain": ["\"source\"", "\"target\"", "\"edgeTypeId\":1"] }
+      {
+        "tool": "deleteEdgesByNodes",
+        "mustContain": [
+          "\"source\"",
+          "\"target\"",
+          "\"edgeTypeId\":1"
+        ]
+      }
     ]
   },
   {
     "name": "Build a process graph on a layer",
     "prompt": "Build an onboarding process: Collect -> Review -> Approve, linked on a layer.",
-    "tools": ["createActor", "createLink"],
+    "tools": [
+      "createActor",
+      "createLink"
+    ],
     "liveOnly": true
   },
-
   {
     "name": "Auto-layout a layer",
     "prompt": "Run the auto-layout engine (compactGraphLayout) on layer 1a2b0000-0000-0000-0000-000000000001.",
-    "tools": ["compactGraphLayout"],
+    "tools": [
+      "compactGraphLayout"
+    ],
     "liveOnly": true
   },
   {
     "name": "Prune long edges on a layer",
     "prompt": "Remove the overly long edges on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
-    "tools": ["pruneLongEdges"]
+    "tools": [
+      "pruneLongEdges"
+    ]
   },
   {
     "name": "List a layer's placements",
     "prompt": "List every actor placed on layer 14b284e0-5f77-4b40-bdde-f7058b05939f in one call, with their positions.",
-    "tools": ["getAllLayerPlacements"]
+    "tools": [
+      "getAllLayerPlacements"
+    ]
   },
   {
     "name": "Chart top accounts on a layer",
     "prompt": "Create a chart (use createChart) of the top maintenance spenders on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
-    "tools": ["createChart"],
+    "tools": [
+      "createChart"
+    ],
     "liveOnly": true
   },
   {
     "name": "Upload an actor picture",
     "prompt": "Set the picture of actor 11111111-1111-1111-1111-111111111111 (form 42) from https://example.com/car.png.",
-    "tools": ["uploadActorPicture"],
+    "tools": [
+      "uploadActorPicture"
+    ],
     "argChecks": [
-      { "tool": "uploadActorPicture", "mustContain": ["11111111-1111-1111-1111-111111111111"] }
+      {
+        "tool": "uploadActorPicture",
+        "mustContain": [
+          "11111111-1111-1111-1111-111111111111"
+        ]
+      }
     ]
   },
   {
     "name": "Bulk-upload actor pictures",
     "prompt": "Set pictures for two actors at once: actor 11111111-1111-1111-1111-111111111111 from https://ex.com/a.png and actor 22222222-2222-2222-2222-222222222222 from https://ex.com/b.png.",
-    "tools": ["uploadActorPictureBulk"]
+    "tools": [
+      "uploadActorPictureBulk"
+    ]
   },
   {
     "name": "Edit a graph via local file",
     "prompt": "Pull layer 1a2b0000-0000-0000-0000-000000000001 to a local YAML file with pullGraphFile.",
-    "tools": ["pullGraphFile"],
+    "tools": [
+      "pullGraphFile"
+    ],
     "liveOnly": true
   },
   {
     "name": "List who has access to an actor",
     "prompt": "Who has access to actor 9f3c0000-0000-0000-0000-000000000001 and what can they do?",
-    "tools": ["getAccessRules"],
+    "tools": [
+      "getAccessRules"
+    ],
     "argChecks": [
       {
         "tool": "getAccessRules",
-        "mustContain": ["actor", "9f3c"]
+        "mustContain": [
+          "actor",
+          "9f3c"
+        ]
       }
     ]
   },
   {
     "name": "Grant a user access to an actor",
     "prompt": "Give user 4210 view and modify rights on actor 9f3c0000-0000-0000-0000-000000000001, but not the ability to delete it.",
-    "tools": ["saveAccessRules"],
+    "tools": [
+      "saveAccessRules"
+    ],
     "argChecks": [
       {
         "tool": "saveAccessRules",
-        "mustContain": ["actor", "create", "privs", "\"view\"", "\"modify\""]
+        "mustContain": [
+          "actor",
+          "create",
+          "privs",
+          "\"view\"",
+          "\"modify\""
+        ]
       }
     ]
   },
   {
     "name": "Revoke access to an account",
     "prompt": "Remove group 88's access to account 5521 entirely.",
-    "tools": ["saveAccessRules"],
+    "tools": [
+      "saveAccessRules"
+    ],
     "argChecks": [
       {
         "tool": "saveAccessRules",
-        "mustContain": ["account", "delete", "groupId"]
+        "mustContain": [
+          "account",
+          "delete",
+          "groupId"
+        ]
       }
     ]
   },
   {
     "name": "Bulk-share an account category",
     "prompt": "Share every account named with the prefix \"fuel\" with user 4210 (view + modify) across the workspace.",
-    "tools": ["bulkSaveAccountPairsAccessRules"],
+    "tools": [
+      "bulkSaveAccountPairsAccessRules"
+    ],
     "argChecks": [
       {
         "tool": "bulkSaveAccountPairsAccessRules",
-        "mustContain": ["fuel", "rules", "privs"]
+        "mustContain": [
+          "fuel",
+          "rules",
+          "privs"
+        ]
       }
     ]
   },
   {
     "name": "Bulk-grant access to several objects",
     "prompt": "In one go, give user 4210 view rights on form 42 and on actor 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["bulkSaveAccessRules"],
+    "tools": [
+      "bulkSaveAccessRules"
+    ],
     "argChecks": [
       {
         "tool": "bulkSaveAccessRules",
-        "mustContain": ["objType", "rules", "privs"]
+        "mustContain": [
+          "objType",
+          "rules",
+          "privs"
+        ]
       }
     ]
   },
   {
     "name": "Who can use a form template's actors",
     "prompt": "List everyone who has access to the actors created from form template 42.",
-    "tools": ["getTemplateActorsAccess"],
+    "tools": [
+      "getTemplateActorsAccess"
+    ],
     "argChecks": [
       {
         "tool": "getTemplateActorsAccess",
-        "mustContain": ["42"]
+        "mustContain": [
+          "42"
+        ]
       }
     ]
   },
   {
     "name": "Grant access to a template's actors",
     "prompt": "Give group 88 view and modify rights on all actors of form template 42.",
-    "tools": ["saveTemplateActorsAccess"],
+    "tools": [
+      "saveTemplateActorsAccess"
+    ],
     "argChecks": [
       {
         "tool": "saveTemplateActorsAccess",
-        "mustContain": ["groupId", "privs", "\"modify\""]
+        "mustContain": [
+          "groupId",
+          "privs",
+          "\"modify\""
+        ]
       }
     ]
   },
   {
     "name": "List access on a tree layer",
     "prompt": "Show who has access to the actors on tree layer 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["getTreeLayerAccess"],
+    "tools": [
+      "getTreeLayerAccess"
+    ],
     "argChecks": [
       {
         "tool": "getTreeLayerAccess",
-        "mustContain": ["9f3c"]
+        "mustContain": [
+          "9f3c"
+        ]
       }
     ]
   },
   {
     "name": "Grant access to a tree layer",
     "prompt": "Give user 4210 view rights to every actor on tree layer 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["saveTreeLayerAccess"],
+    "tools": [
+      "saveTreeLayerAccess"
+    ],
     "argChecks": [
       {
         "tool": "saveTreeLayerAccess",
-        "mustContain": ["userId", "privs", "\"view\""]
+        "mustContain": [
+          "userId",
+          "privs",
+          "\"view\""
+        ]
       }
     ]
   },
   {
     "name": "Comment on an actor",
     "prompt": "Add a comment \"Looks good to me\" on actor 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["createReaction"],
+    "tools": [
+      "createReaction"
+    ],
     "argChecks": [
-      { "tool": "createReaction", "mustContain": ["comment", "Looks good to me"] }
+      {
+        "tool": "createReaction",
+        "mustContain": [
+          "comment",
+          "Looks good to me"
+        ]
+      }
     ]
   },
   {
     "name": "Reply to a reaction",
     "prompt": "On actor 9f3c0000-0000-0000-0000-000000000001, reply \"Agreed\" under the comment whose id is rx-100.",
-    "tools": ["createReaction"],
+    "tools": [
+      "createReaction"
+    ],
     "argChecks": [
-      { "tool": "createReaction", "mustContain": ["parentId", "rx-100", "Agreed"] }
+      {
+        "tool": "createReaction",
+        "mustContain": [
+          "parentId",
+          "rx-100",
+          "Agreed"
+        ]
+      }
     ]
   },
   {
     "name": "Edit a reaction",
     "prompt": "On actor 9f3c0000-0000-0000-0000-000000000001, change comment rx-100's text to \"Updated note\".",
-    "tools": ["updateReaction"],
+    "tools": [
+      "updateReaction"
+    ],
     "argChecks": [
-      { "tool": "updateReaction", "mustContain": ["reactionId", "rx-100", "Updated note"] }
+      {
+        "tool": "updateReaction",
+        "mustContain": [
+          "reactionId",
+          "rx-100",
+          "Updated note"
+        ]
+      }
     ]
   },
   {
     "name": "Delete a reaction",
     "prompt": "Delete comment rx-100 from actor 9f3c0000-0000-0000-0000-000000000001 — yes, I confirm, delete it now.",
-    "tools": ["deleteReaction"],
+    "tools": [
+      "deleteReaction"
+    ],
     "argChecks": [
-      { "tool": "deleteReaction", "mustContain": ["reactionId", "rx-100"] }
+      {
+        "tool": "deleteReaction",
+        "mustContain": [
+          "reactionId",
+          "rx-100"
+        ]
+      }
     ]
   },
   {
     "name": "List reactions on an actor",
     "prompt": "Show me the comments on actor 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["getReactions"]
+    "tools": [
+      "getReactions"
+    ]
   },
   {
     "name": "Reaction stats",
     "prompt": "How many reactions of each type does actor 9f3c0000-0000-0000-0000-000000000001 have?",
-    "tools": ["getReactionsStats"]
+    "tools": [
+      "getReactionsStats"
+    ]
   },
   {
     "name": "Mark reactions read",
     "prompt": "Mark all 12 comments on actor 9f3c0000-0000-0000-0000-000000000001 as read.",
-    "tools": ["markReactionsRead"]
+    "tools": [
+      "markReactionsRead"
+    ]
   },
   {
     "name": "List pinned reactions",
     "prompt": "List the pinned reactions of actor 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["getPinnedReactions"]
+    "tools": [
+      "getPinnedReactions"
+    ]
   },
   {
     "name": "Pin a reaction",
     "prompt": "Pin comment rx-100 on actor 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["togglePinnedReaction"],
+    "tools": [
+      "togglePinnedReaction"
+    ],
     "argChecks": [
-      { "tool": "togglePinnedReaction", "mustContain": ["reactionId", "rx-100", "\"pinned\":true"] }
+      {
+        "tool": "togglePinnedReaction",
+        "mustContain": [
+          "reactionId",
+          "rx-100",
+          "\"pinned\":true"
+        ]
+      }
     ]
   },
   {
     "name": "Upload a file (base64)",
     "prompt": "Call uploadBase64 to upload a file to the workspace with originalName=\"report.pdf\" and file=\"JVBERi0xLjQK\".",
-    "tools": ["uploadBase64"],
+    "tools": [
+      "uploadBase64"
+    ],
     "argChecks": [
-      { "tool": "uploadBase64", "mustContain": ["file", "originalName", "report.pdf"] }
+      {
+        "tool": "uploadBase64",
+        "mustContain": [
+          "file",
+          "originalName",
+          "report.pdf"
+        ]
+      }
     ]
   },
   {
     "name": "List workspace attachments",
     "prompt": "What files are attached in this workspace?",
-    "tools": ["getAttachments"]
+    "tools": [
+      "getAttachments"
+    ]
   },
   {
     "name": "Attach a file to an actor",
     "prompt": "Attach uploaded file 5521 to actor 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["addAttachments"],
+    "tools": [
+      "addAttachments"
+    ],
     "argChecks": [
-      { "tool": "addAttachments", "mustContain": ["attachId", "actorId"] }
+      {
+        "tool": "addAttachments",
+        "mustContain": [
+          "attachId",
+          "actorId"
+        ]
+      }
     ]
   },
   {
     "name": "Rename an attachment",
     "prompt": "Rename attachment 5521 to \"Q3 report.pdf\".",
-    "tools": ["updateAttachment"],
+    "tools": [
+      "updateAttachment"
+    ],
     "argChecks": [
-      { "tool": "updateAttachment", "mustContain": ["title", "Q3 report.pdf"] }
+      {
+        "tool": "updateAttachment",
+        "mustContain": [
+          "title",
+          "Q3 report.pdf"
+        ]
+      }
     ]
   },
   {
     "name": "Detach a file from an actor",
     "prompt": "Remove the link between attachment 5521 and actor 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["removeAttachments"],
+    "tools": [
+      "removeAttachments"
+    ],
     "argChecks": [
-      { "tool": "removeAttachments", "mustContain": ["attachId", "actorId"] }
+      {
+        "tool": "removeAttachments",
+        "mustContain": [
+          "attachId",
+          "actorId"
+        ]
+      }
     ]
   },
   {
     "name": "List an actor's links",
     "prompt": "What edges does actor 9f3c0000-0000-0000-0000-000000000001 have?",
-    "tools": ["getActorLinks"]
+    "tools": [
+      "getActorLinks"
+    ]
   },
   {
     "name": "List directly linked actors",
     "prompt": "List the actors directly linked to actor 11111111-1111-1111-1111-111111111111 across all edge types, including system links.",
-    "tools": ["getLinkedActors|getRelatedActors"]
+    "tools": [
+      "getLinkedActors|getRelatedActors"
+    ]
   },
   {
     "name": "Layer statistics",
     "prompt": "How many nodes and edges are on layer 14b284e0-5f77-4b40-bdde-f7058b05939f?",
-    "tools": ["layerStats"]
+    "tools": [
+      "layerStats"
+    ]
   },
   {
     "name": "Check element on layer",
     "prompt": "Is actor 9f3c0000-0000-0000-0000-000000000001 already placed on layer 14b284e0-5f77-4b40-bdde-f7058b05939f?",
-    "tools": ["existLayerElement"],
+    "tools": [
+      "existLayerElement"
+    ],
     "argChecks": [
-      { "tool": "existLayerElement", "mustContain": ["\"type\":\"node\"", "9f3c"] }
+      {
+        "tool": "existLayerElement",
+        "mustContain": [
+          "\"type\":\"node\"",
+          "9f3c"
+        ]
+      }
     ]
   },
   {
     "name": "Move actors between layers",
     "prompt": "Move actor 9f3c0000-0000-0000-0000-000000000001 from layer 14b284e0-5f77-4b40-bdde-f7058b05939f to layer 22c399f1-0000-4b40-bdde-f7058b05939f.",
-    "tools": ["moveActors"],
+    "tools": [
+      "moveActors"
+    ],
     "argChecks": [
-      { "tool": "moveActors", "mustContain": ["actorId", "9f3c"] }
+      {
+        "tool": "moveActors",
+        "mustContain": [
+          "actorId",
+          "9f3c"
+        ]
+      }
     ]
   },
   {
     "name": "Clear a layer",
     "prompt": "Remove every actor and link from layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
-    "tools": ["cleanGraphLayer"]
+    "tools": [
+      "cleanGraphLayer"
+    ]
   },
   {
     "name": "Search currencies",
     "prompt": "Is there a currency containing \"USD\" in this workspace?",
-    "tools": ["searchCurrencies"]
+    "tools": [
+      "searchCurrencies"
+    ]
   },
   {
     "name": "Search account names",
     "prompt": "Find account-name categories matching \"fuel\".",
-    "tools": ["searchAccountNames"]
+    "tools": [
+      "searchAccountNames"
+    ]
   },
   {
     "name": "Rename an account name",
     "prompt": "Rename account-name category aaaaaaaa-0000-0000-0000-000000000001 to \"Fuel costs\".",
-    "tools": ["updateAccountName"],
+    "tools": [
+      "updateAccountName"
+    ],
     "argChecks": [
-      { "tool": "updateAccountName", "mustContain": ["\"name\"", "Fuel costs"] }
+      {
+        "tool": "updateAccountName",
+        "mustContain": [
+          "\"name\"",
+          "Fuel costs"
+        ]
+      }
     ]
   },
   {
     "name": "Get one account by id",
     "prompt": "Show account 778899 with its transaction count.",
-    "tools": ["getAccount"]
+    "tools": [
+      "getAccount"
+    ]
   },
   {
     "name": "Set a fixed account balance",
     "prompt": "Correct account 778899's balance to exactly 1500.",
-    "tools": ["setAccountAmount"],
+    "tools": [
+      "setAccountAmount"
+    ],
     "argChecks": [
-      { "tool": "setAccountAmount", "mustContain": ["\"amount\":1500"] }
+      {
+        "tool": "setAccountAmount",
+        "mustContain": [
+          "\"amount\":1500"
+        ]
+      }
     ]
   },
   {
     "name": "List child accounts",
     "prompt": "List the maintenance USD accounts (name aaaaaaaa-0000-0000-0000-000000000001, currency 1) on the children of actor 9f3c0000-0000-0000-0000-000000000001.",
-    "tools": ["getChildAccounts"],
+    "tools": [
+      "getChildAccounts"
+    ],
     "argChecks": [
-      { "tool": "getChildAccounts", "mustContain": ["nameId", "currencyId"] }
+      {
+        "tool": "getChildAccounts",
+        "mustContain": [
+          "nameId",
+          "currencyId"
+        ]
+      }
     ]
   },
   {
     "name": "Two-step transfer (authorize then complete)",
     "prompt": "Authorize a 200 USD transfer from account acc-1 to account acc-2 with ref \"tr-x\" (createTransferTwoStep, type authorized), then complete it (createTransferTwoStep, type completed).",
-    "tools": ["createTransferTwoStep"],
+    "tools": [
+      "createTransferTwoStep"
+    ],
     "argChecks": [
-      { "tool": "createTransferTwoStep", "mustContain": ["completed"], "dryOnly": true }
+      {
+        "tool": "createTransferTwoStep",
+        "mustContain": [
+          "completed"
+        ],
+        "dryOnly": true
+      }
     ]
   },
   {
     "name": "Atomic multi-transaction",
     "prompt": "In one atomic batch (all-or-nothing), record two independent transactions: +100 on account acc-1 and +50 on account acc-2.",
-    "tools": ["atomCreateTransaction"],
+    "tools": [
+      "atomCreateTransaction"
+    ],
     "argChecks": [
-      { "tool": "atomCreateTransaction", "mustContain": ["accountId", "amount"] }
+      {
+        "tool": "atomCreateTransaction",
+        "mustContain": [
+          "accountId",
+          "amount"
+        ]
+      }
     ]
   },
   {
     "name": "Filter transfers",
     "prompt": "List transfers in this workspace between Jan 1 and Feb 1 2026.",
-    "tools": ["filterTransfers"],
+    "tools": [
+      "filterTransfers"
+    ],
     "argChecks": [
-      { "tool": "filterTransfers", "mustContain": ["\"from\"", "\"to\""] }
+      {
+        "tool": "filterTransfers",
+        "mustContain": [
+          "\"from\"",
+          "\"to\""
+        ]
+      }
     ]
   },
   {
     "name": "Account transactions by id",
     "prompt": "Show the latest 20 transactions on account 778899.",
-    "tools": ["getAccountTransactions"]
+    "tools": [
+      "getAccountTransactions"
+    ]
   },
   {
     "name": "Find transaction by ref",
     "prompt": "Did the transaction with ref \"order-42\" land on account 778899?",
-    "tools": ["getTransactionByRef"],
+    "tools": [
+      "getTransactionByRef"
+    ],
     "argChecks": [
-      { "tool": "getTransactionByRef", "mustContain": ["order-42"] }
+      {
+        "tool": "getTransactionByRef",
+        "mustContain": [
+          "order-42"
+        ]
+      }
     ]
   },
   {
     "name": "Get transfer by ref",
     "prompt": "Fetch the transfer with ref \"payout-99\" in this workspace.",
-    "tools": ["getTransferByRef"],
+    "tools": [
+      "getTransferByRef"
+    ],
     "argChecks": [
-      { "tool": "getTransferByRef", "mustContain": ["payout-99"] }
+      {
+        "tool": "getTransferByRef",
+        "mustContain": [
+          "payout-99"
+        ]
+      }
     ]
   },
   {
     "name": "Record a mileage counter",
     "prompt": "Record an odometer reading of 45000 km on the car with actor ref \"car-camry\" (form 42), account \"mileage\", currency \"Km\", as a debit counter.",
-    "tools": ["saveCounters"],
+    "tools": [
+      "saveCounters"
+    ],
     "argChecks": [
-      { "tool": "saveCounters", "mustContain": ["actorRef", "\"type\":\"counter\""] }
+      {
+        "tool": "saveCounters",
+        "mustContain": [
+          "actorRef",
+          "\"type\":\"counter\""
+        ]
+      }
     ]
   },
   {
     "name": "Set counter values",
     "prompt": "Set the mileage counter for actor ref \"car-camry\" (form 42, account \"mileage\", currency \"Km\", debit) to exactly 50000.",
-    "tools": ["setCounters"],
+    "tools": [
+      "setCounters"
+    ],
     "argChecks": [
-      { "tool": "setCounters", "mustContain": ["actorRef", "\"amount\":50000"] }
+      {
+        "tool": "setCounters",
+        "mustContain": [
+          "actorRef",
+          "\"amount\":50000"
+        ]
+      }
     ]
   },
   {
     "name": "Read counters",
     "prompt": "What is the current mileage counter for actor ref \"car-camry\" (form 42, account \"mileage\", currency \"Km\", debit)?",
-    "tools": ["getCounters"],
+    "tools": [
+      "getCounters"
+    ],
     "argChecks": [
-      { "tool": "getCounters", "mustContain": ["actorRef", "accountName"] }
+      {
+        "tool": "getCounters",
+        "mustContain": [
+          "actorRef",
+          "accountName"
+        ]
+      }
     ]
   },
   {
     "name": "List workspace members",
     "prompt": "Who are the members of this workspace?",
-    "tools": ["getUsers"]
+    "tools": [
+      "getUsers"
+    ]
   },
   {
     "name": "Find a user then share",
     "prompt": "List the workspace members (getUsers), take the first member's id, and grant that user view + modify on actor 9f3c0000-0000-0000-0000-000000000001 by calling saveAccessRules.",
-    "tools": ["getUsers", "saveAccessRules"],
+    "tools": [
+      "getUsers",
+      "saveAccessRules"
+    ],
     "argChecks": [
-      { "tool": "saveAccessRules", "mustContain": ["actor", "privs"] }
+      {
+        "tool": "saveAccessRules",
+        "mustContain": [
+          "actor",
+          "privs"
+        ]
+      }
     ]
   },
   {
     "name": "Get one workspace member",
     "prompt": "Show me the workspace member with user id 4210.",
-    "tools": ["getUser"]
+    "tools": [
+      "getUser"
+    ]
   },
   {
     "name": "Resolve a user's twin actor",
     "prompt": "Resolve the system twin actor of the user with id 4210 (the actor representing that user, objType=user).",
-    "tools": ["getSystemActor"],
+    "tools": [
+      "getSystemActor"
+    ],
     "argChecks": [
-      { "tool": "getSystemActor", "mustContain": ["user", "4210"] }
+      {
+        "tool": "getSystemActor",
+        "mustContain": [
+          "user",
+          "4210"
+        ]
+      }
     ]
   },
   {
     "name": "Transfer between two users",
     "prompt": "List the workspace members (getUsers), then for the first member call getSystemActor with objType=user and that member's id to get their twin actor (the actor that carries their accounts).",
-    "tools": ["getUsers", "getSystemActor"],
+    "tools": [
+      "getUsers",
+      "getSystemActor"
+    ],
     "argChecks": [
-      { "tool": "getSystemActor", "mustContain": ["user"] }
+      {
+        "tool": "getSystemActor",
+        "mustContain": [
+          "user"
+        ]
+      }
     ]
   },
   {
     "name": "Define a default account on a form",
     "prompt": "Every Car (form 42) should track a USD maintenance account (name <mnt>, currency 1) — add it to the template so all cars get it.",
-    "tools": ["createFormAccount"],
+    "tools": [
+      "createFormAccount"
+    ],
     "argChecks": [
-      { "tool": "createFormAccount", "mustContain": ["nameId", "currencyId"] }
+      {
+        "tool": "createFormAccount",
+        "mustContain": [
+          "nameId",
+          "currencyId"
+        ]
+      }
     ]
   },
   {
     "name": "List a form's default accounts",
     "prompt": "Which accounts are defined on the Car form (42) template?",
-    "tools": ["getFormAccounts"]
+    "tools": [
+      "getFormAccounts"
+    ]
   },
   {
     "name": "Remove a default account from a form",
     "prompt": "Stop putting the maintenance account on Car actors — remove form-account definition 7788.",
-    "tools": ["removeFormAccount"]
+    "tools": [
+      "removeFormAccount"
+    ]
   },
   {
     "name": "Inspect a form tree (UAT)",
     "prompt": "What forms make up the tree that form 42 belongs to?",
-    "tools": ["getFormsTree"]
+    "tools": [
+      "getFormsTree"
+    ]
   },
   {
     "name": "Get child forms",
     "prompt": "What are the child forms of form 16950?",
-    "tools": ["getLinkedForms"],
+    "tools": [
+      "getLinkedForms"
+    ],
     "argChecks": [
-      { "tool": "getLinkedForms", "mustContain": ["children"] }
+      {
+        "tool": "getLinkedForms",
+        "mustContain": [
+          "children"
+        ]
+      }
     ]
   },
   {
     "name": "Actor's Corezoid processes",
     "prompt": "What Corezoid processes (functions) can actor 11111111-1111-1111-1111-111111111111 call — the ones shared to it via its API keys?",
-    "tools": ["getCorezoidProcesses"]
+    "tools": [
+      "getCorezoidProcesses"
+    ]
   },
   {
     "name": "Tag an account pair",
     "prompt": "Create a 'VIP' tag and put it on the Maintenance/USD account pair (nameId aaaaaaaa-0000-0000-0000-000000000001, currencyId 1). The tag must be an actor on the Tags system form, and the link must be scoped to the Tags form id.",
-    "tools": ["getForms", "createActor", "saveAccountActors"],
+    "tools": [
+      "getForms",
+      "createActor",
+      "saveAccountActors"
+    ],
     "argChecks": [
-      { "tool": "saveAccountActors", "mustContain": ["formId"] }
+      {
+        "tool": "saveAccountActors",
+        "mustContain": [
+          "formId"
+        ]
+      }
     ]
   },
   {
     "name": "Low-balance trigger on one account",
     "prompt": "Set up a low-balance alarm for account acc-1 of the pair nameId aaaaaaaa-0000-0000-0000-000000000001 / currencyId 1: it should fire when the balance drops below 100. Create the AccountTriggers actor (valueType=amount, lowerValue=100) and bind it to that specific account only.",
-    "tools": ["getForms", "createActor", "saveAccountActors"],
+    "tools": [
+      "getForms",
+      "createActor",
+      "saveAccountActors"
+    ],
     "argChecks": [
-      { "tool": "saveAccountActors", "mustContain": ["accountId"] }
+      {
+        "tool": "saveAccountActors",
+        "mustContain": [
+          "accountId"
+        ]
+      }
     ]
   },
   {
     "name": "Data trigger on an actor field",
     "prompt": "Bind trigger actor 44444444-4444-4444-4444-444444444444 (an AccountTriggers actor with valueType=data) so it fires when the data field item_make changes on actor 11111111-1111-1111-1111-111111111111.",
-    "tools": ["saveDataFieldActorsByActor"],
+    "tools": [
+      "saveDataFieldActorsByActor"
+    ],
     "argChecks": [
-      { "tool": "saveDataFieldActorsByActor", "mustContain": ["item_make"] }
+      {
+        "tool": "saveDataFieldActorsByActor",
+        "mustContain": [
+          "item_make"
+        ]
+      }
     ]
   },
   {
     "name": "List data triggers watching a form field",
     "prompt": "Which trigger actors watch the data field item_make across all actors of form 42?",
-    "tools": ["getDataFieldActorsByForm"]
+    "tools": [
+      "getDataFieldActorsByForm"
+    ]
+  },
+  {
+    "name": "Write a message to a user (p2p chat, reuse by ref)",
+    "prompt": "I am the user with id 4210 (nick Olena). Write a message to the user Petro: \"Hi Petro, are we still on for tomorrow?\". A chat in Simulator is an actor of the Events system form with data.chatType=\"p2p\"; the message itself is a comment reaction under the chat actor. The p2p reuse key is the deterministic ref \"p2pConversation_<minUserId>_<maxUserId>\" (the two participant userIds sorted ascending). Resolve Petro's user id, find the Events form, look the existing chat up by that ref, and post the message as a comment reaction under it.",
+    "tools": [
+      "searchUsers",
+      "getForms|searchForms",
+      "getActorByRef",
+      "createReaction"
+    ],
+    "dryOnlyTools": [
+      "createReaction"
+    ],
+    "argChecks": [
+      {
+        "tool": "getActorByRef",
+        "mustContain": [
+          "p2pConversation_4210_4310"
+        ]
+      },
+      {
+        "tool": "createReaction",
+        "dryOnly": true,
+        "mustContain": [
+          "comment",
+          "Petro"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Create a p2p chat actor (correct shape)",
+    "prompt": "Create the p2p chat actor on the Events form (id 42) for the two users 4210 (nick Olena) and 4310 (nick Petro). Use the standard p2p convention: title \"olena:p2p:petro\", the deterministic ref \"p2pConversation_4210_4310\", and data with chatType=p2p plus startDate and endDate set to now in unix seconds. Then grant Petro (user 4310) view/modify/remove access to the chat; do not add a self access-rule.",
+    "tools": [
+      "createActor",
+      "saveAccessRules"
+    ],
+    "argChecks": [
+      {
+        "tool": "createActor",
+        "mustContain": [
+          "chatType",
+          "p2p",
+          "startDate",
+          "endDate",
+          "p2pConversation_4210_4310"
+        ]
+      },
+      {
+        "tool": "saveAccessRules",
+        "mustContain": [
+          "4310",
+          "privs"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Find an existing p2p chat (members fallback)",
+    "prompt": "I don't know my own user id. Is there already a 1:1 (p2p) chat with the user whose id is 4210? Search the Events form (id 42) by access-rule member for a p2p chat that has that user as a member.",
+    "tools": [
+      "filterActors"
+    ],
+    "argChecks": [
+      {
+        "tool": "filterActors",
+        "mustContain": [
+          "chatType=p2p",
+          "4210"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Deep-link to an actor",
+    "prompt": "Give me a clickable link to open the actor with id a4a7f284-2763-4bce-8b1b-c10bddd207ca in the Simulator web app.",
+    "tools": [
+      "buildLink"
+    ],
+    "argChecks": [
+      {
+        "tool": "buildLink",
+        "mustContain": [
+          "\"entity\"",
+          "actor",
+          "a4a7f284-2763-4bce-8b1b-c10bddd207ca"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Deep-link to a chat conversation",
+    "prompt": "Share a link to the chat conversation c3d4e5f6-2345-6789-abcd-ef0123456789 that lives in stream b2c3d4e5-1234-5678-9abc-def012345678.",
+    "tools": [
+      "buildLink"
+    ],
+    "argChecks": [
+      {
+        "tool": "buildLink",
+        "mustContain": [
+          "\"entity\"",
+          "chat",
+          "b2c3d4e5-1234-5678-9abc-def012345678"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Create a task with an executor",
+    "prompt": "Create a task called \"Prepare Q3 supplier contract\" due next Friday and assign Olena as the executor who carries it out.",
+    "tools": [
+      "searchUsers",
+      "createActor",
+      "saveAccessRules"
+    ],
+    "argChecks": [
+      {
+        "tool": "createActor",
+        "mustContain": [
+          "startDate",
+          "endDate"
+        ],
+        "mustNotContain": [
+          "chatType"
+        ]
+      },
+      {
+        "tool": "saveAccessRules",
+        "mustContain": [
+          "\"actor\"",
+          "\"execute\"",
+          "true"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Task with approvers requiring signature",
+    "prompt": "Create a task \"Approve marketing budget\" and add Petro and Iryna as approvers whose sign-off is required, in that order.",
+    "tools": [
+      "searchUsers",
+      "createActor",
+      "saveAccessRules"
+    ],
+    "argChecks": [
+      {
+        "tool": "saveAccessRules",
+        "mustContain": [
+          "\"sign\"",
+          "reactionOrders"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Legal document needs a digital signature",
+    "prompt": "Set up a task for signing the NDA legal document — it needs a qualified digital signature from our lawyer Maria.",
+    "tools": [
+      "searchUsers",
+      "createActor",
+      "saveAccessRules"
+    ],
+    "argChecks": [
+      {
+        "tool": "saveAccessRules",
+        "mustContain": [
+          "\"ds\"",
+          "true"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Debit a person's account (twin actor + account-name lookup)",
+    "prompt": "Petro is a workspace user. Deduct 100 from his \"Maintenance\" account. A user's accounts live on their system twin actor, so: resolve Petro's user id, get his twin actor with getSystemActor (objType=user), resolve the account NAME \"Maintenance\" first with searchAccountNames (then its currency), find that account on the twin, and record the debit with a transaction.",
+    "tools": [
+      "searchUsers",
+      "getSystemActor",
+      "searchAccountNames|getAccountNames"
+    ],
+    "dryOnlyTools": [
+      "createTransaction|createTransfer"
+    ],
+    "argChecks": [
+      {
+        "tool": "getSystemActor",
+        "mustContain": [
+          "user"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Check the status of a client/project (read-only)",
+    "prompt": "Find the actor named \"Camry\" and report its current status. Search for it, then open it with getActor and read its status field.",
+    "tools": [
+      "searchAll|searchActors|filterActors|getActorByRef",
+      "getActor"
+    ]
+  },
+  {
+    "name": "Issue an order requiring sign-off and a legal signature",
+    "prompt": "Issue an order titled \"Annual inventory 2026\" as a task document on the Events system form with NO chatType: create it with startDate/endDate, then via saveAccessRules grant Petro the `sign` privilege (he must sign off) and Olena the `ds` privilege (she applies the qualified legal digital signature).",
+    "tools": [
+      "searchUsers",
+      "createActor",
+      "saveAccessRules"
+    ],
+    "argChecks": [
+      {
+        "tool": "createActor",
+        "mustContain": [
+          "startDate",
+          "endDate"
+        ],
+        "mustNotContain": [
+          "chatType"
+        ]
+      },
+      {
+        "tool": "saveAccessRules",
+        "mustContain": [
+          "\"sign\"",
+          "\"ds\""
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Resolve \"this actor\" from UI context",
+    "prompt": "My current UI context is {\"workspaceId\":\"ws-demo\",\"hostOrigin\":\"https://mw.simulator.company\",\"activeActor\":\"11111111-1111-1111-1111-111111111111\",\"activeLayer\":\"21a7c6b6-bba1-4b19-9fcd-7e94f29a9e8a\",\"activeGraph\":\"4c39176b-c3fd-4e24-b63f-c2319e2ceada\"}. Open the actor I'm currently looking at and report its status — don't ask me which one.",
+    "tools": [
+      "getActor"
+    ],
+    "argChecks": [
+      {
+        "tool": "getActor",
+        "mustContain": [
+          "11111111-1111-1111-1111-111111111111"
+        ]
+      }
+    ]
   }
 ]

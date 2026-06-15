@@ -986,67 +986,54 @@ Streams in the platform provide real-time data flows and notifications. The Stre
 
 ### Events
 
-The Events system form defines scheduled and triggered events in the platform.
+The Events system form is one combined entity used for **calendar events, scheduled
+SIP meetings, and chats**. An Events actor becomes a **chat** when its `data.chatType`
+is set (`p2p` = 1:1, `group` = group chat); an empty `chatType` is a plain event/meeting.
+
+The real seed definition — system forms use **semantic
+field ids** (not `item_<digits>`):
 
 ```json
 {
   "tags": [],
-  "color": "#bd10e0",
+  "color": "#f8e081",
   "title": "Events",
   "sections": [{
-    "title": "Event Properties",
     "content": [
-      {
-        "id": "type",
-        "class": "select",
-        "title": "Event Type",
-        "value": "",
-        "options": [
-          {"title": "Meeting", "value": "meeting"},
-          {"title": "Reminder", "value": "reminder"},
-          {"title": "Task", "value": "task"},
-          {"title": "Deadline", "value": "deadline"}
-        ],
-        "required": true,
-        "visibility": "visible"
-      },
-      {
-        "id": "start_date",
-        "class": "edit",
-        "type": "date",
-        "title": "Start Date",
-        "required": true,
-        "visibility": "visible"
-      },
-      {
-        "id": "end_date",
-        "class": "edit",
-        "type": "date",
-        "title": "End Date",
-        "required": false,
-        "visibility": "visible"
-      },
-      {
-        "id": "participants",
-        "class": "multiSelect",
-        "title": "Participants",
-        "value": [],
-        "options": [],
-        "visibility": "visible"
-      }
+      {"id": "startDate", "class": "calendar", "extra": {"time": true}, "title": "Start Date", "value": {}, "required": true},
+      {"id": "endDate", "class": "calendar", "extra": {"time": true}, "title": "End Date", "value": {}, "required": true},
+      {"id": "channel", "class": "edit", "title": "Channel"},
+      {"id": "chatType", "class": "select", "title": "Chat type",
+        "options": [{"title": "P2P", "value": "p2p"}, {"title": "Group", "value": "group"}],
+        "visibility": "visible"},
+      {"id": "smartTags", "class": "multiSelect", "extra": "{{SmartTags}}", "title": "Smart Tags"},
+      {"id": "moderator", "class": "select", "extra": {"optionsSource": {"type": "workspaceMembers"}}, "title": "Moderator"},
+      {"id": "disableCallbackSoundUsers", "class": "select", "extra": {"optionsSource": {"type": "workspaceMembers"}}, "title": "Disable Callback Sound Users"},
+      {"id": "scheduleMeeting", "class": "check", "title": "Schedule meeting", "value": "false"},
+      {"id": "isActiveMeeting", "class": "check", "title": "Is active meeting", "value": "false", "visibility": "disabled"},
+      {"id": "isPersistentMeeting", "class": "check", "title": "Is persistent meeting", "value": "false", "visibility": "disabled"},
+      {"id": "autoCollapseOnEntry", "class": "check", "title": "Auto collapse on entry", "value": "false"},
+      {"id": "agenda", "type": "text", "class": "edit", "extra": {"multiline": true}, "title": "Agenda", "visibility": "disabled"},
+      {"id": "recurrence", "type": "text", "class": "edit", "extra": {"multiline": true}, "title": "Recurrence", "visibility": "disabled"}
     ]
   }],
   "settings": {},
-  "description": "Defines scheduled and triggered events in the platform"
+  "description": ""
 }
 ```
 
-Events in the platform provide scheduling and calendar functionality. The Events system form provides the structure for:
+The Events system form provides the structure for:
 
-- Creating different event types (meetings, reminders, tasks)
-- Scheduling events with start and end dates
-- Assigning participants to events
-- Setting up event notifications and reminders
+- **Chats** — `data.chatType = "p2p" | "group"`; participants are the actor's
+  **access-rule members** (keyed by `userId`), and messages are **`comment` reactions**
+  posted under the chat actor. See [`chats.md`](chats.md) for the full chat flow.
+- Calendar events and scheduled / persistent SIP meetings (the meeting flags, agenda,
+  and recurrence fields).
+
+> **`startDate` / `endDate` on Events** are stored as plain unix **seconds**
+> (`data: { startDate: <sec>, endDate: <sec> }`) in practice, not the nested calendar
+> object the generic actor `data` protocol describes. The Events form **id is
+> per-workspace** — resolve it via `getForms(formTypes="system")` rather than hardcoding.
 
 ### Reactions
 

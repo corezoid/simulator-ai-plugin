@@ -39,6 +39,7 @@ func knownToolNames() map[string]bool {
 		"pullGraphFile", "pushGraphFile", "getAllLayerPlacements",
 		"compactGraphLayout", "pruneLongEdges", "createChart",
 		"uploadActorPicture", "uploadActorPictureBulk",
+		"buildLink",
 	} {
 		m[n] = true
 	}

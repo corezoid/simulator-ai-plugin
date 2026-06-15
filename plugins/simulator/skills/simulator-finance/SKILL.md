@@ -207,6 +207,16 @@ deleteAccount(actorId="<actor UUID>", currencyId=1, nameId="<aname>", accountTyp
 - `setAccountAmount` overrides the balance to a fixed value; `createTransaction` changes it incrementally with history. Prefer transactions for anything auditable.
 - `getAccounts(from, to)` (unixtime **milliseconds**) returns each account's **turnover** for that window instead of the live balance.
 
+> **Locating which account to use — resolve the account NAME first, then the currency.**
+> An actor usually holds several accounts; the **`nameId`** (account name) is the primary
+> dimension — it carries the meaning (Wallet, Maintenance, Trust, …) — and **`currencyId`** only
+> narrows it. So when the user names an amount ("100 trusts from Lugovoy"): first resolve the
+> **account name** (`searchAccountNames`/`getAccountNames` → `nameId`), then the **currency**
+> (`searchCurrencies`/`getCurrencies` → `currencyId`), then pick the account on the actor with
+> `getAccounts` / `getBalance(actorId, nameId, currencyId)`. Don't match on currency alone — two
+> different account names can share one currency. (If the named unit IS the account name and the
+> currency is implicit, resolve the name and let `getAccounts` reveal the currency.)
+
 > **Formula / block accounts** are documented in `accounts.md` but are **not** curated MCP tools
 > yet — configure those in the UI; don't fabricate a tool call.
 
@@ -464,8 +474,10 @@ accounts** — there is no "transfer to a userId" call. The flow:
 1. **Find the user(s) by name** → `searchUsers(accId, query)` (or `getUsers`) → get each `userId`.
 2. **Resolve each user's twin actor** → `getSystemActor(accId, objType="user", objId="<userId>")`
    → the user's actor (and its `id`).
-3. **Find the account on each twin actor** → `getAccounts(actorId=<twin actor>)` to get the
-   `accountId` for the agreed `(accountName, currency)` (create it with `createAccount` if missing).
+3. **Find the account on each twin actor** — resolve the **account name first, then the currency**
+   (`searchAccountNames`→`nameId`, then `searchCurrencies`→`currencyId`), then
+   `getAccounts(actorId=<twin actor>)` / `getBalance(actorId, nameId, currencyId)` to get the
+   `accountId` (create it with `createAccount` if missing).
 4. **Transfer** between those accounts with `createTransfer` (the `from`/`to` legs reference the
    twin actors' `accountId`s).
 
