@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.0]
+
+### Added
+- **`readAttachment` tool — let the model read the content of attachments (incl. files on reactions).** Listing tools (`getAttachments` / `getActorAttachments`) only return file *metadata*; there was no way to read a file's bytes. Added a local (non-`Operation`) tool **`readAttachment(fileName)`** that downloads a stored file through the PAPI download route (`GET {base}/download/{fileName}`, so access follows the caller's own per-actor permissions) and adapts the bytes to what the model can consume: **textual** files (text/*, JSON/XML/YAML/CSV/source/SVG) inline as text, **images** (png/jpeg/gif/webp) as a viewable image block, and **PDFs / other binary** as an embedded resource (base64 blob). Size-capped: text truncated past 256 KiB, images over 5 MiB returned as a metadata note, overall download bounded at 24 MiB. Unlike `buildLink` / `getBbcodeTags` it is exposed in **both** workspace and actor-scoped mode (added to `actorBindings` + registered in `BuildActorScoped`) so a reaction-triggered AI agent can read files attached to the reaction it handles (list with `getActorAttachments` on the reaction id → `readAttachment` per `fileName`). Backed by a new `apiclient.Client.DoRaw` (returns raw body + `Content-Type` + truncation flag, sharing request assembly with `Do` via a new `buildRequest` helper). New `internal/tools/download.go` + `download_test.go` (mime/extension detection, path escaping, and text / image / binary handler results); added to `knownToolNames`. Wired into the README / `docs/ARCHITECTURE.md` Attachments rows and `docs/entities/attachments.md` ("Reading attachment content"). Description-only on the backend side — no pong-server change, drift gate unaffected. Bumped manifests to 1.9.0.
+
 ## [1.8.0]
 
 ### Added

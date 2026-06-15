@@ -84,6 +84,11 @@ func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode boo
 	// getBbcodeTags is a local reference tool (fetches the env's bbcode-tags.json);
 	// like buildLink it's not a curated Operation and is workspace-mode only.
 	registerBbcodeTags(s, c)
+	// readAttachment downloads a file's content; it's a local tool (not a curated
+	// Operation) because it must emit image / embedded-resource content. Unlike
+	// buildLink it IS exposed in actor mode (see actorBindings) so the
+	// reaction-triggered agent can read files attached to its reaction.
+	registerReadAttachment(s, c)
 }
 
 // Count reports how many curated API tools are registered (auth helpers excluded).

@@ -103,6 +103,12 @@ Platform posts a child `ai` reaction and streams the result:
 - **UI context.** When the agent runs, the client passes a `control-events-context` object
   (where the user is in the UI — `activeActor` / `activeLayer` / `activeGraph` / `page` / …),
   injected into the agent's prompt. See [`ui-context.md`](ui-context.md).
+- **Reading attachments on a reaction.** A reaction can carry files (it is itself an actor).
+  To read them, list the reaction's attachments with `getActorAttachments` (the reaction's id)
+  and call `readAttachment` with each `fileName` — text comes back inline, images as a viewable
+  block, PDFs/binary as an embedded resource. `readAttachment` works in actor-scoped mode, so
+  the agent can read files attached to the reaction it is handling. See
+  [`attachments.md`](attachments.md).
 
 ## Embedding: smart forms, nested actor cards, chips
 
