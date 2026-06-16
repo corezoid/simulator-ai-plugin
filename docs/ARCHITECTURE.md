@@ -270,6 +270,7 @@ ported from the original implementation:
 | `pruneLongEdges`         | `prune_edges.go`         | Delete edges longer than a distance threshold; preserves hierarchy  |
 | `uploadActorPicture(Bulk)`| `upload.go` + `svg.go`  | Set actor pictures (URL/file/base64); auto-rasterise SVG→PNG        |
 | `createSmartForm`        | `create_smart_form.go`   | Create Smart Form actor with develop + production envs              |
+| `updateSmartFormEnv`     | `update_env.go`          | Update Corezoid credentials for a Smart Form env (develop/production); resolves env name to ID |
 | `pullSmartForm`          | `pull_smart_form.go`     | Download all env file trees of a Smart Form to `<actorId>/<env>/` with `.manifest.json` |
 | `pushSmartForm`          | `push_smart_form.go`     | Diff local develop files against `.manifest.json`, validate, and push changes in one batch |
 | `deploySmartForm`        | `smart_form_releases.go` | Deploy one env to another; resolves env names to IDs internally     |

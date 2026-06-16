@@ -560,9 +560,21 @@ All Smart Form operations use the public API (`/papi/1.0/...`) with an OAuth2 be
 
 ---
 
+## Adding Backend Logic
+
+This skill covers the UI side — pages, locale, viewModel defaults, styles. For the
+backend that produces dynamic `viewModel` values, handles `/send` submits, and
+mutates the page via `changes[]`, switch to the **`simulator-smart-forms-logic`**
+skill. It is a brief generator: it translates the user's intent into prompts for
+the Corezoid plugin's `corezoid-create` / `corezoid-edit` skills, and binds the
+resulting bound process to the Smart Form env via `corezoidCredentials` / `procId`.
+
+---
+
 ## Reference Documents
 
 | Path | When to read |
 |---|---|
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Full lifecycle, data model, deploy/release internals, access model, API reference table |
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` | Complete component catalogue, templating, change protocol, server-side save validation |
+| `$CLAUDE_PLUGIN_ROOT/skills/simulator-smart-forms-logic/SKILL.md` | Author + bind the Corezoid backend processes for this Smart Form |

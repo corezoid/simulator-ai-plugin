@@ -22,6 +22,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator-forms`    | "create form", "design template", "Account Template"     | Form templates (Account Templates), field classes, system forms |
 | `simulator-actors`   | "create a record", "fill in a template", "update actor data" | Actor instances of a form, the `data` value protocol, search & filter |
 | `simulator-smart-forms` | "smart form", "CDU", "edit page config", "push smart form" | Smart Form lifecycle, pages, CDU protocol, releases  |
+| `simulator-smart-forms-logic` | "add logic to smart form", "wire corezoid to smart form", "/get /send process" | Brief generator for the Corezoid process(es) bound to a Smart Form; delegates to `corezoid-create` / `corezoid-edit`; `procId` binding |
 | `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies, counters |
 | `simulator-charts`   | "chart", "dashboard", "visualise on layer"               | Dashboard charts & time-series visualisation on layers  |
 | `simulator-reactions`| "comment on this actor", "reply", "pin comment"          | Reactions: comments / events / approvals / ratings (threaded) |
@@ -216,6 +217,7 @@ the actor/node items.)
 | `pruneLongEdges`         | Delete edges longer than a distance threshold; preserves hierarchy edges                             |
 | `uploadActorPicture` / `uploadActorPictureBulk` | Set actor pictures from URL / file / base64; auto-rasterise SVG → PNG; bulk dedupes by SHA-256 |
 | `createSmartForm`        | Create a new Smart Form actor with develop + production environments                                 |
+| `updateSmartFormEnv`     | Update Corezoid credentials bound to a Smart Form environment (develop or production)                |
 | `pullSmartForm`          | Download all env file trees of a Smart Form to `<actorId>/<env>/` with `.manifest.json`              |
 | `pushSmartForm`          | Diff local develop files against `.manifest.json`, validate, and push changed files in one batch     |
 | `deploySmartForm`        | Deploy one Smart Form env to another (develop → production); creates a new release                   |
