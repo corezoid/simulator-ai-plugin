@@ -27,6 +27,11 @@ const (
 	InBody     ParamIn = "body"      // a named field in the JSON request body
 	InBodyRoot ParamIn = "body_root" // this single param IS the entire request body
 	InLocal    ParamIn = "local"     // consumed by Resolve only; never sent to the API
+	// InPathBody sends one value to BOTH the path segment AND a body field — for
+	// backends that take the same value in both slots (e.g. the pages /send route
+	// reads `page` from the path on GET but from the body on POST). Expressed as a
+	// single Param (one schema property), so no duplicate-name trick is needed.
+	InPathBody ParamIn = "path_body"
 )
 
 // Param is one typed tool argument.
@@ -104,7 +109,9 @@ func registerBound(s *server.MCPServer, c *apiclient.Client, op Operation, bound
 }
 
 // toolOptions builds the MCP tool options for op, skipping any pre-bound param
-// (hidden from the model).
+// (hidden from the model). Each Param maps to exactly one schema property —
+// a value that must reach two request slots is one Param with In: InPathBody
+// (not two same-named Params), so no name can appear twice here.
 func toolOptions(op Operation, bound map[string]any) []mcp.ToolOption {
 	opts := []mcp.ToolOption{mcp.WithDescription(op.Summary)}
 	for _, p := range op.Params {
@@ -227,6 +234,10 @@ func makeHandlerCtxAware(c *apiclient.Client, op Operation, adjust func(context.
 			switch p.In {
 			case InPath:
 				path = strings.ReplaceAll(path, "{"+wire+"}", url.PathEscape(toString(val)))
+			case InPathBody:
+				// one value into BOTH the path segment and the body field
+				path = strings.ReplaceAll(path, "{"+wire+"}", url.PathEscape(toString(val)))
+				body[wire] = val
 			case InQuery:
 				// Optional boolean query flags are presence-truthy on the backend;
 				// omit them when false so "false" is not misread as "enabled".
@@ -274,7 +285,7 @@ func makeHandlerCtxAware(c *apiclient.Client, op Operation, adjust func(context.
 // hasObjectBody reports whether the operation has named (object) body fields.
 func (op Operation) hasObjectBody() bool {
 	for _, p := range op.Params {
-		if p.In == InBody {
+		if p.In == InBody || p.In == InPathBody {
 			return true
 		}
 	}

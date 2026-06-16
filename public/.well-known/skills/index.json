@@ -100,6 +100,13 @@
       "name": "simulator-smart-forms-logic"
     },
     {
+      "description": "Simulator.Company Smart Form RUNTIME driver — run/execute an existing Smart Form (CDU / Script / mini-app) on the user's behalf, conversationally, instead of the user clicking through its UI. Use when the user wants to GO THROUGH a smart-form flow: create/submit something an app produces (e.g. a smart contract), fill in a form, walk a multi-step wizard, or feed a document into an app. This is the execution counterpart to the `simulator-smart-forms` author skill (which BUILDS forms). Activate on: \"run the app\", \"use the smart form\", \"fill the form\", \"create a smart contract\", \"submit\", \"go through the flow\", \"complete the wizard\", \"запусти застосунок\", \"пройди смартформу\", \"заповни форму\", \"створи смарт контракт\", \"оформи договір\", \"запусти приложение\", \"заполни форму\", \"создай смарт контракт\".",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-runtime/SKILL.md"
+      ],
+      "name": "simulator-smart-forms-runtime"
+    },
+    {
       "description": "Simulator.Company task \u0026 assignment specialist — creating a task and assigning who does it, who approves it, and whose signature it needs. In Simulator a task is an actor of the Events system form (no chatType), and the roles are access privileges, not data fields: the executor gets `execute`, approvers get `sign`, and a legal document's signers get `ds`. Completion and sign-off are then posted as `done` / `sign` / `reject` reactions. Use when the user wants to \"create a task\", \"assign a task to\", \"set an executor/assignee\", \"add approvers\", \"require a signature\", \"who signs this\", \"make a to-do\". Activate on \"create a task\", \"assign to\", \"task for\", \"needs approval\", \"who approves\", \"requires signature\", \"sign-off\", \"створи задачу\", \"постав задачу\", \"признач виконавця\", \"додай погоджувача\", \"потрібен підпис\", \"хто погоджує\", \"хто підписує\", \"создай задачу\", \"назначь исполнителя\", \"добавь согласующего\", \"нужна подпись\", \"кто подписывает\". For a 1:1/group chat use `simulator-chat`; for the reaction mechanics use `simulator-reactions`; for access in general use `simulator-access`.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-tasks/SKILL.md"

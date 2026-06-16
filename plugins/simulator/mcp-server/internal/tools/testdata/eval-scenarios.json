@@ -1698,5 +1698,40 @@
         ]
       }
     ]
+  },
+  {
+    "name": "Render a Smart Form page (runtime)",
+    "prompt": "Open the smart form with ref \"smart-contract\" in the production environment for workspace 64f1abcd — render its index page so I can see the fields.",
+    "tools": [
+      "appGetPage"
+    ],
+    "argChecks": [
+      {
+        "tool": "appGetPage",
+        "mustContain": [
+          "smart-contract",
+          "production",
+          "index"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Submit a Smart Form form (runtime)",
+    "prompt": "On the smart form ref \"smart-contract\" (production), page \"terms\", submit form \"f_terms\" with button \"next\", setting value 50000 and currency USD.",
+    "tools": [
+      "appSendForm"
+    ],
+    "argChecks": [
+      {
+        "tool": "appSendForm",
+        "mustContain": [
+          "f_terms",
+          "next",
+          "50000",
+          "USD"
+        ]
+      }
+    ]
   }
 ]

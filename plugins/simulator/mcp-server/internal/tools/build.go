@@ -36,6 +36,7 @@ func allOps() []Operation {
 	ops = append(ops, searchOps...)
 	ops = append(ops, workspaceOps...)
 	ops = append(ops, userOps...)
+	ops = append(ops, smartFormOps...)
 	return ops
 }
 
