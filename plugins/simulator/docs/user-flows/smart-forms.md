@@ -655,12 +655,16 @@ applies the app's `sharedWith` rule (so an `anyone` app can also be served witho
   rest of the platform's `filter` semantics.
 - **Use the public API (`/papi/1.0`).** The simulator MCP server targets `/papi/1.0` with an
   OAuth2 bearer token. The whole Smart Form surface (`applications`, `app_content`,
-  `releases`, `file_history`, `smart_forms`, `pages`) is now available there with full
-  parity — reads need the `actors.readonly` scope, writes need `actors.management` (§7). At
-  this stage **no Smart Form / applications endpoints are wrapped as MCP tools** — the
-  `appOps` definitions live in `internal/tools/apps.go` but are excluded from the registered
-  set (docs-only stage); the public endpoints can be re-enabled as tools without further
-  backend changes.
+  `releases`, `file_history`, `smart_forms`, `pages`) is available there with full
+  parity — reads need the `actors.readonly` scope, writes need `actors.management` (§7).
+- **Runtime page tools are wrapped as MCP tools.** The two page-serving operations are exposed
+  as the Smart Form **runtime** tools in `internal/tools/smartforms.go` (`smartFormOps`): **`appGetPage`**
+  (render a page) and **`appSendForm`** (submit a form) — the `get`/`send` protocol of
+  [CDU Page Protocol](cdu-page-protocol.md). They are the universal primitives a runtime agent
+  uses to drive *any* Smart Form (the `simulator-smart-forms-runtime` skill). The remaining
+  build-time endpoints (`applications`, `app_content`, `releases`, `file_history`,
+  `smart_forms`) are available on `/papi/1.0` but not yet wrapped as tools — they can be added
+  without backend changes.
 - **Editing pages?** The page JSON contract and the (lack of) server-side validation when
   saving page files are documented in **[CDU Page Protocol](cdu-page-protocol.md)** — validate
   page `config` against the protocol before saving, since the backend stores it opaque.

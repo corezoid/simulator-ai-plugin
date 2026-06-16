@@ -202,6 +202,7 @@ the actor/node items.)
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Public links  | `generatePublicLink` `getPublicLink` `revokePublicLink` (shareable `/m/<hash>` join link to an actor — meeting / SIP access without login) |
 | Meetings      | `getTranscription` (read a meeting call's speech transcription — summarize / extract action items; needs a live room) |
+| Smart Forms (runtime) | `appGetPage` `appSendForm` (drive any Smart Form / CDU app via the `get`/`send` page protocol — render a page, submit a form; Corezoid supplies data & control flow. Universal primitives for the `simulator-smart-forms-runtime` skill) |
 | Users         | `getUsers` `getUser` `searchUsers` (workspace members — resolve a userId/groupId for sharing) |
 | Setup         | `set-environment` (cloud preset or custom/local URL) `login` `getWorkspaces` `set-workspace` (by accId or name) |
 

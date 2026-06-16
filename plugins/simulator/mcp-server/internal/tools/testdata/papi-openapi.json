@@ -14479,6 +14479,7 @@
     },
     "/papi/1.0/pages/{accId}/{ref}/{envTitle}/{page}": {
       "get": {
+        "operationId": "appGetPage",
         "tags": [
           "Scripts"
         ],
@@ -14523,6 +14524,7 @@
         }
       },
       "post": {
+        "operationId": "appSendForm",
         "tags": [
           "Scripts"
         ],
@@ -14851,6 +14853,12 @@
                         ]
                       }
                     }
+                  },
+                  "devScriptStuct": {
+                    "type": "object"
+                  },
+                  "prodScriptStuct": {
+                    "type": "object"
                   }
                 },
                 "required": [
