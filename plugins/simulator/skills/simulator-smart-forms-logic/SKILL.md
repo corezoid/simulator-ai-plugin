@@ -28,7 +28,7 @@ Form actor itself (see the **`simulator-smart-forms`** skill). Everything *dynam
 — initial viewModel, page transitions, submit handling, notifications, write-backs
 to actors — runs in Corezoid.
 
-**This skill does not call the Corezoid MCP tools directly.** Instead it:
+**This skill does not author processes itself.** Instead it:
 
 1. Confirms the Corezoid plugin is installed and its skills are available.
 2. Translates the user's intent into precise **briefs** in the exact format
@@ -36,7 +36,11 @@ to actors — runs in Corezoid.
    · process type · concrete node skeleton).
 3. Invokes the matching Corezoid skill with that brief and lets it run
    `create-process` / `push-process` / `lint-process` / `run-task`.
-4. Finally binds the process to the Smart Form env via the `simulator` MCP server.
+4. Provisions an API key (`create-api-key` for a new one, or `find-principal`
+   for an existing `apiLogin`) and shares the bound process to it
+   (`share-object`) so the Smart Form runtime can call it.
+5. Finally binds the process to the Smart Form env (`createSmartForm` or
+   `updateSmartFormEnv`) via the `simulator` MCP server.
 
 ---
 
@@ -45,11 +49,14 @@ to actors — runs in Corezoid.
 Before producing any brief, verify the Corezoid plugin is available in this
 session:
 
-1. Check whether the `create-process`, `push-process`, `create-alias` MCP tools
-   are listed in the tool registry. If they are, the `corezoid` MCP server is
-   running.
-2. Check whether the `corezoid-create` and `corezoid-edit` skills are reachable
-   (they appear in the available-skills list when installed).
+1. Check whether the `create-process`, `push-process`, `create-alias`,
+   `create-api-key`, `find-principal`, and `share-object` MCP tools are listed
+   in the tool registry. If they are, the `corezoid` MCP server is running.
+   (`create-api-key` / `find-principal` / `share-object` are needed by Step E
+   below — provisioning the API key the Smart Form runtime authenticates with.)
+2. Check whether the `corezoid-create`, `corezoid-edit`, and (optionally)
+   `corezoid-access` skills are reachable (they appear in the available-skills
+   list when installed).
 3. If either is **missing**, stop and instruct the user (reply in the user's
    language):
 
@@ -647,14 +654,73 @@ create-alias(short_name="<short-name>", process_id=<numericProcessId>)
 Make sure aliases referenced by the bound process exist before traffic flows —
 otherwise `api_copy` to a missing alias will fail.
 
-### Step E — bind the bound process to the Smart Form env
+### Step E — provision the API key that will call the bound process
 
-Get four Corezoid credentials per env: `apiLogin`, `apiSecret`, `procId` (the
-**bound process's** numeric id), and `companyId` (workspace numeric id). Source
-`apiLogin`/`apiSecret` from a workspace API key, `companyId` from workspace
-settings.
+The Smart Form runtime authenticates with Corezoid as an **API key**
+(`apiLogin` + `apiSecret`). That key must have at least `create` privilege on
+the bound process — otherwise every `/get` / `/send` fails at the platform edge
+before reaching the process graph. Sub-processes called via `api_copy` /
+`api_rpc` do **not** need to be shared to the key; the bound process runs them
+under its own owner.
 
-**Option A — at Smart Form creation (preferred when the form is new):**
+Ask the user which path they want:
+
+- **(A) Create a fresh API key for this Smart Form** — best when there is no
+  existing automation key for this form.
+- **(B) Reuse an existing API key** — the user already has an `apiLogin` /
+  `apiSecret` pair and wants to attach the bound process to it.
+
+#### Path A — create the key, then share the process to it
+
+1. `create-api-key(title="Smart Form <smart-form-ref>")` — the Corezoid plugin
+   returns the key's numeric `obj_id` and writes the credentials to
+   `~/.corezoid/api-keys/<slug>-<obj_id>.json` (mode 0600). Read that file to
+   obtain `apiLogin` + `apiSecret`.
+2. `share-object(obj="conv", obj_id=<boundProcessId>, obj_to="user", obj_to_id=<apiKeyObjId>, privs="create")`
+   — grants the key permission to create tasks in the bound process. **API
+   keys are addressed as `obj_to="user"`** (not `"api_key"`) on the share
+   endpoint; that's how Corezoid models them internally.
+
+#### Path B — find an existing key by `apiLogin`, then share the process to it
+
+The user knows `apiLogin` + `apiSecret` but not the key's numeric `obj_id`.
+
+1. `find-principal(name="<apiLogin>", kind="api_key")` — resolves the key by
+   login and returns its `obj_id`. If multiple keys match (or none do), surface
+   the candidates back to the user and ask which to use — do **not** guess.
+2. `share-object(obj="conv", obj_id=<boundProcessId>, obj_to="user", obj_to_id=<apiKeyObjId>, privs="create")`
+   — same call as Path A.
+
+> **Higher-level alternative.** If the Corezoid plugin's `corezoid-access`
+> skill is available in this session, delegate the find-principal → share-object
+> step to it instead of calling the MCP tools directly — it wraps the same flow
+> with sensible defaults.
+
+After this step you hold a valid `apiLogin` + `apiSecret` pair that can call
+the bound process. Carry them forward to Step F.
+
+### Step F — bind the bound process to BOTH Smart Form envs
+
+Every Smart Form has **two envs** (`develop` and `production`), and **each one
+has its own independent Corezoid binding**. Setting credentials on one env does
+**not** populate the other — without an explicit second call, `production`
+stays empty and the live form 5xx's the moment it is opened.
+
+Per env you need: `apiLogin`, `apiSecret`, `procId` (the **bound process's**
+numeric id), and `companyId` (workspace identifier — a **string**, e.g. a UUID
+`"4ddb8938-65f4-4f83-8208-7ac3faffe671"` or an `"i…"`-prefixed id like
+`"i12412424"` — **not** a number; pass it quoted). Source `apiLogin`/`apiSecret`
+from Step E, `companyId` from workspace settings.
+
+Confirm with the user whether `develop` and `production` should hit the
+**same** Corezoid stage (same `procId` + key) or **different** stages (separate
+dev / prod processes, separate keys — each shared per Step E). Default
+assumption when the user has not said otherwise: same stage for both, so the
+same quadruple goes into both envs.
+
+**Option A — at Smart Form creation (preferred when the form is new).**
+
+The four flat fields are applied to **both** envs in one call:
 
 ```
 createSmartForm(
@@ -665,24 +731,49 @@ createSmartForm(
 )
 ```
 
-**Option B — update an existing Smart Form's env binding:**
+If `develop` and `production` should differ, pass the per-env shape via
+`corezoidCredentials` (the flat fields are ignored when this is set):
+
+```
+createSmartForm(
+  title="…", ref="<smart-form-ref>",
+  corezoidCredentials='{
+    "develop":    {"apiLogin":"…","apiSecret":"…","procId":"<devProcId>",  "companyId":"<companyId>"},
+    "production": {"apiLogin":"…","apiSecret":"…","procId":"<prodProcId>", "companyId":"<companyId>"}
+  }'
+)
+```
+
+**Option B — update an existing Smart Form's bindings.**
+
+`updateSmartFormEnv` writes **one env at a time**. Always call it **twice** —
+once for `develop` and once for `production` — unless the user is intentionally
+updating only one side:
 
 ```
 updateSmartFormEnv(
   actorId="<actorId>",
-  env="develop",          // or "production"
-  apiLogin="…",
-  apiSecret="…",
+  env="develop",
+  apiLogin="…", apiSecret="…",
+  procId="<boundProcessId>",
+  companyId="<companyId>"
+)
+
+updateSmartFormEnv(
+  actorId="<actorId>",
+  env="production",
+  apiLogin="…", apiSecret="…",
   procId="<boundProcessId>",
   companyId="<companyId>"
 )
 ```
 
 The tool resolves the env name to its numeric id internally. Updating `develop`
-credentials does **not** create a release. `production` credentials are updated
-independently.
+credentials does **not** create a release. `production` credentials are
+updated independently — they are **never** copied from `develop` by a regular
+`deploySmartForm` call (releases ship files, not env credentials).
 
-### Step F — smoke-test
+### Step G — smoke-test
 
 1. Open the Smart Form in the platform UI — a `/get` lands in the bound process
    and the page renders with the returned viewModel.
@@ -778,8 +869,10 @@ changes (`pushSmartForm`) so the contract stays consistent.
 ### Step E — re-bind credentials only if `procId` changed
 
 If the edit replaces the bound process itself (rare — only when its numeric id
-changes), repeat Step E from §3 to refresh the env binding. Editing nodes inside
-the bound process does **not** change its `procId`.
+changes), repeat Steps E (share the new process to the API key — `share-object`
+with the new `obj_id`) and F (re-bind via `updateSmartFormEnv`) from §3.
+Editing nodes inside the bound process does **not** change its `procId` and
+does **not** require re-sharing or re-binding.
 
 ---
 
@@ -817,6 +910,12 @@ the bound process does **not** change its `procId`.
     credentials (`procId` etc.) are **not** part of the release snapshot — they
     are set per env via the binding endpoint. When promoting, update both
     bindings explicitly if dev and prod should hit different Corezoid stages.
+11. **The API key must be shared to the bound process.** `apiLogin` /
+    `apiSecret` alone are not enough — the platform calls the process *as*
+    that key, and Corezoid will reject the call unless the key has at least
+    `create` privilege on the conv. Symptom of a missing share: every `/get`
+    or `/send` errors at the edge before reaching node 1. Use `share-object`
+    (or the `corezoid-access` skill) to grant it; see §3 Step E.
 
 ---
 

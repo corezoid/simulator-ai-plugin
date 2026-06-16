@@ -19,7 +19,7 @@ func Register(s *server.MCPServer) {
 			mcp.WithString("apiLogin", mcp.Description("Corezoid API login applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
 			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
 			mcp.WithString("procId", mcp.Description("Corezoid process ID applied to both envs (optional).")),
-			mcp.WithString("companyId", mcp.Description("Corezoid company ID applied to both envs (optional).")),
+			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier applied to both envs (optional). String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
 		),
 		handleCreateSmartForm,
 	)
@@ -48,7 +48,7 @@ func Register(s *server.MCPServer) {
 			mcp.WithString("apiLogin", mcp.Description("Corezoid API login for this env."), mcp.Required()),
 			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret for this env."), mcp.Required()),
 			mcp.WithString("procId", mcp.Description("Corezoid process ID of the bound process for this env.")),
-			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) ID for this env.")),
+			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier for this env. String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
 		),
 		handleUpdateSmartFormEnv,
 	)
