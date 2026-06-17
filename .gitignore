@@ -11,3 +11,5 @@ dump.rdb
 /plugins/simulator/mcp-server/server
 /plugins/simulator/mcp-server/evalrunner
 /plugins/simulator/mcp-server/gendiscovery
+# Locally built launcher binary picked up by mcp-server/run.sh (skips download cache).
+/plugins/simulator/mcp-server/simulator-mcp

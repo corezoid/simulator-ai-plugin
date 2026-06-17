@@ -2,7 +2,7 @@
   "mcpServers": {
     "simulator": {
       "command": "sh",
-      "args": ["-c", "export SIMULATOR_WORK_DIR=\"$PWD\"; cd \"$CLAUDE_PLUGIN_ROOT/mcp-server\" && exec go run ./cmd/server"]
+      "args": ["-c", "export SIMULATOR_WORK_DIR=\"$PWD\"; exec sh \"$CLAUDE_PLUGIN_ROOT/mcp-server/run.sh\""]
     }
   }
 }

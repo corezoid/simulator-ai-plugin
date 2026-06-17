@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-binaries:
+    name: Build MCP server binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: plugins/simulator/mcp-server/go.mod
+          cache: true
+
+      - name: Build all platform binaries
+        working-directory: plugins/simulator/mcp-server
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          for GOOS in darwin linux; do
+            for GOARCH in amd64 arm64; do
+              CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH \
+                go build -ldflags="-s -w -X main.Version=${VERSION}" \
+                -o "simulator-mcp-${GOOS}-${GOARCH}" ./cmd/server
+            done
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-binaries
+          path: plugins/simulator/mcp-server/simulator-mcp-*
+
+  release:
+    name: Create GitHub Release
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: plugins/simulator/mcp-server/go.mod
+          cache: true
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: mcp-binaries
+          path: dist/
+
+      - name: Generate checksums
+        working-directory: dist/
+        run: sha256sum simulator-mcp-* > checksums.txt
+
+      - name: Regenerate discovery artifacts
+        run: make discovery
+
+      - name: Attest binary provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/simulator-mcp-*
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract changelog section
+        id: notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="See [CHANGELOG.md](CHANGELOG.md) for details."
+          fi
+          printf '%s\n' "$NOTES" > release_notes.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ steps.version.outputs.version }}"
+          body_path: release_notes.txt
+          draft: false
+          prerelease: false
+          files: |
+            dist/simulator-mcp-*
+            dist/checksums.txt
+            public/llms.txt
+            public/.well-known/skills/index.json
