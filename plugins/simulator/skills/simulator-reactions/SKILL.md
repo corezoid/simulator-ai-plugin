@@ -134,7 +134,10 @@ A reaction can carry more than text:
   `[application=<smartFormId>]Label[/application]`, `[user=…]`, `[event=…]`; formatting `[b]`,
   `[color=…]`, `[h2]`, `[ul][*]…[/ul]`, `[url=…]`; and `[md]…[/md]` for markdown. Fetch the
   environment's exact tag set with **`getBbcodeTags`**. **BBCode works only OUTSIDE `[md]`
-  blocks** — keep chips/BBCode out of any `[md]…[/md]` section. See `docs/entities/reactions.md`.
+  blocks** — keep chips/BBCode out of any `[md]…[/md]` section. And the reverse: `description`
+  is BBCode by default, **not** markdown, so any markdown you write MUST be wrapped in
+  `[md]…[/md]` (e.g. `[md]## Title\n- item[/md]`) or it renders as literal text. See
+  `docs/entities/reactions.md`.
 
 ## Pin & read state
 

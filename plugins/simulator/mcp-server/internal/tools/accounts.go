@@ -50,7 +50,7 @@ var accountOps = []Operation{
 			{Name: "total", In: InQuery, Type: "boolean", Desc: "Return the total count instead of the list."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 100)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			fieldFilterParam("id,amount,currencyId,nameId"),
+			fieldFilterParam("id,accountName,currencyName,amount,availableAmount,incomeType,counterType"),
 			{Name: "highPrecision", In: InQuery, Type: "boolean", Desc: "Return transaction sums with high precision."},
 		},
 	},
@@ -61,7 +61,7 @@ var accountOps = []Operation{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "currencyId", In: InPath, Type: "number", Required: true, Desc: "Currency id."},
 			{Name: "nameId", In: InPath, Type: "string", Required: true, Desc: "Account name id."},
-			fieldFilterParam("id,amount,currencyId,nameId"),
+			fieldFilterParam("amount,availableAmount,holdAmount,currencyName,accountName"),
 		},
 	},
 	{
@@ -107,7 +107,7 @@ var accountOps = []Operation{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			fieldFilterParam("id,name,symbol"),
+			fieldFilterParam("id,name,symbol,precision"),
 		},
 	},
 	{
@@ -172,7 +172,7 @@ var accountOps = []Operation{
 			{Name: "trsCount", In: InQuery, Type: "boolean", Desc: "Include the transaction count."},
 			{Name: "withPrivs", In: InQuery, Type: "boolean", Desc: "Include the caller's privileges on the account."},
 			{Name: "highPrecision", In: InQuery, Type: "boolean", Desc: "Return sums with high precision."},
-			fieldFilterParam("id,amount,currencyId,nameId"),
+			fieldFilterParam("id,accountName,currencyName,amount,availableAmount,incomeType,counterType"),
 		},
 	},
 	{
@@ -229,6 +229,7 @@ var accountOps = []Operation{
 			"owning actor), or an empty object if the account has no formula. Use to see what a formula account depends on.",
 		Params: []Param{
 			{Name: "accountId", In: InPath, Type: "string", Required: true, Desc: "Id of the computed (formula) account to inspect."},
+			fieldFilterParam("formula,accounts"),
 		},
 	},
 }

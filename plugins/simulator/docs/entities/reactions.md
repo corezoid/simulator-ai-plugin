@@ -142,6 +142,12 @@ A reaction (and an actor) can embed richer content than plain text:
   - **BBCode is processed only OUTSIDE `[md]` blocks.** Inside `[md]…[/md]` the content is
     markdown, so a chip/BBCode placed there is **not** rendered — keep chips/BBCode outside the
     `[md]` section (use one or the other in a given span).
+  - **Conversely, markdown MUST be wrapped in `[md]…[/md]`.** A `description` / comment body is
+    rendered as **BBCode by default, not markdown** — raw markdown written directly (headings
+    `##`, lists `-`, `**bold**`, tables) shows as **literal text**. So whenever the content you
+    put in a `description` is markdown — on `createActor`/`updateActor` (Events actors like
+    chats, meetings and tasks included) or on a reaction — wrap that span in `[md]…[/md]`, e.g.
+    `description="[md]## Agenda\n- item 1\n- item 2[/md]"`.
 
 ## API Endpoints
 

@@ -38,7 +38,16 @@ arguments) and confirm it with the user, in **their own language**, before execu
 
 ## Workspace Context Check (MANDATORY FIRST STEP)
 
-**Before doing anything else**, verify the WorkspaceID (`accId`) is known:
+**Exception — global-id reads need no `accId`.** If the request targets a specific
+object by its **global id** and only **reads** it (no create/update in a workspace),
+skip this whole check and call the tool directly: `getActor`/`deleteActor` (by
+`actorId`), `getActorByRef`, `getAccounts`/`getBalance`/`getTransactions` (by
+`actorId`/`accountId`), `getForm` (by `formId`), reactions/attachments by actor id,
+etc. These endpoints resolve the object by its id and do **not** require workspace
+context — do **not** ask for `accId` or hunt for a `.env`/workspace for them. (The
+`accId` returned in the response can seed later workspace-scoped calls.)
+
+**Otherwise, before doing anything else**, verify the WorkspaceID (`accId`) is known:
 
 1. Check whether `accId` is already known: current message, conversation history, or `WORKSPACE_ID` env var / `.env` file in the project directory.
 2. If `accId` is **not** provided, immediately ask:
@@ -76,12 +85,25 @@ server substitutes them into the URL path automatically.
 **Parameter rules:**
 - Path and query parameters → individual named string arguments
 - Request body → `body` argument as a JSON string
-- **`filter` (field selection)** — every read/lookup/list/search tool accepts an
-  optional `filter`: a comma-separated allow-list of fields to return
+- **`filter` (field selection) — ALWAYS pass it on reads.** Nearly every
+  read/lookup/list/search tool (`getActor`, `getActorByRef`, `getAccounts`,
+  `getForm`, `getTransactions`, `searchActors`, `getLayerActors`, …) accepts a
+  `filter`: a comma-separated allow-list of fields to return
   (e.g. `filter="id,title,data.status"`; dotted paths pick nested `data` fields).
-  The server prunes the response to just those fields. Use it actively to save
-  tokens — request only the fields you actually need instead of the whole entity.
-  Don't confuse it with the row filters `q` / `query` (text/data search).
+  Only the listed fields survive — everything else is dropped server-side. **Treat
+  `filter` as the default, not an optimisation**: decide which fields the answer
+  needs and request only those. Omit it only when you genuinely need the whole
+  object.
+  - **`getActor` especially.** Unfiltered, it returns the actor's **entire form
+    definition twice** — `form` (kept for backward compatibility) **and** `forms[]`
+    duplicate the full field schema, including large `agenda`/`recurrence` JSON
+    schemas — plus the complete `access[]` list (every member's logins, hashes,
+    timestamps). That is tens of thousands of tokens of payload you rarely need.
+    For "show me this actor", pass e.g.
+    `filter="id,title,description,status,data,formId,formTitle,ownerId,createdAt,updatedAt,access"`
+    — that alone drops the duplicated schema entirely. Never read an actor without
+    a `filter` unless you specifically need its form schema.
+  - Don't confuse it with the row filters `q` / `query` (text/data search).
 
 ## Platform Architecture
 
@@ -251,7 +273,7 @@ Call tools by these exact names:
 - **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`
 - **Setup:** `set-environment` (choose a cloud preset or custom/local URL), `login`, `getWorkspaces` (list your workspaces by name), `set-workspace` (by `accId` or `name`)
 - **Web links:** `buildLink` — build a clickable web-app URL for an entity (`actor`, `event`, `chat`, `layer`, `graph`, `form`, `transaction`, `transfer`, `chart`, `meeting`, `settings`, …). Use it **whenever the user asks to "open", "show me", or "share a link to"** something, instead of composing the URL by hand — it resolves the right host (the active environment) and workspace for you.
-- **Rich descriptions (BBCode):** actor & reaction `description` text supports **BBCode** tags for nice rendering — chips (`[actor=<uuid>]…[/actor]`, `[user=…]`, `[application=<smartFormId>]…[/application]`, …) and formatting (`[b]`, `[color=…]`, `[h2]`, `[ul][*]…[/ul]`, `[url=…]`, `[md]…[/md]`). Call **`getBbcodeTags`** to fetch the current environment's exact tag vocabulary before composing a rich description. **BBCode is processed only OUTSIDE `[md]` blocks** — inside `[md]…[/md]` the content is markdown, so put chips/BBCode outside the `[md]` section.
+- **Rich descriptions (BBCode):** actor & reaction `description` text supports **BBCode** tags for nice rendering — chips (`[actor=<uuid>]…[/actor]`, `[user=…]`, `[application=<smartFormId>]…[/application]`, …) and formatting (`[b]`, `[color=…]`, `[h2]`, `[ul][*]…[/ul]`, `[url=…]`, `[md]…[/md]`). Call **`getBbcodeTags`** to fetch the current environment's exact tag vocabulary before composing a rich description. **BBCode is processed only OUTSIDE `[md]` blocks** — inside `[md]…[/md]` the content is markdown, so put chips/BBCode outside the `[md]` section. **A `description` is rendered as BBCode by default, NOT markdown** — so any markdown you write (headings `##`, lists `-`, `**bold**`, tables, …) MUST be wrapped in `[md]…[/md]`, or it shows as literal text. This applies whenever you set `description` on `createActor`/`updateActor` (including Events actors — chats, meetings, tasks) or on a reaction: if the content is markdown, wrap it (e.g. `description="[md]## Agenda\n- item[/md]"`).
 - **Public links (meeting / SIP join):** `generatePublicLink` (create a shareable `/m/<hash>` join link to an actor so people can join a meeting / SIP room **without a login**; `waitList` toggles a waiting room, `ttl`/`dueDate` bound its lifetime), `getPublicLink` (the current link, or null), `revokePublicLink` (kill it). The actor is usually a meeting (an `Events` actor with `scheduleMeeting`). Distinct from `buildLink` (authenticated in-app URL) and from graph **links/edges** (`createLink`/`getActorLinks`). Generating again refreshes/replaces the link.
 - **Access:** `getAccessRules`, `saveAccessRules` (share/grant/revoke), `requestAccess` — when a tool fails with **403 / Access Denied** on an object you can't see, call `requestAccess(objType, objId)` to ask its owner for access (it doesn't grant — approval is pending), then tell the user it's blocked. See `/simulator-access`.
 
@@ -285,7 +307,7 @@ For domain-specific workflows use the specialized skills:
 - `/simulator-smart-forms` — Smart Forms (CDU / Script applications): pages, releases
 - `/simulator-reactions` — comments / events / approvals / ratings on actors (threaded)
 - `/simulator-chat` — messaging: send a message to a user, open/reuse p2p & group chats (Events-form actors; messages are comment reactions)
-- `/simulator-tasks` — tasks/assignments: create a task (Events-form actor) and assign executor (`execute`), approvers (`sign`), legal signers (`ds`)
+- `/simulator-tasks` — tasks/assignments **and order/directive documents** (наказ / розпорядження / доручення / приказ / order): create a task (Events-form actor) and assign executor (`execute`), approvers (`sign`), legal signers (`ds`). An order addressed to a person ("наказ **на** Салімова …", "order **for** X to …") is a task whose **addressee is the `execute` executor** — assign them, don't just put the name in the title/description
 - `/simulator-meetings` — meetings/video/SIP rooms (Events-form actor, `scheduleMeeting`): schedule, recurrence, agenda, persistent rooms, moderator/invitees, public & in-app join links
 - `/simulator-attachments` — files: upload, attach/detach to actors & reactions
 - `/simulator-access` — access rules: share/grant/revoke who can view/modify an object; also **`requestAccess`** when a tool is blocked by 403/Access Denied (asks the owner for access)
@@ -317,10 +339,11 @@ Use the `Read` tool to load these files when you need deeper detail:
 
 ## Tips & Best Practices
 
-- The `accId` (workspace ID) is required for most list/create operations — confirm it with the user
+- The `accId` (workspace ID) is required for most list/create operations — confirm it with the user. **But reads of a specific object by global id (`getActor`, `getForm`, `getAccounts`, …) need no `accId`** — call them directly (see the Workspace Context Check exception)
+- **Reuse data you already have — don't re-fetch.** An actor's `data` often already contains its linked actors: dynamic-select / `multiSelect` fields (e.g. `data.smartTags`) carry the linked actors' ids and titles inline. Read them straight from the actor instead of a separate `getRelatedActors`/link round-trip; only call those when you need links the `data` doesn't already list
 - Actor `ref` fields must be unique within a workspace — use slugified names
 - System form IDs change per workspace — always look them up with `get-forms-templates-system-accId`
 - When creating accounts, always run `createAccountPair` first — it ensures both the `currencyId` and the `nameId` exist AND grants you pair access (otherwise the next balance/transaction call 403s)
 - Use `post-actors-mass_links-accId` for creating multiple links at once (much more efficient)
 - Transactions are permanent — use 2-step (authorize → complete/cancel) for reversible operations
-- **Save tokens with `filter`** — on any read/list/search tool, pass `filter` with only the fields you need (e.g. `filter="id,title"`) so the server trims the response instead of returning the full model
+- **Always pass `filter` on reads** — on any read/list/search tool, pass `filter` with only the fields you need (e.g. `filter="id,title"`) so the server trims the response instead of returning the full model. This is the default, not an afterthought. `getActor` in particular returns the full form schema **twice** (`form` + `forms[]`) plus the whole `access[]` list when unfiltered — always scope it (see the `filter` rules under "Parameter rules")

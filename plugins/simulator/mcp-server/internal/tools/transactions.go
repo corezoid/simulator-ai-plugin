@@ -41,7 +41,7 @@ var transactionOps = []Operation{
 			{Name: "incomeType", In: InQuery, Type: "string", Enum: []string{"debit", "credit"}, Desc: "Filter by direction."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			fieldFilterParam("id,amount,createdAt,comment"),
+			fieldFilterParam("id,amount,createdAt,comment,ref,incomeType"),
 		},
 	},
 	{
@@ -62,7 +62,7 @@ var transactionOps = []Operation{
 		Summary: "Get a transfer by id. Pass `filter` to fetch only the fields you need.",
 		Params: []Param{
 			{Name: "transferId", In: InPath, Type: "string", Required: true, Desc: "Transfer id."},
-			fieldFilterParam("id,amount,createdAt,comment"),
+			fieldFilterParam("id,amount,comment,ref,status,createdAt"),
 		},
 	},
 	{

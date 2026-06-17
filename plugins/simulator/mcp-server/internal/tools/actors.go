@@ -83,10 +83,15 @@ var actorOps = []Operation{
 	},
 	{
 		Name: "getActor", Method: "GET", Path: "/actors/{actorId}",
-		Summary: "Get an actor by its UUID. Pass `filter` to fetch only the fields you need and keep the response small.",
+		Summary: "Get an actor by its UUID. Needs no workspace/accId — the UUID resolves it. " +
+			"ALWAYS pass `filter`: unfiltered, this returns the actor's entire form schema TWICE " +
+			"(`form`, kept for backward compatibility, plus `forms[]`) and the full `access[]` member list — " +
+			"tens of thousands of tokens you rarely need. For a normal actor summary pass e.g. " +
+			"filter=\"id,title,description,status,data,formId,formTitle,ownerId,createdAt,updatedAt,access\"; " +
+			"omit `filter` only when you specifically need the form schema.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
-			fieldFilterParam("id,title,data.status"),
+			fieldFilterParam("id,title,description,status,data,formId,formTitle,ownerId,createdAt,updatedAt,access"),
 		},
 	},
 	{
@@ -95,7 +100,7 @@ var actorOps = []Operation{
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id."},
 			{Name: "ref", In: InPath, Type: "string", Required: true, Desc: "External reference."},
-			fieldFilterParam("id,title,data.status"),
+			fieldFilterParam("id,title,ref,description,status,data,formId,formTitle,createdAt,updatedAt"),
 		},
 	},
 	{
@@ -130,24 +135,24 @@ var actorOps = []Operation{
 	},
 	{
 		Name: "searchActors", Method: "GET", Path: "/actors_filters/search/{accId}/{query}",
-		Summary: "Search actors across a workspace by title/text. Use before createActor to check whether an actor already exists.",
+		Summary: "Search actors across a workspace by title/text. Use before createActor to check whether an actor already exists. Pass `filter` to return only the fields you need — result lists can be large.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search query (title or fragment)."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			fieldFilterParam("id,title,formId"),
+			fieldFilterParam("id,title,ref,formId,status"),
 		},
 	},
 	{
 		Name: "searchLayerActors", Method: "GET", Path: "/layer_actors_filters/search/{actorId}/{query}",
-		Summary: "Search actors placed on a specific layer by title/text.",
+		Summary: "Search actors placed on a specific layer by title/text. Pass `filter` to return only the fields you need — result lists can be large.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
 			{Name: "query", In: InPath, Type: "string", Required: true, Desc: "Search query (title or fragment)."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			fieldFilterParam("id,title,formId"),
+			fieldFilterParam("id,title,ref,formId,status"),
 		},
 	},
 	{
@@ -160,7 +165,8 @@ var actorOps = []Operation{
 			"and orderBy=balance to rank by it. Returned balances are real decimal values (e.g. 1600 = 1600 USD); " +
 			"currency precision is display-only — do NOT divide by 10^precision. " +
 			"This filters on CURRENT balance only; for turnover over a period read each actor's accounts with " +
-			"getAccounts using from/to.",
+			"getAccounts using from/to. " +
+			"Pass `filter` to return only the fields you need — result lists can be large.",
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id whose actors are filtered/ranked."},
 			{Name: "linkedToActorId", In: InQuery, Type: "string", Desc: "Anchor actor UUID. When set, only actors directly linked to this actor (parents or children along the hierarchy edge) are considered — use it for \"actors related to this one\". Omit for a form-wide listing."},
@@ -182,7 +188,7 @@ var actorOps = []Operation{
 			{Name: "withForm", In: InQuery, Type: "boolean", Desc: "Include each actor's form template in the response."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (0-200, default 20)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			fieldFilterParam("id,title,data.status"),
+			fieldFilterParam("id,title,ref,formId,status,data"),
 		},
 	},
 	{
@@ -192,12 +198,13 @@ var actorOps = []Operation{
 			"their node on the graph. Use it for ACTOR-level work on a person: transactions/transfers, " +
 			"reading/creating accounts, or placing the user on a layer. For SHARING/access instead, grant to " +
 			"the userId directly (saveAccessRules) — do NOT share onto the twin. Find the userId first with " +
-			"searchUsers/getUsers. objType is user only (other entity twins are not exposed here).",
+			"searchUsers/getUsers. objType is user only (other entity twins are not exposed here). " +
+			"Returns a full actor (form schema + access) like getActor — always pass `filter` (e.g. just \"id,title,formId\" when you only need the twin's id).",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "objType", In: InPath, Type: "string", Required: true, Enum: []string{"user"}, Desc: "Entity kind whose twin actor to fetch — user only."},
 			{Name: "objId", In: InPath, Type: "string", Required: true, Desc: "The entity id — for objType=user, the user id (see searchUsers/getUsers)."},
-			fieldFilterParam("id,title,formId"),
+			fieldFilterParam("id,title,formId,status,data"),
 		},
 	},
 	{
