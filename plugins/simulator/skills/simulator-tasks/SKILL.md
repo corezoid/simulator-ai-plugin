@@ -8,11 +8,15 @@ description: >
   document's signers get `ds`. Completion and sign-off are then posted as `done` /
   `sign` / `reject` reactions. Use when the user wants to "create a task", "assign a
   task to", "set an executor/assignee", "add approvers", "require a signature", "who
-  signs this", "make a to-do". Activate on "create a task", "assign to", "task for",
-  "needs approval", "who approves", "requires signature", "sign-off", "створи задачу",
-  "постав задачу", "признач виконавця", "додай погоджувача", "потрібен підпис",
-  "хто погоджує", "хто підписує", "создай задачу", "назначь исполнителя",
-  "добавь согласующего", "нужна подпись", "кто подписывает". For a 1:1/group chat use
+  signs this", "make a to-do". Also covers **order / directive documents** that tell a
+  specific person to do something — an "order/наказ addressed to X" is a task whose
+  addressee is the executor. Activate on "create a task", "assign to", "task for",
+  "needs approval", "who approves", "requires signature", "sign-off", "order", "decree",
+  "directive", "create an order for", "створи задачу", "постав задачу", "признач виконавця",
+  "додай погоджувача", "потрібен підпис", "хто погоджує", "хто підписує", "наказ",
+  "створи наказ", "склади наказ", "наказ на", "розпорядження", "доручення", "создай задачу",
+  "назначь исполнителя", "добавь согласующего", "нужна подпись", "кто подписывает",
+  "приказ", "создай приказ", "распоряжение", "поручение". For a 1:1/group chat use
   `simulator-chat`; for the reaction mechanics use `simulator-reactions`; for access in
   general use `simulator-access`.
 ---
@@ -28,6 +32,24 @@ In Simulator.Company a **task is an actor of the `Events` system form** with **n
 `chatType`** (an empty/absent `chatType` is what separates a task / plain event from a
 chat). The Events form is the same one used for calendar events, SIP meetings, and chats
 — `chatType` is what disambiguates them.
+
+> **Orders / directives are tasks.** A request to create an **order / directive document**
+> aimed at a person — «створи наказ **на** Салімова про …», «склади розпорядження для …»,
+> "create an order for X to …", ru «приказ на …» — is a task, not a plain event. The
+> **addressee** ("на <кого>" / "for <whom>") is the **executor**: create the Events actor,
+> then **grant that person `execute`** via `saveAccessRules` (step 4 below). Putting the
+> name only in the title/description is the common mistake — without the `execute` rule the
+> person is not assigned and gets no `done` action. Resolve the addressee's `userId` with
+> `searchUsers` first; if other people are named to approve/sign, give them `sign`/`ds`.
+>
+> **If the workspace has a dedicated «наказ»/order form (with example documents), mirror an
+> example — don't just `createActor` and stop.** Read one existing order of that form
+> (`getActor` + `getAccessRules`) and reproduce **how it assigns the responsible person**:
+> typically an `execute` **access rule** for the addressee (`saveAccessRules`), and/or a
+> responsible/executor **data field** on the form (a `workspaceMembers` dynamic-select whose
+> value is the user id — see the actor `data` protocol). Set whichever the example uses, and
+> **always grant the addressee access** — an order with no access rule for the person never
+> appears in their events. Creating the actor alone is not "assigned".
 
 A task's **roles are access privileges on the task actor**, not data fields:
 

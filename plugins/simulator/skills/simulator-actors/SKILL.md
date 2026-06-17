@@ -206,7 +206,7 @@ form; `appSettings` `{autorun, expired, users, groups, fullWidth}` tunes it. See
 `[actor=<otherActorId>]Label[/actor]` (nested actor card) and `[application=<smartFormId>]Label[/application]`
 (smart-form chip), plus formatting (`[b]`, `[color=…]`, `[h2]`, `[ul][*]…[/ul]`, `[url=…]`) and
 `[md]…[/md]` for markdown. Fetch the environment's exact tag set with **`getBbcodeTags`**.
-**BBCode is processed only OUTSIDE `[md]` blocks.** See `docs/entities/reactions.md` → "Embedding".
+**BBCode is processed only OUTSIDE `[md]` blocks.** The reverse matters too: a `description` is rendered as **BBCode by default, not markdown**, so any markdown you write (`##`, `-`, `**bold**`, tables) MUST be wrapped in `[md]…[/md]` or it shows as literal text — applies to every `createActor`/`updateActor` `description`, Events actors (chats/meetings/tasks) included (e.g. `description="[md]## Agenda\n- item[/md]"`). See `docs/entities/reactions.md` → "Embedding".
 
 ## Status & delete
 

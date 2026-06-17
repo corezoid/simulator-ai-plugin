@@ -181,7 +181,7 @@ var graphOps = []Operation{
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
 			{Name: "noDuplicate", In: InQuery, Type: "boolean", Desc: "Deduplicate placements."},
-			fieldFilterParam("id,title,formId"),
+			fieldFilterParam("id,title,formId,status,x,y"),
 		},
 	},
 	{
@@ -195,7 +195,7 @@ var graphOps = []Operation{
 	},
 	{
 		Name: "getRelatedActors", Method: "GET", Path: "/graph/{type}/{actorId}",
-		Summary: "List actors linked to an actor. `type` selects direction: linked (both), parents (incoming edges), children (outgoing edges). Traverses the workspace's hierarchy link type by default — only pass edgeTypeId to traverse a different edge type. Returns a paginated, sortable, filterable list of related actors with a total. For neighbours across multiple edge types or to include system/pinned links, use getLinkedActors instead.",
+		Summary: "List actors linked to an actor. `type` selects direction: linked (both), parents (incoming edges), children (outgoing edges). Traverses the workspace's hierarchy link type by default — only pass edgeTypeId to traverse a different edge type. Returns a paginated, sortable, filterable list of related actors with a total. For neighbours across multiple edge types or to include system/pinned links, use getLinkedActors instead. Pass `filter` to return only the fields you need — result lists can be large.",
 		Resolve: resolveHierarchyEdgeType,
 		Params: []Param{
 			{Name: "type", In: InPath, Type: "string", Required: true, Enum: []string{"linked", "parents", "children"}, Desc: "Relation direction relative to the anchor actor."},
@@ -211,18 +211,18 @@ var graphOps = []Operation{
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
 			{Name: "pinned", In: InQuery, Type: "boolean", Desc: "Only pinned edges."},
-			fieldFilterParam("id,title,formId,data.status"),
+			fieldFilterParam("id,title,ref,formId,status"),
 		},
 	},
 	{
 		Name: "getActorLinks", Method: "GET", Path: "/graph/actor_links/{actorId}",
-		Summary: "List the links (edges) of an actor — every edge where it is the source or target.",
+		Summary: "List the links (edges) of an actor — every edge where it is the source or target. Pass `filter` to return only the fields you need — result lists can be large.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID whose links to list."},
 			{Name: "edgeTypeId", In: InQuery, Type: "number", Desc: "Only links of this edge type (see getEdgeTypes)."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			fieldFilterParam("id,source,target,edgeTypeId"),
+			fieldFilterParam("id,source,target,edgeTypeId,name,weight"),
 		},
 	},
 	{
@@ -237,7 +237,7 @@ var graphOps = []Operation{
 			{Name: "pinned", In: InQuery, Type: "boolean", Desc: "Only neighbours reached via pinned edges."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 200)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
-			fieldFilterParam("id,title,formId"),
+			fieldFilterParam("id,title,ref,formId,status"),
 		},
 	},
 	{
