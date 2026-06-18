@@ -115,10 +115,22 @@ So when reading a discussion (`getReactions`), an `ai` reaction with
 > output wastes turns.
 
 When the agent runs, the client also passes a **UI-context** object (`control-events-context`)
-that says **where the user is** — `activeActor`, `activeLayer`, `activeGraph`, `page`,
-`hostOrigin`, `workspaceId`, `graphDiscovery`. Read it to resolve "here" / "this actor" /
+that says **where the user is** — `activeActor`, `activeReaction`, `activeLayer`, `activeGraph`,
+`page`, `hostOrigin`, `workspaceId`, `graphDiscovery`. Read it to resolve "here" / "this actor" /
 "this layer" and to default ids the user left implicit. See
 `$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md`.
+
+> **Attachments: actor vs. message are two different sets.** Attachments are a per-actor linked
+> collection, and a reaction is itself an actor — so there are **two** places a file can live, each
+> read with `getActorAttachments(<id>)` → `readAttachment`:
+> - **The actor's own files** ("files on this actor / the attachments tab") → `getActorAttachments(activeActor)`.
+> - **A file the user attached to *their message*** ("do you see the file I sent?") → the triggering
+>   message **is a reaction** under `activeActor`, so its file lives on **that reaction**, not on the
+>   actor. Use the reaction's id: prefer **`activeReaction`** from the UI context; if absent, find the
+>   trigger via `getReactions(actorId=activeActor, view="flat", orderValue="DESC")` — the newest human
+>   reaction (the one with `extra.mcp`) — and pass **its** id to `getActorAttachments`.
+>
+> Pick the set the user means; if it's ambiguous, check **both** (the actor and the triggering reaction).
 
 ## Embed a smart form, an actor card, or chips
 

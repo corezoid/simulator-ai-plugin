@@ -57,8 +57,12 @@ func TestBuildLinkHandler(t *testing.T) {
 			"https://sim.simulator.company/actors_graph/af451011/graph/L1/actors/" + actor},
 		{"event stream", map[string]any{"entity": "event", "streamId": "S1", "secondaryId": "S2"},
 			"https://sim.simulator.company/events/af451011/list/S1/S2"},
-		{"chat", map[string]any{"entity": "chat", "streamId": "S1", "id": "C1"},
-			"https://sim.simulator.company/chats/af451011/list/S1/C1"},
+		{"chat conversation (default stream)", map[string]any{"entity": "chat", "id": "C1"},
+			"https://sim.simulator.company/chats/af451011/list/chats/C1?tab=chat"},
+		{"chat conversation (explicit stream)", map[string]any{"entity": "chat", "streamId": "S1", "id": "C1"},
+			"https://sim.simulator.company/chats/af451011/list/S1/C1?tab=chat"},
+		{"chat list (no id)", map[string]any{"entity": "chat"},
+			"https://sim.simulator.company/chats/af451011"},
 		{"form new", map[string]any{"entity": "form"},
 			"https://sim.simulator.company/form/af451011/edit"},
 		{"explicit acc", map[string]any{"entity": "settings", "accId": "bbbb2222"},
@@ -121,10 +125,10 @@ func TestBuildLinkUsesUIContext(t *testing.T) {
 
 // ParseUIContext decodes the base64-JSON header value pong-server sends.
 func TestParseUIContext(t *testing.T) {
-	raw := `{"hostOrigin":"https://mw.simulator.company","workspaceId":"ws-1","activeActor":"act-1","activeLayer":"lay-1","activeGraph":"gr-1"}`
+	raw := `{"hostOrigin":"https://mw.simulator.company","workspaceId":"ws-1","activeActor":"act-1","activeReaction":"rx-1","activeLayer":"lay-1","activeGraph":"gr-1"}`
 	b64 := base64.StdEncoding.EncodeToString([]byte(raw))
 	ui := apiclient.ParseUIContext(b64)
-	if ui.HostOrigin != "https://mw.simulator.company" || ui.ActiveActor != "act-1" || ui.ActiveLayer != "lay-1" || ui.ActiveGraph != "gr-1" || ui.WorkspaceID != "ws-1" {
+	if ui.HostOrigin != "https://mw.simulator.company" || ui.ActiveActor != "act-1" || ui.ActiveReaction != "rx-1" || ui.ActiveLayer != "lay-1" || ui.ActiveGraph != "gr-1" || ui.WorkspaceID != "ws-1" {
 		t.Errorf("ParseUIContext(base64) = %+v", ui)
 	}
 	if got := apiclient.ParseUIContext(""); got != (apiclient.UIContext{}) {

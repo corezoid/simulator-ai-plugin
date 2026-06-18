@@ -93,11 +93,12 @@ const (
 // tools (e.g. buildLink) can default to the user's current view. All fields are
 // optional; absent ones are "".
 type UIContext struct {
-	HostOrigin  string `json:"hostOrigin"`  // web-app origin, e.g. https://mw.simulator.company
-	WorkspaceID string `json:"workspaceId"` // active workspace (full UUID)
-	ActiveActor string `json:"activeActor"` // UUID of the open/focused actor
-	ActiveLayer string `json:"activeLayer"` // UUID of the open graph layer
-	ActiveGraph string `json:"activeGraph"` // UUID of the open graph (folder)
+	HostOrigin     string `json:"hostOrigin"`     // web-app origin, e.g. https://mw.simulator.company
+	WorkspaceID    string `json:"workspaceId"`    // active workspace (full UUID)
+	ActiveActor    string `json:"activeActor"`    // UUID of the open/focused actor
+	ActiveReaction string `json:"activeReaction"` // UUID of the reaction that triggered the agent (the user's message), when present
+	ActiveLayer    string `json:"activeLayer"`    // UUID of the open graph layer
+	ActiveGraph    string `json:"activeGraph"`    // UUID of the open graph (folder)
 }
 
 // ParseUIContext decodes a `control-events-context` header value into a UIContext.

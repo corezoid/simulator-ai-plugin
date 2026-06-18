@@ -101,14 +101,26 @@ Platform posts a child `ai` reaction and streams the result:
 - **Avoid loops.** Set `extra.mcp` only on genuine (human) requests, not on the agent's
   own output. The platform bounds runaway chains, but it still wastes turns.
 - **UI context.** When the agent runs, the client passes a `control-events-context` object
-  (where the user is in the UI — `activeActor` / `activeLayer` / `activeGraph` / `page` / …),
-  injected into the agent's prompt. See [`ui-context.md`](ui-context.md).
+  (where the user is in the UI — `activeActor` / `activeReaction` / `activeLayer` / `activeGraph` /
+  `page` / …), injected into the agent's prompt. See [`ui-context.md`](ui-context.md).
 - **Reading attachments on a reaction.** A reaction can carry files (it is itself an actor).
-  To read them, list the reaction's attachments with `getActorAttachments` (the reaction's id)
+  To read them, list the reaction's attachments with `getActorAttachments` (**the reaction's id**)
   and call `readAttachment` with each `fileName` — text comes back inline, images as a viewable
   block, PDFs/binary as an embedded resource. `readAttachment` works in actor-scoped mode, so
   the agent can read files attached to the reaction it is handling. See
   [`attachments.md`](attachments.md).
+- **Actor files vs. message files — two distinct sets.** Attachments are a per-actor linked
+  collection, and a reaction is itself an actor, so a file can live in either of two places — each
+  read the same way, `getActorAttachments(<id>)` → `readAttachment(<fileName>)`, just with a different id:
+  - **The root actor's own files** ("files on this actor", the actor's attachments tab) →
+    `getActorAttachments(<root actor id / `activeActor`>)`.
+  - **A file the user attached to *their* message** ("do you see the attachment I sent?") → the
+    triggering message **is a reaction** under the root actor, so its file is on that **reaction**, not on
+    the actor. Use the triggering reaction's id: **preferred** the UI context's **`activeReaction`**;
+    **fallback** (no `activeReaction`) `getReactions(actorId=<activeActor>, view="flat", orderValue="DESC")`
+    and take the most recent human (non-`ai`) reaction — the one carrying `extra.mcp`.
+
+  Pick the set the user means; if it's ambiguous, check **both** the actor and the triggering reaction.
 
 ## Embedding: smart forms, nested actor cards, chips
 
