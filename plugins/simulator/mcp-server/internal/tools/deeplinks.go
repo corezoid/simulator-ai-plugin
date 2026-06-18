@@ -122,17 +122,21 @@ var linkEntities = []linkEntity{
 	},
 	{
 		name: "chat",
-		help: "Chat conversation. streamId = stream containing the chat (required); id = chat conversation (chat-actor) UUID (optional).",
+		help: "Chat conversation. id = chat conversation (chat-actor / Events-actor) UUID — opens that chat. " +
+			"Optional streamId names the chat stream (defaults to the standard \"chats\" stream). Omit id to open the chat list.",
 		build: func(acc string, p linkParams) (string, error) {
-			stream, err := require(p.streamId, "streamId", "chat")
-			if err != nil {
-				return "", err
+			if p.id == "" {
+				// No specific conversation: open the workspace chat list.
+				return fmt.Sprintf("/chats/%s", acc), nil
 			}
-			path := fmt.Sprintf("/chats/%s/list/%s", acc, stream)
-			if p.id != "" {
-				path += "/" + p.id
+			// Conversation deep-link: /chats/<acc>/list/<stream>/<chatId>?tab=chat.
+			// The stream segment is the literal "chats" for the standard chat
+			// stream unless the caller names a different stream.
+			stream := p.streamId
+			if stream == "" {
+				stream = "chats"
 			}
-			return path, nil
+			return fmt.Sprintf("/chats/%s/list/%s/%s?tab=chat", acc, stream, p.id), nil
 		},
 	},
 	{
@@ -268,8 +272,8 @@ func registerBuildLink(s *server.MCPServer, c *apiclient.Client) {
 		mcp.WithString("entity", mcp.Required(),
 			mcp.Description("Kind of link to build. One of: "+strings.Join(linkEntityNames(), ", ")+".")),
 		mcp.WithString("accId", mcp.Description("Workspace id. Defaults to the active workspace if omitted.")),
-		mcp.WithString("id", mcp.Description("Primary resource id; meaning depends on entity (actor/transaction/transfer/chart/meeting/form UUID, layer id or \"0\", or chat conversation id). See the entity list in the description.")),
-		mcp.WithString("streamId", mcp.Description("Stream UUID — for event and chat links.")),
+		mcp.WithString("id", mcp.Description("Primary resource id; meaning depends on entity (actor/transaction/transfer/chart/meeting/form UUID, layer id or \"0\", or chat conversation (chat-actor) UUID). See the entity list in the description.")),
+		mcp.WithString("streamId", mcp.Description("Stream UUID — for event links, and to override the default \"chats\" stream on chat links.")),
 		mcp.WithString("secondaryId", mcp.Description("Event sub-stream UUID — narrows an event link further.")),
 		mcp.WithString("mode", mcp.Description("Graph display mode for layer/graph links."),
 			mcp.Enum("layers", "actors", "trees")),
