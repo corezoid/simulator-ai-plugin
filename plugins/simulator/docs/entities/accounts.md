@@ -21,6 +21,7 @@ Account names define the categories or types of accounts available in a workspac
 | user_id | Integer | ID of the user who created the account name |
 | name | Text | Name of the account |
 | is_system | Boolean | Whether this is a system account name |
+| transfer_only | Boolean | When true, accounts using this account name reject plain transactions (single, atomic, standalone 2-step) and can only be moved via a transfer. Default false. Set via `updateAccountName(transferOnly=...)` |
 | abbreviation | String | Short abbreviation for the account name |
 | status | Enum | Status of the account name (active, removed) |
 | created_at | Integer | Unix timestamp of creation time |

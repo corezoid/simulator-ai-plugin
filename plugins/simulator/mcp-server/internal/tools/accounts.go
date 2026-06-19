@@ -132,11 +132,12 @@ var accountOps = []Operation{
 	},
 	{
 		Name: "updateAccountName", Method: "PUT", Path: "/account_names/{nameId}",
-		Summary: "Rename an account-name category (and/or its abbreviation).",
+		Summary: "Rename an account-name category (and/or its abbreviation), and/or flag it transfer-only.",
 		Params: []Param{
 			{Name: "nameId", In: InPath, Type: "string", Required: true, Desc: "Account name id."},
 			{Name: "name", In: InBody, Type: "string", Required: true, Desc: "New account name."},
 			{Name: "abbreviation", In: InBody, Type: "string", Desc: "New short label."},
+			{Name: "transferOnly", In: InBody, Type: "boolean", Desc: "When true, accounts using this account-name reject plain transactions (single, atomic, and standalone 2-step) and can only be moved via a transfer — useful for clearing/settlement categories that must always balance against a counterparty. Defaults false. Omit to leave the current value unchanged. Returned on every account-name read."},
 		},
 	},
 	{
