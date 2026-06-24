@@ -266,6 +266,14 @@ var graphOps = []Operation{
 		},
 	},
 	{
+		Name: "updateLayerPositions", Method: "PUT", Path: "/graph_layers/actors/{layerId}",
+		Summary: "Update the positions (x, y) of actors already present on a layer. Use this to reposition actors within the same layer — not to move actors between layers (use moveActors for that).",
+		Params: []Param{
+			{Name: "layerId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID containing the actors to reposition."},
+			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array (1-100) of {id: string (laId — unique element ID on this layer, NOT actorId), position: {x: int, y: int}}."},
+		},
+	},
+	{
 		Name: "cleanGraphLayer", Method: "DELETE", Path: "/graph_layers/clean/{actorId}",
 		Summary: "Remove ALL actors and links from a layer (the layer actor itself stays). Irreversible — confirm first.",
 		Params: []Param{

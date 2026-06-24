@@ -161,12 +161,29 @@ searchAccountNames(accId="ws_xxx", query="maint")
 
 createAccountName(accId="ws_xxx", name="Maintenance", abbreviation="MNT")
 updateAccountName(nameId="<account-name id>", name="Maintenance costs")
+
+# Make a category transfer-only: every account using this name then rejects plain
+# transactions and can only be moved via a transfer (see "Transfer-only categories" below).
+updateAccountName(nameId="<account-name id>", name="Settlement", transferOnly=true)
+updateAccountName(nameId="<account-name id>", name="Settlement", transferOnly=false)  # lift it
 ```
 
 > Same rule as currencies: **prefer `createAccountPair`** when you are creating an account name
 > that will be used on an account — it creates the name (and currency) if missing AND grants
 > pair access. Reserve bare `createAccountName` for rare workspace-level housekeeping that does
 > not lead to an account.
+
+### Transfer-only categories
+
+An account name can be flagged **`transferOnly`** (boolean, default `false`). When it is `true`,
+every account that uses that account name **rejects plain balance changes** — single
+transactions, atomic multi-account transactions, and standalone 2-step authorize/complete all
+fail with `HTTP 400` ("…is transfer-only; use a transfer instead of a plain transaction"). Only
+a **transfer** (`createTransfer`) moves such balances, because each transfer leg is tied to a
+transfer record. Internal limit changes and the cancel/reverse of an existing transfer are not
+affected. Use it for clearing/settlement categories that must always balance against a
+counterparty. Set/clear it with `updateAccountName(..., transferOnly=...)`; omit the field to
+leave it unchanged. The flag is returned on every account-name read.
 
 ---
 
@@ -449,6 +466,10 @@ getTransactionByRef(accountId="<account id>", ref="service-jan-2024")           
 
 `finalizeTransaction` `type` ∈ `completed` | `canceled` (also `declined`/`reversed`); identify the
 hold by its `ref` (or `parentRef`), not a transaction id.
+
+> If a `createTransaction`/`atomCreateTransaction` here returns `HTTP 400` "…is transfer-only",
+> the account's account-name is flagged `transferOnly` — use `createTransfer` instead (see
+> "Transfer-only categories" under Account names).
 
 ---
 
