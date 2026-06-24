@@ -1,6 +1,14 @@
 # Changelog
 
-## [2.0.1]
+## [2.1.0]
+
+### Added
+- `updateLayerPositions` MCP tool — reposition actors already present on a layer within the same layer (use `moveActors` to move actors between layers).
+- `updateAccountName` gains a `transferOnly` boolean parameter; transfer-only behaviour documented in the finance skill and the accounts entity doc (mirrors pong-server CE-15565).
+
+### Changed
+- Bump `github.com/mark3labs/mcp-go` from 0.54.1 to 0.55.0.
+- CI and release workflows: bump `actions/checkout` v4→v7, `actions/setup-go` v5→v6, `actions/upload-artifact` v4→v7, `actions/attest-build-provenance` v2→v4, `softprops/action-gh-release` v2→v3.
 
 ### Fixed
 - `buildLink` chat deep-links now point at a conversation correctly: `/chats/<acc>/list/chats/<chatActorId>?tab=chat` (the stream segment defaults to the standard `chats` stream and the required `?tab=chat` query is included). `id` is the chat-actor UUID; omit it to open the chat list.
