@@ -59,6 +59,13 @@ const actorDataDesc = "Field values keyed by each form field's `id` (\"item_<dig
 	"Display-only classes (label, button, image) take NO data entry; omit hidden/disabled fields you do not set. " +
 	"MULTIFORM actors instantiate several forms at once: fields of the actor's own (root) formId use the plain item id, while fields belonging to ANOTHER form are keyed \"__form__<thatFormId>:<itemId>\" (e.g. \"__form__16951:position\"). Use the plain id for this form's own fields."
 
+// holeDesc documents the `hole` flag, exposed on createActor/updateActor. The
+// backend declares `hole` (boolean) on the actor create/update body; a hole is
+// an empty placeholder node that becomes a normal actor once it is filled.
+const holeDesc = "Mark this actor as a HOLE — an empty placeholder slot on the graph (rendered as a " +
+	"hollow node). A hole stands for a not-yet-filled position in the structure and becomes a normal " +
+	"actor once it is filled with data. Default false."
+
 // actorOps — actor (graph node) CRUD. Actors are instances of a form; their
 // fields live in the free-form `data` object keyed by the form's field schema.
 var actorOps = []Operation{
@@ -78,6 +85,7 @@ var actorOps = []Operation{
 			{Name: "ref", In: InBody, Type: "string", Desc: "Optional external reference (1-255 chars), unique per form."},
 			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
+			{Name: "hole", In: InBody, Type: "boolean", Desc: holeDesc},
 			{Name: "contextLayerId", In: InQuery, Type: "string", Desc: "Optional layer to place the new actor on."},
 		},
 	},
@@ -116,6 +124,7 @@ var actorOps = []Operation{
 			{Name: "status", In: InBody, Type: "string", Desc: "New status value."},
 			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
+			{Name: "hole", In: InBody, Type: "boolean", Desc: holeDesc},
 		},
 	},
 	{
