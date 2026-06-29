@@ -100,7 +100,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	}
 	positionOf := map[string]struct{ X, Y int }{}
 	titleOf := map[string]string{}
-	const limit = 100
+	const limit = maxLayerPageLimit
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",

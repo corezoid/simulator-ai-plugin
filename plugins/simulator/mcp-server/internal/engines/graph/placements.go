@@ -11,6 +11,12 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
+// maxLayerPageLimit is the largest page size the backend accepts on
+// /graph_layers/paginated (?limit). Requests above it fail with
+// "querystring/limit must be <= 50", so every paginated layer reader must cap
+// its page size at this value. (push.go / sync.go already use 50 directly.)
+const maxLayerPageLimit = 50
+
 // getAllLayerPlacements walks the paginated /graph_layers/paginated/{layerId}
 // endpoint and returns every (actorId, laId, formId, title, x, y) row for the
 // layer in a single MCP call. The existing `getLayerActorsByFormId` forces the
@@ -58,7 +64,7 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 	client := ecore.APIHTTPClient()
 
 	var rows []layerPlacementRow
-	const limit = 100
+	const limit = maxLayerPageLimit
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",
