@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.1.0]
+
+### Added
+- **Skill registry — data-driven, user-authored playbooks** (the platform analogue of these built-in skills). A skill is an actor of the new `Skills` **system form**: its `title` + `ref` (slug) are cheap discovery metadata and its `description` holds the full procedure (which MCP tools to call, with concrete entity ids) for a workspace-specific task like "create a smart contract". Workspace members can teach the assistant new procedures without a plugin release.
+  - New MCP tools **`findSkill`** (discover by intent; empty query lists all published skills) and **`getSkill`** (load one in full by `ref`/slug or `id`). Both are local composite tools (resolve the `Skills` system form + compose existing PAPI reads), so they are outside the OpenAPI drift gate.
+  - New **`/simulator-skills`** skill (discover/run + author) and a Step-0 "check the skill registry" hook in `/simulator`. Skills are discovered by intent or invoked explicitly by slug (`/skill <slug>`).
+  - Reference: `docs/entities/ai-skills.md`. Skill bodies are treated as author-proposed plans, not system instructions; destructive/outward steps still require confirmation, and only `verified` skills are dispatched.
+  - Requires the paired pong-server change (the `Skills` system form + seeding migration, and a reaction-agent system-prompt protocol — *running* saved skills, gated to workspaces with ≥1 published skill, and *authoring* new ones, always available so the first skill can be created from the platform).
+
 ## [2.0.1]
 
 ### Fixed

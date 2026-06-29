@@ -18,6 +18,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 |----------------------|----------------------------------------------------------|---------------------------------------------------------|
 | `simulator`          | "use Simulator", "call Simulator API"                    | Full platform overview, all entities, MCP tools         |
 | `simulator-init`     | "setup", "connect to simulator", "login to simulator"    | OAuth login, workspace selection, environment setup     |
+| `simulator-skills`   | "run skill", "use playbook", "/skill <slug>", "save as skill", "what skills do I have" | Skill registry: discover/run saved playbooks (`findSkill`/`getSkill`) and author new ones — the data-driven analogue of these built-in skills |
 | `simulator-graph`    | "create actor", "link nodes", "add to layer"             | Actors, links, layers, graph traversal, bulk push/pull  |
 | `simulator-forms`    | "create form", "design template", "Account Template"     | Form templates (Account Templates), field classes, system forms |
 | `simulator-actors`   | "create a record", "fill in a template", "update actor data" | Actor instances of a form, the `data` value protocol, search & filter |
@@ -200,6 +201,7 @@ the actor/node items.)
 | Reactions     | `createReaction` `updateReaction` `deleteReaction` `getReactions` `getReactionsStats` `markReactionsRead` `getPinnedReactions` `togglePinnedReaction` |
 | Attachments   | `getAttachments` `getActorAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` `readAttachment` (download & read a file's content — text inline, images as a viewable block, PDFs/binary as an embedded resource) |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
+| Skill registry | `findSkill` (discover saved skill playbooks by intent; empty query lists all published) `getSkill` (load one in full by `ref`/slug or `id`) — actors of the `Skills` system form; local composite tools (outside the drift gate), see `/simulator-skills` |
 | Public links  | `generatePublicLink` `getPublicLink` `revokePublicLink` (shareable `/m/<hash>` join link to an actor — meeting / SIP access without login) |
 | Meetings      | `getTranscription` (read a meeting call's speech transcription — summarize / extract action items; needs a live room) |
 | Smart Forms (runtime) | `appGetPage` `appSendForm` (drive any Smart Form / CDU app via the `get`/`send` page protocol — render a page, submit a form; Corezoid supplies data & control flow. Universal primitives for the `simulator-smart-forms-runtime` skill) |
