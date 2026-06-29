@@ -16,6 +16,7 @@
 - [simulator-init](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-init/SKILL.md): Simulator.Company environment setup specialist
 - [simulator-meetings](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-meetings/SKILL.md): Simulator.Company meeting specialist — scheduling and configuring meetings / video / SIP rooms
 - [simulator-reactions](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-reactions/SKILL.md): Simulator.Company reactions specialist — comments, events, approvals, ratings and other feedback attached under an actor
+- [simulator-skills](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-skills/SKILL.md): Simulator.Company skill registry specialist — the data-driven analogue of these built-in skills
 - [simulator-smart-forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms/SKILL.md): Simulator.Company Smart Form (CDU / Script / Application) specialist
 - [simulator-smart-forms-logic](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-logic/SKILL.md): Author and evolve the Corezoid backend that powers a Simulator.Company Smart Form
 - [simulator-smart-forms-runtime](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-runtime/SKILL.md): Simulator.Company Smart Form RUNTIME driver — run/execute an existing Smart Form (CDU / Script / mini-app) on the user's behalf, conversationally, instead of the user clicking through its UI
@@ -52,6 +53,8 @@ The plugin bundles a Go MCP server that wraps the Simulator REST API:
 - **uploadActorPicture**: Set an actor's avatar from URL, local file, or base64 (auto SVG→PNG)
 - **uploadActorPictureBulk**: Bulk-upload actor pictures with SHA-256 deduplication
 - **createChart**: Create a chart/dashboard actor on a layer
+- **findSkill**: Discover saved skill playbooks (Skills-form actors) by intent
+- **getSkill**: Load a saved skill playbook in full by slug (ref) or id
 
 ## Documentation
 
