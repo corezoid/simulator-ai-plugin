@@ -35,7 +35,7 @@ room name is the actor's `id`, so creating the Events actor creates the meeting.
 - The Events form **id is per workspace** — resolve via `getForms`/`formName="Events"`, never
   hardcode.
 
-> Read `$CLAUDE_PLUGIN_ROOT/docs/entities/meetings.md` for the full model (recurrence schema,
+> Read `$PLUGIN_ROOT/docs/entities/meetings.md` for the full model (recurrence schema,
 > agenda, persistent rooms, link variants) and `chats.md` for the shared Events fields.
 
 Reply to the user in **their own language**.
@@ -165,9 +165,9 @@ update the meeting actor.
 
 | Path | When to read |
 |---|---|
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/meetings.md` | Full meeting model: recurrence schema, agenda, persistent rooms, link variants |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/chats.md` | Shared Events-form field list (startDate/endDate as unix seconds) |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md` | moderator/invitees are userIds (share to the user, not the twin) |
+| `$PLUGIN_ROOT/docs/entities/meetings.md` | Full meeting model: recurrence schema, agenda, persistent rooms, link variants |
+| `$PLUGIN_ROOT/docs/entities/chats.md` | Shared Events-form field list (startDate/endDate as unix seconds) |
+| `$PLUGIN_ROOT/docs/entities/users.md` | moderator/invitees are userIds (share to the user, not the twin) |
 
 ## Tips
 

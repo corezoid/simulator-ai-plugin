@@ -27,10 +27,10 @@ right field values, ask only for what's genuinely missing, confirm before irreve
 and report the result.
 
 **Read these references when driving:**
-- `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` — the `get`/`send` protocol, the
+- `$PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` — the `get`/`send` protocol, the
   Page → Grid → Form → Section → Item model, the component catalogue (§5), and the change
   protocol (§7). This is the contract you speak.
-- `$CLAUDE_PLUGIN_ROOT/docs/user-flows/app-catalog.md` — how to discover which app to run
+- `$PLUGIN_ROOT/docs/user-flows/app-catalog.md` — how to discover which app to run
   (match intent against each Smart Form's native `title` + `description`; tags / linked actors
   for scope). No custom catalog format.
 

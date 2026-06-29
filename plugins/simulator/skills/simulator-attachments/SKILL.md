@@ -91,8 +91,8 @@ addAttachments(items=[{ "attachId": 5521, "actorId": "<actor UUID>" }])
 
 | Path | When to read |
 |---|---|
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/attachments.md` | Attachment model, statuses, storage, virus-scan flow |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` | Attaching files to comments |
+| `$PLUGIN_ROOT/docs/entities/attachments.md` | Attachment model, statuses, storage, virus-scan flow |
+| `$PLUGIN_ROOT/docs/entities/reactions.md` | Attaching files to comments |
 
 ## Tips
 

@@ -68,7 +68,7 @@ There is **no server-side "a task must have an executor / must be approved in or
 enforcement** — a task is composed from `createActor` + `saveAccessRules` + reactions,
 and **this skill owns that discipline**.
 
-> Read `$CLAUDE_PLUGIN_ROOT/docs/entities/tasks.md` for the full model, and
+> Read `$PLUGIN_ROOT/docs/entities/tasks.md` for the full model, and
 > `chats.md` for the shared Events-form field list.
 
 Reply to the user in **their own language**.
@@ -229,9 +229,9 @@ they can):
 
 | Path | When to read |
 |---|---|
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/tasks.md` | The task model: Events actor + execute/sign/ds roles + done/sign/reject lifecycle |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/chats.md` | The shared Events-form field list (startDate/endDate as unix seconds) |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` | Reaction types (`done`, `sign`, `reject`), threading, AI-agent reactions |
+| `$PLUGIN_ROOT/docs/entities/tasks.md` | The task model: Events actor + execute/sign/ds roles + done/sign/reject lifecycle |
+| `$PLUGIN_ROOT/docs/entities/chats.md` | The shared Events-form field list (startDate/endDate as unix seconds) |
+| `$PLUGIN_ROOT/docs/entities/reactions.md` | Reaction types (`done`, `sign`, `reject`), threading, AI-agent reactions |
 
 ## Tips
 

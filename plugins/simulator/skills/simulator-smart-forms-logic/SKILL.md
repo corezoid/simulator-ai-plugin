@@ -205,7 +205,7 @@ newly selected value. `buttonId` is the **field's id**, not a button.
 
 `changes[]` is a surgical patch — only listed component ids are touched.
 `changeRules` (e.g. `{ "options": { "action": "replace" } }`) controls how arrays
-merge. Full reference: `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md`.
+merge. Full reference: `$PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md`.
 
 ### Realistic viewModel shape
 
@@ -936,9 +936,9 @@ does **not** require re-sharing or re-binding.
 
 | Path | When to read |
 |---|---|
-| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Smart Form lifecycle, env binding endpoints, release model |
-| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` | Component catalogue, `changes[]` shape, change protocol |
-| `$CLAUDE_PLUGIN_ROOT/skills/simulator-smart-forms/SKILL.md` | UI-authoring side of the same workflow |
+| `$PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Smart Form lifecycle, env binding endpoints, release model |
+| `$PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` | Component catalogue, `changes[]` shape, change protocol |
+| `$PLUGIN_ROOT/skills/simulator-smart-forms/SKILL.md` | UI-authoring side of the same workflow |
 | Corezoid plugin: `corezoid-create` SKILL | New-process brief format and expected steps |
 | Corezoid plugin: `corezoid-edit` SKILL | Edit brief format and mandatory push step |
 | Corezoid plugin: `docs/node-structures.md` | Exact JSON schemas for `api_copy`, `api_rpc`, `api`, `api_code`, `set_param`, `go_if_const` |

@@ -95,7 +95,7 @@ create/update is:
 > account-name UUID / user id) — resolve it first (e.g. `getCurrencies`,
 > `getAccountNames`, `searchActors`) rather than guessing.
 
-Full reference: `$CLAUDE_PLUGIN_ROOT/docs/entities/actors.md` and `…/forms.md`.
+Full reference: `$PLUGIN_ROOT/docs/entities/actors.md` and `…/forms.md`.
 
 ### Multiform actors (`__form__<formId>:<itemId>`)
 
@@ -279,9 +279,9 @@ createAccount(actorId="<new UUID>", nameId="<aname>", currencyId=1, accountType=
 
 | Path | When to read |
 |---|---|
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/actors.md` | Actor `data` protocol + per-class value shapes |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` | Field-class catalogue / dynamic select sources |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/search.md` | Search & filter internals |
+| `$PLUGIN_ROOT/docs/entities/actors.md` | Actor `data` protocol + per-class value shapes |
+| `$PLUGIN_ROOT/docs/entities/forms.md` | Field-class catalogue / dynamic select sources |
+| `$PLUGIN_ROOT/docs/entities/search.md` | Search & filter internals |
 
 ## Tips
 

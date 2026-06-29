@@ -44,7 +44,7 @@ convention:
 - **Participants** are added by a **separate** `saveAccessRules` call (never inline in
   the create body); the creator is owner implicitly.
 
-> Read `$CLAUDE_PLUGIN_ROOT/docs/entities/chats.md` for the full model, the verbatim
+> Read `$PLUGIN_ROOT/docs/entities/chats.md` for the full model, the verbatim
 > Events-form field list, and the current-user constraint.
 
 Reply to the user in **their own language**.
@@ -196,9 +196,9 @@ conversation back: `getReactions(actorId="<chatId>", view="flat", orderValue="AS
 
 | Path | When to read |
 |---|---|
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/chats.md` | The chat model: Events form, chatType, members-as-access, messages-as-reactions |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` | Reaction types, tree/threading, AI-agent reactions |
-| `$CLAUDE_PLUGIN_ROOT/docs/entities/system-forms.md` | The Events system form among the built-ins |
+| `$PLUGIN_ROOT/docs/entities/chats.md` | The chat model: Events form, chatType, members-as-access, messages-as-reactions |
+| `$PLUGIN_ROOT/docs/entities/reactions.md` | Reaction types, tree/threading, AI-agent reactions |
+| `$PLUGIN_ROOT/docs/entities/system-forms.md` | The Events system form among the built-ins |
 
 ## Tips
 
