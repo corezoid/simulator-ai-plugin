@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.0]
+
+### Added
+- AWS Kiro support. The same plugin payload now installs on Kiro alongside the existing Claude Code and Codex hosts via a symmetric overlay: `plugins/simulator/.kiro-plugin/plugin.json`, `plugins/simulator/.mcp.kiro.json`, `plugins/simulator/steering/simulator.md`, and a root-level `POWER.md` distribution manifest for kiro.dev/powers.
+- `make discovery-kiro` (and the `--kiro` flag on `gendiscovery`) emits a runtime `.kiro/{settings,skills,steering}` overlay under `dist/kiro/`. The release pipeline zips it as `simulator-kiro-vX.Y.Z.zip` and attaches it (plus `POWER.md`) to every GitHub Release.
+- `plugins/simulator/scripts/install-kiro.sh` sets up an existing Kiro workspace from a cloned repo: copies the MCP entry, symlinks skills and steering. Hard-copies on Windows shells. Idempotent.
+
+### Changed
+- All `$CLAUDE_PLUGIN_ROOT` references inside skill SKILL.md files are renamed to the host-neutral `$PLUGIN_ROOT`. The MCP wrapper script (`plugins/simulator/mcp-server/run.sh`) resolves `$PLUGIN_ROOT` from whichever host-specific variable is present (`CLAUDE_PLUGIN_ROOT`, `KIRO_PLUGIN_ROOT`) and re-exports `CLAUDE_PLUGIN_ROOT` from the result, so existing Claude Code and Codex installs keep working byte-equivalent.
+
 ## [2.1.0]
 
 ### Added

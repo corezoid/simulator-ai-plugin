@@ -6,7 +6,7 @@ repository. Humans: see the root [`README.md`](README.md) (usage) and
 
 ## What this repo is
 
-A plugin for Claude Code and Codex that connects the **Simulator.Company** platform
+A plugin for Claude Code, Codex, and AWS Kiro that connects the **Simulator.Company** platform
 (backend: `pong-server` / `control-api`) to the host via MCP. It bundles:
 
 - a **Go MCP server** (`plugins/simulator/mcp-server/`) that exposes the Simulator
@@ -97,10 +97,17 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   when users type in those languages); (2) **product/UI terms** are kept verbatim (e.g. the
   Account-Template alias «Шаблон рахунків»). Example *data* values should be language-neutral.
 - **Entity/user-flow docs must stay under `plugins/simulator/docs/`.** Skills reference them
-  as `$CLAUDE_PLUGIN_ROOT/docs/...` and only `plugins/simulator/` is copied on install.
-  Contributor/architecture docs go in the repo-root `docs/`.
-- **Versioning.** The plugin version appears in `.claude-plugin/{plugin,marketplace}.json`,
-  `.agents/plugins/marketplace.json` and `CHANGELOG.md` — bump them together.
+  as `$PLUGIN_ROOT/docs/...` and only `plugins/simulator/` is copied on install.
+  Contributor/architecture docs go in the repo-root `docs/`. `$PLUGIN_ROOT` is host-neutral —
+  the MCP wrapper resolves it from `$CLAUDE_PLUGIN_ROOT` (Claude Code / Codex) or
+  `$KIRO_PLUGIN_ROOT` (AWS Kiro) and re-exports `$CLAUDE_PLUGIN_ROOT` for legacy consumers.
+- **Versioning.** The plugin version appears in **six** files — keep them in lockstep:
+  `plugins/simulator/.claude-plugin/plugin.json`,
+  `plugins/simulator/.codex-plugin/plugin.json`,
+  `plugins/simulator/.kiro-plugin/plugin.json`,
+  `.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json`,
+  `POWER.md` (frontmatter), plus the top-of-file entry in `CHANGELOG.md`.
 - **Linter.** `make lint` runs golangci-lint v2 (config `plugins/simulator/mcp-server/.golangci.yml`,
   shared with sibling Go services). `gosec` is clean (real findings fixed; trusted-input taint
   false positives are documented in the `gosec.excludes` list). The broader `default: all` set

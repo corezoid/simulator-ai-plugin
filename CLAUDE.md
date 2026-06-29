@@ -24,10 +24,12 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
   user's own language — never hardcode a non-English sentence for it to say. See the
   "Skill language" convention in [`AGENTS.md`](AGENTS.md) for the trilingual policy
   (en primary; uk/ru activation triggers and product aliases are the kept exceptions).
-- **`$CLAUDE_PLUGIN_ROOT` = `plugins/simulator/`.** Skills load reference docs as
-  `$CLAUDE_PLUGIN_ROOT/docs/entities/*.md`. Those files must stay under
+- **`$PLUGIN_ROOT` = `plugins/simulator/`.** Skills load reference docs as
+  `$PLUGIN_ROOT/docs/entities/*.md`. Those files must stay under
   `plugins/simulator/docs/` (only the plugin dir is shipped on install). Contributor docs
-  go in the repo-root `docs/`.
+  go in the repo-root `docs/`. The MCP wrapper resolves `$PLUGIN_ROOT` from whichever
+  host-neutral variable is set (`$CLAUDE_PLUGIN_ROOT` for Claude Code / Codex,
+  `$KIRO_PLUGIN_ROOT` for AWS Kiro) and re-exports `$CLAUDE_PLUGIN_ROOT` as a legacy alias.
 - **MCP tools.** When you add or rename a tool, update the MCP-tools table in the root
   [`README.md`](README.md) and §4 of [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - **Curated tools live in Go** under `internal/tools/<domain>.go` (declared as typed
