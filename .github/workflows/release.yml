@@ -67,6 +67,16 @@ jobs:
       - name: Regenerate discovery artifacts
         run: make discovery
 
+      - name: Generate Kiro overlay
+        run: make discovery-kiro
+
+      - name: Package Kiro overlay
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          cp POWER.md dist/kiro/POWER.md
+          (cd dist/kiro && zip -r "../simulator-kiro-${VERSION}.zip" .)
+
       - name: Attest binary provenance
         uses: actions/attest-build-provenance@v4
         with:
@@ -99,3 +109,5 @@ jobs:
             dist/checksums.txt
             public/llms.txt
             public/.well-known/skills/index.json
+            dist/simulator-kiro-*.zip
+            POWER.md
