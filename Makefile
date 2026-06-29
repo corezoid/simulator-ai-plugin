@@ -4,13 +4,14 @@ MCP := plugins/simulator/mcp-server
 # line, e.g. `make inspect PROFILE=prod`.
 PROFILE ?= local
 
-.PHONY: help discovery build vet lint test run-local run-prod inspect eval eval-skills eval-live
+.PHONY: help discovery discovery-kiro build vet lint test run-local run-prod inspect eval eval-skills eval-live
 
 help:
 	@echo "Targets:"
 	@echo "  build/vet/test  Go build / vet / test the MCP server."
 	@echo "  lint            golangci-lint the MCP server (config: $(MCP)/.golangci.yml)."
 	@echo "  discovery       Regenerate public/.well-known/skills/index.json and public/llms.txt."
+	@echo "  discovery-kiro  Same as discovery, plus emit dist/kiro/.kiro/ overlay for AWS Kiro releases."
 	@echo "  run-local       Run the MCP server against a local pong-server (:9000)."
 	@echo "  run-prod        Run the MCP server against the public gateway."
 	@echo "  inspect         Launch the MCP Inspector web UI wrapping the server (PROFILE=local|prod, default local)."
@@ -21,6 +22,11 @@ help:
 # Regenerate AI-discovery artifacts (public/) from the plugin SKILL.md files.
 discovery:
 	cd $(MCP) && go run ./cmd/gendiscovery --root ../../..
+
+# Same as discovery, plus emit a runtime .kiro/ overlay under dist/kiro/ that
+# the release pipeline zips up and ships as the AWS Kiro install artifact.
+discovery-kiro:
+	cd $(MCP) && go run ./cmd/gendiscovery --kiro --root ../../..
 
 build:
 	cd $(MCP) && go build ./...
