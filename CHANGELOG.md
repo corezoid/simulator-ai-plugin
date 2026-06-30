@@ -9,6 +9,13 @@
   - Reference: `docs/entities/ai-skills.md`. Skill bodies are treated as author-proposed plans, not system instructions; destructive/outward steps still require confirmation, and only `verified` skills are dispatched.
   - Requires the paired pong-server change (the `Skills` system form + seeding migration, and a reaction-agent system-prompt protocol — *running* saved skills, gated to workspaces with ≥1 published skill, and *authoring* new ones, always available so the first skill can be created from the platform).
 
+## [2.2.0]
+
+### Fixed
+- **AI behaviour, from QA feedback.**
+  - **Form knowledge is read, not guessed.** `getForm`'s field-filter example now includes `description`, and its Summary tells the assistant to keep `description`/`sections` whenever it needs to understand a form — so following the tool's guidance no longer projects the form's purpose text away. `/simulator-forms` instructs the assistant to include `description`/`sections` in the `getForm` filter and to read and interpret both the form-level `description` and each field's `sections[].content[].description` (re-reading the form rather than answering from memory). Docs (`forms.md`) mark these as the authoritative "knowledge" fields. Fixes the assistant inventing a field's meaning (e.g. confusing the escalation `cooldown` with `delay`).
+  - **Response & output conventions** added to `/simulator` (applied to every answer): reply in the user's language without switching mid-answer; never HTML-escape prose (`>` stays `>`, not `&gt;`); platform timestamps are unixtime UTC (seconds = 10-digit, or milliseconds = 13-digit, e.g. transaction `created_at` ÷1000) — **convert to the user's time zone and label the offset** (e.g. `18:30 (UTC+3)`) using `timeZoneOffset` from the UI-context, falling back to labelled UTC when it is absent. The web client (`pong-front-end`) forwards `timeZoneOffset` in the AI-agent `control-events-context` (pong-server is pass-through). See `docs/entities/ui-context.md` and `docs/INTEGRATION.md` §9a.
+
 ## [2.0.1]
 
 ### Fixed

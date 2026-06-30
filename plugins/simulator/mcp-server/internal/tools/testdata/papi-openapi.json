@@ -563,10 +563,20 @@
                 "type": "object",
                 "additionalProperties": true,
                 "properties": {
+                  "status": {
+                    "type": "string"
+                  },
+                  "virus": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
                   "id": {
                     "type": "integer"
                   },
-                  "status": {
+                  "scanner": {
                     "type": "string"
                   },
                   "bucket": {
@@ -583,16 +593,9 @@
                   },
                   "size": {
                     "type": "integer"
-                  },
-                  "scanner": {
-                    "type": "string"
-                  },
-                  "virus": {
-                    "type": "string"
                   }
                 },
                 "required": [
-                  "id",
                   "status"
                 ]
               }
@@ -2904,16 +2907,61 @@
                   "targetActorId": {
                     "type": "string"
                   },
-                  "holeLaId": {
-                    "type": "integer"
-                  },
-                  "targetLaId": {
-                    "type": "integer"
+                  "layerId": {
+                    "type": "string"
                   }
                 },
                 "required": [
                   "holeActorId",
-                  "targetActorId"
+                  "targetActorId",
+                  "layerId"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "accId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/actors/revert_hole/{accId}": {
+      "post": {
+        "tags": [
+          "Graph"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "targetActorId": {
+                    "type": "string"
+                  },
+                  "layerId": {
+                    "type": "string"
+                  },
+                  "holeActorId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetActorId",
+                  "layerId"
                 ]
               }
             }
@@ -3443,6 +3491,16 @@
                             "text": {
                               "type": "string"
                             },
+                            "subtitle": {
+                              "type": "string"
+                            },
+                            "icon": {
+                              "type": "string"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
                             "createdAt": {
                               "type": "number"
                             }
@@ -3680,6 +3738,16 @@
                             },
                             "text": {
                               "type": "string"
+                            },
+                            "subtitle": {
+                              "type": "string"
+                            },
+                            "icon": {
+                              "type": "string"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1
                             },
                             "createdAt": {
                               "type": "number"
@@ -4048,6 +4116,16 @@
                             },
                             "text": {
                               "type": "string"
+                            },
+                            "subtitle": {
+                              "type": "string"
+                            },
+                            "icon": {
+                              "type": "string"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1
                             },
                             "createdAt": {
                               "type": "number"
@@ -12915,6 +12993,7 @@
         }
       },
       "put": {
+        "operationId": "updateLayerPositions",
         "tags": [
           "Graph"
         ],
@@ -14215,6 +14294,9 @@
                   "abbreviation": {
                     "type": "string",
                     "maxLength": 255
+                  },
+                  "transferOnly": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -16097,6 +16179,78 @@
             "required": false
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/ai": {
+      "post": {
+        "description": "cc-api AI-usage callback: kind=tokens (usage) or kind=cost (request_id+cost)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "tokens",
+                      "cost"
+                    ]
+                  },
+                  "session_id": {
+                    "type": "string"
+                  },
+                  "dialog_actor_id": {
+                    "type": "string"
+                  },
+                  "acc_id": {
+                    "type": "string"
+                  },
+                  "user_id": {},
+                  "usage": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "input_tokens": {
+                        "type": "number"
+                      },
+                      "output_tokens": {
+                        "type": "number"
+                      },
+                      "total_tokens": {
+                        "type": "number"
+                      },
+                      "cache_read_input_tokens": {
+                        "type": "number"
+                      },
+                      "cache_creation_input_tokens": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "request_id": {
+                    "type": "string"
+                  },
+                  "cost": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "dialog_actor_id",
+                  "acc_id"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Default Response"

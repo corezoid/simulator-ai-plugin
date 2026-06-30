@@ -40,6 +40,7 @@ decoded JSON into the agent's system prompt. **Read it to resolve deictic refere
 | Field | Meaning | How to use it |
 |---|---|---|
 | `workspaceId` | The active workspace (full UUID). | The workspace the user is in — use it as `accId` if you need to override the configured one. |
+| `timeZoneOffset` | The user's time-zone offset in **minutes**, JS-style (`-180` = UTC+3). Sent by the web client (`pong-front-end` `setWebWidgetReactionContext`) and parsed by the plugin as `UIContext.TimeZoneOffset`. May be absent on older clients or non-web hosts (e.g. a plain Claude Code session). | It is the user's time zone — convert platform unixtime (stored UTC) for display and label the offset (e.g. `18:30 (UTC+3)`). If absent, present times in UTC. See the "Timestamps" rule in `/simulator`. |
 | `hostOrigin` | The web-app origin, e.g. `https://mw.simulator.company`. | The web base for deep-links (`hostOrigin + page`, or pair with `buildLink`). |
 | `page` | The current route path (everything after the origin). | A ready-made link to *what the user is looking at* — `hostOrigin + page` is the full URL. Also tells you the section (`/actors_graph/…`, `/chats/…`, `/events/…`). |
 | `activeActor` | UUID of the actor currently open/focused. | Resolve "this actor" / "the open card" / "it". Pass to `getActor`, `createReaction`, `buildLink(entity="actor")`, etc. For the **actor's own files** ("files on this actor"), `getActorAttachments(activeActor)`. |

@@ -6,6 +6,8 @@ Transactions in the Simulator.Company platform represent financial activities th
 
 Transactions record all financial activities within the platform, including deposits, withdrawals, transfers, authorizations, and limit changes. Each transaction affects an account's balance and can be linked to transfers for cross-account operations.
 
+> **Note — time units.** `created_at` and `original_date` are **unixtime in milliseconds, UTC** (`BigInt`, 13-digit — divide by 1000 before formatting). `expiration` is **unix seconds** (`int32`, 10-digit). For how to present timestamps to users, see the "Timestamps" rule in `/simulator` (Response & output conventions).
+
 ## Properties
 
 | Property | Type | Description |

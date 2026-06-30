@@ -6,6 +6,8 @@ Balances in the Simulator.Company platform track the financial state of accounts
 
 Balances provide a detailed record of an account's financial state at the time of each transaction. They track credit and debit amounts, holds, and limits, enabling accurate financial reporting and analysis.
 
+> **Note:** balance-history timestamps follow the transaction time convention — see [transactions.md](transactions.md) for units (created on each transaction), and the "Timestamps" rule in `/simulator` for how to present them.
+
 ## Properties
 
 | Property | Type | Description |

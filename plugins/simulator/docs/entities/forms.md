@@ -18,7 +18,7 @@ A form is, concretely, a `sections[]` array. Each section has a `title` and an o
 | acc_id | String | Workspace ID the form belongs to |
 | user_id | Integer | ID of the user who created the form |
 | title | Text | Display title of the form |
-| description | Text | Detailed description of the form's purpose |
+| description | Text | Detailed description of the form's purpose. **Authoritative "knowledge" about the form** — read it before answering what the form is for. Top-level key — **include `description` in your `getForm` `filter`** (it is in the tool's example list); a narrower custom filter drops it, and omitting `filter` returns the full object. |
 | sections | JSON | Form sections containing fields and their properties |
 | color | String | Color associated with the form (hex code) |
 | picture | Text | URL or path to the form's image |
@@ -58,7 +58,7 @@ Each field item in a section's `content[]` may carry these properties:
 | `visibility` | String | `visible`, `disabled`, or `hidden`. |
 | `regexp` | String | Validation regular expression (`edit`). |
 | `errorMsg` | String | Custom error message shown on validation failure. |
-| `description` | String | Helper text under the field. |
+| `description` | String | Helper text under the field — the **authoritative meaning of the field/parameter**; read it rather than guessing from `title`/`class`. Flat, optional key at `sections[].content[].description`; arrives whenever `sections` is fetched. |
 | `align` | String | Layout alignment (`horizontal`, `center`, …). |
 | `color` | String | Field/option color (hex). |
 | `idNotChanged` | Boolean | Internal flag: the `id` is stable and not regenerated on edit. |
