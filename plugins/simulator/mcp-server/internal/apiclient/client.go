@@ -90,8 +90,8 @@ const (
 
 // UIContext is the decoded `control-events-context` — where the user is in the
 // Simulator web UI when they triggered the AI agent. Carried per request so
-// tools (e.g. buildLink) can default to the user's current view. All fields are
-// optional; absent ones are "".
+// tools (e.g. buildLink) can default to the user's current view. All string
+// fields are optional (absent → ""); TimeZoneOffset is *int (absent → nil).
 type UIContext struct {
 	HostOrigin     string `json:"hostOrigin"`     // web-app origin, e.g. https://mw.simulator.company
 	WorkspaceID    string `json:"workspaceId"`    // active workspace (full UUID)
@@ -99,6 +99,12 @@ type UIContext struct {
 	ActiveReaction string `json:"activeReaction"` // UUID of the reaction that triggered the agent (the user's message), when present
 	ActiveLayer    string `json:"activeLayer"`    // UUID of the open graph layer
 	ActiveGraph    string `json:"activeGraph"`    // UUID of the open graph (folder)
+	// TimeZoneOffset is the user's time-zone offset in minutes, JS-style
+	// (-180 = UTC+3); nil when absent — present times as UTC. Forwarded by
+	// pong-server in the AI-agent control-events-context (see docs/INTEGRATION.md
+	// §9); not sent by older platforms. Conversion is done by the model from the
+	// injected context JSON, so this field types/documents the contract.
+	TimeZoneOffset *int `json:"timeZoneOffset"`
 }
 
 // ParseUIContext decodes a `control-events-context` header value into a UIContext.

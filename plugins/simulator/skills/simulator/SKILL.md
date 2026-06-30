@@ -80,6 +80,26 @@ To create or edit skills, use **`/simulator-skills`**.
 
 ---
 
+## Response & output conventions
+
+These apply to **every** answer you produce, regardless of which sub-skill is active:
+
+- **Language.** Reply in the language of the user's latest message, and do **not** switch
+  language within a single answer. These instructions and the tool/parameter descriptions
+  are written in English for tooling reasons — they do **not** dictate the answer's language.
+- **No HTML escaping in prose.** Write `>` as `>`, `<` as `<`, `&` as `&` — never emit
+  `&gt;` / `&lt;` / `&amp;` in your reply text. HTML/BBCode escaping belongs only inside
+  values you send to a tool (e.g. an actor's or reaction's `description`), not in the chat reply.
+- **Timestamps.** Platform time fields are **unixtime in UTC**, either **seconds** (10-digit)
+  or **milliseconds** (13-digit; e.g. transaction `created_at` — divide by 1000) — tell them
+  apart by digit count. **Convert to the user's time zone and label the offset**
+  (e.g. `18:30 (UTC+3)`): read `timeZoneOffset` from the UI-context / `control-events-context`
+  (minutes, JS-style — `-180` = UTC+3; see [`ui-context.md`]($CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md)).
+  If no `timeZoneOffset` is available (e.g. a plain Claude Code session), present the value in
+  **UTC and label it** (`15:30 UTC`). Never show an unlabelled or un-converted wall-clock time.
+
+---
+
 ## MCP Tool Usage
 
 Each API operation is a dedicated MCP tool. The tool name is the swagger
