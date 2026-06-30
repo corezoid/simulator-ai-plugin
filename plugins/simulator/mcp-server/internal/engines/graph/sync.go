@@ -58,8 +58,8 @@ type layerActor struct {
 	LaID        int                    `json:"laId"`
 	Data        map[string]interface{} `json:"data"`
 	Position    struct {
-		X int `json:"x"`
-		Y int `json:"y"`
+		X jsonInt `json:"x"`
+		Y jsonInt `json:"y"`
 	} `json:"position"`
 }
 
@@ -269,8 +269,8 @@ func handlePullGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		if name := resolveFormIDToName(ga.FormID); name != "" {
 			ga.FormName = name
 		}
-		ga.Position.X = sa.Position.X
-		ga.Position.Y = sa.Position.Y
+		ga.Position.X = int(sa.Position.X)
+		ga.Position.Y = int(sa.Position.Y)
 		graph.Actors = append(graph.Actors, ga)
 	}
 

@@ -41,8 +41,8 @@ type paginatedLayerActor struct {
 	FormID   int    `json:"formId"`
 	Title    string `json:"title"`
 	Position struct {
-		X int `json:"x"`
-		Y int `json:"y"`
+		X jsonInt `json:"x"`
+		Y jsonInt `json:"y"`
 	} `json:"position"`
 	// formId can also live under nested form objects on some endpoints; the
 	// paginated route exposes it at the top level, so this struct is enough.
@@ -98,8 +98,8 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 				FormID:  p.FormID,
 				Title:   p.Title,
 			}
-			row.Position.X = p.Position.X
-			row.Position.Y = p.Position.Y
+			row.Position.X = int(p.Position.X)
+			row.Position.Y = int(p.Position.Y)
 			rows = append(rows, row)
 		}
 		if len(page.Data) < limit {
