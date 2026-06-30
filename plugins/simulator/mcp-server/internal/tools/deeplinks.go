@@ -332,16 +332,21 @@ func buildLinkHandler(c *apiclient.Client) server.ToolHandlerFunc {
 			case "layer":
 				// Canonical open-layer URL is /graph/<graph folder>/layers/<layer>:
 				// the graph (folder) fills the /graph/ path slot and the open layer
-				// is the focused element after /layers/. Older platforms send only
-				// ActiveLayer (no ActiveGraph) — fall back to putting the layer in
-				// the path slot (/graph/<layer>/layers) so the link still resolves.
-				if ui.ActiveGraph != "" {
+				// is the focused element after /layers/. Use it only when the context
+				// gives a graph folder distinct from the layer itself.
+				if ui.ActiveGraph != "" && ui.ActiveGraph != ui.ActiveLayer {
 					params.id = ui.ActiveGraph
 					if params.focusId == "" {
 						params.focusId = ui.ActiveLayer
 					}
 				} else {
+					// Older platforms send only ActiveLayer (no ActiveGraph), or a
+					// degenerate ActiveGraph == ActiveLayer — put the layer in the path
+					// slot (/graph/<layer>/layers). The layer now occupies that slot, so
+					// drop any focusId rather than emit /graph/<layer>/layers/<focusId>,
+					// which would read the focus segment as a nested layer.
 					params.id = ui.ActiveLayer
+					params.focusId = ""
 				}
 			}
 		}

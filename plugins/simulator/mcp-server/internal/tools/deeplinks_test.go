@@ -111,6 +111,12 @@ func TestBuildLinkUsesUIContext(t *testing.T) {
 			"https://mw.simulator.company/actors_graph/a58d969b/view/11111111-1111-1111-1111-111111111111"},
 		{"open layer (no id)", map[string]any{"entity": "layer"},
 			"https://mw.simulator.company/actors_graph/a58d969b/graph/21a7c6b6-bba1-4b19-9fcd-7e94f29a9e8a/layers"},
+		// No ActiveGraph in this context: the layer fills the /graph/ slot, so an
+		// explicit focusId must be dropped (not appended) to avoid a malformed
+		// /graph/<layer>/layers/<focusId>.
+		{"open layer (no graph, explicit focusId dropped)",
+			map[string]any{"entity": "layer", "focusId": "ffffffff-0000-0000-0000-000000000000"},
+			"https://mw.simulator.company/actors_graph/a58d969b/graph/21a7c6b6-bba1-4b19-9fcd-7e94f29a9e8a/layers"},
 		{"explicit args override context", map[string]any{"entity": "actor", "accId": "bbbb2222", "id": "ffffffff-2222-3333-4444-555555555555"},
 			"https://mw.simulator.company/actors_graph/bbbb2222/view/ffffffff-2222-3333-4444-555555555555"},
 	}
