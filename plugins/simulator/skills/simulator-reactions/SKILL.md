@@ -118,7 +118,7 @@ When the agent runs, the client also passes a **UI-context** object (`control-ev
 that says **where the user is** — `activeActor`, `activeReaction`, `activeLayer`, `activeGraph`,
 `page`, `hostOrigin`, `workspaceId`, `graphDiscovery`. Read it to resolve "here" / "this actor" /
 "this layer" and to default ids the user left implicit. See
-`$PLUGIN_ROOT/docs/entities/ui-context.md`.
+`$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md`.
 
 > **Attachments: actor vs. message are two different sets.** Attachments are a per-actor linked
 > collection, and a reaction is itself an actor — so there are **two** places a file can live, each
@@ -165,8 +165,8 @@ markReactionsRead(actorId="<parent actor UUID>", count=12)   # clears the unread
 
 | Path | When to read |
 |---|---|
-| `$PLUGIN_ROOT/docs/entities/reactions.md` | Reaction model, types, tree structure, `data` shape |
-| `$PLUGIN_ROOT/docs/entities/attachments.md` | Attaching files to a reaction |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` | Reaction model, types, tree structure, `data` shape |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/attachments.md` | Attaching files to a reaction |
 
 ## Tips
 

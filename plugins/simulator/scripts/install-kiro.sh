@@ -8,12 +8,20 @@
 # Creates the following under <workspace>/.kiro/:
 #   settings/mcp.json        ← copy of .mcp.kiro.json
 #   steering/<name>.md       ← symlinked from this plugin's steering/
-#   skills/<name>/SKILL.md   ← symlinked from this plugin's skills/<name>/
+#   skills/<name>/SKILL.md   ← HARD-COPIED with $CLAUDE_PLUGIN_ROOT resolved
+#                              to the absolute plugin path
 #
-# Exports KIRO_PLUGIN_ROOT (printed for the user to add to their shell rc if
-# they want it persistent — the MCP wrapper resolves it on its own).
+# Why hard-copy and resolve the token, instead of symlinking the source files
+# the way Claude Code / Codex consume them?
+#   - The token `$CLAUDE_PLUGIN_ROOT` is a host-side text substitution Claude
+#     Code performs at skill-load time (anthropics/claude-code#48230 etc.).
+#     Kiro does no such substitution — so the literal `$CLAUDE_PLUGIN_ROOT`
+#     would survive into the model context, leaving every reference-doc path
+#     as a dead string. Resolving the token at install time fixes that.
+#   - Symlinked skills would re-introduce the unresolved token on every read.
 #
-# Windows: symlinks are not available; falls back to hard-copy.
+# `sed -i` portability is handled with the `-i.bak`+`find -delete` two-step
+# (works under both GNU sed on Linux and BSD sed on macOS without branching).
 
 set -eu
 
@@ -29,33 +37,38 @@ fi
 
 mkdir -p "$KIRO_DIR/settings" "$KIRO_DIR/steering" "$KIRO_DIR/skills"
 
-# Copy the MCP entry (never symlink — workspace-local edits must not leak
-# back into the plugin source).
+# 1) MCP entry — always plain copy (workspace-local edits must not leak back).
 cp "$PLUGIN_ROOT/.mcp.kiro.json" "$KIRO_DIR/settings/mcp.json"
 
-# Pick the right linker: symlink on POSIX, hard-copy on Windows shells.
+# 2) Steering — small, stable, no token substitution needed. Symlink on POSIX,
+#    hard-copy on Windows shells.
 case "$(uname -s 2>/dev/null || echo Unknown)" in
-  MINGW*|CYGWIN*|MSYS*) LINK_CMD="cp -R" ;;
-  *)                    LINK_CMD="ln -sfn" ;;
+  MINGW*|CYGWIN*|MSYS*) STEERING_LINK="cp -R" ;;
+  *)                    STEERING_LINK="ln -sfn" ;;
 esac
-
-# Link steering files.
 for f in "$PLUGIN_ROOT"/steering/*.md; do
   [ -f "$f" ] || continue
-  $LINK_CMD "$f" "$KIRO_DIR/steering/$(basename "$f")"
+  $STEERING_LINK "$f" "$KIRO_DIR/steering/$(basename "$f")"
 done
 
-# Link each skill directory under .kiro/skills/<name>/. Refresh any stale
-# entry so re-running this script is idempotent.
+# 3) Skills — HARD-COPY then sed-substitute $CLAUDE_PLUGIN_ROOT in every .md
+#    so reference-doc paths resolve to the absolute plugin dir under Kiro.
 for d in "$PLUGIN_ROOT"/skills/*/; do
   [ -d "$d" ] || continue
   name="$(basename "$d")"
-  rm -rf "$KIRO_DIR/skills/$name"
-  $LINK_CMD "$d" "$KIRO_DIR/skills/$name"
+  dst="$KIRO_DIR/skills/$name"
+  rm -rf "$dst"
+  cp -R "$d" "$dst"
+  # `#` delimiter avoids escaping the `/` inside $PLUGIN_ROOT. Backup suffix
+  # is the portable two-step for GNU and BSD sed.
+  find "$dst" -name '*.md' -type f -exec \
+    sed -i.bak "s#\\\$CLAUDE_PLUGIN_ROOT#$PLUGIN_ROOT#g" {} +
+  find "$dst" -name '*.md.bak' -type f -delete
 done
 
 echo "Installed simulator plugin into: $KIRO_DIR"
 echo "Open this workspace in Kiro and the simulator MCP server, skills, and steering will be picked up."
+echo "Reference-doc paths in skills were resolved to: $PLUGIN_ROOT"
 echo
 echo "If your shell does not already set KIRO_PLUGIN_ROOT, add:"
 echo "  export KIRO_PLUGIN_ROOT=\"$PLUGIN_ROOT\""

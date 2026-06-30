@@ -624,7 +624,7 @@ createAccountName(name="Balance", abbreviation="BAL")
 - Space actors ~200–300 px apart; use the layout algorithm for coordinates.
 - **To place a user/person on the graph, use their twin actor** — resolve it with
   `getSystemActor(objType="user", objId=<userId>)` and place that `actorId`. A bare `userId`
-  is not a graph node. (See `$PLUGIN_ROOT/docs/entities/users.md`.)
+  is not a graph node. (See `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md`.)
 
 ---
 
@@ -632,8 +632,8 @@ createAccountName(name="Balance", abbreviation="BAL")
 
 | Path                                                            | When to read                                   |
 |-----------------------------------------------------------------|------------------------------------------------|
-| `$PLUGIN_ROOT/docs/entities/actors.md`                   | Full actor property list and types             |
-| `$PLUGIN_ROOT/docs/entities/links.md`                    | Link/edge properties and type system           |
-| `$PLUGIN_ROOT/docs/entities/layers.md`                   | Layer types and behavior                       |
-| `$PLUGIN_ROOT/docs/user-flows/graph-functionality.md`    | Graph building walkthrough with test scenarios |
-| `$PLUGIN_ROOT/docs/user-flows/actor-graph-management.md` | Managing actors on graphs — practical patterns |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/actors.md`                   | Full actor property list and types             |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/links.md`                    | Link/edge properties and type system           |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/layers.md`                   | Layer types and behavior                       |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/graph-functionality.md`    | Graph building walkthrough with test scenarios |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/actor-graph-management.md` | Managing actors on graphs — practical patterns |

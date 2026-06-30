@@ -96,7 +96,7 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-The `release.yml` workflow fires automatically on any `v*` tag. It cross-compiles the MCP server for `darwin/linux × amd64/arm64`, generates SHA-256 checksums, attests build provenance, regenerates `public/` via `make discovery`, builds the Kiro overlay via `make discovery-kiro`, zips it as `simulator-kiro-vX.Y.Z.zip`, and creates a GitHub Release whose body is the matching `CHANGELOG.md` section. Both the Kiro zip and `POWER.md` are attached to every Release so kiro.dev/powers can resolve the Power manifest from the tag.
+The `release.yml` workflow fires automatically on any `v*` tag. It cross-compiles the MCP server for `darwin/linux × amd64/arm64`, generates SHA-256 checksums, attests build provenance, regenerates `public/` via `make discovery`, and creates a GitHub Release whose body is the matching `CHANGELOG.md` section. `POWER.md` is attached to every Release so kiro.dev/powers can resolve the Power manifest from the tag — Kiro users install via the clone path described below; there is no pre-built `.kiro/` zip artifact (a release-only overlay would still need a post-extract step to resolve the `$CLAUDE_PLUGIN_ROOT` token, so the clone path is the only correct flow today).
 
 ## 7. Install from GitHub
 
@@ -124,19 +124,19 @@ codex plugin install simulator@simulator
 **AWS Kiro:**
 
 ```bash
-# Option A — install from a cloned repo (developer mode):
 git clone https://github.com/corezoid/simulator-ai-plugin
 plugins/simulator/scripts/install-kiro.sh "$YOUR_KIRO_WORKSPACE"
-
-# Option B — extract the pre-built overlay from the GitHub Release:
-curl -L -o simulator-kiro.zip \
-  https://github.com/corezoid/simulator-ai-plugin/releases/download/vX.Y.Z/simulator-kiro-vX.Y.Z.zip
-unzip -d "$YOUR_KIRO_WORKSPACE" simulator-kiro.zip
 ```
 
+The script hard-copies the skills into the workspace and resolves the
+`$CLAUDE_PLUGIN_ROOT` token in each `SKILL.md` to the absolute plugin path.
+Kiro does no token substitution on its own, so this install-time resolve
+step is required. The script is idempotent; re-run it after a `git pull`
+to refresh the workspace overlay.
+
 To list this Power on **kiro.dev/powers**, submit the release tag URL to the
-Kiro Power registry. `POWER.md` is attached to every Release so the registry
-can resolve metadata from the tag.
+Kiro Power registry. `POWER.md` is attached to every GitHub Release so the
+registry can resolve metadata from the tag.
 
 ## 8. Notify Users
 

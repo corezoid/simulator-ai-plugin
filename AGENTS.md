@@ -97,10 +97,13 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   when users type in those languages); (2) **product/UI terms** are kept verbatim (e.g. the
   Account-Template alias «Шаблон рахунків»). Example *data* values should be language-neutral.
 - **Entity/user-flow docs must stay under `plugins/simulator/docs/`.** Skills reference them
-  as `$PLUGIN_ROOT/docs/...` and only `plugins/simulator/` is copied on install.
-  Contributor/architecture docs go in the repo-root `docs/`. `$PLUGIN_ROOT` is host-neutral —
-  the MCP wrapper resolves it from `$CLAUDE_PLUGIN_ROOT` (Claude Code / Codex) or
-  `$KIRO_PLUGIN_ROOT` (AWS Kiro) and re-exports `$CLAUDE_PLUGIN_ROOT` for legacy consumers.
+  as `$CLAUDE_PLUGIN_ROOT/docs/...` and only `plugins/simulator/` is copied on install.
+  Contributor/architecture docs go in the repo-root `docs/`. The token name is host-imposed:
+  Claude Code and Codex both resolve `$CLAUDE_PLUGIN_ROOT` via text substitution at
+  skill-load time (anthropics/claude-code#48230, #47789, #44057). Renaming it breaks both
+  hosts. AWS Kiro doesn't substitute the token at all — `install-kiro.sh` and the release
+  generator hard-copy the skills and `sed`-replace the token with the absolute plugin path
+  at install time instead.
 - **Versioning.** The plugin version appears in **six** files — keep them in lockstep:
   `plugins/simulator/.claude-plugin/plugin.json`,
   `plugins/simulator/.codex-plugin/plugin.json`,

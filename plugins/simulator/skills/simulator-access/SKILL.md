@@ -57,7 +57,7 @@ never guess:
 > **Share onto the `user`, never their twin actor.** Each user has a 1:1 digital-twin actor,
 > but access is granted to the **`userId`** — pass `userId` in the rule's `data`, not the twin
 > actor's id. The twin actor is for *transactions / accounts / graph placement*
-> (`getSystemActor`), not for sharing. See `$PLUGIN_ROOT/docs/entities/users.md`.
+> (`getSystemActor`), not for sharing. See `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md`.
 
 ---
 

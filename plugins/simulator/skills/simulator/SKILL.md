@@ -186,7 +186,7 @@ representing them, carrying their accounts). Use the right one for the job:
   resolved with `getSystemActor(objType="user", objId=<userId>)` → then `getAccounts` /
   `createTransfer` / `manageLayerActors`.
 
-See `$PLUGIN_ROOT/docs/entities/users.md`.
+See `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md`.
 
 ### UI context (where the user is)
 When you run as the platform **AI agent** (an `extra.mcp` reaction), a UI-context object is
@@ -197,7 +197,7 @@ injected into your prompt describing **where the user is in the interface** — 
 the view they're looking at instead of asking. **`buildLink` auto-uses this context** (web base
 from `hostOrigin`, workspace from `workspaceId`, and the open `activeActor`/`activeLayer` as the
 default id), so `buildLink(entity="actor")` / `buildLink(entity="layer")` link to what's open. See
-`$PLUGIN_ROOT/docs/entities/ui-context.md`.
+`$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md`.
 
 ## Common Workflows
 
@@ -318,24 +318,24 @@ Use the `Read` tool to load these files when you need deeper detail:
 
 | Path | When to read |
 |---|---|
-| `$PLUGIN_ROOT/docs/entities/actors.md` | Actor properties, types, database structure |
-| `$PLUGIN_ROOT/docs/entities/forms.md` | Form fields, validation, inheritance |
-| `$PLUGIN_ROOT/docs/entities/links.md` | Link types, edge properties |
-| `$PLUGIN_ROOT/docs/entities/layers.md` | Layer types, visual organization |
-| `$PLUGIN_ROOT/docs/entities/accounts.md` | Account types, income types, formulas |
-| `$PLUGIN_ROOT/docs/entities/transactions.md` | Transaction states, 2-step flow |
-| `$PLUGIN_ROOT/docs/entities/transfers.md` | Transfer mechanics |
-| `$PLUGIN_ROOT/docs/entities/system-forms.md` | All built-in system form definitions |
-| `$PLUGIN_ROOT/docs/entities/reactions.md` | Comment/approval reaction types |
-| `$PLUGIN_ROOT/docs/entities/users.md` | The `user` entity vs its 1:1 twin actor — share to users, transact/graph via the twin |
-| `$PLUGIN_ROOT/docs/entities/ui-context.md` | `control-events-context`: where the user is in the UI (activeActor/activeLayer/activeGraph/page) — resolve "here"/"this" |
-| `$PLUGIN_ROOT/docs/entities/chats.md` | Chats: Events-form actors, p2p/group, messages as reactions |
-| `$PLUGIN_ROOT/docs/entities/tasks.md` | Tasks: Events-form actors + execute/sign/ds roles, done/sign/reject lifecycle |
-| `$PLUGIN_ROOT/docs/entities/meetings.md` | Meetings: Events-form actors + scheduleMeeting, recurrence/agenda/persistent rooms, join links |
-| `$PLUGIN_ROOT/docs/entities/attachments.md` | File attachment operations |
-| `$PLUGIN_ROOT/docs/user-flows/graph-functionality.md` | Step-by-step graph building walkthrough |
-| `$PLUGIN_ROOT/docs/user-flows/actor-graph-management.md` | Actor graph management patterns |
-| `$PLUGIN_ROOT/docs/user-flows/custom-car-form.md` | Custom form + financial accounts example |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/actors.md` | Actor properties, types, database structure |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` | Form fields, validation, inheritance |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/links.md` | Link types, edge properties |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/layers.md` | Layer types, visual organization |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/accounts.md` | Account types, income types, formulas |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/transactions.md` | Transaction states, 2-step flow |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/transfers.md` | Transfer mechanics |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/system-forms.md` | All built-in system form definitions |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` | Comment/approval reaction types |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/users.md` | The `user` entity vs its 1:1 twin actor — share to users, transact/graph via the twin |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/ui-context.md` | `control-events-context`: where the user is in the UI (activeActor/activeLayer/activeGraph/page) — resolve "here"/"this" |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/chats.md` | Chats: Events-form actors, p2p/group, messages as reactions |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/tasks.md` | Tasks: Events-form actors + execute/sign/ds roles, done/sign/reject lifecycle |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/meetings.md` | Meetings: Events-form actors + scheduleMeeting, recurrence/agenda/persistent rooms, join links |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/attachments.md` | File attachment operations |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/graph-functionality.md` | Step-by-step graph building walkthrough |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/actor-graph-management.md` | Actor graph management patterns |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/custom-car-form.md` | Custom form + financial accounts example |
 
 ## Tips & Best Practices
 

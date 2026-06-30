@@ -575,6 +575,6 @@ resulting bound process to the Smart Form env via `corezoidCredentials` / `procI
 
 | Path | When to read |
 |---|---|
-| `$PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Full lifecycle, data model, deploy/release internals, access model, API reference table |
-| `$PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` | Complete component catalogue, templating, change protocol, server-side save validation |
-| `$PLUGIN_ROOT/skills/simulator-smart-forms-logic/SKILL.md` | Author + bind the Corezoid backend processes for this Smart Form |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Full lifecycle, data model, deploy/release internals, access model, API reference table |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` | Complete component catalogue, templating, change protocol, server-side save validation |
+| `$CLAUDE_PLUGIN_ROOT/skills/simulator-smart-forms-logic/SKILL.md` | Author + bind the Corezoid backend processes for this Smart Form |

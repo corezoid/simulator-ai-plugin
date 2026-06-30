@@ -36,11 +36,14 @@ plugins/simulator/scripts/install-kiro.sh "$YOUR_KIRO_WORKSPACE"
 
 Open the workspace in Kiro. The simulator MCP server registers under
 `.kiro/settings/mcp.json`, the steering file under `.kiro/steering/`, and
-every skill under `.kiro/skills/<name>/`.
+every skill under `.kiro/skills/<name>/`. `install-kiro.sh` hard-copies the
+skills into the workspace and resolves the `$CLAUDE_PLUGIN_ROOT` token in
+each `SKILL.md` to the absolute plugin path, so reference docs at
+`plugins/simulator/docs/...` resolve correctly under Kiro (Kiro does not
+substitute the token on its own).
 
-The same release also ships pre-built Kiro overlays attached to every GitHub
-Release as `simulator-kiro-vX.Y.Z.zip` — extract directly over your
-workspace's `.kiro/` to skip the clone step.
+Re-running `install-kiro.sh` is idempotent: it refreshes the workspace
+overlay in place.
 
 ## What it does
 

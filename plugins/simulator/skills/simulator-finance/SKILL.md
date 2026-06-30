@@ -634,12 +634,12 @@ filterActors(formId=42, accountNameId="<aname>", currencyId=1, amountFrom=10000)
 
 | Path | When to read |
 |---|---|
-| `$PLUGIN_ROOT/docs/entities/accounts.md` | Account types, income types, tree calculation, formulas |
-| `$PLUGIN_ROOT/docs/entities/transactions.md` | Transaction states, 2-step flow, atomic transactions |
-| `$PLUGIN_ROOT/docs/entities/transfers.md` | Transfer mechanics, holds, filtering |
-| `$PLUGIN_ROOT/docs/entities/balances.md` | Balance history, credit/debit split |
-| `$PLUGIN_ROOT/docs/entities/counters.md` | ScyllaDB counters, time-series metrics |
-| `$PLUGIN_ROOT/docs/user-flows/custom-car-form.md` | Complete financial-tracking example |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/accounts.md` | Account types, income types, tree calculation, formulas |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/transactions.md` | Transaction states, 2-step flow, atomic transactions |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/transfers.md` | Transfer mechanics, holds, filtering |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/balances.md` | Balance history, credit/debit split |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/counters.md` | ScyllaDB counters, time-series metrics |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/custom-car-form.md` | Complete financial-tracking example |
 
 ## Tips
 

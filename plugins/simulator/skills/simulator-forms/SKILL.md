@@ -132,7 +132,7 @@ actor data is keyed by field **`id`**, never by the field `title` or its seconda
 | `api` / `corezoidSyncApi` | endpoint cfg / `{convId,apiLogin,apiSecret}` | a generic / Corezoid HTTP source | (source-defined) |
 
 > Full reference + the matching actor-`data` value shapes:
-> `$PLUGIN_ROOT/docs/entities/forms.md` and `…/docs/entities/actors.md`.
+> `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` and `…/docs/entities/actors.md`.
 
 ---
 
@@ -312,7 +312,7 @@ getForms(accId="ws_xxx", formTypes="system")   # find title containing "Script" 
 ```
 
 Then create a Smart Form actor from it like any other actor. The full Smart-Form / CDU
-runtime contract is documented in `$PLUGIN_ROOT/docs/user-flows/smart-forms.md`
+runtime contract is documented in `$CLAUDE_PLUGIN_ROOT/docs/user-flows/smart-forms.md`
 and `…/cdu-page-protocol.md`.
 
 > Note: the Applications / Smart-Forms *MCP tools* are not registered at this stage
@@ -326,11 +326,11 @@ Load with the `Read` tool when you need more detail:
 
 | Path | When to read |
 |---|---|
-| `$PLUGIN_ROOT/docs/entities/forms.md` | Full field-class catalogue, dynamic select sources, worked form↔data example |
-| `$PLUGIN_ROOT/docs/entities/actors.md` | Actor `data` value protocol (keyed by `item_<id>`) |
-| `$PLUGIN_ROOT/docs/entities/system-forms.md` | System form definitions — Graph, Layer, Event, Script, Account, … |
-| `$PLUGIN_ROOT/docs/user-flows/custom-car-form.md` | End-to-end car-form field example (note: its account-attach steps predate v2 — attach accounts to **actors** via `createAccount`, as above) |
-| `$PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Smart Forms / CDU lifecycle |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` | Full field-class catalogue, dynamic select sources, worked form↔data example |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/actors.md` | Actor `data` value protocol (keyed by `item_<id>`) |
+| `$CLAUDE_PLUGIN_ROOT/docs/entities/system-forms.md` | System form definitions — Graph, Layer, Event, Script, Account, … |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/custom-car-form.md` | End-to-end car-form field example (note: its account-attach steps predate v2 — attach accounts to **actors** via `createAccount`, as above) |
+| `$CLAUDE_PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Smart Forms / CDU lifecycle |
 
 ## Tips
 

@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -194,81 +193,8 @@ func llmsTxt(skills []skill) string {
 	return b.String()
 }
 
-// copyFile copies src to dst, creating intermediate dirs.
-func copyFile(src, dst string) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
-		return err
-	}
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
-}
-
-// emitKiroOverlay materialises a runtime .kiro/ tree under dist/kiro that
-// Kiro can install directly: settings/mcp.json, skills/<name>/SKILL.md, and
-// the steering file. The shared payload (skills SKILL.md, steering) is
-// COPIED rather than symlinked so the resulting dist/kiro is a portable
-// artifact suitable for zipping and attaching to a GitHub Release.
-func emitKiroOverlay(root string, skills []skill) error {
-	pluginDir := filepath.Join(root, "plugins", "simulator")
-	dist := filepath.Join(root, "dist", "kiro")
-	kiro := filepath.Join(dist, ".kiro")
-
-	// .kiro/settings/mcp.json — copied verbatim from .mcp.kiro.json
-	if err := copyFile(
-		filepath.Join(pluginDir, ".mcp.kiro.json"),
-		filepath.Join(kiro, "settings", "mcp.json"),
-	); err != nil {
-		return fmt.Errorf("emit kiro mcp.json: %w", err)
-	}
-
-	// .kiro/steering/<file>.md
-	steeringSrc := filepath.Join(pluginDir, "steering")
-	steeringDst := filepath.Join(kiro, "steering")
-	if entries, err := os.ReadDir(steeringSrc); err == nil {
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-				continue
-			}
-			if err := copyFile(
-				filepath.Join(steeringSrc, e.Name()),
-				filepath.Join(steeringDst, e.Name()),
-			); err != nil {
-				return fmt.Errorf("emit kiro steering %s: %w", e.Name(), err)
-			}
-		}
-	}
-
-	// .kiro/skills/<dir>/SKILL.md plus any referenced sibling .md files
-	skillsSrc := filepath.Join(pluginDir, "skills")
-	skillsDst := filepath.Join(kiro, "skills")
-	for _, s := range skills {
-		for _, rel := range s.Files {
-			if err := copyFile(
-				filepath.Join(skillsSrc, s.Dir, rel),
-				filepath.Join(skillsDst, s.Dir, rel),
-			); err != nil {
-				return fmt.Errorf("emit kiro skill %s/%s: %w", s.Dir, rel, err)
-			}
-		}
-	}
-
-	fmt.Printf("Written: %s (.kiro/{settings,steering,skills})\n", dist)
-	return nil
-}
-
 func main() {
 	root := flag.String("root", "../../..", "repo root, relative to the mcp-server module dir")
-	kiro := flag.Bool("kiro", false, "also emit a runtime .kiro/ overlay under dist/kiro for AWS Kiro installs")
 	flag.Parse()
 
 	skillsDir := filepath.Join(*root, "plugins", "simulator", "skills")
@@ -309,11 +235,4 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Written: %s\n", llmsPath)
-
-	if *kiro {
-		if err := emitKiroOverlay(*root, skills); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-	}
 }
