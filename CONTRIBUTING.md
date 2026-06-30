@@ -67,12 +67,24 @@ docs: document set-environment in README
 chore(skills): regenerate discovery artifacts
 ```
 
+## Branching model
+
+We follow a simple `develop`-integration flow:
+
+- **`develop`** is the integration branch and the **default base for every feature/fix PR.**
+- **`main`** holds releases only. It receives changes **exclusively** by promoting
+  `develop` (a release PR `develop` → `main`) or via a `release/*` / `hotfix/*` branch.
+- Do **not** open feature/fix PRs against `main` — a CI guard
+  (`.github/workflows/guard-base-branch.yml`) fails any PR into `main` whose source
+  branch isn't `develop`, `release/*`, or `hotfix/*`.
+
 ## Pull requests
 
-1. Branch off `main`.
-2. Keep the change focused; update docs and the changelog alongside code.
-3. Ensure `make build && make vet && make test` pass.
-4. Fill in the PR template.
+1. Branch off `develop` (e.g. `git switch -c feat/my-change develop`).
+2. Target **`develop`** as the PR base (it's the repo default, so this is automatic).
+3. Keep the change focused; update docs and the changelog alongside code.
+4. Ensure `make build && make vet && make test` pass.
+5. Fill in the PR template.
 
 ## Reporting issues
 

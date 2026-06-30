@@ -104,6 +104,11 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   hosts. AWS Kiro doesn't substitute the token at all — `install-kiro.sh` and the release
   generator hard-copy the skills and `sed`-replace the token with the absolute plugin path
   at install time instead.
+- **Branching model.** `develop` is the integration branch and the **default base for
+  every feature/fix PR**; `main` is release-only and receives changes solely by promoting
+  `develop` (or a `release/*` / `hotfix/*` branch). Never open a feature/fix PR against
+  `main` — a CI guard (`.github/workflows/guard-base-branch.yml`) rejects any PR into `main`
+  whose head isn't `develop`, `release/*`, or `hotfix/*`.
 - **Versioning.** The plugin version appears in **six** files — keep them in lockstep:
   `plugins/simulator/.claude-plugin/plugin.json`,
   `plugins/simulator/.codex-plugin/plugin.json`,
