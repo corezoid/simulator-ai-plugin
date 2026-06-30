@@ -13,3 +13,8 @@ dump.rdb
 /plugins/simulator/mcp-server/gendiscovery
 # Locally built launcher binary picked up by mcp-server/run.sh (skips download cache).
 /plugins/simulator/mcp-server/simulator-mcp
+
+# Build artifacts emitted by `make discovery-kiro` and the release pipeline.
+# Runtime overlays under .kiro/ are generated from the canonical skills tree —
+# committing them would only invite drift.
+/dist/

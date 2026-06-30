@@ -15640,7 +15640,7 @@
         "tags": [
           "Scripts"
         ],
-        "description": "Clears deleted_at on the provided ids. Files also get a `restore` version row. Folder restore does NOT cascade to descendants — pass each descendant explicitly if you want them back too. Items that are not currently soft-deleted are silently skipped.",
+        "description": "Clears deleted_at on the provided ids. Files also get a `restore` version row. Folder restore does NOT cascade to descendants \u2014 pass each descendant explicitly if you want them back too. Items that are not currently soft-deleted are silently skipped.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -16100,6 +16100,84 @@
         "responses": {
           "200": {
             "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/graph_layers/actors/{layerId}": {
+      "put": {
+        "operationId": "updateLayerPositions",
+        "tags": [
+          "Graph"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "items"
+                ],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "position"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "laId \u2014 unique element ID on this layer (string-encoded integer), NOT the actor UUID."
+                        },
+                        "position": {
+                          "type": "object",
+                          "required": [
+                            "x",
+                            "y"
+                          ],
+                          "properties": {
+                            "x": {
+                              "type": "integer"
+                            },
+                            "y": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "layerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Layer actor UUID containing the elements to reposition."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Positions applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           }
         }
       }

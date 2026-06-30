@@ -27,7 +27,11 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
 - **`$CLAUDE_PLUGIN_ROOT` = `plugins/simulator/`.** Skills load reference docs as
   `$CLAUDE_PLUGIN_ROOT/docs/entities/*.md`. Those files must stay under
   `plugins/simulator/docs/` (only the plugin dir is shipped on install). Contributor docs
-  go in the repo-root `docs/`.
+  go in the repo-root `docs/`. Claude Code and Codex both resolve this exact token via
+  text substitution at skill-load time; renaming it breaks doc loading on both hosts
+  (anthropics/claude-code#48230, #47789, #44057). For AWS Kiro — which does no such
+  substitution — `install-kiro.sh` and the release-zip generator hard-copy the skills
+  and `sed`-replace the token with the absolute plugin path at install time.
 - **MCP tools.** When you add or rename a tool, update the MCP-tools table in the root
   [`README.md`](README.md) and §4 of [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - **Curated tools live in Go** under `internal/tools/<domain>.go` (declared as typed

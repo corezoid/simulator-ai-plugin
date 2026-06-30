@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.2.0]
+
+### Added
+- AWS Kiro support. The same plugin payload now installs on Kiro alongside the existing Claude Code and Codex hosts via a symmetric overlay: `plugins/simulator/.kiro-plugin/plugin.json`, `plugins/simulator/.mcp.kiro.json`, `plugins/simulator/steering/simulator.md`, and a root-level `POWER.md` distribution manifest for kiro.dev/powers.
+- `plugins/simulator/scripts/install-kiro.sh` sets up an existing Kiro workspace from a cloned repo: copies the MCP entry, symlinks the steering file, hard-copies each skill into `.kiro/skills/<name>/`, and `sed`-substitutes `$CLAUDE_PLUGIN_ROOT` in every `SKILL.md` with the absolute plugin path (Kiro does not substitute the token on its own, unlike Claude Code and Codex). Idempotent — re-run after a `git pull` to refresh the workspace overlay.
+
+### Notes
+- The canonical `SKILL.md` files keep `$CLAUDE_PLUGIN_ROOT` — Claude Code and Codex both resolve that exact token via host-side text substitution (anthropics/claude-code#48230, #47789, #44057) and renaming it would break doc loading on both. The install-time `sed` substitution in `install-kiro.sh` is the only host-specific bit.
+- There is no release-zip Kiro overlay artifact in this version. A pre-built zip would still need a post-extract substitution step (the token can only be resolved to an absolute path that the user actually checked out), so the clone + `install-kiro.sh` path is currently the only correct install flow for Kiro.
+
 ## [2.1.0]
 
 ### Added
