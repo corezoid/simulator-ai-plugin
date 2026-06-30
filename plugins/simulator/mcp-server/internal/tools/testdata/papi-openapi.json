@@ -13200,6 +13200,7 @@
     },
     "/papi/1.0/graph_layers/paginated/{actorId}": {
       "get": {
+        "operationId": "getLayerActorsPaginated",
         "tags": [
           "Graph"
         ],

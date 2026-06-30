@@ -43,7 +43,7 @@ type linkParams struct {
 	streamId    string // event/chat stream
 	secondaryId string // event sub-stream, or chat conversation id
 	mode        string // graph display mode: layers | actors | trees
-	focusId     string // actor UUID to focus on within a layer/graph view
+	focusId     string // element opened within a layer/graph view (e.g. the layer actor after /layers/, or an actor)
 }
 
 // graphMode returns the requested graph display mode, defaulting to "layers".
@@ -92,8 +92,10 @@ var linkEntities = []linkEntity{
 	},
 	{
 		name: "layer",
-		help: "Graph layer/folder canvas. id = layer (graphFolderId) UUID, or \"0\" for the root layer. " +
-			"Optional mode (layers|actors|trees, default layers) and focusId (actor UUID to focus on).",
+		help: "Graph layer/folder canvas, shaped /actors_graph/<acc>/graph/<id>/layers/<focusId>. " +
+			"id = the graph/folder being opened — a Graphs container actor (the UUID after /graph/), a layer/folder actor, or \"0\" for the root layer. " +
+			"Optional mode (layers|actors|trees, default layers) and focusId — the element opened within it, e.g. the specific layer actor that appears after /layers/. " +
+			"(To READ a layer's nodes/edges, don't build a link — call getLayerActorsPaginated with that layer's actorId.)",
 		build: func(acc string, p linkParams) (string, error) {
 			id, err := require(p.id, "id (layer UUID or \"0\")", "layer")
 			if err != nil {
@@ -272,12 +274,12 @@ func registerBuildLink(s *server.MCPServer, c *apiclient.Client) {
 		mcp.WithString("entity", mcp.Required(),
 			mcp.Description("Kind of link to build. One of: "+strings.Join(linkEntityNames(), ", ")+".")),
 		mcp.WithString("accId", mcp.Description("Workspace id. Defaults to the active workspace if omitted.")),
-		mcp.WithString("id", mcp.Description("Primary resource id; meaning depends on entity (actor/transaction/transfer/chart/meeting/form UUID, layer id or \"0\", or chat conversation (chat-actor) UUID). See the entity list in the description.")),
+		mcp.WithString("id", mcp.Description("Primary resource id; meaning depends on entity (actor/transaction/transfer/chart/meeting/form UUID, the graph/folder id after /graph/ or \"0\" for a layer link, or chat conversation (chat-actor) UUID). See the entity list in the description.")),
 		mcp.WithString("streamId", mcp.Description("Stream UUID — for event links, and to override the default \"chats\" stream on chat links.")),
 		mcp.WithString("secondaryId", mcp.Description("Event sub-stream UUID — narrows an event link further.")),
 		mcp.WithString("mode", mcp.Description("Graph display mode for layer/graph links."),
 			mcp.Enum("layers", "actors", "trees")),
-		mcp.WithString("focusId", mcp.Description("Actor UUID to focus on when opening a layer/graph view.")),
+		mcp.WithString("focusId", mcp.Description("UUID opened within a layer/graph view — e.g. the specific layer actor (the segment after /layers/), or an actor to focus on.")),
 	)
 
 	s.AddTool(tool, buildLinkHandler(c))
