@@ -6,7 +6,7 @@ repository. Humans: see the root [`README.md`](README.md) (usage) and
 
 ## What this repo is
 
-A plugin for Claude Code and Codex that connects the **Simulator.Company** platform
+A plugin for Claude Code, Codex, and AWS Kiro that connects the **Simulator.Company** platform
 (backend: `pong-server` / `control-api`) to the host via MCP. It bundles:
 
 - a **Go MCP server** (`plugins/simulator/mcp-server/`) that exposes the Simulator
@@ -98,9 +98,19 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   Account-Template alias «Шаблон рахунків»). Example *data* values should be language-neutral.
 - **Entity/user-flow docs must stay under `plugins/simulator/docs/`.** Skills reference them
   as `$CLAUDE_PLUGIN_ROOT/docs/...` and only `plugins/simulator/` is copied on install.
-  Contributor/architecture docs go in the repo-root `docs/`.
-- **Versioning.** The plugin version appears in `.claude-plugin/{plugin,marketplace}.json`,
-  `.agents/plugins/marketplace.json` and `CHANGELOG.md` — bump them together.
+  Contributor/architecture docs go in the repo-root `docs/`. The token name is host-imposed:
+  Claude Code and Codex both resolve `$CLAUDE_PLUGIN_ROOT` via text substitution at
+  skill-load time (anthropics/claude-code#48230, #47789, #44057). Renaming it breaks both
+  hosts. AWS Kiro doesn't substitute the token at all — `install-kiro.sh` and the release
+  generator hard-copy the skills and `sed`-replace the token with the absolute plugin path
+  at install time instead.
+- **Versioning.** The plugin version appears in **six** files — keep them in lockstep:
+  `plugins/simulator/.claude-plugin/plugin.json`,
+  `plugins/simulator/.codex-plugin/plugin.json`,
+  `plugins/simulator/.kiro-plugin/plugin.json`,
+  `.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json`,
+  `POWER.md` (frontmatter), plus the top-of-file entry in `CHANGELOG.md`.
 - **Linter.** `make lint` runs golangci-lint v2 (config `plugins/simulator/mcp-server/.golangci.yml`,
   shared with sibling Go services). `gosec` is clean (real findings fixed; trusted-input taint
   false positives are documented in the `gosec.excludes` list). The broader `default: all` set
