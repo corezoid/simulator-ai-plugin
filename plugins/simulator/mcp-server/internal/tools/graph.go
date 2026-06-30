@@ -186,10 +186,12 @@ var graphOps = []Operation{
 	},
 	{
 		Name: "manageLayerActors", Method: "POST", Path: "/graph_layers/actors/{actorId}",
-		Summary: "Place or remove nodes/edges on a layer. Pass an array of {action: create|delete, data: {id, type: node|edge, position?}} items.",
+		Summary: "Place or remove nodes/edges on a layer. Pass an array of {action: create|delete, data: {id, type: node|edge, position?}} items. An edge placement may also carry a line style — see `items`.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
-			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of {action, data:{id, type, position?, laIdSource?, laIdTarget?}} actions."},
+			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of {action, data:{id, type, position?, laIdSource?, laIdTarget?}} actions. " +
+				"For an EDGE (type:\"edge\"), data also accepts `layerSettings:{lineStyle:\"solid\"|\"dashed\"|\"dotted\"}` to style the line (omit → solid). " +
+				"To CHANGE an existing edge's style, delete its placement and create it again with the new lineStyle — re-creating without deleting first adds a duplicate edge placement."},
 			{Name: "withNum", In: InQuery, Type: "boolean", Desc: "Return counts in the response."},
 		},
 	},

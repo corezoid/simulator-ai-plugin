@@ -539,6 +539,13 @@ massLink(links=[{"source":"<a>","target":"<b>"}, ...])
 // place it with manageLayerActors (actorId = the layer-actor UUID):
 manageLayerActors(actorId="<layerActorId>", items=[{"action":"create","data":{"id":"<edgeId>","type":"edge","laIdSource":<laA>,"laIdTarget":<laB>}}])
 
+// Edge LINE STYLE — put it in the placed edge's data.layerSettings.lineStyle
+// (solid | dashed | dotted; omit → solid). Use distinct styles for distinct
+// edge meanings (e.g. dashed = dependency, dotted = hint, solid = hierarchy):
+manageLayerActors(actorId="<layerActorId>", items=[{"action":"create","data":{"id":"<edgeId>","type":"edge","laIdSource":<laA>,"laIdTarget":<laB>,"layerSettings":{"lineStyle":"dashed"}}}])
+// To CHANGE an edge's style, DELETE its placement then create it again — re-creating
+// without deleting first adds a DUPLICATE placement (the line is drawn twice).
+
 // existLink REQUIRES edgeTypeId (unlike createLink) — pass it explicitly to find/dedupe an edge by its endpoints:
 existLink(source="<a>", target="<b>", edgeTypeId=<id>)  → edge id if it exists
 getEdge(edgeId="<edgeId>")
