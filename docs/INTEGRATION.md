@@ -281,7 +281,7 @@ replaces the 3k-line `server.go`: simple CRUD is generated from the curated spec
 5. ✅ **Engines ported** → `internal/engines` (pull/push graph sync, `compactGraphLayout`,
    `pruneLongEdges`, `getAllLayerPlacements`, `createChart`) reusing the proven legacy logic,
    registered via `engines.RegisterTools`. *(thin runtime config + cosmetic form-name stubs;
-   sync-diff unit tests still TODO)*
+   sync-diff tests are now covered by the graph sync test suite)*
 6. ✅ **Media ported** (`upload` + `svg` rasterise) → `internal/engines`.
 7. ✅ **Apps + smart-form tools** (`apps.go`): createApplication, createSmartForm,
    listSmartForms, manageAppContent. *(getApplication dropped — no backend route; the drift
