@@ -123,6 +123,34 @@ func TestBuildLinkUsesUIContext(t *testing.T) {
 	}
 }
 
+// When the UI context carries both the open graph (folder) and the open layer,
+// an id-less layer link is the canonical /graph/<graph>/layers/<layer> shape:
+// ActiveGraph fills the path slot, ActiveLayer is the focused element.
+func TestBuildLinkLayerUsesActiveGraph(t *testing.T) {
+	c := apiclient.New("http://localhost:9000/papi/1.0", "",
+		func() (string, error) { return "t", nil }, false)
+	ui := apiclient.UIContext{
+		HostOrigin:  "https://mw.simulator.company",
+		WorkspaceID: "a58d969b-4b2f-42ce-add5-0972c4f45421",
+		ActiveGraph: "e80e0dad-26ad-4ffc-8a18-eb2292a3f245",
+		ActiveLayer: "5b45dc46-07a3-414a-a814-ad5aeffbb15a",
+	}
+	ctx := apiclient.WithUIContext(context.Background(), ui)
+
+	// id-less → graph in the path, layer focused.
+	want := "https://mw.simulator.company/actors_graph/a58d969b/graph/" +
+		"e80e0dad-26ad-4ffc-8a18-eb2292a3f245/layers/5b45dc46-07a3-414a-a814-ad5aeffbb15a"
+	if got := callBuildLinkCtx(t, c, ctx, map[string]any{"entity": "layer"}); got != want {
+		t.Errorf("id-less layer link = %q, want %q", got, want)
+	}
+
+	// An explicit id still wins and is treated as the /graph/ path slot.
+	want2 := "https://mw.simulator.company/actors_graph/a58d969b/graph/L9/layers"
+	if got := callBuildLinkCtx(t, c, ctx, map[string]any{"entity": "layer", "id": "L9"}); got != want2 {
+		t.Errorf("explicit-id layer link = %q, want %q", got, want2)
+	}
+}
+
 // ParseUIContext decodes the base64-JSON header value pong-server sends.
 func TestParseUIContext(t *testing.T) {
 	raw := `{"hostOrigin":"https://mw.simulator.company","workspaceId":"ws-1","activeActor":"act-1","activeReaction":"rx-1","activeLayer":"lay-1","activeGraph":"gr-1"}`
