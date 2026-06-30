@@ -1,0 +1,37 @@
+name: Guard base branch
+
+# `main` is release-only: it may receive changes solely by promoting `develop`
+# (a `develop` → `main` release PR) or via a `release/*` / `hotfix/*` branch.
+# This job fails any other PR opened against `main`, so feature/fix work is forced
+# through `develop`. It only runs for PRs whose base is `main`, so PRs into
+# `develop` are unaffected. Make it a required status check in `main`'s branch
+# protection to turn this from advisory into a hard gate.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: Base branch is develop / release / hotfix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject feature/fix PRs targeting main
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          echo "PR base: main"
+          echo "PR head: $HEAD_REF"
+          case "$HEAD_REF" in
+            develop|release/*|hotfix/*)
+              echo "✓ '$HEAD_REF' may target main."
+              ;;
+            *)
+              echo "::error::PRs into 'main' must come from 'develop', 'release/*', or 'hotfix/*' (got '$HEAD_REF')."
+              echo "main is release-only. Retarget this PR to 'develop' (Edit → change base), or promote via a release/hotfix branch. See CONTRIBUTING.md."
+              exit 1
+              ;;
+          esac
