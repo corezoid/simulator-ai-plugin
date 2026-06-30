@@ -246,6 +246,34 @@ edges:
 
 ---
 
+## Custom image nodes — any drawing, icon or shape (napkin)
+
+To put **any image** on a graph — a line, a circle, a rectangle, an icon, a logo, a
+hand-drawn shape, a small diagram, anything a PNG/SVG can hold — create an actor with a
+`pictureObject`: a custom image rendered AS the node body (the backend's "napkin"
+element), instead of a standard form node. A divider line is just one use.
+
+```
+createActor(formId=3279, color="#F04438", pictureObject={
+  img:    "data:image/png;base64,iVBORw0KGgo…",   // a PNG/SVG data URI
+  width:  800,                                     // display size on the canvas
+  height: 8,
+  type:   "napkin"
+}, contextLayerId="<layerId>")
+```
+
+- `img` — the image as a data URI (e.g. a thin red PNG to draw a divider line).
+- `width` / `height` — display size in px. The image is anchored at its **centre** and
+  keeps the source's **aspect ratio** (set `width`; `height` follows), so for a thin line
+  make the source PNG wide-and-short.
+- `type: "napkin"` — the custom-image element kind.
+
+A classic use is an ADAM/EVE-style horizontal divider: a wide, short red dashed PNG
+placed across the middle of the layer. Change a node's image later with the same
+`pictureObject` on `updateActor`.
+
+---
+
 ## Layout Algorithm — Coordinate Calculation
 
 **Never hardcode coordinates.** Calculate using dagre/Sugiyama layout.

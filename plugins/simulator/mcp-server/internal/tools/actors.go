@@ -66,6 +66,16 @@ const holeDesc = "Mark this actor as a HOLE — an empty placeholder slot on the
 	"hollow node). A hole stands for a not-yet-filled position in the structure and becomes a normal " +
 	"actor once it is filled with data. Default false."
 
+// pictureObjectDesc documents the `pictureObject` field: ANY custom image rendered
+// AS the node body (the backend's "napkin" element) instead of a standard form
+// node — a line, a shape, an icon, a logo, a small diagram. A divider line is just
+// one use.
+const pictureObjectDesc = "Render a custom image AS the node itself — the backend's \"napkin\" element — instead of a normal form node. " +
+	"The image can be ANYTHING a PNG/SVG holds: a line, a circle, a rectangle, an icon, a logo, a hand-drawn shape, a small diagram. " +
+	"Object shape: {\"img\": \"data:image/png;base64,…\" (a PNG/SVG data URI), \"width\": 800, \"height\": 8 (display size in px), \"type\": \"napkin\"}. " +
+	"The image is anchored at its CENTRE and keeps the source's aspect ratio (set width; height follows) — e.g. for a thin divider line use a wide-and-short source PNG. " +
+	"Uses: dividers/separators, a custom shape or icon the form catalogue does not cover, an embedded picture or logo on a graph."
+
 // actorOps — actor (graph node) CRUD. Actors are instances of a form; their
 // fields live in the free-form `data` object keyed by the form's field schema.
 var actorOps = []Operation{
@@ -82,6 +92,7 @@ var actorOps = []Operation{
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},
 			{Name: "color", In: InBody, Type: "string", Desc: "Hex node color (e.g. #409547)."},
 			{Name: "picture", In: InBody, Type: "string", Desc: "Storage path / URL of the node icon."},
+			{Name: "pictureObject", In: InBody, Type: "object", Desc: pictureObjectDesc},
 			{Name: "ref", In: InBody, Type: "string", Desc: "Optional external reference (1-255 chars), unique per form."},
 			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
@@ -121,6 +132,7 @@ var actorOps = []Operation{
 			{Name: "title", In: InBody, Type: "string", Desc: "New title."},
 			{Name: "description", In: InBody, Type: "string", Desc: "New description."},
 			{Name: "color", In: InBody, Type: "string", Desc: "New hex color."},
+			{Name: "pictureObject", In: InBody, Type: "object", Desc: "Set/replace the node's custom image. " + pictureObjectDesc},
 			{Name: "status", In: InBody, Type: "string", Desc: "New status value."},
 			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
