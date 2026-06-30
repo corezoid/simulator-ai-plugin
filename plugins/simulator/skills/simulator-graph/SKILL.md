@@ -213,6 +213,30 @@ actors:
 
 ---
 
+## Text-label nodes
+
+Render an actor's `description` as borderless text (no node circle) by placing it with
+`isTextNode` in its `data.layerSettings` on `manageLayerActors`:
+
+```
+createActor(formId=3279, description="Section title")          // the text lives in `description`
+manageLayerActors(actorId="<layerId>", items=[
+  { action:"create", data:{ id:"<actorId>", type:"node", position:{x:0,y:0},
+      layerSettings:{ isTextNode:true, textNodeScale:1.5, textWidth:320, textHeight:44 } } }
+])
+```
+
+- `isTextNode:true` — render the node as a text label
+- `textNodeScale` — font-size multiplier
+- `textWidth` / `textHeight` — text-box size in px. **Scale it to the text** — roughly
+  `16·scale` px per character wide and `28·scale` px per line tall — or large/long text wraps
+  and breaks mid-word.
+
+Good for section titles, axis labels and annotations on a graph. To change it, delete the
+placement and re-create it with the new `layerSettings`.
+
+---
+
 ## Graph File Format Reference
 
 ```yaml
