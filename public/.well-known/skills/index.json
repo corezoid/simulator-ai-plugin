@@ -51,6 +51,13 @@
       "name": "simulator-finance"
     },
     {
+      "description": "Collects and submits bug reports, improvement requests, and quality signals about the Simulator.Company plugin to the team. Activate when the user signals dissatisfaction, reports a bug, requests an improvement, or when a plugin-level mistake is detected. Activate on: \"report a bug\", \"send feedback\", \"this is broken\", \"it did the wrong thing\", \"suggest an improvement\", \"повідомити про баг\", \"надіслати фідбек\", \"це не працює\", \"зламалось\", \"запропонувати покращення\", \"сообщить о баге\", \"отправить фидбек\", \"это не работает\", \"сломалось\", \"предложить улучшение\".",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-feedback/SKILL.md"
+      ],
+      "name": "simulator-feedback"
+    },
+    {
       "description": "Simulator.Company form designer specialist. Use when the user wants to create or modify form templates (a.k.a. Account Templates / «Шаблон рахунків»), define custom field structures, set up account definitions, explore system forms, work with Smart Forms (CDU / Scripts), manage form status, or understand how forms define actor structure. Activate when the user says \"create a form\", \"design a template\", \"add fields to form\", \"Account Template\", \"Шаблон рахунків\", \"define actor schema\", or \"what system forms are available\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-forms/SKILL.md"
