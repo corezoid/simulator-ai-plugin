@@ -157,6 +157,28 @@ pushGraphFile(layerId="<layerId>")
 
 ---
 
+## Styling edges — colour, dash, width
+
+An edge placement's `data.layerSettings` controls how the line renders, applied **when
+you place the edge** via `manageLayerActors`:
+
+```
+manageLayerActors(actorId="<layerId>", items=[
+  { action:"create", data:{ id:"<edgeId>", type:"edge", laIdSource:<laA>, laIdTarget:<laB>,
+      layerSettings:{ lineStyle:"dashed", color:"#E8924E", width:"2" } } }
+])
+```
+
+- `lineStyle` — `solid` | `dashed` | `dotted`
+- `color` — hex line colour (e.g. `#9AA5B1` grey, `#E8924E` orange, `#6E9BD6` blue)
+- `width` — stroke width, as a string (e.g. `"2"`)
+
+Use it to encode meaning in edges — coloured solid = data/structure flows, grey dashed =
+logical cross-links. To change an edge already on the layer, delete its placement and
+re-create it with the new `layerSettings` (re-creating without deleting first adds a duplicate).
+
+---
+
 ## Custom Form Data — Populating `actors.data`
 
 When the user specifies a **custom `formId`** (or a non-system `formName`) for one or more actors, you **must** fetch the form schema before writing the YAML file or pushing to the server.
