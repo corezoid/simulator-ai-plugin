@@ -200,7 +200,7 @@ var graphOps = []Operation{
 	},
 	{
 		Name: "manageLayerActors", Method: "POST", Path: "/graph_layers/actors/{actorId}",
-		Summary: "Place or remove nodes/edges on a layer. Pass an array of {action: create|delete, data: {id, type: node|edge, position?}} items. An edge placement may also carry a line style — see `items`.",
+		Summary: "Place or remove nodes/edges on a layer. Pass an array of {action: create|delete, data: {id, type: node|edge, position?}} items. An edge placement may also carry a line style — see `items`. A NODE placement can render the actor's `description` as a borderless text label instead of a node circle via `data.layerSettings:{isTextNode:true, textNodeScale:1.5, textWidth:300, textHeight:50}` — size the box to the text (≈16·scale px/char) or it wraps and breaks; see the simulator-graph skill.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
 			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of {action, data:{id, type, position?, laIdSource?, laIdTarget?}} actions. " +
