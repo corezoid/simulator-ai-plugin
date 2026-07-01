@@ -3,6 +3,11 @@
 ## [2.2.0]
 
 ### Added
+- add AWS Kiro support (#42)
+
+## [2.2.0]
+
+### Added
 - AWS Kiro support. The same plugin payload now installs on Kiro alongside the existing Claude Code and Codex hosts via a symmetric overlay: `plugins/simulator/.kiro-plugin/plugin.json`, `plugins/simulator/.mcp.kiro.json`, `plugins/simulator/steering/simulator.md`, and a root-level `POWER.md` distribution manifest for kiro.dev/powers.
 - `plugins/simulator/scripts/install-kiro.sh` sets up an existing Kiro workspace from a cloned repo: copies the MCP entry, symlinks the steering file, hard-copies each skill into `.kiro/skills/<name>/`, and `sed`-substitutes `$CLAUDE_PLUGIN_ROOT` in every `SKILL.md` with the absolute plugin path (Kiro does not substitute the token on its own, unlike Claude Code and Codex). Idempotent — re-run after a `git pull` to refresh the workspace overlay.
 
