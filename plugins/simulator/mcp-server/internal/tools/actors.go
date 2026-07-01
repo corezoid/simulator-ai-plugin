@@ -137,6 +137,7 @@ var actorOps = []Operation{
 			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 			{Name: "hole", In: InBody, Type: "boolean", Desc: holeDesc},
+			{Name: "ref", In: InBody, Type: "string", Desc: "Set or change the actor's external reference — a stable business key, 1-255 chars, UNIQUE per form (formId). Lets you address the actor by (formId, ref) via getActorByRef instead of its UUID — the same key createActor sets, now editable after creation. Omit to leave it unchanged."},
 		},
 	},
 	{

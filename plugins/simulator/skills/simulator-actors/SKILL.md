@@ -194,8 +194,13 @@ updateActor(
 ```
 
 `updateActor` is a **partial** update of `data` — keys you include are replaced, the rest
-are untouched. You can also set `title`/`description`/`color`/`status`. To clear a
+are untouched. You can also set `title`/`description`/`color`/`status`/`ref`. To clear a
 multi-value field, send `[]`.
+
+**Re-key by `ref`.** `updateActor(formId, actorId, ref="…")` sets or changes the actor's
+external reference — a stable business key, **unique per form** — the same key `createActor`
+accepts, but now editable after creation. Then address the actor by its key instead of its
+UUID: `getActorByRef(formId, ref)`. Omit `ref` to leave it unchanged.
 
 **Embed a smart form (script) in an actor.** Set `appId` (on `createActor` / `updateActor`)
 to a Smart Form (CDU/Script app) actor id — the actor's card then renders/runs that smart
