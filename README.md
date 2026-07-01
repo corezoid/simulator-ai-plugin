@@ -1,4 +1,4 @@
-# Simulator.Company — Claude Code & Codex Plugin
+# Simulator.Company — Claude Code, Codex & Kiro Plugin
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
@@ -6,9 +6,9 @@
 [![Release](https://img.shields.io/github/v/release/corezoid/simulator-ai-plugin?sort=semver)](https://github.com/corezoid/simulator-ai-plugin/releases)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](https://claude.ai/code)
 
-> **Status:** stable — released, actively maintained. Supported clients: Claude Code ≥ 1.x, Codex. Go 1.24+ required. macOS and Linux tested.
+> **Status:** stable — released, actively maintained. Supported clients: Claude Code ≥ 1.x, Codex, AWS Kiro. Go 1.24+ required. macOS and Linux tested.
 
-A plugin for [Claude Code](https://claude.ai/code) and [Codex](https://codex.openai.com) that connects the [Simulator.Company](https://simulator.company) platform to Claude via MCP (Model Context Protocol). Claude gets direct access to the Simulator REST API and domain knowledge to manage actors, graphs, forms, and financial accounts through natural conversation.
+A plugin for [Claude Code](https://claude.ai/code), [Codex](https://codex.openai.com) and [AWS Kiro](https://kiro.dev) that connects the [Simulator.Company](https://simulator.company) platform to Claude via MCP (Model Context Protocol). Claude gets direct access to the Simulator REST API and domain knowledge to manage actors, graphs, forms, and financial accounts through natural conversation.
 
 ## What it does
 
@@ -35,7 +35,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 
 ## Requirements
 
-- [Claude Code](https://claude.ai/code) or [Codex](https://codex.openai.com) installed
+- [Claude Code](https://claude.ai/code), [Codex](https://codex.openai.com) or [AWS Kiro](https://kiro.dev) installed
 - [Go 1.24+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed)
   ```bash
   brew install golang        # macOS
@@ -82,6 +82,18 @@ codex plugin install simulator@simulator
 
 No build step, no extra setup. The MCP server starts automatically on first use.
 
+### AWS Kiro
+
+Kiro has no marketplace command and does not resolve the `$CLAUDE_PLUGIN_ROOT` token that Claude Code and Codex substitute at skill-load time, so it installs from a local clone via a helper script that copies the plugin into the workspace's `.kiro/` and resolves that token to an absolute path:
+
+```bash
+git clone https://github.com/corezoid/simulator-ai-plugin
+cd simulator-ai-plugin
+plugins/simulator/scripts/install-kiro.sh [workspace-dir]   # defaults to $KIRO_WORKSPACE_DIR or the current dir
+```
+
+This writes the MCP entry to `<workspace>/.kiro/settings/mcp.json`, symlinks the steering file into `.kiro/steering/`, and hard-copies each skill into `.kiro/skills/<name>/` with `$CLAUDE_PLUGIN_ROOT` replaced by the absolute plugin path. Open the workspace in Kiro and the MCP server, skills, and steering are picked up automatically. The plugin is also published to [kiro.dev/powers](https://kiro.dev/powers) — see [`POWER.md`](POWER.md).
+
 ### Updating
 
 ```bash
@@ -89,7 +101,7 @@ claude plugin update simulator@simulator   # Claude Code
 codex plugin update simulator@simulator    # Codex
 ```
 
-Restart Claude Code / Codex after updating to apply the new version.
+Restart Claude Code / Codex after updating to apply the new version. For AWS Kiro, `git pull` the clone and re-run `plugins/simulator/scripts/install-kiro.sh` (it is idempotent) to refresh the workspace overlay.
 
 ## Authentication
 
@@ -118,7 +130,7 @@ log in to Simulator
 
 ### Static token (optional)
 
-If you prefer to manage the token yourself, set it in `.env` or export it before starting Claude Code or Codex:
+If you prefer to manage the token yourself, set it in `.env` or export it before starting Claude Code, Codex or Kiro:
 
 ```bash
 export ACCESS_TOKEN=your_token_here
@@ -238,7 +250,7 @@ the actor/node items.)
 ## Architecture
 
 ```
-Claude Code / Codex
+Claude Code / Codex / Kiro
   └── simulator MCP server (go run ./cmd/server --profile local|prod)
         ├── config      cloud presets + local / prod profiles (API base + account URL)
         ├── auth        set-environment (public config → account URL), login (OAuth2 PKCE → .env), set-workspace
@@ -341,12 +353,18 @@ simulator-ai-plugin/
 │   ├── ARCHITECTURE.md          # Plugin & MCP-server architecture
 │   └── INTEGRATION.md           # pong-server integration plan & status
 ├── public/                      # Generated AI-discovery artifacts (llms.txt, .well-known/skills/index.json)
-└── plugins/simulator/           # Plugin root (CLAUDE_PLUGIN_ROOT for both Claude Code and Codex)
+└── plugins/simulator/           # Plugin root ($CLAUDE_PLUGIN_ROOT for Claude Code, Codex and Kiro)
     ├── .claude-plugin/
     │   └── plugin.json          # Claude Code plugin manifest
     ├── .codex-plugin/
     │   └── plugin.json          # Codex plugin manifest
+    ├── .kiro-plugin/
+    │   └── plugin.json          # AWS Kiro plugin manifest
     ├── .mcp.json                # MCP server configuration (go run ./cmd/server)
+    ├── .mcp.kiro.json           # Kiro MCP entry (copied to .kiro/settings/mcp.json by install-kiro.sh)
+    ├── steering/                # Kiro steering file (Kiro's always-on repo guide)
+    ├── scripts/
+    │   └── install-kiro.sh      # Installs the plugin into a Kiro workspace's .kiro/
     ├── mcp-server/              # Go MCP server source (see mcp-server/README.md)
     │   ├── cmd/server/          # entry point: profile → tools → stdio
     │   ├── cmd/gendiscovery/    # regenerate public/ discovery artifacts
@@ -508,6 +526,7 @@ go test ./...
 |-------------------|-------------------------------|---------------------------------------------|
 | Claude Code       | ≥ 1.x                         | MCP protocol 2025-03-26                     |
 | Codex             | current stable                | Same MCP server, same skills                |
+| AWS Kiro          | current stable                | Same MCP server, same skills; install via `scripts/install-kiro.sh` (no marketplace) |
 | Go toolchain      | 1.24+ (module declares 1.25)  | Required to run the MCP server via `go run` |
 | macOS             | 13 Ventura and later          | Tested on arm64 and amd64                   |
 | Linux             | Ubuntu 22.04+, Debian 12+     | amd64 tested                                |

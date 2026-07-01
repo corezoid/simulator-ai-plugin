@@ -20,6 +20,8 @@ Actors are the fundamental building blocks of the platform, representing various
 | data | JSON | Custom data associated with the actor, structured according to its form template |
 | color | String | Color associated with the actor (hex code) |
 | picture | Text | URL or path to the actor's image |
+| pictureObject | JSON | Custom image rendered **as the node body** (the backend's "napkin" element) instead of a standard form node — a divider line, shape, icon, logo or small diagram. Shape: `{"img": "data:image/png;base64,…", "width": 800, "height": 8, "type": "napkin"}`; anchored at its centre, keeps the source aspect ratio (set `width`; `height` follows). Settable on createActor / updateActor. |
+| hole | Boolean | Marks the actor as a **hole** — an empty placeholder slot on the graph (rendered as a hollow node) that becomes a normal actor once it is filled. Settable on createActor / updateActor. |
 | status | Enum | Actor status (active, removed, etc.) |
 | created_at | Integer | Unix timestamp of creation time |
 | updated_at | Integer | Unix timestamp of last update |
