@@ -176,8 +176,22 @@ var graphOps = []Operation{
 		},
 	},
 	{
+		Name: "getLayerActorsPaginated", Method: "GET", Path: "/graph_layers/paginated/{actorId}",
+		Summary: "PREFERRED way to read a layer's contents — works for a layer of ANY size. Returns ONE page of either nodes or edges (not both): pass type=nodes to page the placed actors, type=edges to page the links. " +
+			"Walk a collection by incrementing offset until you get a short or empty page, then repeat for the other type. Use layerStats first to learn how many of each there are. `filter` projects node fields to keep pages small. " +
+			"Reach for getLayerActors only as a small-layer shortcut — it loads everything at once and fails on large layers.",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
+			{Name: "type", In: InQuery, Type: "string", Required: true, Enum: []string{"nodes", "edges"}, Desc: "Which collection to page through: nodes (placed actors) or edges (links)."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size, 1-50 (the backend caps it at 50)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Number of items to skip (page offset)."},
+			fieldFilterParam("id,title,formId,status,x,y"),
+		},
+	},
+	{
 		Name: "getLayerActors", Method: "GET", Path: "/graph_layers/{actorId}",
-		Summary: "List the actors placed on a layer (the layer is itself an actor). `filter` projects the fields of each placed actor (node), keeping the response small.",
+		Summary: "Whole-layer shortcut: returns every actor placed on a layer plus its edges in one call. ONLY for small layers — it loads everything at once and the backend REJECTS it with a 400 (\"Layer is too large … Maximum allowed: N\") when nodes+edges exceed the layer-size cap (~300). " +
+			"To read a layer reliably regardless of size, PREFER getLayerActorsPaginated (page nodes then edges); getAllLayerPlacements is a one-shot node-only alternative. `filter` projects the fields of each placed actor (node).",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
 			{Name: "noDuplicate", In: InQuery, Type: "boolean", Desc: "Deduplicate placements."},
