@@ -157,7 +157,7 @@ pushGraphFile(layerId="<layerId>")
 
 ---
 
-## Styling edges — colour, dash, width
+## Styling edges — colour, dash, width, curve
 
 An edge placement's `data.layerSettings` controls how the line renders, applied **when
 you place the edge** via `manageLayerActors`:
@@ -165,17 +165,21 @@ you place the edge** via `manageLayerActors`:
 ```
 manageLayerActors(actorId="<layerId>", items=[
   { action:"create", data:{ id:"<edgeId>", type:"edge", laIdSource:<laA>, laIdTarget:<laB>,
-      layerSettings:{ lineStyle:"dashed", color:"#E8924E", width:"2" } } }
+      layerSettings:{ lineStyle:"dashed", color:"#E8924E", width:2, curveStyle:"straight" } } }
 ])
 ```
 
 - `lineStyle` — `solid` | `dashed` | `dotted`
-- `color` — hex line colour (e.g. `#9AA5B1` grey, `#E8924E` orange, `#6E9BD6` blue)
-- `width` — stroke width, as a string (e.g. `"2"`)
+- `curveStyle` — `curved` | `rounded` | `roundedDownward` | `straight`
+- `color` — 6-digit hex `#RRGGBB` (e.g. `#9AA5B1` grey, `#E8924E` orange) — no 3-digit shorthand, no alpha
+- `width` — stroke width, an integer ≥ 1 (e.g. `2`)
+- `routingPoints` — optional array of `{ w:number, d:number }` waypoints for manual edge routing
 
-Use it to encode meaning in edges — coloured solid = data/structure flows, grey dashed =
-logical cross-links. To change an edge already on the layer, delete its placement and
-re-create it with the new `layerSettings` (re-creating without deleting first adds a duplicate).
+These are the pong-server edge `layerSettings` keys (`saveEdgeLayerSettingsSchema`); on
+`manageLayerActors` they ride through unvalidated, so use the canonical types above — an integer
+`width` and a 6-digit hex `color`. Use it to encode meaning in edges — coloured solid = data/structure
+flows, grey dashed = logical cross-links. To change an edge already on the layer, delete its placement
+and re-create it with the new `layerSettings` (re-creating without deleting first adds a duplicate).
 
 ---
 
