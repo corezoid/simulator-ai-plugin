@@ -164,6 +164,32 @@ pushGraphFile(layerId="<layerId>")
 
 ---
 
+## Styling edges — colour, dash, width, curve
+
+An edge placement's `data.layerSettings` controls how the line renders, applied **when
+you place the edge** via `manageLayerActors`:
+
+```
+manageLayerActors(actorId="<layerId>", items=[
+  { action:"create", data:{ id:"<edgeId>", type:"edge", laIdSource:<laA>, laIdTarget:<laB>,
+      layerSettings:{ lineStyle:"dashed", color:"#E8924E", width:2, curveStyle:"straight" } } }
+])
+```
+
+- `lineStyle` — `solid` | `dashed` | `dotted`
+- `curveStyle` — `curved` | `rounded` | `roundedDownward` | `straight`
+- `color` — 6-digit hex `#RRGGBB` (e.g. `#9AA5B1` grey, `#E8924E` orange) — no 3-digit shorthand, no alpha
+- `width` — stroke width, an integer ≥ 1 (e.g. `2`)
+- `routingPoints` — optional array of `{ w:number, d:number }` waypoints for manual edge routing
+
+These are the pong-server edge `layerSettings` keys (`saveEdgeLayerSettingsSchema`); on
+`manageLayerActors` they ride through unvalidated, so use the canonical types above — an integer
+`width` and a 6-digit hex `color`. Use it to encode meaning in edges — coloured solid = data/structure
+flows, grey dashed = logical cross-links. To change an edge already on the layer, delete its placement
+and re-create it with the new `layerSettings` (re-creating without deleting first adds a duplicate).
+
+---
+
 ## Custom Form Data — Populating `actors.data`
 
 When the user specifies a **custom `formId`** (or a non-system `formName`) for one or more actors, you **must** fetch the form schema before writing the YAML file or pushing to the server.

@@ -204,7 +204,7 @@ var graphOps = []Operation{
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
 			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of {action, data:{id, type, position?, laIdSource?, laIdTarget?}} actions. " +
-				"For an EDGE (type:\"edge\"), data also accepts `layerSettings:{lineStyle:\"solid\"|\"dashed\"|\"dotted\"}` to style the line (omit → solid). " +
+				"For an EDGE (type:\"edge\"), data also accepts `layerSettings:{lineStyle:\"solid\"|\"dashed\"|\"dotted\", curveStyle:\"curved\"|\"rounded\"|\"roundedDownward\"|\"straight\", color:\"#RRGGBB\" (6-digit hex only — no #abc shorthand, no alpha), width:2 (integer ≥ 1), routingPoints:[{w:number, d:number}] (manual-routing waypoints)}` to style the line (omit → solid). " +
 				"To CHANGE an existing edge's style, delete its placement and create it again with the new lineStyle — re-creating without deleting first adds a duplicate edge placement."},
 			{Name: "withNum", In: InQuery, Type: "boolean", Desc: "Return counts in the response."},
 		},
