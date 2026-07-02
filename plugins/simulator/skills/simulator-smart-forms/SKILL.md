@@ -11,6 +11,25 @@ description: >
   "edit page layout", "add component to CDU", "rollback release".
 ---
 
+## Dynamic behavior → Always pair with Corezoid backend
+
+**If the Smart Form needs to do ANY of the following, it requires a Corezoid backend process:**
+- Display data loaded from actors, accounts, or other platform entities
+- React to button clicks or field changes with server-side logic
+- Save data back to actors or accounts on submit
+- Drive page-to-page transitions based on business rules
+- Send notifications or trigger other processes
+
+**In these cases, ALWAYS proactively activate the `simulator-smart-forms-logic` skill** — do not wait for the user to ask. After laying out the form structure (pages, widgets, locale), immediately say:
+
+> "This form needs dynamic data / submit handling. I'll now set up the Corezoid backend process that powers it — switching to `/simulator-smart-forms-logic`."
+
+Then hand off to `simulator-smart-forms-logic`, which will author the Corezoid process, provision an API key, and bind it to the form's env.
+
+**Static-only forms** (pure information display, no input, no dynamic data) do NOT need a backend — proceed with layout only.
+
+---
+
 # Simulator.Company Smart Form Author
 
 You are a specialist in creating and editing **Smart Forms** (also called CDU,
