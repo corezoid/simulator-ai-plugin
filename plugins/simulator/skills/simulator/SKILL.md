@@ -80,6 +80,39 @@ To create or edit skills, use **`/simulator-skills`**.
 
 ---
 
+## Step 0.5 — resolve the target entity before touching domain data
+
+When the user names a business/domain entity to create or configure (e.g. "smart
+contract", "supplier", "onboarding case" — anything that isn't already an established
+actor/form id from context), resolve WHAT to create before calling any entity-specific
+tool (accounts, transactions, triggers, tags, etc.):
+
+0. **Reuse an already-resolved mapping.** If this exact term was already resolved and
+   confirmed earlier in this same conversation — the user picked a form/mechanism for it,
+   or you already found/created the actor for it — don't re-run the form search or
+   re-ask again; go straight to using that resolved entity.
+1. **Search template forms first:** `searchForms`/`getForms` matched against each form's
+   `title`/`description`. A workspace-specific business form (e.g. a custom "Smart
+   Contract" template) takes priority over any platform system mechanism that merely
+   sounds related.
+2. **Check for prior actors of that form**, not just the form itself: `searchActors`
+   scoped to the matched form (or `searchAll`) for actors already tied to the same target
+   (e.g. the same monitored account/actor) — reuse/update instead of creating a
+   duplicate.
+3. **Don't let incidental discovery hijack the task.** If, while inspecting accounts or
+   other data, you stumble onto an existing platform mechanism (`AccountTriggers`, `Tags`,
+   etc.) that looks related, that is a *data point to mention to the user*, not a
+   substitute for steps 1–2. Do not pivot the whole task into configuring that mechanism
+   without first checking whether a business template form was what the user meant.
+4. **If more than one candidate matches** (multiple forms, or a form plus a system
+   mechanism), list them for the user and let them pick — never silently substitute one
+   for another based on superficial name similarity. Create only after the user confirms.
+
+This applies before "Workspace Context Check"-style domain workflows (finance, graph,
+forms, etc.) take over — it is about *which entity*, not yet *how* to operate on it.
+
+---
+
 ## Response & output conventions
 
 These apply to **every** answer you produce, regardless of which sub-skill is active:

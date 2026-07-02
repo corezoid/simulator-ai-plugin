@@ -234,6 +234,13 @@ deleteAccount(actorId="<actor UUID>", currencyId=1, nameId="<aname>", accountTyp
 > different account names can share one currency. (If the named unit IS the account name and the
 > currency is implicit, resolve the name and let `getAccounts` reveal the currency.)
 
+> **Multiple accounts on the same (nameId, currencyId) — offer Debit / Credit / Total.**
+> Simulator accounts are directional ledger entries: an actor can hold two rows for the
+> same `(nameId, currencyId)` pair — one `incomeType="debit"`, one `incomeType="credit"`
+> — instead of one netted balance. If `getAccounts` returns more than one account for the
+> pair you resolved, don't ask the user to choose only between "Debit" and "Credit": also
+> offer **Total** (the net balance, `credit.amount - debit.amount`) as a third option. Ask which the user wants before proceeding.
+
 ## Formula (computed) accounts
 
 Make an account's balance a **computed expression over other accounts** with
