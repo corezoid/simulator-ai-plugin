@@ -192,7 +192,7 @@ The page `config` is the layout template. Structure: **Page → Grid → Form �
 {
   "type": "one_column" | "two_column",
   "header": {
-    "class": "default" | "stepper",
+    "class": "default" | "steps",
     "extra": { "steps": ["Step 1", "Step 2"], "active": 1 }
   },
   "components": {
@@ -226,13 +226,19 @@ The page `config` is the layout template. Structure: **Page → Grid → Form �
   "id": "s1",
   "type": "body",             // "body" | "block" | "modal" | "float"
   "visibility": "visible",
-  "header":  [ /* Item[] */ ],
-  "content": [ /* Item[] */ ],
-  "footer":  [ /* Item[] */ ]
+  "header":  [ /* Item[] — Label | Button only */ ],
+  "content": [ /* Item[] — the main items */ ]
+  // modal-only: "modalHeader": [ /* Item[] */ ],
+  //             "modalSize": "small"|"medium"|"large"|"xlarge",
+  //             "modalCloseConfirmText": "…"
 }
 ```
 
 `block` renders as a grouped card; `modal`/`float` are overlays.
+
+> ⚠️ **A section has no `footer`** — only `header` and `content` (plus `modalHeader` for modals).
+> Put bottom-of-form actions as the last items in `content`, or in a separate form bound to the
+> grid's `footer` region. (The grid's `components.footer` above holds **form ids**, not items.)
 
 ---
 
@@ -291,12 +297,18 @@ Every item has `class` + base fields (`id`, `value`, `visibility`, `required`, `
 | `attachment` | Multi-file viewer; `value: FileProps[]`; `extra.downloadUrl` |
 | `signature` | Canvas signature → base64; `extra: {strokeStyle, saveButtonTitle}` |
 
-### Layout wrappers
+### Layout (no wrapper components)
 
-| `class` | Notes |
-|---|---|
-| `row` | Horizontal group; `items: Item[]`; `w` sets width |
-| `draggable` | Sortable list; `items: Item[]`; `value` = current order |
+There is **no `row` or `draggable` component class.** Lay items out with the **base `row` / `w`
+fields** that every component carries: give sibling items the same `row` string to place them on
+one line, and set `w` (relative width %) on each. For a sortable list, use a **section** with
+`sortable: true` + `contentLoop` (not a component).
+
+```jsonc
+// two items on one line, 50% each:
+{ "id": "first", "class": "edit", "type": "text", "row": "1", "w": "50" }
+{ "id": "last",  "class": "edit", "type": "text", "row": "1", "w": "50" }
+```
 
 ### Embedded widgets
 
