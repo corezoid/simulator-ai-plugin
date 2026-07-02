@@ -281,7 +281,7 @@ replaces the 3k-line `server.go`: simple CRUD is generated from the curated spec
 5. ✅ **Engines ported** → `internal/engines` (pull/push graph sync, `compactGraphLayout`,
    `pruneLongEdges`, `getAllLayerPlacements`, `createChart`) reusing the proven legacy logic,
    registered via `engines.RegisterTools`. *(thin runtime config + cosmetic form-name stubs;
-   sync-diff unit tests still TODO)*
+   sync-diff tests are now covered by the graph sync test suite)*
 6. ✅ **Media ported** (`upload` + `svg` rasterise) → `internal/engines`.
 7. ✅ **Apps + smart-form tools** (`apps.go`): createApplication, createSmartForm,
    listSmartForms, manageAppContent. *(getApplication dropped — no backend route; the drift
@@ -339,6 +339,60 @@ fs.writeFileSync('papi-openapi.json', JSON.stringify(app.swagger(), null, 2))
 ```
 
 This makes tool names a backend-owned contract and lets the plugin drop all fuzzy matching.
+
+### 9a. Forward `timeZoneOffset` in the AI-agent `control-events-context`
+
+**Why.** Platform timestamps are stored as unixtime in **UTC** (see `docs/entities/transactions.md`).
+To show users their local wall-clock (QA: transaction times rendered in the wrong zone), the
+agent must know the user's time-zone offset. There is **no per-user timezone in the data model**
+(`getUser` has none), so the only viable channel is the request context. The CDU `ScriptContext`
+**already** carries `timeZoneOffset` (`docs/user-flows/cdu-page-protocol.md` §"control-events-context")
+— the AI-agent context did **not**, until the front-end change below.
+
+**The whole pong-server chain is pass-through — the change is client-side (front-end).** Verified
+end-to-end (2026-06):
+
+- `pong-server` `parseContextHeader` (`src/packages/common/helpers/parseContextHeader.js`) decodes
+  the whole header — **no field whitelist**.
+- `reactions.js` (`createActorReaction`) stores the whole object in `metaInfo.context`.
+- `orchestrator.js` (`helpers/aiAgent/orchestrator.js`) re-emits it verbatim: `contextHeaders(context)`
+  base64s it, and **`uiContextNote(context)` does `JSON.stringify(context)` into the system prompt** —
+  so any field present in `context` reaches the model. **No pong-server change is needed.**
+
+The context object is **built by the front-end**:
+`pong-front-end/packages/utils/utils.js` → `setWebWidgetReactionContext()` (≈ line 199) assembles
+`{ hostOrigin, page, activeActor, activeLayer, activeGraph, activeForm, graphDiscovery }`. **Add one
+field there:**
+
+```js
+// pong-front-end/packages/utils/utils.js — inside the `context` object
+const context = {
+  hostOrigin: document.location.origin,
+  page: document.location.pathname,
+  activeActor: state.actorView.id,
+  // …existing fields…
+  timeZoneOffset: new Date().getTimezoneOffset(),   // ADD: minutes, JS-style (-180 = UTC+3)
+};
+```
+
+- **Units / sign:** `Date.getTimezoneOffset()` already returns the JS convention (`-180` = UTC+3),
+  matching the calendar and CDU `ScriptContext` payloads. (Sending `0` for genuine UTC is fine —
+  the plugin's `*int` distinguishes "absent" (nil) from `0`.)
+- The AI-console reaction request that carries the header is sent by **control-widget**
+  (`src/shared/utils/apiRequest.ts`, `fullContext = {...state.shim.context, actorId}`); it forwards
+  `state.shim.context` verbatim, so the field added in `utils.js` flows through automatically.
+
+**Status — done.**
+- **Front-end:** `pong-front-end/packages/utils/utils.js` `setWebWidgetReactionContext()` now adds
+  `timeZoneOffset: new Date().getTimezoneOffset()` to the context object.
+- **Plugin:** `apiclient.UIContext.TimeZoneOffset *int` (`internal/apiclient/client.go`) parses it
+  (`nil` = absent); `docs/entities/ui-context.md` documents the field; the `/simulator` "Timestamps"
+  rule converts UTC→user zone and labels the offset, falling back to labelled UTC when absent.
+- **pong-server:** no change — pass-through (verified above).
+
+**Acceptance.** With the field present, the agent renders transaction times in the user's zone
+with an explicit label (e.g. `18:30 (UTC+3)`); with it absent, it renders labelled UTC
+(e.g. `15:30 UTC`) — never an unlabelled or doubly-offset time.
 
 ## 10. Resolved decisions
 

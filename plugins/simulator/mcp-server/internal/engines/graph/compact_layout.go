@@ -107,7 +107,7 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 	placementsByActor := map[string][]compactPlacement{}
 	titleByActor := map[string]string{}
 	allPlacements := []compactPlacement{}
-	const limit = 100
+	const limit = maxLayerPageLimit
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",

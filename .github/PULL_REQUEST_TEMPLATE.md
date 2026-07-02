@@ -1,4 +1,6 @@
 <!-- See CONTRIBUTING.md before opening a PR. -->
+<!-- BASE BRANCH: target `develop`, not `main`. `main` is release-only and a CI guard
+     rejects feature/fix PRs into it. Release/hotfix promotions use `release/*` / `hotfix/*`. -->
 
 ## What & why
 

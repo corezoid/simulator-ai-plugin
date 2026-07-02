@@ -90,6 +90,11 @@ func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode boo
 	// buildLink it IS exposed in actor mode (see actorBindings) so the
 	// reaction-triggered agent can read files attached to its reaction.
 	registerReadAttachment(s, c)
+	// findSkill / getSkill are local composite tools (resolve the Skills system
+	// form + compose existing PAPI reads), so — like buildLink — they live
+	// outside the op loop and the drift gate. They power the skill registry (the
+	// data-driven analogue of Claude Code skills).
+	registerSkillTools(s, c)
 }
 
 // Count reports how many curated API tools are registered (auth helpers excluded).

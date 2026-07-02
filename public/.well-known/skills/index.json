@@ -86,6 +86,13 @@
       "name": "simulator-reactions"
     },
     {
+      "description": "Simulator.Company skill registry specialist — the data-driven analogue of these built-in skills. Use when the user wants to RUN a saved playbook (\"run skill\", \"use the … skill\", \"/skill \u003cslug\u003e\", \"is there a skill for …\", \"what skills do I have\"), or to AUTHOR one (\"create a skill\", \"save this as a skill / playbook\", \"teach simulator to …\", \"make a reusable procedure\"). A skill is an actor of the `Skills` system form whose `description` holds a step-by-step procedure (which MCP tools to call, with concrete entity ids) for a workspace-specific task such as \"create a smart contract\" or \"onboard a client\". Activate on: \"run skill\", \"use playbook\", \"is there a skill for\", \"what skills do I have\", \"save as skill\", \"create a skill\", \"teach simulator\", \"запусти скіл\", \"використай скіл\", \"є скіл для\", \"які скіли є\", \"збережи як скіл\", \"створи скіл\", \"навчи simulator\", \"запусти навык\", \"используй навык\", \"сохрани как навык\", \"создай навык\".",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-skills/SKILL.md"
+      ],
+      "name": "simulator-skills"
+    },
+    {
       "description": "Simulator.Company Smart Form (CDU / Script / Application) specialist. Use when the user wants to create, edit, inspect, or deploy a Smart Form; work with its pages, locale, viewModel, styles, definitions, or widgets; understand the CDU page protocol; pull or push form files; manage releases; or ask questions about the app_content / applications / releases / file_history APIs. Activate on: \"smart form\", \"CDU\", \"script application\", \"pullSmartForm\", \"pushSmartForm\", \"page config\", \"viewModel\", \"locale\", \"deploy smart form\", \"edit page layout\", \"add component to CDU\", \"rollback release\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms/SKILL.md"

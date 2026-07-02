@@ -997,7 +997,7 @@ func (s *GraphSyncer) pushGraph(ctx context.Context, graph GraphFile, layerID st
 					} else {
 						result.ActorsUnchanged++
 					}
-					if sa.Position.X != a.Position.X || sa.Position.Y != a.Position.Y {
+					if int(sa.Position.X) != a.Position.X || int(sa.Position.Y) != a.Position.Y {
 						posUpdates = append(posUpdates, map[string]interface{}{
 							"id":       sa.LaID,
 							"position": map[string]int{"x": a.Position.X, "y": a.Position.Y},

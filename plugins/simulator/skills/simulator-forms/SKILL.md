@@ -47,6 +47,25 @@ fields, and field types of every actor.
 
 ---
 
+## Reading a form's "knowledge"
+
+A form carries human-written documentation that is the **authoritative source** for what
+it and its fields mean. Read and **interpret** it before answering about a form's purpose
+or the meaning of a field/parameter — never guess from a field's `title`/`class`:
+
+- **Form-level `description`** — a top-level key on the form object; explains the form's purpose.
+- **Field-level `description`** — a flat, **optional** key on each field at
+  `sections[].content[].description` (the field's helper text). Present on some fields, absent
+  on others.
+
+Because reads should always pass a `filter`, **include `description` and `sections` in the
+`getForm` `filter`** when you need to understand a form or its fields — a narrower filter drops
+them. If the relevant description isn't already in context — e.g. a follow-up question a few
+turns later — **re-read the form** with `getForm`; do not answer from memory or invent a
+field's meaning.
+
+---
+
 ## Form Concepts
 
 **Forms are templates. Actors are instances.**
@@ -150,8 +169,10 @@ actor data is keyed by field **`id`**, never by the field `title` or its seconda
 | Delete a form | `deleteForm(formId=42)` |
 
 > **Save tokens with `filter`.** `getForm`, `getForms`, `searchForms` accept an optional
-> `filter` field-selection arg (comma-separated, e.g. `filter="id,title,sections"`); the
-> server returns only those fields. Templates can be large — request just what you need.
+> `filter` field-selection arg (comma-separated, e.g. `filter="id,title,description,sections"`); the
+> server returns only those fields. Templates can be large — request just what you need, but keep
+> `description` (form purpose) and `sections` (field definitions, incl. each field's `description`)
+> when you need to understand the form.
 
 ### Create a form
 

@@ -194,8 +194,13 @@ updateActor(
 ```
 
 `updateActor` is a **partial** update of `data` — keys you include are replaced, the rest
-are untouched. You can also set `title`/`description`/`color`/`status`. To clear a
+are untouched. You can also set `title`/`description`/`color`/`status`/`ref`. To clear a
 multi-value field, send `[]`.
+
+**Re-key by `ref`.** `updateActor(formId, actorId, ref="…")` sets or changes the actor's
+external reference — a stable business key, **unique per form** — the same key `createActor`
+accepts, but now editable after creation. Then address the actor by its key instead of its
+UUID: `getActorByRef(formId, ref)`. Omit `ref` to leave it unchanged.
 
 **Embed a smart form (script) in an actor.** Set `appId` (on `createActor` / `updateActor`)
 to a Smart Form (CDU/Script app) actor id — the actor's card then renders/runs that smart
@@ -207,6 +212,24 @@ form; `appSettings` `{autorun, expired, users, groups, fullWidth}` tunes it. See
 (smart-form chip), plus formatting (`[b]`, `[color=…]`, `[h2]`, `[ul][*]…[/ul]`, `[url=…]`) and
 `[md]…[/md]` for markdown. Fetch the environment's exact tag set with **`getBbcodeTags`**.
 **BBCode is processed only OUTSIDE `[md]` blocks.** The reverse matters too: a `description` is rendered as **BBCode by default, not markdown**, so any markdown you write (`##`, `-`, `**bold**`, tables) MUST be wrapped in `[md]…[/md]` or it shows as literal text — applies to every `createActor`/`updateActor` `description`, Events actors (chats/meetings/tasks) included (e.g. `description="[md]## Agenda\n- item[/md]"`). See `docs/entities/reactions.md` → "Embedding".
+
+## Holes — empty placeholder nodes
+
+A **hole** is an empty placeholder slot on a graph, rendered as a hollow node: it marks a
+position in the structure that is **not yet filled**. A hole becomes a normal actor once it is
+filled with data — ideal for laying out a template / "company DNA" graph up front and turning
+each slot into a real actor as the data arrives.
+
+```
+createActor(formId=3279, title="Budget", hole=true)        # create a hole
+updateActor(formId=3279, actorId="<UUID>", hole=true)      # turn an existing actor into a hole
+updateActor(formId=3279, actorId="<UUID>", hole=false)     # fill it — hole → normal actor
+```
+
+- `hole` is a top-level **boolean** on `createActor` / `updateActor`; omit it → default `false`.
+- It is independent of `status` and `data` (a hole can still carry a `title`). `hole=false`
+  alone flips a hole back to a normal node.
+- Place a hole on a layer like any node (e.g. `manageLayerActors` — see `simulator-graph`).
 
 ## Status & delete
 

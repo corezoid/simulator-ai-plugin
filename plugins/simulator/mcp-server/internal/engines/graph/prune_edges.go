@@ -94,13 +94,13 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		ID       string `json:"id"`
 		Title    string `json:"title"`
 		Position struct {
-			X int `json:"x"`
-			Y int `json:"y"`
+			X jsonInt `json:"x"`
+			Y jsonInt `json:"y"`
 		} `json:"position"`
 	}
 	positionOf := map[string]struct{ X, Y int }{}
 	titleOf := map[string]string{}
-	const limit = 100
+	const limit = maxLayerPageLimit
 	offset := 0
 	for {
 		u := fmt.Sprintf("%s/graph_layers/paginated/%s?type=nodes&limit=%d&offset=%d",
@@ -116,7 +116,7 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] parse placements: %v", err)), nil
 		}
 		for _, p := range page.Data {
-			positionOf[p.ID] = struct{ X, Y int }{X: p.Position.X, Y: p.Position.Y}
+			positionOf[p.ID] = struct{ X, Y int }{X: int(p.Position.X), Y: int(p.Position.Y)}
 			titleOf[p.ID] = p.Title
 		}
 		if len(page.Data) < limit {

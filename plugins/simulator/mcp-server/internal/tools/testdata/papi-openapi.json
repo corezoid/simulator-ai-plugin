@@ -563,10 +563,20 @@
                 "type": "object",
                 "additionalProperties": true,
                 "properties": {
+                  "status": {
+                    "type": "string"
+                  },
+                  "virus": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
                   "id": {
                     "type": "integer"
                   },
-                  "status": {
+                  "scanner": {
                     "type": "string"
                   },
                   "bucket": {
@@ -583,16 +593,9 @@
                   },
                   "size": {
                     "type": "integer"
-                  },
-                  "scanner": {
-                    "type": "string"
-                  },
-                  "virus": {
-                    "type": "string"
                   }
                 },
                 "required": [
-                  "id",
                   "status"
                 ]
               }
@@ -2904,16 +2907,61 @@
                   "targetActorId": {
                     "type": "string"
                   },
-                  "holeLaId": {
-                    "type": "integer"
-                  },
-                  "targetLaId": {
-                    "type": "integer"
+                  "layerId": {
+                    "type": "string"
                   }
                 },
                 "required": [
                   "holeActorId",
-                  "targetActorId"
+                  "targetActorId",
+                  "layerId"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "accId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/actors/revert_hole/{accId}": {
+      "post": {
+        "tags": [
+          "Graph"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "targetActorId": {
+                    "type": "string"
+                  },
+                  "layerId": {
+                    "type": "string"
+                  },
+                  "holeActorId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetActorId",
+                  "layerId"
                 ]
               }
             }
@@ -3443,6 +3491,16 @@
                             "text": {
                               "type": "string"
                             },
+                            "subtitle": {
+                              "type": "string"
+                            },
+                            "icon": {
+                              "type": "string"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
                             "createdAt": {
                               "type": "number"
                             }
@@ -3680,6 +3738,16 @@
                             },
                             "text": {
                               "type": "string"
+                            },
+                            "subtitle": {
+                              "type": "string"
+                            },
+                            "icon": {
+                              "type": "string"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1
                             },
                             "createdAt": {
                               "type": "number"
@@ -4048,6 +4116,16 @@
                             },
                             "text": {
                               "type": "string"
+                            },
+                            "subtitle": {
+                              "type": "string"
+                            },
+                            "icon": {
+                              "type": "string"
+                            },
+                            "count": {
+                              "type": "integer",
+                              "minimum": 1
                             },
                             "createdAt": {
                               "type": "number"
@@ -12915,6 +12993,7 @@
         }
       },
       "put": {
+        "operationId": "updateLayerPositions",
         "tags": [
           "Graph"
         ],
@@ -13121,6 +13200,7 @@
     },
     "/papi/1.0/graph_layers/paginated/{actorId}": {
       "get": {
+        "operationId": "getLayerActorsPaginated",
         "tags": [
           "Graph"
         ],
@@ -14215,6 +14295,9 @@
                   "abbreviation": {
                     "type": "string",
                     "maxLength": 255
+                  },
+                  "transferOnly": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -15640,7 +15723,7 @@
         "tags": [
           "Scripts"
         ],
-        "description": "Clears deleted_at on the provided ids. Files also get a `restore` version row. Folder restore does NOT cascade to descendants \u2014 pass each descendant explicitly if you want them back too. Items that are not currently soft-deleted are silently skipped.",
+        "description": "Clears deleted_at on the provided ids. Files also get a `restore` version row. Folder restore does NOT cascade to descendants — pass each descendant explicitly if you want them back too. Items that are not currently soft-deleted are silently skipped.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -16104,80 +16187,74 @@
         }
       }
     },
-    "/papi/1.0/graph_layers/actors/{layerId}": {
-      "put": {
-        "operationId": "updateLayerPositions",
-        "tags": [
-          "Graph"
-        ],
+    "/papi/1.0/ai": {
+      "post": {
+        "description": "cc-api AI-usage callback: kind=tokens (usage) or kind=cost (request_id+cost)",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "items"
-                ],
+                "additionalProperties": false,
                 "properties": {
-                  "items": {
-                    "type": "array",
-                    "minItems": 1,
-                    "maxItems": 100,
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "id",
-                        "position"
-                      ],
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "description": "laId \u2014 unique element ID on this layer (string-encoded integer), NOT the actor UUID."
-                        },
-                        "position": {
-                          "type": "object",
-                          "required": [
-                            "x",
-                            "y"
-                          ],
-                          "properties": {
-                            "x": {
-                              "type": "integer"
-                            },
-                            "y": {
-                              "type": "integer"
-                            }
-                          }
-                        }
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "tokens",
+                      "cost"
+                    ]
+                  },
+                  "session_id": {
+                    "type": "string"
+                  },
+                  "dialog_actor_id": {
+                    "type": "string"
+                  },
+                  "acc_id": {
+                    "type": "string"
+                  },
+                  "user_id": {},
+                  "usage": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "input_tokens": {
+                        "type": "number"
+                      },
+                      "output_tokens": {
+                        "type": "number"
+                      },
+                      "total_tokens": {
+                        "type": "number"
+                      },
+                      "cache_read_input_tokens": {
+                        "type": "number"
+                      },
+                      "cache_creation_input_tokens": {
+                        "type": "number"
                       }
                     }
+                  },
+                  "request_id": {
+                    "type": "string"
+                  },
+                  "cost": {
+                    "type": "number"
                   }
-                }
+                },
+                "required": [
+                  "kind",
+                  "dialog_actor_id",
+                  "acc_id"
+                ]
               }
             }
-          }
+          },
+          "required": true
         },
-        "parameters": [
-          {
-            "name": "layerId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Layer actor UUID containing the elements to reposition."
-          }
-        ],
         "responses": {
           "200": {
-            "description": "Positions applied.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
+            "description": "Default Response"
           }
         }
       }

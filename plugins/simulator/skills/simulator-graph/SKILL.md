@@ -28,12 +28,19 @@ description: >
   traversal operations, layer management, and FlowchartBlock diagram creation.
 ---
 
-> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read layer membership with `getLayerActors` / `getAllLayerPlacements`; create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge CRUD with `getEdge` / `updateEdge` / `deleteEdge` / `existLink` / `deleteEdgesByNodes`; edge types with `getEdgeTypes`. Traverse from an actor with `getRelatedActors` (type = linked | parents | children; hierarchy link type by default; paginated/filterable/sortable), `getLinkedActors` (directly-linked actors across edge types, with `edgeTypes`/`withSystem`/`pinned` filters), and `getActorLinks` (every edge of an actor). Layer ops: `layerStats` (node/edge counts), `existLayerElement` (is a node/edge on a layer — dedup before placing), `moveActors` (move ≤10 actors between layers), `cleanGraphLayer` (wipe a layer — destructive). See `/simulator` for the full list.
+> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read a layer's contents — prefer `getLayerActorsPaginated` (page nodes then edges; works for any size) or `getAllLayerPlacements`, falling back to `getLayerActors` only for small layers (it loads the whole layer in one call and is rejected with a "Layer is too large" 400 above the size cap); create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge CRUD with `getEdge` / `updateEdge` / `deleteEdge` / `existLink` / `deleteEdgesByNodes`; edge types with `getEdgeTypes`. Traverse from an actor with `getRelatedActors` (type = linked | parents | children; hierarchy link type by default; paginated/filterable/sortable), `getLinkedActors` (directly-linked actors across edge types, with `edgeTypes`/`withSystem`/`pinned` filters), and `getActorLinks` (every edge of an actor). Layer ops: `layerStats` (node/edge counts), `existLayerElement` (is a node/edge on a layer — dedup before placing), `moveActors` (move ≤10 actors between layers), `cleanGraphLayer` (wipe a layer — destructive). See `/simulator` for the full list.
 
 # Simulator.Company Graph Builder
 
 You are a specialist in building graph-based business process structures in
 Simulator.Company using the `simulator` MCP server.
+
+> **Reading "the nodes on a graph/layer"?** Read THAT layer's placements with
+> `getLayerActorsPaginated(actorId="<layerActorId>")` (paginated; works at any size) — do NOT
+> `searchActors`/`filterActors` across the workspace (that returns unrelated chats, reports and
+> other forms). When the user pastes a URL like
+> `.../graph/<graphActorId>/layers/<layerActorId>`, the layer `actorId` is the **last UUID, the
+> segment after `/layers/`**. See **Layer Operations** below for the full recipe.
 
 ---
 
@@ -157,6 +164,32 @@ pushGraphFile(layerId="<layerId>")
 
 ---
 
+## Styling edges — colour, dash, width, curve
+
+An edge placement's `data.layerSettings` controls how the line renders, applied **when
+you place the edge** via `manageLayerActors`:
+
+```
+manageLayerActors(actorId="<layerId>", items=[
+  { action:"create", data:{ id:"<edgeId>", type:"edge", laIdSource:<laA>, laIdTarget:<laB>,
+      layerSettings:{ lineStyle:"dashed", color:"#E8924E", width:2, curveStyle:"straight" } } }
+])
+```
+
+- `lineStyle` — `solid` | `dashed` | `dotted`
+- `curveStyle` — `curved` | `rounded` | `roundedDownward` | `straight`
+- `color` — 6-digit hex `#RRGGBB` (e.g. `#9AA5B1` grey, `#E8924E` orange) — no 3-digit shorthand, no alpha
+- `width` — stroke width, an integer ≥ 1 (e.g. `2`)
+- `routingPoints` — optional array of `{ w:number, d:number }` waypoints for manual edge routing
+
+These are the pong-server edge `layerSettings` keys (`saveEdgeLayerSettingsSchema`); on
+`manageLayerActors` they ride through unvalidated, so use the canonical types above — an integer
+`width` and a 6-digit hex `color`. Use it to encode meaning in edges — coloured solid = data/structure
+flows, grey dashed = logical cross-links. To change an edge already on the layer, delete its placement
+and re-create it with the new `layerSettings` (re-creating without deleting first adds a duplicate).
+
+---
+
 ## Custom Form Data — Populating `actors.data`
 
 When the user specifies a **custom `formId`** (or a non-system `formName`) for one or more actors, you **must** fetch the form schema before writing the YAML file or pushing to the server.
@@ -213,6 +246,30 @@ actors:
 
 ---
 
+## Text-label nodes
+
+Render an actor's `description` as borderless text (no node circle) by placing it with
+`isTextNode` in its `data.layerSettings` on `manageLayerActors`:
+
+```
+createActor(formId=3279, description="Section title")          // the text lives in `description`
+manageLayerActors(actorId="<layerId>", items=[
+  { action:"create", data:{ id:"<actorId>", type:"node", position:{x:0,y:0},
+      layerSettings:{ isTextNode:true, textNodeScale:1.5, textWidth:320, textHeight:44 } } }
+])
+```
+
+- `isTextNode:true` — render the node as a text label
+- `textNodeScale` — font-size multiplier
+- `textWidth` / `textHeight` — text-box size in px. **Scale it to the text** — roughly
+  `16·scale` px per character wide and `28·scale` px per line tall — or large/long text wraps
+  and breaks mid-word.
+
+Good for section titles, axis labels and annotations on a graph. To change it, delete the
+placement and re-create it with the new `layerSettings`.
+
+---
+
 ## Graph File Format Reference
 
 ```yaml
@@ -243,6 +300,34 @@ edges:
 - Do **not** include `data` for system forms — the server auto-injects shape/view.
 - `formName` takes priority over `formId` when both are present.
 - `edges` reference actor `id` fields (local names work, they are resolved at push time).
+
+---
+
+## Custom image nodes — any drawing, icon or shape (napkin)
+
+To put **any image** on a graph — a line, a circle, a rectangle, an icon, a logo, a
+hand-drawn shape, a small diagram, anything a PNG/SVG can hold — create an actor with a
+`pictureObject`: a custom image rendered AS the node body (the backend's "napkin"
+element), instead of a standard form node. A divider line is just one use.
+
+```
+createActor(formId=3279, color="#F04438", pictureObject={
+  img:    "data:image/png;base64,iVBORw0KGgo…",   // a PNG/SVG data URI
+  width:  800,                                     // display size on the canvas
+  height: 8,
+  type:   "napkin"
+}, contextLayerId="<layerId>")
+```
+
+- `img` — the image as a data URI (e.g. a thin red PNG to draw a divider line).
+- `width` / `height` — display size in px. The image is anchored at its **centre** and
+  keeps the source's **aspect ratio** (set `width`; `height` follows), so for a thin line
+  make the source PNG wide-and-short.
+- `type: "napkin"` — the custom-image element kind.
+
+A classic use is an ADAM/EVE-style horizontal divider: a wide, short red dashed PNG
+placed across the middle of the layer. Change a node's image later with the same
+`pictureObject` on `updateActor`.
 
 ---
 
@@ -539,6 +624,13 @@ massLink(links=[{"source":"<a>","target":"<b>"}, ...])
 // place it with manageLayerActors (actorId = the layer-actor UUID):
 manageLayerActors(actorId="<layerActorId>", items=[{"action":"create","data":{"id":"<edgeId>","type":"edge","laIdSource":<laA>,"laIdTarget":<laB>}}])
 
+// Edge LINE STYLE — put it in the placed edge's data.layerSettings.lineStyle
+// (solid | dashed | dotted; omit → solid). Use distinct styles for distinct
+// edge meanings (e.g. dashed = dependency, dotted = hint, solid = hierarchy):
+manageLayerActors(actorId="<layerActorId>", items=[{"action":"create","data":{"id":"<edgeId>","type":"edge","laIdSource":<laA>,"laIdTarget":<laB>,"layerSettings":{"lineStyle":"dashed"}}}])
+// To CHANGE an edge's style, DELETE its placement then create it again — re-creating
+// without deleting first adds a DUPLICATE placement (the line is drawn twice).
+
 // existLink REQUIRES edgeTypeId (unlike createLink) — pass it explicitly to find/dedupe an edge by its endpoints:
 existLink(source="<a>", target="<b>", edgeTypeId=<id>)  → edge id if it exists
 getEdge(edgeId="<edgeId>")
@@ -549,11 +641,41 @@ deleteEdgesByNodes(links=[{"source":"<a>","target":"<b>","edgeTypeId":<id>}])   
 
 ### Layer Operations
 
+**Reading "the nodes/actors on a graph" means reading THAT LAYER's placements — never a
+workspace-wide search.** `searchActors` / `filterActors` without a layer constraint scan the
+whole workspace and return unrelated actors (chats, daily reports, other forms) — they are the
+WRONG tool for "what's on this graph/layer". Use the layer-read tools below, addressing the
+layer by its layer-actor UUID.
+
+**Getting the layer UUID from a pasted URL.** Simulator graph URLs look like:
+
 ```
-getLayerActors(actorId="<layerActorId>")                 // placements on the layer
-getAllLayerPlacements(layerId="<layerActorId>")          // every placement in one paginated call (engine tool)
+https://<host>/actors_graph/<workspaceId>/graph/<graphActorId>/layers/<layerActorId>
+                            └ workspace ┘        └ graph root ┘         └ THE LAYER ┘
+```
+
+- The layer `actorId` is the **last UUID — the segment after `/layers/`**. Read it with the
+  tools below (e.g. `getLayerActorsPaginated(actorId="<layerActorId>")`).
+- If the path ends at `/graph/<id>/<mode>` (mode = `layers`|`actors`|`trees`) with no
+  `/layers/` segment, that `<id>` is the layer/graph-folder to open.
+- The UUID after `/graph/` is the graph ROOT actor (a `Graphs`-form actor), not the canvas of
+  nodes — don't read it expecting the layer's members.
+
+```
+// READING A LAYER — default to the paginated read; it works for a layer of ANY size.
+// Start with layerStats to learn the counts, then page nodes and edges:
+layerStats(actorId="<layerActorId>")                     // node/edge counts — call first
+getLayerActorsPaginated(actorId="<layerActorId>", type="nodes", limit=50, offset=0)  // walk offset until a short/empty page
+getLayerActorsPaginated(actorId="<layerActorId>", type="edges", limit=50, offset=0)  // then the edges
+getAllLayerPlacements(layerId="<layerActorId>")          // nodes-only one-shot shortcut (engine tool, any size)
 searchLayerActors(actorId="<layerActorId>", query="...")
-layerStats(actorId="<layerActorId>")                     // node/edge counts
+
+// getLayerActors is a SMALL-LAYER shortcut only — it loads the whole layer (nodes + edges)
+// at once and the backend REJECTS it with a 400 ("Layer is too large (… nodes, … edges,
+// total: …). Maximum allowed: N.") once nodes+edges exceed the size cap (~300). Do not reach
+// for it first to read a layer; if you do and hit that error, switch to getLayerActorsPaginated
+// (do NOT give up). `filter` keeps each page small.
+getLayerActors(actorId="<layerActorId>")                 // whole layer in one call — small layers only
 existLayerElement(actorId="<layerActorId>", id="<actorOrEdgeId>", type="actor")  // is a node/edge on the layer — dedupe before placing
 moveActors(sourceActorId="<layerA>", targetActorId="<layerB>", items=[{"actorId":"<a1>"}])  // ≤10 actors between layers
 cleanGraphLayer(actorId="<layerActorId>")                // wipe the layer (actors remain) — destructive

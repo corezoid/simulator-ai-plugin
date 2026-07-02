@@ -176,8 +176,22 @@ var graphOps = []Operation{
 		},
 	},
 	{
+		Name: "getLayerActorsPaginated", Method: "GET", Path: "/graph_layers/paginated/{actorId}",
+		Summary: "PREFERRED way to read a layer's contents — works for a layer of ANY size. Returns ONE page of either nodes or edges (not both): pass type=nodes to page the placed actors, type=edges to page the links. " +
+			"Walk a collection by incrementing offset until you get a short or empty page, then repeat for the other type. Use layerStats first to learn how many of each there are. `filter` projects node fields to keep pages small. " +
+			"Reach for getLayerActors only as a small-layer shortcut — it loads everything at once and fails on large layers.",
+		Params: []Param{
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
+			{Name: "type", In: InQuery, Type: "string", Required: true, Enum: []string{"nodes", "edges"}, Desc: "Which collection to page through: nodes (placed actors) or edges (links)."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size, 1-50 (the backend caps it at 50)."},
+			{Name: "offset", In: InQuery, Type: "number", Desc: "Number of items to skip (page offset)."},
+			fieldFilterParam("id,title,formId,status,x,y"),
+		},
+	},
+	{
 		Name: "getLayerActors", Method: "GET", Path: "/graph_layers/{actorId}",
-		Summary: "List the actors placed on a layer (the layer is itself an actor). `filter` projects the fields of each placed actor (node), keeping the response small.",
+		Summary: "Whole-layer shortcut: returns every actor placed on a layer plus its edges in one call. ONLY for small layers — it loads everything at once and the backend REJECTS it with a 400 (\"Layer is too large … Maximum allowed: N\") when nodes+edges exceed the layer-size cap (~300). " +
+			"To read a layer reliably regardless of size, PREFER getLayerActorsPaginated (page nodes then edges); getAllLayerPlacements is a one-shot node-only alternative. `filter` projects the fields of each placed actor (node).",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
 			{Name: "noDuplicate", In: InQuery, Type: "boolean", Desc: "Deduplicate placements."},
@@ -186,10 +200,12 @@ var graphOps = []Operation{
 	},
 	{
 		Name: "manageLayerActors", Method: "POST", Path: "/graph_layers/actors/{actorId}",
-		Summary: "Place or remove nodes/edges on a layer. Pass an array of {action: create|delete, data: {id, type: node|edge, position?}} items.",
+		Summary: "Place or remove nodes/edges on a layer. Pass an array of {action: create|delete, data: {id, type: node|edge, position?}} items. An edge placement may also carry a line style — see `items`. A NODE placement can render the actor's `description` as a borderless text label instead of a node circle via `data.layerSettings:{isTextNode:true, textNodeScale:1.5, textWidth:300, textHeight:50}` — size the box to the text (≈16·scale px/char) or it wraps and breaks; see the simulator-graph skill.",
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID."},
-			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of {action, data:{id, type, position?, laIdSource?, laIdTarget?}} actions."},
+			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array of {action, data:{id, type, position?, laIdSource?, laIdTarget?}} actions. " +
+				"For an EDGE (type:\"edge\"), data also accepts `layerSettings:{lineStyle:\"solid\"|\"dashed\"|\"dotted\", curveStyle:\"curved\"|\"rounded\"|\"roundedDownward\"|\"straight\", color:\"#RRGGBB\" (6-digit hex only — no #abc shorthand, no alpha), width:2 (integer ≥ 1), routingPoints:[{w:number, d:number}] (manual-routing waypoints)}` to style the line (omit → solid). " +
+				"To CHANGE an existing edge's style, delete its placement and create it again with the new lineStyle — re-creating without deleting first adds a duplicate edge placement."},
 			{Name: "withNum", In: InQuery, Type: "boolean", Desc: "Return counts in the response."},
 		},
 	},
@@ -266,10 +282,10 @@ var graphOps = []Operation{
 		},
 	},
 	{
-		Name: "updateLayerPositions", Method: "PUT", Path: "/graph_layers/actors/{layerId}",
+		Name: "updateLayerPositions", Method: "PUT", Path: "/graph_layers/actors/{actorId}",
 		Summary: "Update the positions (x, y) of actors already present on a layer. Use this to reposition actors within the same layer — not to move actors between layers (use moveActors for that).",
 		Params: []Param{
-			{Name: "layerId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID containing the actors to reposition."},
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Layer actor UUID containing the actors to reposition."},
 			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array (1-100) of {id: string (laId — unique element ID on this layer, NOT actorId), position: {x: int, y: int}}."},
 		},
 	},

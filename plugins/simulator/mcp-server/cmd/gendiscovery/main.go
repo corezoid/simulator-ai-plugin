@@ -63,6 +63,8 @@ var mcpTools = [][2]string{
 	{"uploadActorPicture", "Set an actor's avatar from URL, local file, or base64 (auto SVG→PNG)"},
 	{"uploadActorPictureBulk", "Bulk-upload actor pictures with SHA-256 deduplication"},
 	{"createChart", "Create a chart/dashboard actor on a layer"},
+	{"findSkill", "Discover saved skill playbooks (Skills-form actors) by intent"},
+	{"getSkill", "Load a saved skill playbook in full by slug (ref) or id"},
 }
 
 type skill struct {
