@@ -85,13 +85,14 @@ form submission event fires. It must respond to `{{__callback_url}}` with the ri
 | Source | `body.buttonId` | `body.buttonData` |
 |---|---|---|
 | Button click | button's `id` | `{}` (empty object) |
-| `submitOnChange` element | element's `id` | `{ "action": "select"/"check"/…, "value": "newValue" }` |
+| `submitOnChange` element | element's `id` | `select` → `{ action, value }`; `radio`/`check`/most → `{}` (read the value from `body.data.<id>`) |
 
 When an element has `submitOnChange: true` (e.g. a select, radio, or checkbox),
 the platform fires `/send` **immediately on value change** without waiting for a
-button. `body.buttonId` is the element's own `id` and `body.buttonData` carries the
-interaction detail (`action` + `value`). `body.data` still contains the full current
-snapshot of all field values.
+button. `body.buttonId` is the element's own `id`, and **`body.data` carries the full
+current snapshot of all field values — read the changed value from there.**
+`body.buttonData` holds `{ action, value }` only for `select` (and a few components);
+`radio`, `check`, and most fields send `{}`.
 
 Other status codes: `205` re-render whole page; `302` redirect to another page
 (`data.nextPage`); `4xx`/`5xx` surfaces an error toast.
@@ -140,8 +141,8 @@ Other status codes: `205` re-render whole page; `302` redirect to another page
 
 ### Sample `/send` request — `submitOnChange` element
 
-`buttonData` is non-empty: `action` describes the interaction type, `value` is the
-newly selected value. `buttonId` is the **field's id**, not a button.
+This example is a `select`, which populates `buttonData` (`action` + `value`); a `radio`/`check`
+change sends `buttonData:{}` — read the value from `body.data`. `buttonId` is the **field's id**, not a button.
 
 ```jsonc
 {
@@ -205,7 +206,11 @@ newly selected value. `buttonId` is the **field's id**, not a button.
 
 `changes[]` is a surgical patch — only listed component ids are touched.
 `changeRules` (e.g. `{ "options": { "action": "replace" } }`) controls how arrays
-merge. Full reference: `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md`.
+merge. Full reference: `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md`
+(see esp. **§12 Rendering gotchas** — `row` never wraps, radio/select option dots are JSS-hashed
+`<i>` elements restylable only via internal-class selectors (buttons are version-proof for card
+pickers), hidden-but-`visibility:visible` carriers still submit, and every `submitOnChange` id must
+be handled or it falls through to your submit path).
 
 ### Realistic viewModel shape
 
@@ -313,9 +318,18 @@ Alternatively, check the specific field id **and** action together:
 }
 ```
 
-Read the new value from `body.data.<fieldId>` (the full field snapshot) or from
-`body.buttonData.value` (just the newly selected value). Use whichever is cleaner
-for your logic; both contain the same information for single-select fields.
+> **Gotcha — cover EVERY `submitOnChange` field, or it navigates.** A field change reaches `/send`
+> exactly like a button submit. If your dispatch does not route a given change-event id into a
+> field-change branch, it **falls through to the normal submit path** (page nav / actor write). Prefer
+> the generic guard above (`body.buttonData.action != ""` routes **all** field changes into onChange
+> handling); if you instead match specific ids, keep the list exhaustive — including the LAST item of a
+> progressive chain that has nothing left to reveal (give it a no-op onChange branch). This is the most
+> common cause of a wizard "jumping a step" when the user just tweaked a field.
+
+Read the new value from **`body.data.<fieldId>`** — that is the reliable source for every component.
+`body.buttonData.value` is populated **only by `select`** (and a few components); `radio`, `edit`,
+`check`, `toggle`, etc. send no `buttonData`, so `buttonData.value` is `undefined` for them — do not
+rely on it for a `radio` submitOnChange.
 
 ### 2.4 Fan-out to a sub-process (`api_copy`, fire-and-forget)
 
