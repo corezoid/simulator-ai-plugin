@@ -192,7 +192,7 @@ The page `config` is the layout template. Structure: **Page → Grid → Form �
 {
   "type": "one_column" | "two_column",
   "header": {
-    "class": "default" | "stepper",
+    "class": "default" | "steps",
     "extra": { "steps": ["Step 1", "Step 2"], "active": 1 }
   },
   "components": {
@@ -226,13 +226,19 @@ The page `config` is the layout template. Structure: **Page → Grid → Form �
   "id": "s1",
   "type": "body",             // "body" | "block" | "modal" | "float"
   "visibility": "visible",
-  "header":  [ /* Item[] */ ],
-  "content": [ /* Item[] */ ],
-  "footer":  [ /* Item[] */ ]
+  "header":  [ /* Item[] — Label | Button only */ ],
+  "content": [ /* Item[] — the main items */ ]
+  // modal-only: "modalHeader": [ /* Item[] */ ],
+  //             "modalSize": "small"|"medium"|"large"|"xlarge",
+  //             "modalCloseConfirmText": "…"
 }
 ```
 
 `block` renders as a grouped card; `modal`/`float` are overlays.
+
+> ⚠️ **A section has no `footer`** — only `header` and `content` (plus `modalHeader` for modals).
+> Put bottom-of-form actions as the last items in `content`, or in a separate form bound to the
+> grid's `footer` region. (The grid's `components.footer` above holds **form ids**, not items.)
 
 ---
 
@@ -291,12 +297,20 @@ Every item has `class` + base fields (`id`, `value`, `visibility`, `required`, `
 | `attachment` | Multi-file viewer; `value: FileProps[]`; `extra.downloadUrl` |
 | `signature` | Canvas signature → base64; `extra: {strokeStyle, saveButtonTitle}` |
 
-### Layout wrappers
+### Layout
 
-| `class` | Notes |
-|---|---|
-| `row` | Horizontal group; `items: Item[]`; `w` sets width |
-| `draggable` | Sortable list; `items: Item[]`; `value` = current order |
+**Do not hand-author a `row` component.** Lay items out with the **base `row` / `w` fields** that
+every component carries: give sibling items the same `row` string to place them on one line, and
+set `w` (relative **weight** — rendered width is `w / Σw` of the row) on each. The renderer
+synthesizes a `row` component from them. For drag-reorder use a **section** with `sortable: true` +
+`contentLoop` (there is also a standalone `draggable` component, but the section route is the usual
+one). `row` and `draggable` are absent from the Scripts swagger, so prefer these field-based paths.
+
+```jsonc
+// two items on one line, 50% each (equal weights → each gets half the row):
+{ "id": "first", "class": "edit", "type": "text", "row": "1", "w": "50" }
+{ "id": "last",  "class": "edit", "type": "text", "row": "1", "w": "50" }
+```
 
 ### Embedded widgets
 
@@ -560,10 +574,18 @@ All Smart Form operations use the public API (`/papi/1.0/...`) with an OAuth2 be
 
 ---
 
+## Styling (hand-off)
+
+This skill covers **page structure** — pages, locale, viewModel defaults, and the layout JSON
+(grid/forms/sections/items) plus the `styleClass` **hooks** you attach to them. It does **not**
+author the CSS/Less itself. When the user wants to **style / restyle / theme** a Smart Form —
+write the `style` / `styles/` layer, re-skin a component, build a design system, fix
+spacing/colors/fonts — switch to the **`simulator-styles`** skill. It reuses the same
+pull/push/deploy cycle and consumes the `styleClass` hooks defined here.
+
 ## Adding Backend Logic
 
-This skill covers the UI side — pages, locale, viewModel defaults, styles. For the
-backend that produces dynamic `viewModel` values, handles `/send` submits, and
+For the backend that produces dynamic `viewModel` values, handles `/send` submits, and
 mutates the page via `changes[]`, switch to the **`simulator-smart-forms-logic`**
 skill. It is a brief generator: it translates the user's intent into prompts for
 the Corezoid plugin's `corezoid-create` / `corezoid-edit` skills, and binds the
@@ -577,4 +599,5 @@ resulting bound process to the Smart Form env via `corezoidCredentials` / `procI
 |---|---|
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/smart-forms.md` | Full lifecycle, data model, deploy/release internals, access model, API reference table |
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` | Complete component catalogue, templating, change protocol, server-side save validation |
+| `$CLAUDE_PLUGIN_ROOT/skills/simulator-styles/SKILL.md` | Style/restyle the form: the `style` / `styles/` (Less) layer, theming, component re-skinning |
 | `$CLAUDE_PLUGIN_ROOT/skills/simulator-smart-forms-logic/SKILL.md` | Author + bind the Corezoid backend processes for this Smart Form |

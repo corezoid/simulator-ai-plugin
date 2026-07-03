@@ -20,6 +20,7 @@
 - [simulator-smart-forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms/SKILL.md): Simulator.Company Smart Form (CDU / Script / Application) specialist
 - [simulator-smart-forms-logic](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-logic/SKILL.md): Author and evolve the Corezoid backend that powers a Simulator.Company Smart Form
 - [simulator-smart-forms-runtime](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-runtime/SKILL.md): Simulator.Company Smart Form RUNTIME driver — run/execute an existing Smart Form (CDU / Script / mini-app) on the user's behalf, conversationally, instead of the user clicking through its UI
+- [simulator-styles](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-styles/SKILL.md): Simulator.Company Smart Form (CDU) STYLING specialist — authoring complex Less/CSS for Smart Forms: theme tokens, page/form/section layout, component re-skinning, reusable style patterns, responsive and design-system approaches
 - [simulator-tasks](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-tasks/SKILL.md): Simulator.Company task & assignment specialist — creating a task and assigning who does it, who approves it, and whose signature it needs
 
 ## MCP Tools

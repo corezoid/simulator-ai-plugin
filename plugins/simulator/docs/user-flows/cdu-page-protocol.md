@@ -145,9 +145,8 @@ Page
  └─ forms[]         one or more Form
        ├─ (grid?)   a form may carry its own nested grid
        └─ sections[]    body / block / modal / float
-             ├─ header[]   Item[]
-             ├─ content[]  Item[]   ← the main items
-             └─ footer[]   Item[]
+             ├─ header[]   Item[]   (Label | Button)
+             └─ content[]  Item[]   ← the main items
                    └─ Item        keyed by `class` → a component
 ```
 
@@ -157,7 +156,7 @@ Page
 {
   "type": "one_column" | "two_column",   // gridType
   "header": {                            // Page-header-default | Page-header-steps
-    "class": "default" | "stepper",
+    "class": "default" | "steps",
     "extra": { "steps": ["…"], "active": 1 },
     "components": { /* region → [formId] */ }
   },
@@ -171,8 +170,9 @@ Page
 ```
 
 The `components` map binds layout **regions** to the **form ids** placed in them. Two grid
-shapes exist (`one_column`, `two_column`) and two header shapes (`default`, and `steps` /
-`stepper` for wizards).
+shapes exist (`one_column`, `two_column`) and two header shapes (`default`, and `steps`
+for wizards — swagger `Page-header-steps`). Note: the header `class` is `steps`, not
+`stepper`; `stepper` is a separate *component* class (§5) used inside section content.
 
 ### 3.2 Form (swagger `form`)
 
@@ -196,24 +196,35 @@ A `Form` is the unit of submission — `formId` on submit identifies which form'
   "id": "…",
   "type": "body" | "block" | "modal" | "float",
   "visibility": "visible" | "disabled" | "hidden",
-  "header":  [ /* Item[] */ ],
-  "content": [ /* Item[] */ ],
-  "footer":  [ /* Item[] */ ],
+  "styleClass": "…",
+  "header":  [ /* Item[] — Label | Button only */ ],
+  "content": [ /* Item[] — the main items */ ],
   "contentLoop": [ /* see §6 */ ],
-  "contentVersion": 3,        // bump to force a remount of the section
-  "sortable": true,           // drag-reorder content
-  "modalHeader": [ /* Item[] */ ], "modalSize": "m" | 640,   // for modal/float
+  "contentVersion": 3,        // renderer remount key — bump to force a re-mount of section content
+  "sortable": true,           // drag-reorder contentLoop items (needs contentLoop)
+  "modalHeader": [ /* Item[] */ ],          // for modal: replaces the default header
+  "modalSize": "small" | "medium" | "large" | "xlarge",   // for modal (default large)
+  "modalCloseConfirmText": "…",             // confirm dialog before closing modal/float
   "isResizable": true         // for float sections
 }
 ```
 
 `body` renders inline; `block` is a grouped card; `modal`/`float` render as overlays.
 
+> ⚠️ **A section has no `footer`.** Its item slots are `header` and `content` (plus `modalHeader`
+> for `modal`). The only `footer` keys in the canonical swagger are **grid region** maps
+> (`grid.components.footer` / `sideBar.components.footer`), which hold **form ids**, not items —
+> see §3.1. To place actions "at the bottom", put them as the last items in `content`, or give them
+> their own form bound to the grid's `footer` region. Earlier drafts showed a section-level
+> `footer: Item[]` — that slot does not exist. (Note: `contentVersion` **does** exist — it is the
+> renderer's content-remount key, bumped by a section-level `change` (§7); it is just not a
+> layout/item slot.)
+
 ---
 
 ## 4. Item — the component envelope
 
-Every entry in `header`/`content`/`footer` is an **Item**, dispatched by its `class`
+Every entry in a section's `header`/`content` is an **Item**, dispatched by its `class`
 (renderer `components[clazz]` registry; swagger has one schema per class). Shared base fields
 (renderer `baseSchema`):
 
@@ -227,7 +238,7 @@ Every entry in `header`/`content`/`footer` is an **Item**, dispatched by its `cl
 | `error` | boolean | error state (server- or client-set) |
 | `errorMsg` | string | message shown when `error` |
 | `styleClass` | string | extra CSS class (scoped under `.cdu-page`) |
-| `row` / `w` | string | row grouping + width % (layout within a section) |
+| `row` / `w` | string | **the** horizontal-layout mechanism you author: items sharing the same `row` string render on one line; `w` is each item's **relative weight** (rendered width = `w / Σw` of the row, not a raw %). You do not hand-write a `row` component — the renderer synthesizes one internally from these fields (see §5). |
 | `submitOnChange` | boolean | submit the form as soon as the value changes |
 | `extra` | object | component-specific options |
 
@@ -238,13 +249,22 @@ by a 200-response `change` (§7).
 
 ## 5. Component catalogue
 
-All component `class` values (renderer `ComponentClasses`; each has a swagger schema). `row`
-and `draggable` are layout containers; the rest are content/input components.
+All component `class` values (renderer `ComponentClasses`). Most are content/input components;
+`row` and `draggable` are the two layout classes.
+
+> ⚠️ **You don't hand-author `row` — but the class is real.** Horizontal layout is authored with the
+> **base `row` / `w` fields** (see §4): give sibling items the same `row` string and they render on
+> one line, with `w` setting each one's relative weight. The renderer then **synthesizes** a
+> `row` component (`ComponentClasses.row`) from those grouped items — so `row` is a real registered
+> class you observe in the DOM, just not one you place directly with an `items[]` array.
+> **`draggable` is a real standalone component** (`ComponentClasses.draggable`, dnd-kit based). Note
+> it is *distinct* from a section's `sortable: true` + `contentLoop` drag-reorder (see §3.3 / §6) —
+> both mechanisms exist. (Caveat: the two layout classes are **absent from the canonical "Simulator.Company
+> Scripts" swagger**, so tool/schema validation won't know them — prefer the base-field path for
+> `row`; verify `draggable` against a live render before relying on it.)
 
 | `class` | Kind | Key fields (beyond base) | Notes / `type` enum |
 |---|---|---|---|
-| `row` | layout | `items[]`, `w` | horizontal group of items |
-| `draggable` | layout | `items[]`, `value` (order) | sortable list |
 | `button` | action | `title`, `type`, `tooltip`, `extra.{icon,url,action,autoSubmit}` | `type`: `default` `text` `secondary` `tertiary` `quaternary` `quinary` `error`; submits its form (or `action:'logout'`, opens `url`, auto-submit polling) |
 | `edit` | input | `value`, `type`, `placeholder`, `regexp`, `mask`, `errorMsg`, `helpMsg`, `submitOnEnter`, `resettable`, `extra.{length,lineNumbers}` | `type`: `text` `email` `int` `float` `phone` `multiline` `date` `password` `colorPicker` |
 | `select` | input | `value`, `options[]`, `type`, `submitOnChange`, `submitOnScroll` | `type`: `default` `autocomplete`; scroll-paginated options |
@@ -271,6 +291,8 @@ and `draggable` are layout containers; the rest are content/input components.
 | `comments` | display | `value`, `title` | comment thread widget |
 | `timer` | display | `value` (remaining ms), `extra.duration` | countdown |
 | `widget` | embed | `type`, `extra` | third-party: `iframe` `onfido` `twilio` `amazonConnect` `webComments` (swagger `Widget-*`) |
+| `row` | layout | *(synthesized)* | horizontal group; **not hand-authored** — the renderer builds it from sibling items sharing a `row` field (see §4). Real `ComponentClasses.row`, but absent from the swagger. |
+| `draggable` | layout | `items[]`, `value` (order) | standalone drag-reorder list (dnd-kit). Real `ComponentClasses.draggable`; distinct from a section's `sortable`+`contentLoop`. Absent from the swagger — verify against a live render. |
 
 > Field-level schemas (exact `extra` keys, examples, per-variant required fields — e.g.
 > `Edit-int` vs `Edit-date`, `Table-group`, `Widget-onfido`) are enumerated in the canonical
