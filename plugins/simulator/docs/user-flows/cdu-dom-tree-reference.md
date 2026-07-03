@@ -50,9 +50,9 @@ Every component renders with **three layers of classes**:
 ## 1. Page skeleton
 
 ```
-#mainRoot.theme-light.theme                          ← theme: theme-light | theme-dark
-└ #cdu                                                (flex, height:100vh)
-  └ #page.cdu-page.cdu-page-all-elements.page__1M7x5  ← .cdu-page = scope of ALL your styles
+#mainRoot.theme-light.theme                          ← HOST wrapper; theme: theme-light | theme-dark
+└ #cdu                                                (host wrapper; flex, height:100vh)
+  └ #page.cdu-page.cdu-page-all-elements.page__1M7x5  ← .cdu-page = scope of ALL your styles; theme class is ALSO stamped here by control-cdu
     │                                                   .cdu-page-<pageId> = per-page hook
     ├ .i-notify-…-6.notify__…                          ← toast container (top)
     └ #pageWrap.page__wrap__…
@@ -70,8 +70,15 @@ Every component renders with **three layers of classes**:
 
 - **All your styles are wrapped under `.cdu-page`** at serve time — `&` = the page root.
 - `cdu-page-<pageId>` (e.g. `cdu-page-all-elements`) is a convenient per-page hook.
-- **Dark mode is a class, not a media query**: `.theme-light` / `.theme-dark` on `#mainRoot`.
-  Prefer `.theme-dark .… {}` over `@media (prefers-color-scheme)` for theme-following styles.
+- **`#mainRoot` / `#cdu` are supplied by the HOST app** (the page embedding `control-cdu`), not by
+  `control-cdu` itself — so treat them as observed-in-the-live-product hooks, not renderer guarantees.
+- **Dark mode is a class, not a media query**: `.theme-light` / `.theme-dark`. In the live product the
+  class sits on `#mainRoot` (an ancestor of `.cdu-page`), so `.theme-dark .… {}` from your scoped
+  stylesheet works. But `control-cdu` **also** stamps the theme class onto `#page` (= the `.cdu-page`
+  node) — **verify placement on your build**; if it's only on the `.cdu-page` node, use `&.theme-dark .…`
+  instead of a descendant selector. Prefer either over `@media (prefers-color-scheme)`.
+  ⚠️ The renderer's `light`/`dark` token maps are currently **identical** — dark mode has no distinct
+  palette yet, so your `.theme-dark` rules are the only thing that makes dark actually differ.
 - **Toasts** render into two containers (`[class*="notify"]`), top and bottom — see §6 → toast.
 
 ---
@@ -333,8 +340,8 @@ Options (icon/badge/avatar) only exist in the open dropdown (closed in a static 
     ├ .file.carousel__content__item__file__… > .file__item__… > <img>
     └ <span.carousel__content__item__title__…> → option.title
 ```
-> `type:"default"` shows only the `.carousel__content` strip (no preview pane). Needs a complete
-> File `value` to render (see §9).
+> `type:"default"` shows only the `.carousel__content` strip (no preview pane). Give it a complete
+> File `value` for a correct preview — but unlike `file`, a missing `type` won't error-stub it (see §9).
 
 ### timer
 ```
@@ -546,11 +553,14 @@ decides its contents:
 ### row / w (horizontal layout)
 ```
 .row .row__<rowName> .row__…
-└ (per item) .row__item__… style="width:<w>%"
+└ (per item) .row__item__… style="width:…%"
   └ <the component>
 ```
-`row:"name"` → wrapper `.row__name`; `w:"50"` → inline `width:50%` on `.row__item__…`.
-The reliable group hook is `.row__<rowName>` (flex container); items via `[class*="row__item"]`.
+`row:"name"` → wrapper `.row__name`. `w` is a **relative weight**, not a raw percent: the inline
+`width` the renderer computes is `w / Σw` across the row (two items at `w:50` → 50% each; `w:50`+`w:100`
+→ 33% / 67%). The reliable group hook is `.row__<rowName>` (flex container); items via
+`[class*="row__item"]` (note: the item wrapper has **only** the hashed `.row__item__…` class — there is
+no stable bare `.row__item` class, so use the substring selector).
 
 ### sortable section + contentLoop
 ```
@@ -613,11 +623,16 @@ Two containers: `[class*="notify"]` at the top (inside `#page`) and at the botto
 
 ## 9. Gotcha: file-bearing components need a complete `value`
 
-`carousel`, `file`, `attachment`, and a `default` table with a `file` cell read the mime via
-`value.type.indexOf('image')` to choose a preview path. If the File object is incomplete (missing
-`type`), the renderer throws and emits an **error stub** instead of the component:
+The **`file` component** and a **`default` table's `file` cell** read the mime via
+`value.type.indexOf('image')` **with no guard** — if the File object is incomplete (missing `type`),
+the renderer throws and emits an **error stub** instead of the component:
 
 `<div class="item__error__…">Error: '<message>' in {"id":"<id>","class":"<class>"}</div>`
+
+`carousel` and `attachment` also read `value.type`, but **tolerate it missing** — `carousel` defaults
+`type` to `''` and uses optional chaining (`value?.type?.includes('image')`), and `attachment` just
+passes the type through — so they do **not** error-stub; they only render a wrong/blank preview. Still
+give them the full shape for a correct render.
 
 Fix: give every File `value` the full shape `{ fileName, fileSrc, title, type (mime), size }`.
 With that, all of these render in a **static** dump — no backend needed. Related notes:

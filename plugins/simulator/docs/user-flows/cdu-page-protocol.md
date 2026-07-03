@@ -200,6 +200,7 @@ A `Form` is the unit of submission — `formId` on submit identifies which form'
   "header":  [ /* Item[] — Label | Button only */ ],
   "content": [ /* Item[] — the main items */ ],
   "contentLoop": [ /* see §6 */ ],
+  "contentVersion": 3,        // renderer remount key — bump to force a re-mount of section content
   "sortable": true,           // drag-reorder contentLoop items (needs contentLoop)
   "modalHeader": [ /* Item[] */ ],          // for modal: replaces the default header
   "modalSize": "small" | "medium" | "large" | "xlarge",   // for modal (default large)
@@ -215,7 +216,9 @@ A `Form` is the unit of submission — `formId` on submit identifies which form'
 > (`grid.components.footer` / `sideBar.components.footer`), which hold **form ids**, not items —
 > see §3.1. To place actions "at the bottom", put them as the last items in `content`, or give them
 > their own form bound to the grid's `footer` region. Earlier drafts showed a section-level
-> `footer: Item[]` and a `contentVersion` field — neither exists in the spec.
+> `footer: Item[]` — that slot does not exist. (Note: `contentVersion` **does** exist — it is the
+> renderer's content-remount key, bumped by a section-level `change` (§7); it is just not a
+> layout/item slot.)
 
 ---
 
@@ -235,7 +238,7 @@ Every entry in a section's `header`/`content` is an **Item**, dispatched by its 
 | `error` | boolean | error state (server- or client-set) |
 | `errorMsg` | string | message shown when `error` |
 | `styleClass` | string | extra CSS class (scoped under `.cdu-page`) |
-| `row` / `w` | string | **the** horizontal-layout mechanism: items sharing the same `row` string render on one line; `w` is each item's relative width %. (There is no `row` container component — see §5.) |
+| `row` / `w` | string | **the** horizontal-layout mechanism you author: items sharing the same `row` string render on one line; `w` is each item's **relative weight** (rendered width = `w / Σw` of the row, not a raw %). You do not hand-write a `row` component — the renderer synthesizes one internally from these fields (see §5). |
 | `submitOnChange` | boolean | submit the form as soon as the value changes |
 | `extra` | object | component-specific options |
 
@@ -246,15 +249,19 @@ by a 200-response `change` (§7).
 
 ## 5. Component catalogue
 
-All component `class` values (renderer `ComponentClasses`; each has a swagger schema). They are
-all content/input components — **there are no layout-container classes.**
+All component `class` values (renderer `ComponentClasses`). Most are content/input components;
+`row` and `draggable` are the two layout classes.
 
-> ⚠️ **There is no `row` or `draggable` component class.** Horizontal layout is done with the
-> **base `row` / `w` fields** (see §4): give sibling items the same `row` string and they render
-> on one line, with `w` setting each one's relative width. Drag-reorder is a **section** feature
-> (`sortable: true` + `contentLoop`, see §3.3 / §6), not a component. Earlier drafts of this doc
-> listed `row` and `draggable` as layout classes with `items[]` — that was incorrect; the canonical
-> swagger ("Simulator.Company Scripts") has no such schemas.
+> ⚠️ **You don't hand-author `row` — but the class is real.** Horizontal layout is authored with the
+> **base `row` / `w` fields** (see §4): give sibling items the same `row` string and they render on
+> one line, with `w` setting each one's relative weight. The renderer then **synthesizes** a
+> `row` component (`ComponentClasses.row`) from those grouped items — so `row` is a real registered
+> class you observe in the DOM, just not one you place directly with an `items[]` array.
+> **`draggable` is a real standalone component** (`ComponentClasses.draggable`, dnd-kit based). Note
+> it is *distinct* from a section's `sortable: true` + `contentLoop` drag-reorder (see §3.3 / §6) —
+> both mechanisms exist. (Caveat: the two layout classes are **absent from the canonical "Simulator.Company
+> Scripts" swagger**, so tool/schema validation won't know them — prefer the base-field path for
+> `row`; verify `draggable` against a live render before relying on it.)
 
 | `class` | Kind | Key fields (beyond base) | Notes / `type` enum |
 |---|---|---|---|
@@ -284,6 +291,8 @@ all content/input components — **there are no layout-container classes.**
 | `comments` | display | `value`, `title` | comment thread widget |
 | `timer` | display | `value` (remaining ms), `extra.duration` | countdown |
 | `widget` | embed | `type`, `extra` | third-party: `iframe` `onfido` `twilio` `amazonConnect` `webComments` (swagger `Widget-*`) |
+| `row` | layout | *(synthesized)* | horizontal group; **not hand-authored** — the renderer builds it from sibling items sharing a `row` field (see §4). Real `ComponentClasses.row`, but absent from the swagger. |
+| `draggable` | layout | `items[]`, `value` (order) | standalone drag-reorder list (dnd-kit). Real `ComponentClasses.draggable`; distinct from a section's `sortable`+`contentLoop`. Absent from the swagger — verify against a live render. |
 
 > Field-level schemas (exact `extra` keys, examples, per-variant required fields — e.g.
 > `Edit-int` vs `Edit-date`, `Table-group`, `Widget-onfido`) are enumerated in the canonical

@@ -1733,5 +1733,14 @@
         ]
       }
     ]
+  },
+  {
+    "name": "Style a Smart Form (CDU styling)",
+    "prompt": "Restyle the table in the smart form with id 22222222-2222-2222-2222-222222222222 to look like rounded cards. Pull the project, edit the styles under develop, and push the change.",
+    "tools": [
+      "pullSmartForm",
+      "pushSmartForm"
+    ],
+    "liveOnly": true
   }
 ]
