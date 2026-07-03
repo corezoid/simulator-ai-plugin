@@ -923,7 +923,8 @@ does **not** require re-sharing or re-binding.
 
 | User wants…                                            | Skill                                |
 |--------------------------------------------------------|--------------------------------------|
-| Build / edit page layout, locale, styles, viewModel    | `simulator-smart-forms`              |
+| Build / edit page layout, locale, viewModel            | `simulator-smart-forms`              |
+| Style / restyle / theme the form (CSS/Less, `styles/`) | `simulator-styles`                   |
 | Add interactivity or modify backend logic              | **this skill** → delegates to corezoid-create / corezoid-edit |
 | Generic Corezoid process authoring (no Smart Form)     | `corezoid-create` directly           |
 | Modify any Corezoid process file directly              | `corezoid-edit` directly             |

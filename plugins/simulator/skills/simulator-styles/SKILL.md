@@ -135,16 +135,24 @@ the right element instead of guessing. **Three rules first:**
    `svg`).
 3. **`row` / `w` grouping yields a STABLE group class `.row__<rowName>`.** An item with `"row":"act"`
    renders inside `<div class="row row__act row__hash">` whose children are
-   `<div class="row__item__…" style="width:50%">`. Style the group via `.row__act` (flex
-   container) and items via `[class*="row__item"]` — your reliable hook for multi-column rows,
-   progress bars, etc.
+   `<div class="row__item__…" style="width:…%">`. Note `w` is a **relative weight**, not a raw
+   percentage: the rendered width is `w / Σw` across the row (two items at `w:50` each get 50%; at
+   `w:50` + `w:100` they get 33% / 67%). Style the group via `.row__act` (flex container) and items
+   via `[class*="row__item"]` — your reliable hook for multi-column rows, progress bars, etc.
 
 **Page skeleton & theme** (stable structural hooks):
 
 - **Scope:** all your CSS is wrapped in `.cdu-page` (`&` = page root); per-page hook
   `.cdu-page-<pageId>`.
-- **Dark mode is a CLASS, not a media query:** `.theme-light` / `.theme-dark` on `#mainRoot`.
-  Prefer `.theme-dark .… {}` over `@media (prefers-color-scheme)` for theme-following styles.
+- **Dark mode is a CLASS, not a media query:** `.theme-light` / `.theme-dark`. In a live render the
+  class sits on the host wrapper `#mainRoot` (an **ancestor** of `.cdu-page`), which is why
+  `.theme-dark .… {}` works from inside your scoped stylesheet. `control-cdu` itself also stamps the
+  theme class onto `#page` (the `.cdu-page` node) — so **verify the placement on your build**: if the
+  class is only on the `.cdu-page` node (not an ancestor), a wrapped `.theme-dark .foo` won't match
+  and you'd need `&.theme-dark .foo`. Prefer this class approach over `@media (prefers-color-scheme)`.
+  ⚠️ Caveat: the renderer's `light`/`dark` token maps are currently **identical** — the mechanism is
+  wired but dark mode has no distinct palette yet, so a `.theme-dark` override is the only way to make
+  dark actually differ today.
 - **Grid regions:** `[data-class="grid-one-column"]` / `[data-class="grid-two-column"]`
   (+`-left`/`-right`); header/footer regions via `[class*="gridtwo__header"]` /
   `[class*="gridtwo__footer"]`.
@@ -170,7 +178,7 @@ the right element instead of guessing. **Three rules first:**
 | `image` | `[data-class="image"]` | `<img>` (src **proxied** via `/api/1.0/image`); `align`→ `.center__` |
 | `timer` | `[data-class="timer"]` | `<span>` text |
 | `comments` | `[data-class="comments"]` | `[class*="mes__wrap"]`, `[class*="mes__name"]`, `[class*="mes__content"]`, avatar `[class*="i-avatar"]` |
-| `carousel` | `.carousel` | preview pane `[class*="carousel__preview"]` (zoom/nav btns), thumb strip `[class*="carousel__content__item"]`(+`.active__`); needs full File `value` |
+| `carousel` | `.carousel` | preview pane `[class*="carousel__preview"]` (zoom/nav btns), thumb strip `[class*="carousel__content__item"]`(+`.active__`); give it a full File `value` for a correct preview (tolerates a missing `type` — won't error-stub) |
 | `button` | wrapper `[data-wrapper-for="<id>"]` → inner `#<id>.button.button__<type>` | **`<sc>` is on the INNER button**; text `[class*="button__label"]`; align via wrapper/`.row__<name>`; 7 types via `.button__<type>` |
 | `copy` | `[data-class="copy"]` | `[class*="copy__container"]`, icon `[class*="i-icon"]`, label `[class*="i-label"]` |
 | `tab` | `.tab` (outer `.tab__…`) | items `[class*="tab__item"]`(+`.active`/`.error`); `hidden` option is absent from DOM |
@@ -208,12 +216,15 @@ mini-components** inside `<td.table-cell>`: file → `[class*="table__img"]`, co
 `float` → `[class*="float__"]` inside `[class*="Component-wrapper"]` with drag bar
 `[class*="section__header__dragable"]` + 8 `[class*="Component-resizeHandle"]`.
 
-> ⚠️ **File-bearing components need a complete `value`.** `carousel` / `file` / `attachment` and a
-> `default` table's `file` cell read mime `value.type` — give File values the full shape
-> `{fileName, fileSrc, title, type, size}` or they emit a `[class*="item__error"]` stub. A stub can
-> also **suppress later siblings** (a crashing table cell hid the `modal`/`float` sections after
-> it). `upload[webcam]` needs `extra.accept`. With complete values everything renders statically —
-> no backend needed. Full per-component trees: `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-dom-tree-reference.md`.
+> ⚠️ **File-bearing components need a complete `value`.** The **`file` component and a `default`
+> table's `file` cell** read mime via `value.type` **with no guard** — a File missing `type` throws
+> and the item renders as a `[class*="item__error"]` stub. (`carousel` and `attachment` also read
+> `value.type` but tolerate it missing — `carousel` defaults to `''` and uses optional chaining — so
+> they won't stub out; still give them the full shape for a correct preview.) Give File values the
+> full shape `{fileName, fileSrc, title, type, size}`. A stub can also **suppress later siblings** (a
+> crashing table cell hid the `modal`/`float` sections after it). `upload[webcam]` needs
+> `extra.accept`. With complete values everything renders statically — no backend needed. Full
+> per-component trees: `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-dom-tree-reference.md`.
 
 **Worked example — radio rendered as pills** (the native input is hidden; the svg is the control):
 
@@ -271,16 +282,18 @@ only in actor/reaction BBCode). Mapping: `[color]→<span style="color">`,
 |---|---|
 | `label.value` | `edit` value / placeholder / multiline |
 | `button.title` | `select` value · `multiselect` option |
-| `radio` option title | `toggle.title` |
-| `check.title` | `tab` option title |
-| `stepper` option title | `copy.title` |
+| `check.title` | `radio` option title |
+| `stepper` option title | `toggle.title` · `tab` option title |
+| `form.title`, `mainMenu` title, `comments`, `carousel` item title, `upload.title` | `copy.title` |
 | **`table` head title AND plain cell** | |
 
-Heuristic: it expands where the text lands in a plain **text node** (`<span>/<div>/<label>/<td>`) and
-stays literal where it lands in a form-control **`value`/`placeholder`** — but it's only a heuristic
-(radio ✅ vs tab ❌, check ✅ vs toggle ❌). **Trust the matrix, not the swagger:** the swagger marks
-only `label/button/mainMenu` as bbcode fields, yet table cells clearly render it. When a field isn't
-in the matrix, confirm it in the live UI before relying on it.
+Heuristic: it expands where the text lands in a plain **text node** (`<span>/<div>/<td>`) and stays
+literal where it lands in a form-control **`value`/`placeholder`** — but it's only a rough heuristic:
+it's whether that specific component passes its title through `bbCodeToHtml`/`dangerouslySetInnerHTML`,
+not the node type. `check` ✅ but `radio` ❌ even though both render a `<label>`; `stepper` ✅ but
+`toggle`/`tab` ❌. **Trust the matrix (built from the renderer source), not the swagger:** the swagger
+marks only `label/button/mainMenu` as bbcode fields, yet table cells clearly render it. When a field
+isn't in the matrix, confirm it in the live UI before relying on it.
 
 **Styling use — inject a styleable element where there is none.** A plain `table` cell is bare text
 in a `<td>` (no inner wrapper to hook). `[div]…[/div]` gives you an inner `<div>` to style as a
@@ -297,7 +310,7 @@ inner element: absolutely-position the `<td>` so it shrink-wraps its text into a
      - styles/index (+ partials)  OR  the root `style` file
      - pages/<id>/style           (page-specific)
      - pages/<id>/config          (only to add/adjust a styleClass hook)
-3. pushSmartForm(actorId)        → validates + uploads changed files; styles/ is MIME text/css automatically
+3. pushSmartForm(actorId)        → validates + uploads changed files; style/styles files carry MIME text/css (the push tool sets it; the server stores the client-supplied type — it does not force it by folder)
 4. deploySmartForm(actorId)      → publishes develop → production (when approved)
 ```
 
