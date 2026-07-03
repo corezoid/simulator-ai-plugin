@@ -452,6 +452,79 @@ narrative map over it.
 
 ---
 
+## 12. Rendering gotchas (hard-won, verified live in control-cdu)
+
+These are non-obvious layout/behaviour facts confirmed by inspecting the live renderer DOM. They
+save real debugging time.
+
+### 12.1 `row` is a CSS **table** — it does NOT wrap
+The `row` layout component renders as `display:table` with each item a `table-cell`. Items stay on
+ONE line and **overflow** the container; `flex-wrap` has no effect. For a responsive grid that wraps
+(side-by-side when space allows, stacking when narrow), do **not** use `row`. Put the items directly
+in the section `content` and give each a `styleClass` of
+`display:inline-block; width:calc(50% - 8px); min-width:190px; vertical-align:top`. inline-block
+items flow horizontally and wrap to the next line naturally. (Caveat: on mobile widths `row` already
+collapses to a single column via a `respond-to(mobile)` rule — the no-wrap/overflow behaviour above is
+desktop-only.)
+
+### 12.2 `styleClass` on a `row` is dropped; on leaf components it applies
+A `styleClass` set on a `row` does **not** reach the DOM — there is no first-class "row object": a
+`row` is an implicit grouping of items sharing the same `row` value, and the generated `<Row>` wrapper
+applies no author class. A `styleClass` on a normal component (`upload`, `label`, `button`,
+`select`, `edit`, …) **is** emitted onto that element. Style the leaf elements, never the `row`
+wrapper.
+
+### 12.3 No client-side conditional visibility — reveal = `submitOnChange` + 200 `changes`
+`visibility` is a static enum (`visible|disabled|hidden`); there is no expression/binding language,
+so a field cannot show/hide reactively from another field's value on the client. The only way to
+"reveal B when A changes" is a server round-trip: set `submitOnChange:true` on A; the `/send` handler
+returns **200** with `changes:[{id:"B", visibility:"visible|hidden"}]` (see §7). A `submitOnChange`
+event posts with `buttonId = <element id>` (not a button). **Read the new value from
+`body.data.<fieldId>`** — that is the reliable source across components. `body.buttonData.value` is
+populated **only by `select`** (and a few components); `radio`, `edit`, `check`, `toggle`, etc. send no
+`buttonData`, so `buttonData.value` is `undefined` for them.
+
+### 12.4 A `submitOnChange` dispatch must cover EVERY `submitOnChange` field id
+A `submitOnChange` event arrives at `/send` exactly like a button click. Any `submitOnChange` field id
+your handler does **not** branch on will **fall through to the normal submit path** (page nav, actor
+write). In a chain (e.g. progressive upload slots `up_file … up_file5`), the LAST field — which has no
+"next" to reveal — still needs an explicit no-op onChange branch, otherwise selecting/finishing it
+navigates the wizard. Route on `body.buttonId`; treat all onChange ids as onChange even when there is
+nothing to change.
+
+### 12.5 `radio`/`select` option internals — restylable via JSS-prefix selectors, but fragile
+Unlike a `row` (§12.2), a `styleClass` **does** reach a `radio`/`select` container. Each option renders
+(verified live) as
+`<div class="i-content-…"><input type="radio" class="i-input-…"><i class="i-icon-…">…<label class="i-label-…"></div>`
+— so the visible "dot" is the `<i class="i-icon-…">`, **not** the `<input>` (which is why
+`input{appearance:none}` does nothing). You CAN hide the dot and card-ify the options (confirmed in DOM):
+
+```less
+.my-radio [class*="icon"]    { display:none !important; }          // hide the dot
+.my-radio [class*="content"] { display:block; border:1px solid #E5E7EB; border-radius:12px; padding:14px; margin:8px 0; }
+.my-radio .checked [class*="content"] { border-color:#3B5BDB; background:#EEF2FF; }  // selected option
+```
+
+**Selected state — use the `.checked` class, NOT `:has(input:checked)`.** The renderer puts a literal
+`checked` class on the option's outer `<div>`; the `<input>` carries no `checked`/`name` attribute, so
+`:has(input:checked)` would highlight **nothing** on a server-preselected value and **several** options
+after clicks. Target `.checked` (a plain string, more stable than the JSS fragments). The
+`content`/`icon`/`label` class fragments are react-jss-generated and the prefix (`i-` in one build) is
+**not** stable across builds — match by substring (`[class*="content"]`), not the full `i-content`.
+Because this couples to renderer internals, the robust alternative is one `button` per option (fully
+styled via `styleClass`, selected highlight from the server via `changes[].styleClass`, chosen value kept
+in a hidden `edit` carrier per §12.6). Both work: radio + substring selectors is less markup; the button
+approach is version-proof.
+
+### 12.6 A visually-hidden field still submits if `visibility` stays `visible`
+Form data is collected from items whose `visibility` is not `hidden` — it does **not** consult CSS.
+So an `edit` with `visibility:"visible"` but a `styleClass` that hides it in CSS
+(`position:absolute; width:1px; clip:rect(0 0 0 0)`) is invisible yet **still submitted** — the
+idiomatic carrier for a value set by `changes[]` (e.g. the selection behind button-cards). A field
+with `visibility:"hidden"` is NOT submitted.
+
+---
+
 ## Related documentation
 
 - [Smart Forms (Applications / CDU)](smart-forms.md) — lifecycle, data model, deploy/release,
