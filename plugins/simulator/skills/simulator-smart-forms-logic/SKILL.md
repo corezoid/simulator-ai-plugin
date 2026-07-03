@@ -293,38 +293,47 @@ and `submitOnChange` field changes. Use `go_if_const` on it to route each case:
 
 When the same `/send` handler must behave differently depending on whether the
 user clicked a button or changed a `submitOnChange` field, branch on
-`body.buttonData.action` — it is present and non-empty only for field-change events:
+**`body.buttonId`** — a `submitOnChange` event carries the changed **field's own
+id**, so match it against the ids of the fields you set `submitOnChange:true`:
 
 ```jsonc
 {
   "type": "go_if_const",
   "to_node_id": "<fieldChangeBranchNodeId>",
   "conditions": [
-    { "param": "body.buttonData.action", "const": "", "fun": "ne", "cast": "string" }
+    { "param": "body.buttonId", "const": "project_name", "fun": "eq", "cast": "string" }
   ]
 }
 ```
 
-Alternatively, check the specific field id **and** action together:
+**Do not** detect field changes with `body.buttonData.action != ""`. Only `select`
+sends a non-empty `action` (`"select"`/`"filter"`); `radio`, `check`, `toggle`,
+`edit`, … send **no** `buttonData` — identical to a real button click — so an
+`action`-based guard misses them and their change falls through to your submit
+path (the wizard "jumps a step"). Treat `action` as a *secondary* signal only
+(e.g. to tell a `select`'s `select` vs `filter`), never the discriminator.
+
+For a `select` you can match id **and** action together:
 
 ```jsonc
 {
   "type": "go_if_const",
-  "to_node_id": "<projectNameChangedNodeId>",
+  "to_node_id": "<projectFilteredNodeId>",
   "conditions": [
-    { "param": "body.buttonId",           "const": "project_name", "fun": "eq", "cast": "string" },
-    { "param": "body.buttonData.action",  "const": "",             "fun": "ne", "cast": "string" }
+    { "param": "body.buttonId",          "const": "project", "fun": "eq", "cast": "string" },
+    { "param": "body.buttonData.action", "const": "filter",  "fun": "eq", "cast": "string" }
   ]
 }
 ```
 
-> **Gotcha — cover EVERY `submitOnChange` field, or it navigates.** A field change reaches `/send`
-> exactly like a button submit. If your dispatch does not route a given change-event id into a
-> field-change branch, it **falls through to the normal submit path** (page nav / actor write). Prefer
-> the generic guard above (`body.buttonData.action != ""` routes **all** field changes into onChange
-> handling); if you instead match specific ids, keep the list exhaustive — including the LAST item of a
-> progressive chain that has nothing left to reveal (give it a no-op onChange branch). This is the most
-> common cause of a wizard "jumping a step" when the user just tweaked a field.
+> **Gotcha — cover EVERY `submitOnChange` field id, or it navigates.** A field change reaches `/send`
+> exactly like a button submit (with the same empty `buttonData` for `radio`/`check`/`toggle`/…). If
+> your `buttonId` dispatch does not route a given change-event id into a field-change branch, it
+> **falls through to the normal submit path** (page nav / actor write). Keep the id list exhaustive —
+> including the LAST item of a progressive chain that has nothing left to reveal (give it a no-op
+> onChange branch). Don't lean on `body.buttonData.action` to catch them: it's empty for every field
+> except `select`. This is the most common cause of a wizard "jumping a step" when the user just
+> tweaked a field.
 
 Read the new value from **`body.data.<fieldId>`** — that is the reliable source for every component.
 `body.buttonData.value` is populated **only by `select`** (and a few components); `radio`, `edit`,
@@ -451,16 +460,16 @@ form's complexity demands a multi-process layout (see §3).
                     │                   │
          ┌──────────▼─────────┐  ┌──────▼──────────────────────┐
          │ Build viewModel    │  │ Extract                     │
-         │ (api_code)  §2.5   │  │  data.buttonAction =        │
-         └──────────┬─────────┘  │  body.buttonData.action     │
-                    │            │  (api_code, safe ?? "")     │
+         │ (api_code)  §2.5   │  │  data.buttonId =            │
+         └──────────┬─────────┘  │  body.buttonId              │
+                    │            │  (api_code)                 │
                     │            └──────┬──────────────────────┘
                     │                   │
                     │       ┌───────────▼───────────────────┐
-                    │       │ Condition on buttonAction     │   (§2.3a)
-                    │       │  ""        ─→ real submit     │
-                    │       │  "select"  ─→ submitOnChange  │
-                    │       │  "check"   ─→ submitOnChange  │
+                    │       │ Condition on buttonId         │   (§2.3a)
+                    │       │  submit_btn   ─→ real submit  │
+                    │       │  project_name ─→ onChange     │
+                    │       │  up_file…     ─→ onChange     │
                     │       │   …                           │
                     │       └─┬───────────────────────┬─────┘
                     │         │                       │
@@ -515,8 +524,8 @@ form's complexity demands a multi-process layout (see §3).
 | 1   | Start                               | 1 / `go`            | → 2                                                | —          |
 | 2   | Dispatch by `path`                  | 0 / `go_if_const`   | `/get`→3, `/send`→4, default→Error                 | §2.1       |
 | 3   | Build viewModel (GET branch)        | 0 / `api_code`      | → 8 (Callback GET), err→Error                      | §2.5       |
-| 4   | Extract `body.buttonData.action`    | 0 / `api_code`      | → 5, err→Error                                     | §2.5       |
-| 5   | Dispatch by action                  | 0 / `go_if_const`   | `""`→6 (real submit), `select`/`check`/…→7 (ack)   | §2.3a      |
+| 4   | Extract `body.buttonId`             | 0 / `api_code`      | → 5, err→Error                                     | §2.5       |
+| 5   | Dispatch by `buttonId`              | 0 / `go_if_const`   | button ids→6 (real submit), `submitOnChange` field ids→7 (ack) | §2.3a |
 | 6   | Persist / call CREATE ACTOR / …     | 0 / `api_rpc` or `api` | → 6a (success), err→6b (error)                  | §2.4 / §2.6|
 | 6a  | Build success `sendResponseData`    | 0 / `api_code`      | → 9 (Callback SEND)                                | §2.6       |
 | 6b  | Build error `sendResponseData`      | 0 / `api_code`      | → 9 (Callback SEND)                                | §2.6       |
@@ -529,15 +538,17 @@ form's complexity demands a multi-process layout (see §3).
 #### 2.9.3 Key invariants
 
 - **Two forks in `/send`, not one.** Fork-1 (path) separates GET from SEND. Fork-2
-  (action) separates a real submit from a `submitOnChange` event. Skipping fork-2
+  (`buttonId`) separates a real submit from a `submitOnChange` event. Skipping fork-2
   is the most common Smart-Form-backend bug: the platform fires `/send` *every
   time* a select/check/radio with `submitOnChange:true` changes value, and the
   process will try to persist a half-filled form.
-- **Action dispatch rule of thumb.** `body.buttonData.action` is `""` (or
-  absent / empty object) ⇔ real button click — branch further on `body.buttonId`
-  (§2.3) to pick the persistence action. Non-empty `action` (`"select"`, `"check"`,
-  …) ⇔ `submitOnChange` event — usually return an empty `changes:[]` ack, or a
-  targeted cascade update if the change should drive other fields.
+- **`buttonId` dispatch rule of thumb.** `body.buttonId` matching one of your
+  **button** ids ⇔ real button click — pick the persistence action (§2.3). Matching
+  a **`submitOnChange` field** id ⇔ field change — usually return an empty
+  `changes:[]` ack, or a targeted cascade update if the change should drive other
+  fields. Do **not** dispatch on `body.buttonData.action`: it is non-empty only for
+  `select` (`"select"`/`"filter"`); `radio`, `check`, `toggle`, `edit`, … send empty
+  `buttonData`, so an action-based fork routes them to the real-submit branch.
 - **Single shared callback per path.** All `/send` branches (success, error,
   `submitOnChange` ack) converge on **one** `Callback SEND` node — they differ
   only in what they pre-fill into `data.sendResponseData`. Same for `/get`: one
@@ -556,7 +567,7 @@ form's complexity demands a multi-process layout (see §3).
   (node #6), fork on `body.buttonId` — one persistence path per button (§2.3).
 - **Multiple `submitOnChange` fields with distinct logic.** Replace node #7's
   single ack with a `buttonId` fork — one cascade-update branch per field. Read
-  the new value from `body.data.<fieldId>` or `body.buttonData.value` (§2.3a).
+  the new value from `body.data.<fieldId>` (§2.3a).
 - **Heavy logic on either side.** Split the persistence node (#6) — or the whole
   GET branch — into a separate aliased sub-process called via `api_copy`. See §3
   for the multi-process topology.
@@ -583,7 +594,8 @@ everything, or **multiple processes** fanned out via `api_copy`? Common shapes:
 
 When designing the `/send` topology, always ask: **which elements on each page
 have `submitOnChange: true`?** Each such element is an independent event source
-(its `body.buttonId` = the element's `id`; `body.buttonData.action` is non-empty).
+(its `body.buttonId` = the element's `id`; dispatch on that id, not on
+`body.buttonData.action`, which is empty for everything except `select`).
 If `submitOnChange` events only update UI state (cascade a select choice into
 dependent fields) they usually return a lightweight `changes[]` with no persistence.
 If they trigger saves or lookups they need their own sub-process or branch.
