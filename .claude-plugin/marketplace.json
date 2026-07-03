@@ -16,7 +16,16 @@
       },
       "homepage": "https://doc.simulator.company",
       "license": "MIT",
-      "keywords": ["simulator", "bpm", "business-process", "graph", "financial", "actors", "forms", "mcp"],
+      "keywords": [
+        "simulator",
+        "bpm",
+        "business-process",
+        "graph",
+        "financial",
+        "actors",
+        "forms",
+        "mcp"
+      ],
       "category": "Productivity"
     }
   ]
