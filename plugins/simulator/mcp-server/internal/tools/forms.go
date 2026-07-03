@@ -41,7 +41,7 @@ var formOps = []Operation{
 	},
 	{
 		Name: "getForm", Method: "GET", Path: "/forms/{formId}",
-		Summary: "Get a form template by its integer id. Pass `filter` to fetch only the fields you need (form templates can be large), but keep `description` (the form's purpose) and `sections` (which carry each field's `description` helper text) whenever you need to understand what the form or its fields mean.",
+		Summary: "Get a form template by its integer id. Pass `filter` to fetch only the fields you need (form templates can be large). `filter` projects TOP-LEVEL keys only, so to get the fields keep `form` — the sections/fields live under `form.sections` (each field carries its helper text); a `sections` key (or the dotted `form.sections`) is silently dropped, so request `form`. Keep `description` (the form's purpose) too when you need to understand what the form or its fields mean.",
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id."},
 			{Name: "withRelations", In: InQuery, Type: "boolean", Desc: "Include related entities."},
