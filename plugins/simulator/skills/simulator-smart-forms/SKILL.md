@@ -276,7 +276,7 @@ Every item has `class` + base fields (`id`, `value`, `visibility`, `required`, `
 
 | `class` | Notes |
 |---|---|
-| `button` | `title`, `type`: `default` `secondary` `tertiary` `text` `error`; `extra.icon`; submits its form; or `extra.action: 'logout'`; `extra.url` (open URL) |
+| `button` | `title` (bbcode), `type`: `default` `secondary` `tertiary` `text` `error`; submits its form. `extra.url` opens the URL **instead of submitting** (`extra.target` `_self`\|`_blank` — newer renderers only; older open same-tab); `extra.action:'logout'`; `extra.request` (bare fetch first, submits only if it resolves); `extra.autoSubmit {interval,maxCount}` (interval clamped 5–60s); `extra.options[]` (menu — bypasses `url`/`request`/`action`/submit); `extra.icon`, `rounded`, `mobileVisible` |
 | `copy` | `value` = text to copy; `title` = button label |
 
 ### Data & navigation components
@@ -328,7 +328,7 @@ All substitution is **server-side** — the renderer receives concrete values.
 | `{{key}}` | `viewModel` (default + Corezoid-supplied merged) | `"{{userName}}"` → `"Alice"` |
 | `"$ref": "#/button"` | `definitions/button` file | inlined at serve time |
 | `contentLoop` | section array expansion | one template → N rows |
-| BBCode | `label`/`button` titles | `[b]bold[/b]`, `[color=#f00]red[/color]` |
+| BBCode | `label`/`button`/`edit`/`check` titles | `[b] [i] [u] [color=#f00] [size=N] [br]`, and `[url=https://…]text[/url]` → clickable `<a target="_blank">` (inline link; `[iurl=…]` opens same-tab; renderer supports more, e.g. `[bg]`). Raw `<a>` HTML is escaped — use `[url]`. |
 
 ### locale file format
 
