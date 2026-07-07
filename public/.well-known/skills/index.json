@@ -23,6 +23,13 @@
       "name": "simulator-actors"
     },
     {
+      "description": "Simulator.Company digital-twin agent specialist — talk to a person AS an agent and delegate work to people. Every workspace user has a 1:1 twin actor whose `description` holds an \"# Agent\" competency profile (what they do, what they know, whether they fit a task); this skill discovers that profile (`findAgent`), loads it (`getAgent`), adopts it as the persona, and then either does the task, finds a better-suited person, or escalates it to the human (a task or a p2p message). It is the people-analog of `simulator-skills` (the `Skills`-form registry), but the registry is the workspace's user twins. Use when the user wants to \"delegate\", \"assign this to \u003cperson\u003e\", \"can \u003cperson\u003e do this\", \"who should do this\", \"find someone to …\", \"ask \u003cperson\u003e's agent/twin\", or \"what has \u003cperson\u003e worked on\". Activate on: \"delegate to\", \"assign this to\", \"can X do this\", \"who should do this\", \"find someone to\", \"ask X's agent\", \"talk to X's twin\", \"what has X worked on\", \"делегуй\", \"постав задачу X\", \"доручи X\", \"чи впорається X\", \"хто це зробить\", \"підбери виконавця\", \"запитай агента X\", \"над чим працював X\", \"делегируй\", \"поставь задачу X\", \"поручи X\", \"справится ли X\", \"кто это сделает\", \"подбери исполнителя\", \"спроси агента X\", \"над чем работал X\". For a plain 1:1/group message use `simulator-chat`; to only create/assign a task use `simulator-tasks`; for workspace playbooks (not people) use `simulator-skills`.",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-agents/SKILL.md"
+      ],
+      "name": "simulator-agents"
+    },
+    {
       "description": "Simulator.Company files \u0026 attachments specialist. Use when the user wants to upload a file, attach a document/image to an actor or comment, list/rename/detach workspace files. Activate when the user says \"upload a file\", \"attach this document\", \"add an attachment\", \"rename the file\", \"detach the file\", \"list workspace files\", \"завантаж файл\", \"прикріпи файл/документ\", \"відкріпи вкладення\", \"загрузи файл\", \"прикрепи документ\". For setting an actor's picture/avatar use the `uploadActorPicture` engine tool; for comments that carry files use `simulator-reactions`.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-attachments/SKILL.md"

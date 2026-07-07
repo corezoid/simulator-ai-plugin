@@ -219,6 +219,7 @@ they can):
 
 | Skill | Boundary |
 |---|---|
+| `simulator-agents` | Deciding **who** should get the task and whether it can be done without a person at all — it composes this create-and-assign flow for its "create a task" outcome. |
 | `simulator-chat` | The *chat* use of the Events form (`chatType` set); a task has **no** chatType. |
 | `simulator-access` | Access rules in general — the `execute`/`sign`/`ds`/`reactionOrders` model lives there. |
 | `simulator-reactions` | The `done`/`sign`/`reject` reaction mechanics used to complete and approve a task. |

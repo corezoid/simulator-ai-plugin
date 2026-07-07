@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -52,40 +51,8 @@ const skillListFilter = "id,title,ref,status"
 // workspace, caching the result. The error is friendly: a missing form means
 // the backend migration / system-forms sync has not run for this workspace.
 func resolveSkillsFormID(ctx context.Context, c *apiclient.Client) (int, error) {
-	accID := c.WorkspaceIDForContext(ctx)
-	if accID == "" {
-		return 0, fmt.Errorf("no workspace set — run set-workspace (or pass WORKSPACE_ID)")
-	}
-	if v, ok := skillsFormCache.Load(accID); ok {
-		if id, ok := v.(int); ok {
-			return id, nil
-		}
-	}
-	q := url.Values{}
-	q.Set("formTypes", "system")
-	q.Set("filter", "id,title,type")
-	q.Set("limit", "200")
-	resp, err := c.Do(ctx, "GET", "/forms/templates/"+accID, q, nil)
-	if err != nil {
-		return 0, fmt.Errorf("list system forms: %w", err)
-	}
-	var out struct {
-		Data []struct {
-			ID    int    `json:"id"`
-			Title string `json:"title"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(resp, &out); err != nil {
-		return 0, fmt.Errorf("parse forms list: %w", err)
-	}
-	for _, f := range out.Data {
-		if strings.EqualFold(f.Title, skillsFormTitle) {
-			skillsFormCache.Store(accID, f.ID)
-			return f.ID, nil
-		}
-	}
-	return 0, fmt.Errorf("the %q system form is not present in this workspace "+
-		"(needs the backend Skills migration + system-forms sync)", skillsFormTitle)
+	return resolveSystemFormByTitle(ctx, c, skillsFormTitle, &skillsFormCache,
+		"needs the backend Skills migration + system-forms sync")
 }
 
 // registerSkillTools adds the skill-registry discovery tools (findSkill,

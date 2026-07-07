@@ -186,6 +186,7 @@ conversation back: `getReactions(actorId="<chatId>", view="flat", orderValue="AS
 
 | Skill | Boundary |
 |---|---|
+| `simulator-agents` | Delegating work to a person as an agent (assess who fits, then act / task / message) — it composes this p2p flow for its "message the person" outcome. |
 | `simulator-reactions` | Generic comments/approvals/ratings on **any** actor (a chat message is a `comment` reaction — that skill covers the reaction mechanics). |
 | `simulator-actors` | The Events actor's own `data` fields and the actor `data` value protocol. |
 | `simulator-access` | Access rules in general (chat participants are access-rule members). |
