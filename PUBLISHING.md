@@ -59,7 +59,7 @@ codex plugin marketplace add ./
 codex plugin add simulator@simulator
 ```
 
-Restart Codex, open Plugin Directory, select **Simulator.Company**, and confirm the plugin installs and the skills are available.
+Confirm the install with `codex plugin list` (the **simulator** plugin should be listed). Then restart Codex, start a session, and run `/mcp` — the `simulator` MCP server and its tools should appear, and the skills become available in conversation.
 
 ## 4b. Test in AWS Kiro
 
