@@ -126,3 +126,6 @@ The whole body is wrapped in `[md]…[/md]` so it renders as markdown in the UI:
 - `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` — forms / system forms.
 - Use `/simulator-actors` for the actor create/update/search details and `/simulator` for
   the broader platform model.
+- `/simulator-agents` is the **people-analog** of this registry: same discover→load→follow shape,
+  but over user twins (the `System` form) whose `description` is an "# Agent" profile — use it to
+  consult a person as an agent or delegate work (`findAgent`/`getAgent`).

@@ -383,6 +383,7 @@ For domain-specific workflows use the specialized skills:
 - `/simulator-reactions` — comments / events / approvals / ratings on actors (threaded)
 - `/simulator-chat` — messaging: send a message to a user, open/reuse p2p & group chats (Events-form actors; messages are comment reactions)
 - `/simulator-tasks` — tasks/assignments **and order/directive documents** (наказ / розпорядження / доручення / приказ / order): create a task (Events-form actor) and assign executor (`execute`), approvers (`sign`), legal signers (`ds`). An order addressed to a person ("наказ **на** Салімова …", "order **for** X to …") is a task whose **addressee is the `execute` executor** — assign them, don't just put the name in the title/description
+- `/simulator-agents` — digital-twin agents: talk to a person as an agent and delegate work. Discover who fits a task by competency (`findAgent`), load their "# Agent" profile (`getAgent`), then do the task, pick a better-suited person, or escalate it (a `/simulator-tasks` task or a `/simulator-chat` p2p message). The people-analog of `/simulator-skills`
 - `/simulator-meetings` — meetings/video/SIP rooms (Events-form actor, `scheduleMeeting`): schedule, recurrence, agenda, persistent rooms, moderator/invitees, public & in-app join links
 - `/simulator-attachments` — files: upload, attach/detach to actors & reactions
 - `/simulator-access` — access rules: share/grant/revoke who can view/modify an object; also **`requestAccess`** when a tool is blocked by 403/Access Denied (asks the owner for access)
