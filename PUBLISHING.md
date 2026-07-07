@@ -56,7 +56,7 @@ log in to Simulator
 
 ```bash
 codex plugin marketplace add ./
-codex plugin install simulator@simulator
+codex plugin add simulator@simulator
 ```
 
 Restart Codex, open Plugin Directory, select **Simulator.Company**, and confirm the plugin installs and the skills are available.
@@ -111,14 +111,14 @@ claude plugin install simulator@simulator
 
 ```bash
 codex plugin marketplace add corezoid/simulator-ai-plugin --ref vX.Y.Z
-codex plugin install simulator@simulator
+codex plugin add simulator@simulator
 ```
 
 **Codex (development tracking):**
 
 ```bash
 codex plugin marketplace add corezoid/simulator-ai-plugin --ref main
-codex plugin install simulator@simulator
+codex plugin add simulator@simulator
 ```
 
 **AWS Kiro:**
@@ -143,4 +143,4 @@ registry can resolve metadata from the tag.
 After tagging, ask users to upgrade their local marketplace and plugin:
 
 - **Claude Code:** `claude plugin marketplace update && claude plugin update simulator@simulator`
-- **Codex:** `codex plugin update simulator@simulator`
+- **Codex:** `codex plugin marketplace upgrade && codex plugin add simulator@simulator`

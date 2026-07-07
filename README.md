@@ -70,7 +70,7 @@ claude plugin install simulator@simulator
 
 ```bash
 codex plugin marketplace add corezoid/simulator-ai-plugin
-codex plugin install simulator@simulator
+codex plugin add simulator@simulator
 ```
 
 **Or from a local clone:**
@@ -78,7 +78,7 @@ codex plugin install simulator@simulator
 ```bash
 git clone https://github.com/corezoid/simulator-ai-plugin
 codex plugin marketplace add ./simulator-ai-plugin
-codex plugin install simulator@simulator
+codex plugin add simulator@simulator
 ```
 
 No build step, no extra setup. The MCP server starts automatically on first use.
@@ -98,10 +98,13 @@ This writes the MCP entry to `<workspace>/.kiro/settings/mcp.json`, symlinks the
 ### Updating
 
 ```bash
-claude plugin update simulator@simulator   # Claude Code
-codex plugin update simulator@simulator    # Codex
+claude plugin update simulator@simulator                                    # Claude Code
+codex plugin marketplace upgrade && codex plugin add simulator@simulator    # Codex
 ```
 
+Codex has no `plugin update` subcommand — refresh the marketplace snapshot with
+`codex plugin marketplace upgrade` (upgrades all configured Git marketplaces; pass a
+name to target one) and re-run `codex plugin add` to install the refreshed version.
 Restart Claude Code / Codex after updating to apply the new version. For AWS Kiro, `git pull` the clone and re-run `plugins/simulator/scripts/install-kiro.sh` (it is idempotent) to refresh the workspace overlay.
 
 ## Authentication

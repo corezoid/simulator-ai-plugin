@@ -106,7 +106,7 @@ trigger phrases declared in the SKILL.md frontmatter. Highlights:
 This repository ships the same plugin payload to:
 
 - **Claude Code** — via `claude plugin install simulator@simulator`.
-- **Codex** — via `codex plugin install simulator@simulator`.
+- **Codex** — via `codex plugin add simulator@simulator`.
 - **AWS Kiro** — via this Power.
 
 One Git tag → one GitHub Release → artifacts for all three hosts.
