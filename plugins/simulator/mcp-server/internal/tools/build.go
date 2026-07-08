@@ -95,10 +95,11 @@ func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode boo
 	// outside the op loop and the drift gate. They power the skill registry (the
 	// data-driven analogue of Claude Code skills).
 	registerSkillTools(s, c)
-	// findAgent / getAgent are the people-analog of the skill registry: they
-	// resolve the System form / compose existing PAPI reads over the user twin
-	// actors whose `description` holds an "# Agent" competency profile. Like
-	// findSkill/getSkill they are local composite tools, outside the drift gate.
+	// findAgent / getAgent are the actor-analog of the skill registry: they
+	// resolve a registry form / compose existing PAPI reads over the actors whose
+	// `description` holds an "# Agent" competency profile — user twins by default,
+	// but any actor can be an agent. Like findSkill/getSkill they are local
+	// composite tools, outside the drift gate.
 	registerAgentTools(s, c)
 }
 
