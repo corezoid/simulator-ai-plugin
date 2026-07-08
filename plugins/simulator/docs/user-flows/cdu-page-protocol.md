@@ -145,9 +145,8 @@ Page
  └─ forms[]         one or more Form
        ├─ (grid?)   a form may carry its own nested grid
        └─ sections[]    body / block / modal / float
-             ├─ header[]   Item[]
-             ├─ content[]  Item[]   ← the main items
-             └─ footer[]   Item[]
+             ├─ header[]   Item[]   (Label | Button)
+             └─ content[]  Item[]   ← the main items
                    └─ Item        keyed by `class` → a component
 ```
 
@@ -157,7 +156,7 @@ Page
 {
   "type": "one_column" | "two_column",   // gridType
   "header": {                            // Page-header-default | Page-header-steps
-    "class": "default" | "stepper",
+    "class": "default" | "steps",
     "extra": { "steps": ["…"], "active": 1 },
     "components": { /* region → [formId] */ }
   },
@@ -171,8 +170,9 @@ Page
 ```
 
 The `components` map binds layout **regions** to the **form ids** placed in them. Two grid
-shapes exist (`one_column`, `two_column`) and two header shapes (`default`, and `steps` /
-`stepper` for wizards).
+shapes exist (`one_column`, `two_column`) and two header shapes (`default`, and `steps`
+for wizards — swagger `Page-header-steps`). Note: the header `class` is `steps`, not
+`stepper`; `stepper` is a separate *component* class (§5) used inside section content.
 
 ### 3.2 Form (swagger `form`)
 
@@ -196,24 +196,35 @@ A `Form` is the unit of submission — `formId` on submit identifies which form'
   "id": "…",
   "type": "body" | "block" | "modal" | "float",
   "visibility": "visible" | "disabled" | "hidden",
-  "header":  [ /* Item[] */ ],
-  "content": [ /* Item[] */ ],
-  "footer":  [ /* Item[] */ ],
+  "styleClass": "…",
+  "header":  [ /* Item[] — Label | Button only */ ],
+  "content": [ /* Item[] — the main items */ ],
   "contentLoop": [ /* see §6 */ ],
-  "contentVersion": 3,        // bump to force a remount of the section
-  "sortable": true,           // drag-reorder content
-  "modalHeader": [ /* Item[] */ ], "modalSize": "m" | 640,   // for modal/float
+  "contentVersion": 3,        // renderer remount key — bump to force a re-mount of section content
+  "sortable": true,           // drag-reorder contentLoop items (needs contentLoop)
+  "modalHeader": [ /* Item[] */ ],          // for modal: replaces the default header
+  "modalSize": "small" | "medium" | "large" | "xlarge",   // for modal (default large)
+  "modalCloseConfirmText": "…",             // confirm dialog before closing modal/float
   "isResizable": true         // for float sections
 }
 ```
 
 `body` renders inline; `block` is a grouped card; `modal`/`float` render as overlays.
 
+> ⚠️ **A section has no `footer`.** Its item slots are `header` and `content` (plus `modalHeader`
+> for `modal`). The only `footer` keys in the canonical swagger are **grid region** maps
+> (`grid.components.footer` / `sideBar.components.footer`), which hold **form ids**, not items —
+> see §3.1. To place actions "at the bottom", put them as the last items in `content`, or give them
+> their own form bound to the grid's `footer` region. Earlier drafts showed a section-level
+> `footer: Item[]` — that slot does not exist. (Note: `contentVersion` **does** exist — it is the
+> renderer's content-remount key, bumped by a section-level `change` (§7); it is just not a
+> layout/item slot.)
+
 ---
 
 ## 4. Item — the component envelope
 
-Every entry in `header`/`content`/`footer` is an **Item**, dispatched by its `class`
+Every entry in a section's `header`/`content` is an **Item**, dispatched by its `class`
 (renderer `components[clazz]` registry; swagger has one schema per class). Shared base fields
 (renderer `baseSchema`):
 
@@ -227,7 +238,7 @@ Every entry in `header`/`content`/`footer` is an **Item**, dispatched by its `cl
 | `error` | boolean | error state (server- or client-set) |
 | `errorMsg` | string | message shown when `error` |
 | `styleClass` | string | extra CSS class (scoped under `.cdu-page`) |
-| `row` / `w` | string | row grouping + width % (layout within a section) |
+| `row` / `w` | string | **the** horizontal-layout mechanism you author: items sharing the same `row` string render on one line; `w` is each item's **relative weight** (rendered width = `w / Σw` of the row, not a raw %). You do not hand-write a `row` component — the renderer synthesizes one internally from these fields (see §5). |
 | `submitOnChange` | boolean | submit the form as soon as the value changes |
 | `extra` | object | component-specific options |
 
@@ -238,14 +249,23 @@ by a 200-response `change` (§7).
 
 ## 5. Component catalogue
 
-All component `class` values (renderer `ComponentClasses`; each has a swagger schema). `row`
-and `draggable` are layout containers; the rest are content/input components.
+All component `class` values (renderer `ComponentClasses`). Most are content/input components;
+`row` and `draggable` are the two layout classes.
+
+> ⚠️ **You don't hand-author `row` — but the class is real.** Horizontal layout is authored with the
+> **base `row` / `w` fields** (see §4): give sibling items the same `row` string and they render on
+> one line, with `w` setting each one's relative weight. The renderer then **synthesizes** a
+> `row` component (`ComponentClasses.row`) from those grouped items — so `row` is a real registered
+> class you observe in the DOM, just not one you place directly with an `items[]` array.
+> **`draggable` is a real standalone component** (`ComponentClasses.draggable`, dnd-kit based). Note
+> it is *distinct* from a section's `sortable: true` + `contentLoop` drag-reorder (see §3.3 / §6) —
+> both mechanisms exist. (Caveat: the two layout classes are **absent from the canonical "Simulator.Company
+> Scripts" swagger**, so tool/schema validation won't know them — prefer the base-field path for
+> `row`; verify `draggable` against a live render before relying on it.)
 
 | `class` | Kind | Key fields (beyond base) | Notes / `type` enum |
 |---|---|---|---|
-| `row` | layout | `items[]`, `w` | horizontal group of items |
-| `draggable` | layout | `items[]`, `value` (order) | sortable list |
-| `button` | action | `title`, `type`, `tooltip`, `extra.{icon,url,action,autoSubmit}` | `type`: `default` `text` `secondary` `tertiary` `quaternary` `quinary` `error`; submits its form (or `action:'logout'`, opens `url`, auto-submit polling) |
+| `button` | action | `title` (bbcode), `type`, `tooltip`, `extra.{url,target,action,icon,rounded,mobileVisible,request,autoSubmit,options}` | `type`: `default` `text` `secondary` `tertiary` `quaternary` `quinary` `error`. Submits its form; **`extra.url` opens that URL instead of submitting** (`extra.target` `_self`(default)\|`_blank` — honoured by newer renderers; older ones ignore `target` and open in the **same tab** via `window.location.assign`); `extra.action:'logout'`; `extra.request` runs a bare `fetch` first and submits **only if it resolves**; `extra.autoSubmit` `{interval,maxCount}` polls (**interval clamped 5–60s**, default 30; `maxCount` 1–500, default 6); `extra.options[]` opens a click menu **and bypasses `url`/`request`/`action`/submit**. `default`/`secondary` show a spinner while submitting; the CDU schema also has `default` reflect required-validation (disabled while a required field is empty) — verify against your renderer version. |
 | `edit` | input | `value`, `type`, `placeholder`, `regexp`, `mask`, `errorMsg`, `helpMsg`, `submitOnEnter`, `resettable`, `extra.{length,lineNumbers}` | `type`: `text` `email` `int` `float` `phone` `multiline` `date` `password` `colorPicker` |
 | `select` | input | `value`, `options[]`, `type`, `submitOnChange`, `submitOnScroll` | `type`: `default` `autocomplete`; scroll-paginated options |
 | `multiselect` | input | `value[]`, `options[]`, `extra.length` | chip multi-select with search |
@@ -271,6 +291,8 @@ and `draggable` are layout containers; the rest are content/input components.
 | `comments` | display | `value`, `title` | comment thread widget |
 | `timer` | display | `value` (remaining ms), `extra.duration` | countdown |
 | `widget` | embed | `type`, `extra` | third-party: `iframe` `onfido` `twilio` `amazonConnect` `webComments` (swagger `Widget-*`) |
+| `row` | layout | *(synthesized)* | horizontal group; **not hand-authored** — the renderer builds it from sibling items sharing a `row` field (see §4). Real `ComponentClasses.row`, but absent from the swagger. |
+| `draggable` | layout | `items[]`, `value` (order) | standalone drag-reorder list (dnd-kit). Real `ComponentClasses.draggable`; distinct from a section's `sortable`+`contentLoop`. Absent from the swagger — verify against a live render. |
 
 > Field-level schemas (exact `extra` keys, examples, per-variant required fields — e.g.
 > `Edit-int` vs `Edit-date`, `Table-group`, `Widget-onfido`) are enumerated in the canonical
@@ -300,7 +322,13 @@ shape the page **before** it reaches the renderer. All are resolved server-side
   repeated `content` items (one per data row), so a single template renders a list. On submit
   responses, `replaceContentLoopWithContent` re-expands the loop for the affected form.
 - **`bbcode`** — `label`/`button`/`edit`/`check` titles support BBCode, rendered to HTML by the
-  client (`Utils.bbCodeToHtml`).
+  client (`Utils.bbCodeToHtml`). Supported tags (verified live): `[b]` `[i]` `[u]` `[color=#rgb]`
+  `[size=N]` `[br]`, and **`[url=https://…]text[/url]`** which renders a **clickable
+  `<a target="_blank">`** — the idiomatic way to put an inline text link in a form. Raw HTML in a
+  value (e.g. `<a href>`) is **escaped** and shown as literal text, so use `[url]`, not `<a>`. (`[url]`
+  opens a new tab; the renderer also supports `[iurl=…]…[/iurl]` for a same-tab link, plus more tags such
+  as `[bg=…]`, `[sup]`, `[ul]`/`[*]` — the list above is the common subset.) For a whole-button
+  link/action use `button` `extra.url` (§5). Build entity URLs with the `buildLink` MCP tool.
 
 > **`[[ ]]` is locale, `{{ }}` is view-model.** Both are substituted server-side in
 > `renderPage`; the renderer does no token interpolation itself.
@@ -449,6 +477,79 @@ The "Simulator.Company Scripts" OpenAPI groups the protocol as:
 
 For exact per-field types, enums, and examples, consult that spec; this document is the
 narrative map over it.
+
+---
+
+## 12. Rendering gotchas (hard-won, verified live in control-cdu)
+
+These are non-obvious layout/behaviour facts confirmed by inspecting the live renderer DOM. They
+save real debugging time.
+
+### 12.1 `row` is a CSS **table** — it does NOT wrap
+The `row` layout component renders as `display:table` with each item a `table-cell`. Items stay on
+ONE line and **overflow** the container; `flex-wrap` has no effect. For a responsive grid that wraps
+(side-by-side when space allows, stacking when narrow), do **not** use `row`. Put the items directly
+in the section `content` and give each a `styleClass` of
+`display:inline-block; width:calc(50% - 8px); min-width:190px; vertical-align:top`. inline-block
+items flow horizontally and wrap to the next line naturally. (Caveat: on mobile widths `row` already
+collapses to a single column via a `respond-to(mobile)` rule — the no-wrap/overflow behaviour above is
+desktop-only.)
+
+### 12.2 `styleClass` on a `row` is dropped; on leaf components it applies
+A `styleClass` set on a `row` does **not** reach the DOM — there is no first-class "row object": a
+`row` is an implicit grouping of items sharing the same `row` value, and the generated `<Row>` wrapper
+applies no author class. A `styleClass` on a normal component (`upload`, `label`, `button`,
+`select`, `edit`, …) **is** emitted onto that element. Style the leaf elements, never the `row`
+wrapper.
+
+### 12.3 No client-side conditional visibility — reveal = `submitOnChange` + 200 `changes`
+`visibility` is a static enum (`visible|disabled|hidden`); there is no expression/binding language,
+so a field cannot show/hide reactively from another field's value on the client. The only way to
+"reveal B when A changes" is a server round-trip: set `submitOnChange:true` on A; the `/send` handler
+returns **200** with `changes:[{id:"B", visibility:"visible|hidden"}]` (see §7). A `submitOnChange`
+event posts with `buttonId = <element id>` (not a button). **Read the new value from
+`body.data.<fieldId>`** — that is the reliable source across components. `body.buttonData.value` is
+populated **only by `select`** (and a few components); `radio`, `edit`, `check`, `toggle`, etc. send no
+`buttonData`, so `buttonData.value` is `undefined` for them.
+
+### 12.4 A `submitOnChange` dispatch must cover EVERY `submitOnChange` field id
+A `submitOnChange` event arrives at `/send` exactly like a button click. Any `submitOnChange` field id
+your handler does **not** branch on will **fall through to the normal submit path** (page nav, actor
+write). In a chain (e.g. progressive upload slots `up_file … up_file5`), the LAST field — which has no
+"next" to reveal — still needs an explicit no-op onChange branch, otherwise selecting/finishing it
+navigates the wizard. Route on `body.buttonId`; treat all onChange ids as onChange even when there is
+nothing to change.
+
+### 12.5 `radio`/`select` option internals — restylable via JSS-prefix selectors, but fragile
+Unlike a `row` (§12.2), a `styleClass` **does** reach a `radio`/`select` container. Each option renders
+(verified live) as
+`<div class="i-content-…"><input type="radio" class="i-input-…"><i class="i-icon-…">…<label class="i-label-…"></div>`
+— so the visible "dot" is the `<i class="i-icon-…">`, **not** the `<input>` (which is why
+`input{appearance:none}` does nothing). You CAN hide the dot and card-ify the options (confirmed in DOM):
+
+```less
+.my-radio [class*="icon"]    { display:none !important; }          // hide the dot
+.my-radio [class*="content"] { display:block; border:1px solid #E5E7EB; border-radius:12px; padding:14px; margin:8px 0; }
+.my-radio .checked [class*="content"] { border-color:#3B5BDB; background:#EEF2FF; }  // selected option
+```
+
+**Selected state — use the `.checked` class, NOT `:has(input:checked)`.** The renderer puts a literal
+`checked` class on the option's outer `<div>`; the `<input>` carries no `checked`/`name` attribute, so
+`:has(input:checked)` would highlight **nothing** on a server-preselected value and **several** options
+after clicks. Target `.checked` (a plain string, more stable than the JSS fragments). The
+`content`/`icon`/`label` class fragments are react-jss-generated and the prefix (`i-` in one build) is
+**not** stable across builds — match by substring (`[class*="content"]`), not the full `i-content`.
+Because this couples to renderer internals, the robust alternative is one `button` per option (fully
+styled via `styleClass`, selected highlight from the server via `changes[].styleClass`, chosen value kept
+in a hidden `edit` carrier per §12.6). Both work: radio + substring selectors is less markup; the button
+approach is version-proof.
+
+### 12.6 A visually-hidden field still submits if `visibility` stays `visible`
+Form data is collected from items whose `visibility` is not `hidden` — it does **not** consult CSS.
+So an `edit` with `visibility:"visible"` but a `styleClass` that hides it in CSS
+(`position:absolute; width:1px; clip:rect(0 0 0 0)`) is invisible yet **still submitted** — the
+idiomatic carrier for a value set by `changes[]` (e.g. the selection behind button-cards). A field
+with `visibility:"hidden"` is NOT submitted.
 
 ---
 

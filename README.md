@@ -29,7 +29,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator-reactions`| "comment on this actor", "reply", "pin comment"          | Reactions: comments / events / approvals / ratings (threaded) |
 | `simulator-chat`     | "write a message to user N", "DM", "open a chat with"    | Messaging: send a message to a user, p2p/group chats (Events-form actors; messages are comment reactions) |
 | `simulator-tasks`    | "create a task", "assign to", "who approves", "needs signature" | Tasks/assignments: an Events-form actor + executor (`execute`) / approver (`sign`) / legal signer (`ds`) roles |
-| `simulator-agents`   | "delegate to", "assign this to X", "can X do this", "who should do this", "ask X's agent" | Digital-twin agents: discover a person by competency (`findAgent`), load their "# Agent" profile (`getAgent`), then do the task, find a better person, or escalate (task / p2p) |
+| `simulator-agents`   | "delegate to", "assign this to X", "can X do this", "who/which team should do this", "ask X's agent" | Actor agents: discover an agent by competency (`findAgent`) — a user twin or any actor with an "# Agent" profile — load it (`getAgent`), then do the task, find a better executor, or escalate (task / p2p) |
 | `simulator-meetings` | "schedule a meeting", "recurring meeting", "agenda", "join link" | Meetings/video/SIP rooms (Events-form actor, `scheduleMeeting`): schedule, recurrence, agenda, persistent rooms, public & in-app join links |
 | `simulator-attachments` | "upload a file", "attach document", "rename file"     | Files: upload, attach/detach to actors & reactions      |
 | `simulator-access`   | "share with", "grant access", "who can edit this"        | Access rules: grant/revoke view/modify/… on objects     |
@@ -70,7 +70,7 @@ claude plugin install simulator@simulator
 
 ```bash
 codex plugin marketplace add corezoid/simulator-ai-plugin
-codex plugin install simulator@simulator
+codex plugin add simulator@simulator
 ```
 
 **Or from a local clone:**
@@ -78,7 +78,7 @@ codex plugin install simulator@simulator
 ```bash
 git clone https://github.com/corezoid/simulator-ai-plugin
 codex plugin marketplace add ./simulator-ai-plugin
-codex plugin install simulator@simulator
+codex plugin add simulator@simulator
 ```
 
 No build step, no extra setup. The MCP server starts automatically on first use.
@@ -98,10 +98,13 @@ This writes the MCP entry to `<workspace>/.kiro/settings/mcp.json`, symlinks the
 ### Updating
 
 ```bash
-claude plugin update simulator@simulator   # Claude Code
-codex plugin update simulator@simulator    # Codex
+claude plugin update simulator@simulator                                    # Claude Code
+codex plugin marketplace upgrade && codex plugin add simulator@simulator    # Codex
 ```
 
+Codex has no `plugin update` subcommand — refresh the marketplace snapshot with
+`codex plugin marketplace upgrade` (upgrades all configured Git marketplaces; pass a
+name to target one) and re-run `codex plugin add` to install the refreshed version.
 Restart Claude Code / Codex after updating to apply the new version. For AWS Kiro, `git pull` the clone and re-run `plugins/simulator/scripts/install-kiro.sh` (it is idempotent) to refresh the workspace overlay.
 
 ## Authentication
@@ -215,7 +218,7 @@ the actor/node items.)
 | Attachments   | `getAttachments` `getActorAttachments` `addAttachments` `updateAttachment` `removeAttachments` `uploadBase64` `readAttachment` (download & read a file's content — text inline, images as a viewable block, PDFs/binary as an embedded resource) |
 | Search        | `searchAll` (global text/semantic search across actors & users)                        |
 | Skill registry | `findSkill` (discover saved skill playbooks by intent; empty query lists all published) `getSkill` (load one in full by `ref`/slug or `id`) — actors of the `Skills` system form; local composite tools (outside the drift gate), see `/simulator-skills` |
-| Digital-twin agents | `findAgent` (discover people by competency over their twin profiles; empty query lists members) `getAgent` (load a person's "# Agent" profile by `userId`/`actorId`) — user twins on the `System` form; local composite tools (outside the drift gate), see `/simulator-agents` |
+| Actor agents | `findAgent` (discover agents by competency over their "# Agent" profiles; empty query lists members; `formId` targets another agent-registry form) `getAgent` (load one profile by `userId` for a person twin, or `actorId` for any agent actor) — user twins on the `System` form by default, but any actor can be an agent; local composite tools (outside the drift gate), see `/simulator-agents` |
 | Public links  | `generatePublicLink` `getPublicLink` `revokePublicLink` (shareable `/m/<hash>` join link to an actor — meeting / SIP access without login) |
 | Meetings      | `getTranscription` (read a meeting call's speech transcription — summarize / extract action items; needs a live room) |
 | Smart Forms (runtime) | `appGetPage` `appSendForm` (drive any Smart Form / CDU app via the `get`/`send` page protocol — render a page, submit a form; Corezoid supplies data & control flow. Universal primitives for the `simulator-smart-forms-runtime` skill) |

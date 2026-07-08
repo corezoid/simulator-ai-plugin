@@ -124,6 +124,47 @@ func TestFindAgentEnumerateVsSearch(t *testing.T) {
 	}
 }
 
+func TestFindAgentRegistryScope(t *testing.T) {
+	var last recordedReq
+	srv := newAgentsServer(t, true, &last)
+	defer srv.Close()
+	c := apiclient.New(srv.URL, "ws-scope", func() (string, error) { return "Simulator t", nil }, false)
+
+	// Empty query + a registry formId → enumerate that form's actors (filterActors).
+	res := callFindAgent(t, c, map[string]any{"formId": "42"})
+	if res.IsError {
+		t.Fatalf("findAgent (formId enumerate) error: %+v", res.Content)
+	}
+	if last.path != "/actors_filters/42" {
+		t.Errorf("formId-enumerate path = %q, want /actors_filters/42", last.path)
+	}
+
+	// Query + a registry formId → search scoped to that form, not the System form.
+	callFindAgent(t, c, map[string]any{"query": "billing bot", "formId": "42"})
+	if !strings.HasPrefix(last.path, "/search/ws-scope/") {
+		t.Errorf("formId-search path = %q, want /search/ws-scope/...", last.path)
+	}
+	if got := last.query.Get("formId"); got != "42" {
+		t.Errorf("formId = %q, want 42 (registry override, not System 77)", got)
+	}
+
+	// A numeric formId (JSON number, not a string) is accepted, not silently
+	// dropped to the default registry.
+	callFindAgent(t, c, map[string]any{"query": "billing bot", "formId": float64(42)})
+	if got := last.query.Get("formId"); got != "42" {
+		t.Errorf("numeric formId = %q, want 42 (coerced, not dropped to System)", got)
+	}
+
+	// Non-numeric formId is rejected the same way on the search path...
+	if res := callFindAgent(t, c, map[string]any{"query": "bot", "formId": "System"}); !res.IsError {
+		t.Errorf("non-numeric formId (search) should error")
+	}
+	// ...and on the enumerate path (empty query) — same friendly guard.
+	if res := callFindAgent(t, c, map[string]any{"formId": "teams"}); !res.IsError {
+		t.Errorf("non-numeric formId (enumerate) should error")
+	}
+}
+
 func TestFindAgentInputGuards(t *testing.T) {
 	var last recordedReq
 	srv := newAgentsServer(t, true, &last)

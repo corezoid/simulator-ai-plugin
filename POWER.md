@@ -1,7 +1,7 @@
 ---
 name: simulator
 displayName: Simulator.Company
-version: 2.3.0
+version: 2.4.0
 description: BPM, graph, and financial-tracking toolkit for the Simulator.Company platform. Exposes the Simulator REST API as MCP tools plus 16 skills covering actors, forms, graphs, layers, accounts, transactions, transfers, charts, smart forms, meetings, reactions, and attachments.
 author:
   name: Simulator.Company
@@ -106,7 +106,7 @@ trigger phrases declared in the SKILL.md frontmatter. Highlights:
 This repository ships the same plugin payload to:
 
 - **Claude Code** — via `claude plugin install simulator@simulator`.
-- **Codex** — via `codex plugin install simulator@simulator`.
+- **Codex** — via `codex plugin add simulator@simulator`.
 - **AWS Kiro** — via this Power.
 
 One Git tag → one GitHub Release → artifacts for all three hosts.

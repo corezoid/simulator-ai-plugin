@@ -70,7 +70,7 @@ The link (edge) lifecycle is fully covered by curated MCP tools:
 
 | Operation | Tool | Notes |
 |---|---|---|
-| Create one | `createLink(accId, source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?, forceDirection?)` | directed edge between two actors |
+| Create one | `createLink(accId, source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?, hole?, forceDirection?)` | directed edge between two actors; `hole:true` creates a placeholder link |
 | Create many | `massLink(accId, links[], forceDirection?)` | up to 50 edge objects in one call |
 | Read one | `getEdge(edgeId, linkedActor?)` | a single edge by UUID, with source/target + privileges |
 | Update | `updateEdge(edgeId, name?, linkedActorId?, curveStyle?, pinned?)` | partial — only provided fields change |
@@ -82,6 +82,26 @@ The link (edge) lifecycle is fully covered by curated MCP tools:
 
 > The hierarchy edge type cannot be created or deleted via these tools — it is permanent and
 > managed by the platform (use it through `getRelatedActors` / `createActor` parent-child flows).
+
+#### Hole (placeholder) links
+
+An edge can be a **hole** — a placeholder link (`hole: true` on `createLink`, stored as
+`actors_edges.hole`). It renders as a dashed placeholder on a layer. Closing a hole is a
+**layer-level placement swap** (the exact edge analogue of closing an actor hole): the hole edge's
+`layer_to_edges` placement is replaced by a real "closer" edge's placement on that layer, recorded
+in `closed_edge_holes`. The hole edge itself is **never modified or deleted** (its `hole` flag stays
+`true`) — both edges persist, only the layer view changes. A hole is closed either:
+
+- **automatically** when a financial **transfer** runs between the two actors a hole connects — the
+  transfers-amount edge is created, and a pre-drawn **hierarchy** hole is closed by a real closer
+  hierarchy edge, so the two actors end up with two links on the layer; or
+- **manually** via `POST /papi/1.0/actors/merge_edge_hole/:accId` (body: `holeEdgeId`,
+  `targetEdgeId`, `layerId`) — the user-initiated analogue of `merge_hole` for actors.
+
+`POST /papi/1.0/actors/revert_edge_hole/:accId` (body: `targetEdgeId`, optional `layerId` /
+`holeEdgeId`) re-opens the holes a closer edge closed, restoring the hole's layer placement. (These
+merge/revert routes have no operationId and are not curated MCP tools — same as the actor-hole
+`merge_hole`/`revert_hole` routes.)
 
 ## Database Structure
 

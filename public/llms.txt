@@ -7,7 +7,7 @@
 - [simulator](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator/SKILL.md): Universal Simulator.Company platform assistant
 - [simulator-access](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-access/SKILL.md): Simulator.Company access-control specialist — who can view/modify/remove/sign/execute an object (actor, form, account, template, tree layer)
 - [simulator-actors](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-actors/SKILL.md): Simulator.Company actor (record) specialist
-- [simulator-agents](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-agents/SKILL.md): Simulator.Company digital-twin agent specialist — talk to a person AS an agent and delegate work to people
+- [simulator-agents](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-agents/SKILL.md): Simulator.Company digital-twin & actor-agent specialist — talk to an agent AS an agent and delegate work to it
 - [simulator-attachments](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-attachments/SKILL.md): Simulator.Company files & attachments specialist
 - [simulator-charts](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-charts/SKILL.md): Simulator.Company chart and dashboard specialist
 - [simulator-chat](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-chat/SKILL.md): Simulator.Company chat & messaging specialist — sending messages to a user, and creating or reusing p2p (1:1) and group chats
@@ -21,6 +21,7 @@
 - [simulator-smart-forms](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms/SKILL.md): Simulator.Company Smart Form (CDU / Script / Application) specialist
 - [simulator-smart-forms-logic](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-logic/SKILL.md): Author and evolve the Corezoid backend that powers a Simulator.Company Smart Form
 - [simulator-smart-forms-runtime](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-runtime/SKILL.md): Simulator.Company Smart Form RUNTIME driver — run/execute an existing Smart Form (CDU / Script / mini-app) on the user's behalf, conversationally, instead of the user clicking through its UI
+- [simulator-styles](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-styles/SKILL.md): Simulator.Company Smart Form (CDU) STYLING specialist — authoring complex Less/CSS for Smart Forms: theme tokens, page/form/section layout, component re-skinning, reusable style patterns, responsive and design-system approaches
 - [simulator-tasks](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-tasks/SKILL.md): Simulator.Company task & assignment specialist — creating a task and assigning who does it, who approves it, and whose signature it needs
 
 ## MCP Tools

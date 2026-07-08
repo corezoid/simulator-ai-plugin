@@ -40,6 +40,10 @@ func knownToolNames() map[string]bool {
 		"compactGraphLayout", "pruneLongEdges", "createChart",
 		"uploadActorPicture", "uploadActorPictureBulk",
 		"buildLink", "getBbcodeTags", "readAttachment",
+		"createSmartForm", "pullSmartForm", "pushSmartForm",
+		"updateSmartFormEnv", "deploySmartForm", "listReleases",
+		"diffReleases", "rollbackRelease", "getFileHistory",
+		"getFileVersion", "rollbackFile", "listTrash", "restoreFromTrash",
 	} {
 		m[n] = true
 	}

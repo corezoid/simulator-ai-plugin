@@ -379,7 +379,8 @@ For domain-specific workflows use the specialized skills:
 - `/simulator-actors` — actor instances (records) of a form: the `data` value protocol, create/update/search/filter
 - `/simulator-finance` — accounts, transactions, transfers, currencies, counters (Scylla tallies)
 - `/simulator-charts` — dashboard charts and time-series visualisation on layers
-- `/simulator-smart-forms` — Smart Forms (CDU / Script applications): pages, releases
+- `/simulator-smart-forms` — Smart Forms (CDU / Script applications): pages, layout, releases
+- `/simulator-styles` — Smart Form **styling**: the `style` / `styles/` (Less/CSS) layer — themes, component re-skinning, design systems (consumes the `styleClass` hooks from `/simulator-smart-forms`)
 - `/simulator-reactions` — comments / events / approvals / ratings on actors (threaded)
 - `/simulator-chat` — messaging: send a message to a user, open/reuse p2p & group chats (Events-form actors; messages are comment reactions)
 - `/simulator-tasks` — tasks/assignments **and order/directive documents** (наказ / розпорядження / доручення / приказ / order): create a task (Events-form actor) and assign executor (`execute`), approvers (`sign`), legal signers (`ds`). An order addressed to a person ("наказ **на** Салімова …", "order **for** X to …") is a task whose **addressee is the `execute` executor** — assign them, don't just put the name in the title/description

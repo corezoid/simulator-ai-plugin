@@ -26,6 +26,7 @@ The Simulator.Company platform provides a comprehensive API for managing busines
 
 - [Smart Forms](smart-forms.md) - Full lifecycle and behaviour of Smart Forms: catalog & install, project editing, file history, deploy/release, rollback, and serving pages to end users
 - [CDU Page Protocol](cdu-page-protocol.md) - The runtime page JSON contract: `get`/`send` protocol & response codes, the Page/grid/forms/sections/component model, the `changes` patch protocol, templating (`viewModel`/`locale`/`definitions`/`contentLoop`/`bbcode`), the full component catalogue, and server-side save validation
+- [CDU Rendered-DOM Reference](cdu-dom-tree-reference.md) - The styling counterpart to the page protocol: the actual tag tree and class names each config element renders to, stable styling hooks (semantic class / `data-class` / `styleClass`) vs. volatile hashed classes, per-component DOM maps (incl. all table types), page skeleton & theme classes, and which components need backend data to render
 
 ## Related Entity Documentation
 
