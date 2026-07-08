@@ -3,6 +3,29 @@
 ## [2.4.0]
 
 ### Added
+- extend agents to any actor, not just user twins
+- add /simulator-agents digital-twin agent skill + findAgent/getAgent
+- add /simulator-agents digital-twin agent skill + findAgent/getAgent
+- expose hole field on createLink; document edge-hole
+- add simulator-styles skill (#61)
+- resolve target entity before creating; offer Total for debit/credit pairs (#60)
+- add AWS Kiro support (#42)
+
+### Changed
+- fix Codex test step — no Plugin Directory GUI in CLI
+- fix Codex plugin commands (install→add, update flow)
+- record CDU Smart Forms doc changes under 2.4.0 (#68)
+- record CDU Smart Forms doc changes under 2.4.0
+- detect submitOnChange by buttonId, not buttonData.action (#67)
+- document CDU rendering gotchas (#62)
+- getForm filter guidance — request `form`, not `sections` (#66)
+- document CDU form links & button.extra spec (#64)
+- note #60 skill behaviour under 2.3.0
+- release v2.1.0
+
+## [2.4.0]
+
+### Added
 - **`/simulator-styles` — Smart Form (CDU) styling skill (#61).** A dedicated specialist for the `style` / `styles/` (Less/CSS) layer of Smart Forms: theme tokens, page/form/section layout, component re-skinning, reusable patterns, and design-system approaches. It reuses the existing `pullSmartForm` / `pushSmartForm` / `deploySmartForm` cycle and consumes the `styleClass` hooks that `/simulator-smart-forms` attaches — the two skills hand off explicitly (structure vs. styling). Ships with a new rendered-DOM reference (`docs/user-flows/cdu-dom-tree-reference.md`) mapping each page-config element to the tag tree and stable class hooks the CSS must target. Also corrects the CDU section/layout model in `cdu-page-protocol.md` and `/simulator-smart-forms`: a section has no `footer` slot, the wizard header class is `steps` (not `stepper`), and `row` is authored via the base `row`/`w` fields (the renderer synthesizes the component) with `w` as a relative weight.
 - **CDU Smart Form rendering gotchas (#62).** New §12 in `cdu-page-protocol.md` (with pointers from `/simulator-smart-forms` and `/simulator-smart-forms-logic`) documenting non-obvious renderer behaviour verified against `control-cdu`: a `row` renders as a CSS `table`, so its items do **not** wrap on desktop (use `display:inline-block` items in `content` for a wrapping grid) — though `row` does collapse to one column at the mobile breakpoint; `styleClass` on a `row` is dropped from the DOM (style the leaf components); a `radio`/`select` option "dot" is a JSS-hashed `<i>` (not the `<input>`) — restyle via `[class*="icon"]`/`[class*="content"]` and drive the selected state off the `.checked` class (one `button` per option is the version-proof card-picker alternative); and a `visibility:"visible"` field hidden via CSS still submits (the idiomatic hidden value carrier).
 - **CDU form links & full `button.extra` spec (#64).** `cdu-page-protocol.md` and `/simulator-smart-forms` now document that `[url=https://…]text[/url]` bbcode renders a clickable `<a target="_blank">` (raw `<a>` HTML is escaped — use `[url]`; `[iurl]` gives a same-tab link), and complete the `button.extra` reference: `url` (opens the URL instead of submitting) with `target` (`_self`/`_blank`, honoured by newer renderers — older ones open the same tab), `action:'logout'`, `request` (a bare `fetch` before submit, which proceeds only if it resolves), `autoSubmit {interval,maxCount}` (interval clamped 5–60s), `options[]` (a click menu that bypasses `url`/`request`/`action`/submit), `icon`, `rounded`, `mobileVisible`.
