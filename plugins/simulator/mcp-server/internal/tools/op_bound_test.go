@@ -13,7 +13,8 @@ import (
 // the model never sets it and a Required param (actorId) is satisfied by the bind.
 func TestBoundArgHiddenAndInjected(t *testing.T) {
 	op := opByName(t, "getActor") // GET /actors/{actorId}, actorId InPath + Required
-	bound := map[string]any{"actorId": "bound-1"}
+	// A real bind carries a full actor UUID (getActor validates the format).
+	bound := map[string]any{"actorId": "00000000-0000-4000-8000-0000000b0001"}
 
 	// (1) hidden — the marshaled input schema has no actorId property.
 	tool := mcp.NewTool(op.Name, toolOptions(op, bound)...)
@@ -38,7 +39,7 @@ func TestBoundArgHiddenAndInjected(t *testing.T) {
 	if res.IsError {
 		t.Fatalf("unexpected error (bound actorId should satisfy Required): %+v", res.Content)
 	}
-	if rec.path != "/actors/bound-1" {
-		t.Errorf("path = %s, want /actors/bound-1 (bound actorId injected)", rec.path)
+	if rec.path != "/actors/00000000-0000-4000-8000-0000000b0001" {
+		t.Errorf("path = %s, want /actors/00000000-0000-4000-8000-0000000b0001 (bound actorId injected)", rec.path)
 	}
 }

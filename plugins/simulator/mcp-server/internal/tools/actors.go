@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
 )
@@ -108,8 +109,9 @@ var actorOps = []Operation{
 			"tens of thousands of tokens you rarely need. For a normal actor summary pass e.g. " +
 			"filter=\"id,title,description,status,data,formId,formTitle,ownerId,createdAt,updatedAt,access\"; " +
 			"omit `filter` only when you specifically need the form schema.",
+		Resolve: requireActorUUID,
 		Params: []Param{
-			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID (full 36-character form)."},
 			fieldFilterParam("id,title,description,status,data,formId,formTitle,ownerId,createdAt,updatedAt,access"),
 		},
 	},
@@ -237,4 +239,23 @@ var actorOps = []Operation{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID whose connected Corezoid processes to list."},
 		},
 	},
+}
+
+// actorUUIDRe matches the full 36-character UUID form the backend expects in
+// /actors/{actorId}.
+var actorUUIDRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// requireActorUUID rejects a malformed or truncated actorId before the request
+// goes out: the backend answers 403 Access Denied for any non-UUID id, which
+// reads as a permissions problem when it is actually a typo or a copy-paste of
+// a shortened id. Failing fast with the real reason saves that dead end.
+func requireActorUUID(_ context.Context, args map[string]any, _ *apiclient.Client) error {
+	id, _ := args["actorId"].(string)
+	if id == "" {
+		return nil // the required-parameter check reports the missing value
+	}
+	if !actorUUIDRe.MatchString(id) {
+		return fmt.Errorf("actorId %q is not a full actor UUID (36 chars, 8-4-4-4-12) — the backend would answer a misleading 403 Access Denied for it. Pass the complete UUID, or resolve the actor by its external key with getActorByRef(formId, ref)", id)
+	}
+	return nil
 }
