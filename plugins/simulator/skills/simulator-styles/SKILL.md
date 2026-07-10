@@ -449,8 +449,7 @@ input, textarea, .button > span, .toggle__title,
   .breadcrumbs [class*="tab__item"]:not(:last-child)::after { content:"›"; margin:0 10px; opacity:.6; }
   ```
 
-### 
- (CSS-only, no backend round-trip)
+### Interactivity (CSS-only, no backend round-trip)
 - **Accordion / dropdown / collapsible tree** — a `check`/`toggle` with `.checked`, expanded by parent `:has()`, animated via `grid-template-rows:0fr → 1fr`:
   ```less
   .menu { display:grid; grid-template-rows:0fr; overflow:hidden; transition:grid-template-rows .32s; }
