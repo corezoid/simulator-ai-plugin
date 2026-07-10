@@ -242,10 +242,11 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			byKey[fmt.Sprintf("%d/%s", c.FolderID, c.Title)] = c
 		}
 		for _, relPath := range newFilePaths {
-			parentID := manifest.Folders[filepath.Dir(relPath)]
-			if filepath.Dir(relPath) == "." {
-				parentID = manifest.EnvRootFolderID
-			}
+			// Reuse resolveParentID (with ToSlash) so the lookup key matches the
+			// parentID actually POSTed above. Computing filepath.Dir inline here
+			// breaks on Windows, where it yields backslash-separated paths that
+			// miss the slash-keyed manifest.Folders map.
+			parentID, _ := resolveParentID(relPath, manifest.Folders, manifest.EnvRootFolderID)
 			key := fmt.Sprintf("%d/%s", parentID, filepath.Base(relPath))
 			c, ok := byKey[key]
 			if !ok {
