@@ -108,6 +108,16 @@ The `type` discriminator (`FORM_ITEM_TYPES`) is one of `actor`, `currency`, `acc
 **no** `type` — they are just the chosen `{title, value, color?}` option object(s). Dynamic
 `select` values always carry a `type` so the platform can resolve the referenced entity.
 
+#### Link direction — `extra.reverseEdge`
+
+For **actor-reference** fields (an actor source: `layer`, `actorFilter`, `actorsBag`,
+`actors`, `formFilter`), selecting an actor auto-creates a `hierarchy` link between the two
+actors. By default the link goes **current-actor → referenced-actor** (current actor is the
+parent). Set `extra.reverseEdge: true` on the field to reverse it: **referenced-actor →
+current-actor** (the referenced actor becomes the parent). Omitting the flag or setting it
+`false` keeps the default direction. The setting is per field, so different actor-reference
+fields on the same form can point their links in opposite directions.
+
 ## API Endpoints
 
 For detailed API documentation on forms, including request parameters, response formats, and authentication requirements, please refer to the official API documentation:
