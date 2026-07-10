@@ -299,6 +299,12 @@ All component `class` values (renderer `ComponentClasses`). Most are content/inp
 > swagger ("Simulator.Company Scripts", `components.schemas`). Treat that spec as the source of
 > truth for individual component options.
 
+> **`mainMenu` inline-vs-popover depth** — `mainMenu.extra.maxInlineDepth` (default **1**) sets how
+> deep branches expand **inline** (accordion, via native `<details>`); levels below it open as a
+> **hover popover** instead, so raise it for a full inline accordion. `extra.submitOnBranchToggle`
+> (default `false`) toggles a branch client-side with no `/send`; `true` posts `action:expand|collapse`
+> on each toggle. `extra.autoExpandActive` auto-opens the ancestors of the active node.
+
 ---
 
 ## 6. Templating & data binding
@@ -502,6 +508,11 @@ applies no author class. A `styleClass` on a normal component (`upload`, `label`
 `select`, `edit`, …) **is** emitted onto that element. Style the leaf elements, never the `row`
 wrapper.
 
+> **Workaround — give a row its own class:** the `row` value is space-separated. The first token is
+> the row id (→ `.row__<id>`), and every **extra token the renderer emits as a literal class** on the
+> generated row wrapper. So `row:"1 my_row"` puts `.my_row` on the wrapper — the one stable hook you
+> can style a whole row by (and reuse across rows: `row:"1 my_row"` + `row:"2 my_row"` share `.my_row`).
+
 ### 12.3 No client-side conditional visibility — reveal = `submitOnChange` + 200 `changes`
 `visibility` is a static enum (`visible|disabled|hidden`); there is no expression/binding language,
 so a field cannot show/hide reactively from another field's value on the client. The only way to
@@ -550,6 +561,16 @@ So an `edit` with `visibility:"visible"` but a `styleClass` that hides it in CSS
 (`position:absolute; width:1px; clip:rect(0 0 0 0)`) is invisible yet **still submitted** — the
 idiomatic carrier for a value set by `changes[]` (e.g. the selection behind button-cards). A field
 with `visibility:"hidden"` is NOT submitted.
+
+### 12.7 `table type:"group"` hides ungrouped rows; its pager sits outside the rows
+Numbered table pagination requires **`type:"group"`** (a `default` table has no page controls) with
+`extra.page` / `extra.totalPages`. Three traps: **(1)** `type:"group"` **hides every row without a
+`groupValue`** — switching a `default` table to `group` without also giving each `body` row a
+`groupValue` (and declaring ≥1 group in `extra.groups`) leaves an empty table with only the pager.
+**(2)** An empty group still renders a group-title header row (`[class*="table__row__group"]`) — hide
+it when the group is a technical, title-less one. **(3)** The pager renders as a **separate block, not
+inside the rows**, so it needs CSS to sit under the table (DOM hooks in `cdu-dom-tree-reference.md` §7;
+positioning recipe in the `simulator-styles` skill).
 
 ---
 
