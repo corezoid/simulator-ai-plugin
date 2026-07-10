@@ -2,7 +2,7 @@
   "mcpServers": {
     "simulator": {
       "command": "sh",
-      "args": ["-c", "export PLUGIN_ROOT=\"${KIRO_PLUGIN_ROOT:-$PWD/.kiro/..}\"; export SIMULATOR_WORK_DIR=\"$PWD\"; exec sh \"$PLUGIN_ROOT/mcp-server/run.sh\""]
+      "args": ["-c", "PLUGIN_ROOT=\"${KIRO_PLUGIN_ROOT:-$PWD/.kiro/..}\"; [ -f \"$PLUGIN_ROOT/mcp-server/run.sh\" ] || PLUGIN_ROOT=\"$PLUGIN_ROOT/plugins/simulator\"; export PLUGIN_ROOT SIMULATOR_WORK_DIR=\"$PWD\"; exec sh \"$PLUGIN_ROOT/mcp-server/run.sh\""]
     }
   }
 }

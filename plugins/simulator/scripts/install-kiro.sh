@@ -37,8 +37,10 @@ fi
 
 mkdir -p "$KIRO_DIR/settings" "$KIRO_DIR/steering" "$KIRO_DIR/skills"
 
-# 1) MCP entry — always plain copy (workspace-local edits must not leak back).
-cp "$PLUGIN_ROOT/.mcp.kiro.json" "$KIRO_DIR/settings/mcp.json"
+# 1) MCP entry — resolve the KIRO_PLUGIN_ROOT fallback to the known absolute
+#    plugin path so the generated mcp.json works without the env var being set.
+sed 's#\${KIRO_PLUGIN_ROOT:-\$PWD/.kiro/..}#'"$PLUGIN_ROOT"'#g' \
+  "$PLUGIN_ROOT/.mcp.kiro.json" > "$KIRO_DIR/settings/mcp.json"
 
 # 2) Steering — small, stable, no token substitution needed. Symlink on POSIX,
 #    hard-copy on Windows shells.
