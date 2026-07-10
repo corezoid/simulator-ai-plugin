@@ -2,7 +2,7 @@
   "mcpServers": {
     "simulator": {
       "command": "sh",
-      "args": ["-c", "PLUGIN_ROOT=\"${KIRO_PLUGIN_ROOT:-$PWD/.kiro/..}\"; [ -f \"$PLUGIN_ROOT/mcp-server/run.sh\" ] || PLUGIN_ROOT=\"$PLUGIN_ROOT/plugins/simulator\"; export PLUGIN_ROOT SIMULATOR_WORK_DIR=\"$PWD\"; exec sh \"$PLUGIN_ROOT/mcp-server/run.sh\""]
+      "args": ["-c", "PLUGIN_ROOT=\"${KIRO_PLUGIN_ROOT:-$PWD/.kiro/..}\"; [ -f \"$PLUGIN_ROOT/mcp-server/run.sh\" ] || PLUGIN_ROOT=\"$PLUGIN_ROOT/plugins/simulator\"; [ -f \"$PLUGIN_ROOT/mcp-server/run.sh\" ] || { echo \"ERROR: cannot locate mcp-server/run.sh (checked KIRO_PLUGIN_ROOT and the plugins/simulator fallback under $PLUGIN_ROOT)\" >&2; exit 1; }; export PLUGIN_ROOT SIMULATOR_WORK_DIR=\"$PWD\"; exec sh \"$PLUGIN_ROOT/mcp-server/run.sh\""]
     }
   }
 }

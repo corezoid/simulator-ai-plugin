@@ -39,7 +39,10 @@ mkdir -p "$KIRO_DIR/settings" "$KIRO_DIR/steering" "$KIRO_DIR/skills"
 
 # 1) MCP entry — resolve the KIRO_PLUGIN_ROOT fallback to the known absolute
 #    plugin path so the generated mcp.json works without the env var being set.
-sed 's#\${KIRO_PLUGIN_ROOT:-\$PWD/.kiro/..}#'"$PLUGIN_ROOT"'#g' \
+#    Escape \, & and our # delimiter so a stray one of those in PLUGIN_ROOT
+#    (e.g. a `#` in the clone path) can't corrupt the sed replacement.
+PLUGIN_ROOT_ESCAPED="$(printf '%s\n' "$PLUGIN_ROOT" | sed 's/[\&#]/\\&/g')"
+sed 's#\${KIRO_PLUGIN_ROOT:-\$PWD/.kiro/..}#'"$PLUGIN_ROOT_ESCAPED"'#g' \
   "$PLUGIN_ROOT/.mcp.kiro.json" > "$KIRO_DIR/settings/mcp.json"
 
 # 2) Steering — small, stable, no token substitution needed. Symlink on POSIX,
