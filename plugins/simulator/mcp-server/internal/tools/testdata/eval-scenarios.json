@@ -1742,5 +1742,21 @@
       "pushSmartForm"
     ],
     "liveOnly": true
+  },
+  {
+    "name": "Diagnose connection with status",
+    "prompt": "Is the Simulator MCP server connected and is my token still valid? Check the server status.",
+    "tools": [
+      "status"
+    ],
+    "liveOnly": true
+  },
+  {
+    "name": "Sign out of Simulator",
+    "prompt": "Log me out of Simulator and remove my stored credentials.",
+    "tools": [
+      "logout"
+    ],
+    "liveOnly": true
   }
 ]

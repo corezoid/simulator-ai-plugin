@@ -16,9 +16,10 @@ var envMu sync.Mutex
 
 // Credentials holds the Simulator JWT token.
 type Credentials struct {
-	AccessToken string    `json:"access_token"`
-	ExpiresAt   time.Time `json:"expires_at"`
-	TokenType   string    `json:"token_type"` // always "Simulator"
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	ExpiresAt    time.Time `json:"expires_at"`
+	TokenType    string    `json:"token_type"` // always "Simulator"
 }
 
 // AuthorizationHeader returns the value to use for the Authorization header.
@@ -114,8 +115,9 @@ func Load() (*Credentials, error) {
 		return nil, nil
 	}
 	creds := &Credentials{
-		AccessToken: token,
-		TokenType:   "Simulator",
+		AccessToken:  token,
+		RefreshToken: os.Getenv("REFRESH_TOKEN"),
+		TokenType:    "Simulator",
 	}
 	if expiryStr := os.Getenv("ACCESS_TOKEN_EXPIRES_AT"); expiryStr != "" {
 		if t, err := time.Parse(time.RFC3339, expiryStr); err == nil {
@@ -137,12 +139,20 @@ func Save(creds *Credentials) error {
 		expStr = creds.ExpiresAt.Format(time.RFC3339)
 		kv = append(kv, [2]string{"ACCESS_TOKEN_EXPIRES_AT", expStr})
 	}
+	// Only overwrite the stored refresh token when the server actually issued
+	// one — some grants return an access token alone.
+	if creds.RefreshToken != "" {
+		kv = append(kv, [2]string{"REFRESH_TOKEN", creds.RefreshToken})
+	}
 	if err := updateEnvFileMulti(envFilePath(), kv); err != nil {
 		return fmt.Errorf("failed to save token to .env: %w", err)
 	}
 	os.Setenv("ACCESS_TOKEN", creds.AccessToken)
 	if expStr != "" {
 		os.Setenv("ACCESS_TOKEN_EXPIRES_AT", expStr)
+	}
+	if creds.RefreshToken != "" {
+		os.Setenv("REFRESH_TOKEN", creds.RefreshToken)
 	}
 	return nil
 }
@@ -159,8 +169,12 @@ func Delete() error {
 	if err := removeEnvKey(path, "ACCESS_TOKEN_EXPIRES_AT"); err != nil {
 		return err
 	}
+	if err := removeEnvKey(path, "REFRESH_TOKEN"); err != nil {
+		return err
+	}
 	os.Unsetenv("ACCESS_TOKEN")
 	os.Unsetenv("ACCESS_TOKEN_EXPIRES_AT")
+	os.Unsetenv("REFRESH_TOKEN")
 	return nil
 }
 
@@ -216,6 +230,77 @@ func SaveWorkspaceID(accID string) error {
 		return fmt.Errorf("failed to save workspace ID to .env: %w", err)
 	}
 	os.Setenv("WORKSPACE_ID", accID)
+	return nil
+}
+
+// EnvPath reports which .env file the auth helpers read and write, so tools
+// can name the exact file in user-facing messages.
+func EnvPath() string { return envFilePath() }
+
+// BackupToken appends the current ACCESS_TOKEN / ACCESS_TOKEN_EXPIRES_AT lines
+// from .env to .env.bak before a logout removes them: the .env is shared with
+// sibling plugins (e.g. corezoid), so an accidental logout must stay
+// recoverable by hand. Returns the backup path, or "" if there was nothing to
+// back up.
+func BackupToken() (string, error) {
+	envMu.Lock()
+	defer envMu.Unlock()
+	path := envFilePath()
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	var saved []string
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "ACCESS_TOKEN=") || strings.HasPrefix(line, "ACCESS_TOKEN_EXPIRES_AT=") || strings.HasPrefix(line, "REFRESH_TOKEN=") {
+			saved = append(saved, line)
+		}
+	}
+	if len(saved) == 0 {
+		return "", nil
+	}
+	bakPath := path + ".bak"
+	f, err := os.OpenFile(bakPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return "", err
+	}
+	// 0600 above only applies at creation — tighten a pre-existing backup too.
+	_ = f.Chmod(0600)
+	defer f.Close()
+	stamp := time.Now().UTC().Format(time.RFC3339)
+	if _, err := fmt.Fprintf(f, "# saved by simulator logout at %s\n%s\n", stamp, strings.Join(saved, "\n")); err != nil {
+		return "", err
+	}
+	return bakPath, nil
+}
+
+// SaveRefreshToken persists only the refresh token — used when the account
+// service rotates it on a refresh attempt whose access token was rejected, so
+// a rotating AS cannot burn the stored token.
+func SaveRefreshToken(rt string) error {
+	envMu.Lock()
+	defer envMu.Unlock()
+	if err := updateEnvFile(envFilePath(), "REFRESH_TOKEN", rt); err != nil {
+		return err
+	}
+	os.Setenv("REFRESH_TOKEN", rt)
+	return nil
+}
+
+// DeleteRefreshToken removes only the refresh token — used when the account
+// service's refresh grant returned a token the API rejects, so re-trying it on
+// every login would just add round-trips (a fresh browser login stores a new
+// refresh token anyway).
+func DeleteRefreshToken() error {
+	envMu.Lock()
+	defer envMu.Unlock()
+	if err := removeEnvKey(envFilePath(), "REFRESH_TOKEN"); err != nil {
+		return err
+	}
+	os.Unsetenv("REFRESH_TOKEN")
 	return nil
 }
 

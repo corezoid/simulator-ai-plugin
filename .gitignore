@@ -4,6 +4,7 @@ bin/
 # Redis snapshot left behind when running a local Redis from the repo dir.
 dump.rdb
 /plugins/simulator/mcp-server/.env
+/plugins/simulator/mcp-server/.env.bak
 .claude/settings.local.json
 
 # Stray Go binaries built into the module dir (e.g. `go build ./cmd/<x>`).
