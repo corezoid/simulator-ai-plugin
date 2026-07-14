@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.4.2]
+
+### Fixed
+- **Kiro MCP server path resolution in a dev checkout.** `.mcp.kiro.json`'s `${KIRO_PLUGIN_ROOT:-$PWD/.kiro/..}` fallback resolved to the repo root (not `plugins/simulator/`) when a developer opened the repo directly in Kiro without running `install-kiro.sh`, so the server tried (and failed) to run `<repo>/mcp-server/run.sh`. It now probes for `mcp-server/run.sh` at that path and falls back to `plugins/simulator/` when missing, with a final guard that prints a clear error and exits if neither candidate has it. `install-kiro.sh` also now `sed`-resolves the same fallback to the absolute plugin path (escaping `\`, `&`, and the `#` delimiter) when generating a workspace's `mcp.json`, instead of a plain copy, so an external workspace's config no longer depends on `KIRO_PLUGIN_ROOT` at all. README's Kiro install instructions updated to match.
+
 ## [2.4.1]
 
 ### Fixed

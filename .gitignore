@@ -18,3 +18,7 @@ dump.rdb
 # Runtime overlays under .kiro/ are generated from the canonical skills tree —
 # committing them would only invite drift.
 /dist/
+
+# Kiro
+.env
+.kiro
