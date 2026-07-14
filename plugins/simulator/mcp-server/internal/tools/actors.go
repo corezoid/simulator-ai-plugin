@@ -76,6 +76,18 @@ const pictureObjectDesc = "Render a custom image AS the node itself — the back
 	"The image is anchored at its CENTRE and keeps the source's aspect ratio (set width; height follows) — e.g. for a thin divider line use a wide-and-short source PNG. " +
 	"Uses: dividers/separators, a custom shape or icon the form catalogue does not cover, an embedded picture or logo on a graph."
 
+// geoPositionDesc / geoNameDesc document the actor geolocation fields. The
+// backend stores the position as a PostGIS point and validates coordinates:
+// latitude is hard-bounded, longitude wraps cyclically, and excess precision
+// is rounded (not rejected).
+const geoPositionDesc = "Actor geolocation as an object {\"lat\": <number>, \"lon\": <number>} in WGS84 decimal degrees " +
+	"(e.g. {\"lat\": 44.7866, \"lon\": 20.4489}). Latitude is hard-bounded to -90..90 (out of range is rejected); " +
+	"longitude outside ±180 wraps cyclically (e.g. 200 → -160); both are rounded to 6 decimals. " +
+	"Pass null to clear the position. lat and lon are set together — a partial object is invalid."
+
+const geoNameDesc = "Optional human-readable location name for the actor (e.g. \"Belgrade office\"), max 255 chars. " +
+	"Independent of geoPosition; pass null to clear."
+
 // actorOps — actor (graph node) CRUD. Actors are instances of a form; their
 // fields live in the free-form `data` object keyed by the form's field schema.
 var actorOps = []Operation{
@@ -97,6 +109,8 @@ var actorOps = []Operation{
 			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 			{Name: "hole", In: InBody, Type: "boolean", Desc: holeDesc},
+			{Name: "geoPosition", In: InBody, Type: "object", Desc: geoPositionDesc},
+			{Name: "geoName", In: InBody, Type: "string", Desc: geoNameDesc},
 			{Name: "contextLayerId", In: InQuery, Type: "string", Desc: "Optional layer to place the new actor on."},
 		},
 	},
@@ -138,6 +152,8 @@ var actorOps = []Operation{
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 			{Name: "hole", In: InBody, Type: "boolean", Desc: holeDesc},
 			{Name: "ref", In: InBody, Type: "string", Desc: "Set or change the actor's external reference — a stable business key, 1-255 chars, UNIQUE per form (formId). Lets you address the actor by (formId, ref) via getActorByRef instead of its UUID — the same key createActor sets, now editable after creation. Omit to leave it unchanged."},
+			{Name: "geoPosition", In: InBody, Type: "object", Desc: geoPositionDesc},
+			{Name: "geoName", In: InBody, Type: "string", Desc: geoNameDesc},
 		},
 	},
 	{
