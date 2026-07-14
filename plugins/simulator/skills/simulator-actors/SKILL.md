@@ -95,6 +95,13 @@ create/update is:
 > account-name UUID / user id) — resolve it first (e.g. `getCurrencies`,
 > `getAccountNames`, `searchActors`) rather than guessing.
 
+> **Geolocation (top-level, not `data`).** An actor carries an optional position independent
+> of its form fields: `geoPosition` — `{"lat": <number>, "lon": <number>}` in WGS84 decimal
+> degrees, or `null` to clear — and `geoName` — a location name string, or `null`. Both are set
+> on `createActor`/`updateActor`. Latitude is hard-bounded to -90..90 (out of range is rejected),
+> longitude outside ±180 wraps cyclically, and coordinates round to 6 decimals; `lat`/`lon` are
+> set as a pair.
+
 Full reference: `$CLAUDE_PLUGIN_ROOT/docs/entities/actors.md` and `…/forms.md`.
 
 ### Multiform actors (`__form__<formId>:<itemId>`)
