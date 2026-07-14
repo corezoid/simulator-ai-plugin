@@ -4,7 +4,7 @@ MCP := plugins/simulator/mcp-server
 # line, e.g. `make inspect PROFILE=prod`.
 PROFILE ?= local
 
-.PHONY: help discovery build vet lint test run-local run-prod inspect eval eval-skills eval-live
+.PHONY: help discovery build vet lint test run-local run-prod inspect eval eval-skills eval-live release
 
 help:
 	@echo "Targets:"
@@ -17,6 +17,7 @@ help:
 	@echo "  eval            Behavioural eval, dry — canned fixtures, no backend (needs ANTHROPIC_API_KEY; skips otherwise)."
 	@echo "  eval-skills     Behavioural eval, dry, with the SKILL.md files injected as the system prompt."
 	@echo "  eval-live       Behavioural eval executing tools against the backend (throwaway workspace)."
+	@echo "  release         Mint a release: promote CHANGELOG ## [Unreleased] → ## [VERSION] and bump the six manifests. Usage: make release VERSION=x.y.z"
 
 # Regenerate AI-discovery artifacts (public/) from the plugin SKILL.md files.
 discovery:
@@ -64,3 +65,11 @@ eval-skills:
 
 eval-live:
 	cd $(MCP) && go run ./cmd/evalrunner --execute
+
+# Mint a release version in one step (see scripts/release.sh). Versions are NOT
+# bumped per PR — a PR only appends a bullet under CHANGELOG's ## [Unreleased];
+# this promotes that section to ## [VERSION] and bumps the six manifests.
+# Does not commit/tag/push. Usage: make release VERSION=2.5.0
+release:
+	@test -n "$(VERSION)" || { echo "ERROR: set VERSION, e.g. make release VERSION=2.5.0" >&2; exit 1; }
+	@sh scripts/release.sh "$(VERSION)"

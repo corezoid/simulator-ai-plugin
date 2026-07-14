@@ -1,5 +1,16 @@
 # Changelog
 
+<!-- PRs: add your entry under ## [Unreleased] (### Added / Changed / Fixed).
+     Do NOT bump the version or add a dated section — that is minted at release
+     time by `make release VERSION=x.y.z`. See AGENTS.md → Versioning & releases. -->
+
+## [Unreleased]
+
+## [2.5.0] - 2026-07-14
+
+### Added
+- **Actor geolocation — `geoPosition` / `geoName` on `createActor` / `updateActor` (#74).** An actor now carries an optional real-world position independent of its form `data`: `geoPosition` — `{"lat": <number>, "lon": <number>}` in WGS84 decimal degrees, or `null` to clear — and `geoName` — a location-name string (max 255 chars), or `null`. Coordinates are validated backend-side: latitude is hard-bounded to -90..90 (out of range rejected), longitude outside ±180 wraps cyclically, and values round to 6 decimals; `lat`/`lon` are set as a pair. Documented in `/simulator-actors` and `docs/entities/actors.md`; drift snapshot and an eval scenario updated.
+
 ## [2.4.2]
 
 ### Fixed

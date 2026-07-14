@@ -47,4 +47,8 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
   orchestration and edge-placement branches are only partly covered — change it carefully and
   extend the tests when you touch those paths.
 - Keep TLS verification on by default; never log or commit tokens / `.env`.
-- Bump the plugin version in all manifests + `CHANGELOG.md` together.
+- **Don't bump the plugin version in a PR.** A PR only appends a bullet under the
+  `## [Unreleased]` section at the top of `CHANGELOG.md` (`### Added` / `Changed` / `Fixed`).
+  The version — across the six manifests plus a dated `CHANGELOG` section — is minted once at
+  release time by `make release VERSION=x.y.z`. See the "Versioning & releases" convention in
+  [`AGENTS.md`](AGENTS.md).
