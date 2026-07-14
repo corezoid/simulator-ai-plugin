@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.4.1]
+
+### Fixed
+- **`pushSmartForm` failed on Windows when creating files in a new subfolder (e.g. a new Smart Form page `pages/<id>/config`).** Phase 2 mapped the server's create response back to local paths using `filepath.Dir`, which yields backslash-separated paths on Windows and misses the slash-keyed folder map — so the push aborted with "server did not return id for created file …" even though the server had already created the folder and files (a subsequent `pullSmartForm` showed them). The response mapping now reuses `resolveParentID` (the same `ToSlash`-normalized lookup used when POSTing), keeping the key consistent across OSes. macOS/Linux behaviour is unchanged (`ToSlash` is a no-op there).
+
 ## [2.4.0]
 
 ### Added
