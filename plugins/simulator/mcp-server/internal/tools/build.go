@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/auth"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
@@ -41,8 +43,9 @@ func allOps() []Operation {
 }
 
 // BuildAll registers every curated API tool plus the auth helpers (set-environment,
-// login, set-workspace) on the MCP server. insecure is threaded through so the
-// set-environment tool's public-config probe honours the same TLS mode as the client.
+// login, logout, status, set-workspace) on the MCP server. insecure is threaded
+// through so the public-config probes (set-environment, login self-heal, status)
+// honour the same TLS mode as the client.
 func BuildAll(s *server.MCPServer, c *apiclient.Client, prof config.Profile, insecure bool) {
 	BuildUnified(s, c, true)
 	registerAuth(s, c, prof, insecure)
@@ -107,24 +110,150 @@ func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode boo
 func Count() int { return len(allOps()) }
 
 func registerAuth(s *server.MCPServer, c *apiclient.Client, prof config.Profile, insecure bool) {
+	// The auth endpoints (discovery, token exchange) must follow the same TLS
+	// mode as the API client, or a self-signed on-prem account service passes
+	// the config probe and then dies on the token POST.
+	auth.InsecureTLS = insecure
 	registerSetEnvironment(s, c, prof, insecure)
 
 	s.AddTool(
 		mcp.NewTool("login",
-			mcp.WithDescription("Authenticate to Simulator via OAuth2 PKCE (opens a browser). Saves the token to .env. Run set-environment first if you haven't chosen an environment. After login, call set-workspace to choose a workspace."),
+			mcp.WithDescription("Authenticate to Simulator via OAuth2 PKCE (opens a browser). Before opening the browser it verifies ACCOUNT_URL against the chosen gateway's public config and self-heals it if a sibling tool overwrote it (works for cloud and on-prem gateways alike). Saves the token to .env. Run set-environment first if you haven't chosen an environment. After login, call set-workspace to choose a workspace."),
 		),
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			// Prefer the account URL derived by set-environment (saved as ACCOUNT_URL)
 			// over the startup profile default, so login follows the chosen environment.
-			accountURL := firstNonEmpty(os.Getenv("ACCOUNT_URL"), prof.AccountURL)
-			creds, err := auth.PKCEFlow(accountURL, prof.OAuthClientID, nil)
+			apiBase := firstNonEmpty(c.BaseURL(), os.Getenv("SIMULATOR_API_BASE_URL"), prof.APIBaseURL)
+			envAccount := firstNonEmpty(os.Getenv("ACCOUNT_URL"), prof.AccountURL)
+			accountURL, healNote := resolveAccountURL(ctx, apiBase, envAccount, insecure)
+			// OAuth 2.1 silent renewal: a stored refresh token skips the
+			// browser round-trip. Any failure falls back to the normal flow.
+			if rt := os.Getenv("REFRESH_TOKEN"); rt != "" {
+				if creds, rerr := auth.Refresh(ctx, accountURL, prof.OAuthClientID, rt); rerr != nil {
+					log.Printf("login: silent token refresh failed: %v — falling back to browser OAuth", rerr)
+				} else if verr := validateSimToken(ctx, apiBase, creds, insecure); verr != nil {
+					// Verified live: the account service's refresh grant currently
+					// mints an account-SESSION token the papi rejects — a refreshed
+					// token is only trusted after a real authenticated call succeeds.
+					log.Printf("login: refresh grant returned a token the API does not accept (%v) — falling back to browser OAuth", verr)
+					if creds.RefreshToken != "" {
+						// The AS rotated the refresh token on use — keep the
+						// newest one even though this access token was rejected,
+						// or a rotating AS would burn the stored token.
+						_ = auth.SaveRefreshToken(creds.RefreshToken)
+					} else {
+						// No rotation and the minted token is unusable — drop the
+						// stored one so future logins skip these round-trips (a
+						// browser login stores a fresh refresh token anyway).
+						_ = auth.DeleteRefreshToken()
+					}
+				} else {
+					if err := auth.Save(creds); err != nil {
+						return mcp.NewToolResultError(strings.TrimSpace(healNote + "\n" + fmt.Sprintf("[Error] authenticated, but failed to save the token to %s: %v — fix the file permissions and re-run login.", auth.EnvPath(), err))), nil
+					}
+					msg := "Authenticated: access token renewed silently via the stored refresh token — no browser login was needed. Next: call getWorkspaces to list your workspaces, show them to the user to pick one, then call set-workspace (by accId or name)."
+					if healNote != "" {
+						msg = healNote + "\n\n" + msg
+					}
+					return mcp.NewToolResultText(msg), nil
+				}
+			}
+			creds, authURL, err := auth.PKCEFlow(ctx, accountURL, prof.OAuthClientID, nil)
 			if err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("[Error] OAuth2 login failed: %v", err)), nil
+				return mcp.NewToolResultError(loginFailureMsg(err, authURL, accountURL, apiBase, healNote)), nil
 			}
 			if err := auth.Save(creds); err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to save token: %v", err)), nil
+				return mcp.NewToolResultError(strings.TrimSpace(healNote + "\n" + fmt.Sprintf("[Error] authenticated, but failed to save the token to %s: %v — fix the file permissions and re-run login.", auth.EnvPath(), err))), nil
 			}
-			return mcp.NewToolResultText("Authenticated. Token saved to .env. Next: call getWorkspaces to list your workspaces, show them to the user to pick one, then call set-workspace (by accId or name)."), nil
+			msg := "Authenticated. Token saved to .env. Next: call getWorkspaces to list your workspaces, show them to the user to pick one, then call set-workspace (by accId or name)."
+			if healNote != "" {
+				msg = healNote + "\n\n" + msg
+			}
+			return mcp.NewToolResultText(msg), nil
+		},
+	)
+
+	s.AddTool(
+		mcp.NewTool("logout",
+			mcp.WithDescription("Remove the saved token (ACCESS_TOKEN) from .env and from this process. The removed lines are first backed up to .env.bak. ⚠️ The .env file can be shared with sibling plugins (e.g. corezoid) — if they use the same token, they are logged out too."),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			creds, _ := auth.Load()
+			if creds == nil && os.Getenv("REFRESH_TOKEN") == "" {
+				return mcp.NewToolResultText(fmt.Sprintf("No token found — nothing to log out (%s has no ACCESS_TOKEN or REFRESH_TOKEN).", auth.EnvPath())), nil
+			}
+			// Back up BEFORE removing: the .env is shared with sibling plugins, so an
+			// accidental logout must stay recoverable by hand. Backup failure aborts.
+			bak, bakErr := auth.BackupToken()
+			if bakErr != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("[Error] could not back up the token before removal (%v) — nothing was changed. Fix the problem (is %s.bak writable?) or remove the ACCESS_TOKEN line from .env manually.", bakErr, auth.EnvPath())), nil
+			}
+			if err := auth.Delete(); err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to remove the token from %s: %v — the token may still be present there; remove the ACCESS_TOKEN line manually.", auth.EnvPath(), err)), nil
+			}
+			engines.ResetAuth()
+			msg := "Logged out: ACCESS_TOKEN removed from .env and from this process."
+			if bak != "" {
+				msg += "\nBackup of the removed lines: " + bak
+			}
+			msg += "\n⚠️ If the corezoid plugin was sharing this token, it is logged out too. Re-run login to authenticate again."
+			return mcp.NewToolResultText(msg), nil
+		},
+	)
+
+	s.AddTool(
+		mcp.NewTool("status",
+			mcp.WithDescription("Self-diagnosis: show the current environment (API gateway, OAuth account URL, workspace) and token state, with no side effects. Pass probe=true to also verify ACCOUNT_URL against the gateway's public config (one unauthenticated request; works for cloud and on-prem). Run this first when login or any tool misbehaves."),
+			mcp.WithBoolean("probe", mcp.Description("Also fetch the gateway's public config and check ACCOUNT_URL against its declared account service (saUrl).")),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			apiBase := firstNonEmpty(c.BaseURL(), os.Getenv("SIMULATOR_API_BASE_URL"), prof.APIBaseURL)
+			envAccount := firstNonEmpty(os.Getenv("ACCOUNT_URL"), prof.AccountURL)
+			ws := firstNonEmpty(c.WorkspaceID(), os.Getenv("WORKSPACE_ID"))
+
+			tokenLine := "absent — run login"
+			if creds, _ := auth.Load(); creds != nil {
+				switch {
+				case auth.IsExpired(creds):
+					tokenLine = fmt.Sprintf("EXPIRED %s — re-run login", creds.ExpiresAt.UTC().Format("2006-01-02 15:04"))
+				case creds.ExpiresAt.IsZero():
+					tokenLine = "present (no expiry recorded)"
+				default:
+					tokenLine = "present, valid until " + creds.ExpiresAt.UTC().Format("2006-01-02 15:04")
+				}
+			}
+			accLine := envAccount
+			if envAccount == "" {
+				accLine = "(not set — login will derive it from the gateway config)"
+			}
+			wsLine := ws
+			if ws == "" {
+				wsLine = "(not set — run set-workspace after login)"
+			}
+
+			var sb strings.Builder
+			fmt.Fprintf(&sb, "simulator-mcp status (profile: %s)\n", prof.Name)
+			fmt.Fprintf(&sb, "  API gateway: %s\n", apiBase)
+			fmt.Fprintf(&sb, "  ACCOUNT_URL: %s\n", accLine)
+			fmt.Fprintf(&sb, "  workspace:   %s\n", wsLine)
+			fmt.Fprintf(&sb, "  token:       %s\n", tokenLine)
+			fmt.Fprintf(&sb, "  .env:        %s\n", auth.EnvPath())
+
+			if probeRequested(req.GetArguments()) {
+				saURL, err := apiclient.FetchPublicConfig(ctx, apiBase, insecure)
+				switch {
+				case err != nil:
+					fmt.Fprintf(&sb, "probe: FAILED — the gateway config at %s is unreachable: %v. Check the network / the gateway URL; run set-environment to pick a reachable one.\n", apiBase, err)
+				case envAccount == "":
+					fmt.Fprintf(&sb, "probe: NOT SET — the gateway declares its account service at %s; login will adopt and save it automatically.\n", saURL)
+				case !sameBaseURL(saURL, envAccount):
+					fmt.Fprintf(&sb, "probe: MISMATCH — the gateway declares its account service at %s but ACCOUNT_URL is %s (a sibling tool sharing .env may have overwritten it). login will self-heal this automatically; set-environment also fixes it.\n", saURL, envAccount)
+				default:
+					fmt.Fprintf(&sb, "probe: OK — ACCOUNT_URL matches the account service declared by the gateway.\n")
+				}
+			}
+			sb.WriteString("If OTHER sessions report \"No such tool available\" for simulator tools, this server was restarted after they connected — those sessions must be RESTARTED (a plain reconnect may not be enough).")
+			return mcp.NewToolResultText(sb.String()), nil
 		},
 	)
 
@@ -233,6 +362,97 @@ func registerSetEnvironment(s *server.MCPServer, c *apiclient.Client, prof confi
 			return mcp.NewToolResultText(msg), nil
 		},
 	)
+}
+
+// resolveAccountURL self-diagnoses the OAuth account URL before login opens a
+// browser. The ACCOUNT_URL key in .env is shared with sibling plugins (corezoid)
+// and can be overwritten with a host that serves no OAuth endpoints (e.g. the
+// admin UI) — the browser then opens a dashboard and login dies silently. The
+// source of truth for ANY environment, cloud or on-prem, is what the chosen
+// gateway itself declares in its public config (saUrl), so we ask the gateway
+// and self-heal .env when they disagree. The second return value is a note for
+// the user describing what was found and what was done ("" when all is well).
+func resolveAccountURL(ctx context.Context, apiBase, envAccount string, insecure bool) (string, string) {
+	saURL, err := apiclient.FetchPublicConfig(ctx, apiBase, insecure)
+	if err != nil || saURL == "" {
+		if envAccount == "" {
+			return "", fmt.Sprintf("⚠️ ACCOUNT_URL is not set and the gateway config at %s is unreachable (%v) — falling back to the default account service. If login fails, run set-environment to pick a reachable gateway.", apiBase, err)
+		}
+		return envAccount, fmt.Sprintf("⚠️ Could not verify ACCOUNT_URL against the gateway config at %s (%v) — proceeding with %s as-is.", apiBase, err, envAccount)
+	}
+	if sameBaseURL(saURL, envAccount) {
+		return envAccount, ""
+	}
+	note := fmt.Sprintf("🔧 Self-healed ACCOUNT_URL: .env had %q, but the gateway %s declares its account service at %s (a sibling tool sharing .env may have overwritten it). Using %s.", envAccount, apiBase, saURL, saURL)
+	if envAccount == "" {
+		note = fmt.Sprintf("ACCOUNT_URL was not set — derived %s from the gateway config at %s.", saURL, apiBase)
+	}
+	if err := auth.SaveAccountURL(saURL); err != nil {
+		note += fmt.Sprintf(" ⚠️ Could not persist it to .env (%v) — it will be re-derived on the next login.", err)
+	} else {
+		note += " Saved to .env."
+	}
+	return saURL, note
+}
+
+// validateSimToken makes one authenticated papi call (GET /workspaces) with
+// the candidate token, so a refresh-minted token is proven to work before it
+// replaces the stored one.
+func validateSimToken(ctx context.Context, apiBase string, creds *auth.Credentials, insecure bool) error {
+	u := strings.TrimRight(apiBase, "/") + "/workspaces"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", creds.AuthorizationHeader())
+	resp, err := auth.NewHTTPClient(insecure, 15*time.Second).Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("papi answered %d to an authenticated call", resp.StatusCode)
+	}
+	return nil
+}
+
+// sameBaseURL compares two service URLs ignoring a trailing slash and case.
+func sameBaseURL(a, b string) bool {
+	return strings.EqualFold(strings.TrimRight(a, "/"), strings.TrimRight(b, "/"))
+}
+
+// loginFailureMsg turns an OAuth failure into a self-diagnosis: what failed,
+// the authorization URL for a manual retry, and the concrete next steps.
+func loginFailureMsg(err error, authURL, accountURL, apiBase, healNote string) string {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "[Error] OAuth2 login failed: %v\n", err)
+	if healNote != "" {
+		sb.WriteString(healNote + "\n")
+	}
+	sb.WriteString("\nWhat to check / how to fix:\n")
+	step := 1
+	if authURL != "" {
+		fmt.Fprintf(&sb, "%d. This consent URL was used (its callback listener is closed now — verify the host looks right, then RE-RUN login rather than opening it):\n   %s\n", step, authURL)
+		step++
+	}
+	fmt.Fprintf(&sb, "%d. Verify the environment: API gateway %s, OAuth account service %s. If either looks wrong, run set-environment (preset or url — on-prem servers included): it re-derives the account URL from the gateway itself.\n", step, apiBase, accountURL)
+	step++
+	fmt.Fprintf(&sb, "%d. If the page showed a dashboard instead of a consent screen, ACCOUNT_URL pointed at the wrong host — set-environment fixes that.\n", step)
+	step++
+	fmt.Fprintf(&sb, "%d. If it timed out, re-run login and complete the browser consent within 5 minutes.", step)
+	return sb.String()
+}
+
+// probeRequested reads the status tool's probe argument, accepting a real
+// boolean or the strings "true"/"1" (CLI-style leniency).
+func probeRequested(args map[string]any) bool {
+	if b, ok := args["probe"].(bool); ok {
+		return b
+	}
+	if ps, ok := args["probe"].(string); ok {
+		return strings.EqualFold(ps, "true") || ps == "1"
+	}
+	return false
 }
 
 // presetNames returns the comma-separated list of preset selectors.

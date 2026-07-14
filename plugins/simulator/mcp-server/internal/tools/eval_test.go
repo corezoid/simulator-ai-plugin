@@ -31,7 +31,7 @@ type argCheck struct {
 // API operations + the engine tools + the auth helpers. Engine/auth names are
 // listed explicitly because they are registered outside allOps().
 func knownToolNames() map[string]bool {
-	m := map[string]bool{"login": true, "set-workspace": true}
+	m := map[string]bool{"login": true, "logout": true, "status": true, "set-workspace": true}
 	for _, op := range allOps() {
 		m[op.Name] = true
 	}

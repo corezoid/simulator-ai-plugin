@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.4.3]
+
+### Added
+- `logout` tool: removes `ACCESS_TOKEN` from `.env` (with a `.env.bak` backup first) and warns that the file may be shared with sibling plugins
+- `status` tool: self-diagnosis — environment, token state, `.env` path; `probe=true` verifies `ACCOUNT_URL` against the gateway's public config (cloud and on-prem)
+
+### Changed
+- OAuth hardening per OAuth 2.1 / RFC 8414 / RFC 8252: endpoints resolved from the account service's `/.well-known/oauth-authorization-server` metadata (fallback to the conventional paths for older on-prem installs); silent token renewal via the `refresh_token` grant before any browser round-trip — the refreshed token is trusted only after one authenticated papi call succeeds, otherwise the flow falls back to the browser (the refresh token is stored in `.env`, removed by `logout` and included in its backup); token-endpoint responses are never echoed into error messages (only field names); `ACCOUNT_URL` scheme validation (https, or http for localhost only) before the browser opens; standard `access_token` accepted alongside `simulator_token`; the token request is bounded by a timeout
+- `login` self-heals a wrong `ACCOUNT_URL` before opening the browser: it asks the chosen gateway's public config for the real account service (`saUrl`) and corrects `.env` when they disagree, reporting what was fixed
+- OAuth login failures now explain what to check and how to fix it, and show which consent URL was used (diagnosis — the flow must be re-run, its callback listener is closed by then); the wait and the token exchange honour client cancellation instead of blocking for the full timeout
+
 ## [2.4.2]
 
 ### Fixed

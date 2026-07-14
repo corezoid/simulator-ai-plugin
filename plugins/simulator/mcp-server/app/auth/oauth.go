@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 )
@@ -26,12 +28,45 @@ const (
 	DefaultClientID = "5ec679f5a2710f0da6000005"
 )
 
+// InsecureTLS mirrors the server's --insecure mode for the auth endpoints
+// (discovery + token exchange). Set once at startup; without it a self-signed
+// on-prem account service passes config probes but dies on the token POST.
+var InsecureTLS bool
+
+// NewHTTPClient returns an HTTP client whose transport honours the insecure
+// (skip-TLS-verify) flag. It is the single place --insecure transport behaviour
+// lives, shared by the OAuth endpoints and the papi token probe in package
+// tools; change proxy/retry/cipher policy here and both callers follow.
+func NewHTTPClient(insecure bool, timeout time.Duration) *http.Client {
+	tr := &http.Transport{}
+	if insecure {
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402 — opt-in via --insecure
+	}
+	return &http.Client{Timeout: timeout, Transport: tr}
+}
+
+// authHTTPClient returns a client honouring the package-level InsecureTLS flag.
+func authHTTPClient(timeout time.Duration) *http.Client {
+	return NewHTTPClient(InsecureTLS, timeout)
+}
+
 // PKCEFlow runs the full OAuth2 PKCE authorization code flow.
 // It starts a local HTTP server to receive the callback, opens the user's browser,
 // waits for the authorization code, exchanges it for tokens, and returns Credentials.
 // accountURL defaults to DefaultAccountURL if empty (also checks ACCOUNT_URL env var).
 // clientID defaults to DefaultClientID if empty.
-func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error) {
+//
+// The authorization URL is returned alongside the credentials (also on failure,
+// once it has been built) so callers can show WHICH consent URL was used —
+// useful to diagnose a wrong account host. Note it cannot complete a login
+// after the flow has failed: the loopback listener is already closed by then,
+// so callers must tell the user to re-run login, not to open the URL for a
+// retry. The wait for the browser callback honours ctx: cancelling the tool
+// call stops the flow instead of leaving it blocked for the full timeout.
+func PKCEFlow(ctx context.Context, accountURL, clientID string, scopes []string) (*Credentials, string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if accountURL == "" {
 		accountURL = os.Getenv("ACCOUNT_URL")
 	}
@@ -39,18 +74,20 @@ func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error
 		accountURL = DefaultAccountURL
 	}
 	accountURL = strings.TrimRight(accountURL, "/")
+	if err := validateAccountURLScheme(accountURL); err != nil {
+		return nil, "", err
+	}
 
 	if clientID == "" {
 		clientID = DefaultClientID
 	}
 
-	authorizeURL := accountURL + "/oauth2/authorize"
-	tokenURL := accountURL + "/oauth2/token"
+	authorizeURL, tokenURL := discoverOAuthEndpoints(ctx, accountURL)
 
 	// Generate PKCE code verifier (random 32 bytes → base64url, no padding)
 	verifierBytes := make([]byte, 32)
 	if _, err := rand.Read(verifierBytes); err != nil {
-		return nil, fmt.Errorf("failed to generate PKCE verifier: %w", err)
+		return nil, "", fmt.Errorf("failed to generate PKCE verifier: %w", err)
 	}
 	codeVerifier := base64.RawURLEncoding.EncodeToString(verifierBytes)
 
@@ -63,14 +100,14 @@ func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error
 	// code injection). We reject any callback whose state does not match.
 	stateBytes := make([]byte, 32)
 	if _, err := rand.Read(stateBytes); err != nil {
-		return nil, fmt.Errorf("failed to generate OAuth state: %w", err)
+		return nil, "", fmt.Errorf("failed to generate OAuth state: %w", err)
 	}
 	state := base64.RawURLEncoding.EncodeToString(stateBytes)
 
 	// Pick a random available port for the redirect server
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
-		return nil, fmt.Errorf("failed to start callback listener: %w", err)
+		return nil, "", fmt.Errorf("failed to start callback listener: %w", err)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
 	redirectURI := fmt.Sprintf("http://localhost:%d/callback", port)
@@ -142,25 +179,29 @@ func PKCEFlow(accountURL, clientID string, scopes []string) (*Credentials, error
 	}()
 
 	log.Printf("Opening browser for Simulator authorization...\nIf it did not open automatically, visit:\n  %s\n", authURL)
-	_ = openBrowser(authURL)
+	_ = openBrowserFn(authURL)
 
 	var code string
 	select {
 	case code = <-codeCh:
 	case oauthErr := <-errCh:
 		_ = srv.Shutdown(context.Background())
-		return nil, oauthErr
+		return nil, authURL, oauthErr
+	case <-ctx.Done():
+		_ = srv.Shutdown(context.Background())
+		return nil, authURL, fmt.Errorf("authentication wait cancelled by the client: %w", ctx.Err())
 	case <-time.After(5 * time.Minute):
 		_ = srv.Shutdown(context.Background())
-		return nil, fmt.Errorf("timed out waiting for OAuth callback (5 minutes)")
+		return nil, authURL, fmt.Errorf("timed out waiting for OAuth callback (5 minutes) — the consent in the browser was never completed")
 	}
 	_ = srv.Shutdown(context.Background())
 
-	return exchangeCode(tokenURL, clientID, code, codeVerifier, redirectURI)
+	creds, err := exchangeCode(ctx, tokenURL, clientID, code, codeVerifier, redirectURI)
+	return creds, authURL, err
 }
 
 // exchangeCode exchanges an authorization code for access and refresh tokens.
-func exchangeCode(tokenURL, clientID, code, codeVerifier, redirectURI string) (*Credentials, error) {
+func exchangeCode(ctx context.Context, tokenURL, clientID, code, codeVerifier, redirectURI string) (*Credentials, error) {
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("client_id", clientID)
@@ -168,18 +209,130 @@ func exchangeCode(tokenURL, clientID, code, codeVerifier, redirectURI string) (*
 	data.Set("code_verifier", codeVerifier)
 	data.Set("redirect_uri", redirectURI)
 
-	return postTokenRequest(tokenURL, data)
+	return postTokenRequest(ctx, tokenURL, data)
+}
+
+// Refresh exchanges a refresh token for a fresh access token
+// (grant_type=refresh_token) — the OAuth 2.1 silent-renewal path, so an
+// expired session does not force a browser round-trip. The account service
+// may rotate the refresh token; the new one is returned in the credentials.
+func Refresh(ctx context.Context, accountURL, clientID, refreshToken string) (*Credentials, error) {
+	accountURL = strings.TrimRight(accountURL, "/")
+	if accountURL == "" {
+		accountURL = DefaultAccountURL
+	}
+	if err := validateAccountURLScheme(accountURL); err != nil {
+		return nil, err
+	}
+	if clientID == "" {
+		clientID = DefaultClientID
+	}
+	_, tokenURL := discoverOAuthEndpoints(ctx, accountURL)
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("client_id", clientID)
+	data.Set("refresh_token", refreshToken)
+	return postTokenRequest(ctx, tokenURL, data)
+}
+
+// validateAccountURLScheme enforces the OAuth 2.1 rule that authorization
+// server endpoints are HTTPS; plain http is allowed only for loopback hosts
+// (local/on-prem development). Catching this before the browser opens turns a
+// confusing consent-page failure into an actionable message.
+func validateAccountURLScheme(accountURL string) error {
+	u, err := url.Parse(accountURL)
+	if err != nil {
+		return fmt.Errorf("ACCOUNT_URL %q is not a valid URL: %w", accountURL, err)
+	}
+	switch u.Scheme {
+	case "https":
+		return nil
+	case "http":
+		h := u.Hostname()
+		if h == "localhost" || h == "127.0.0.1" || h == "::1" {
+			return nil
+		}
+		return fmt.Errorf("ACCOUNT_URL %q uses plain http to a non-local host — the OAuth flow would send secrets unencrypted; use https", accountURL)
+	default:
+		return fmt.Errorf("ACCOUNT_URL %q must start with https:// (or http:// for localhost only)", accountURL)
+	}
+}
+
+// discoverOAuthEndpoints resolves the authorization and token endpoints via
+// RFC 8414 metadata ({accountURL}/.well-known/oauth-authorization-server) and
+// falls back to the conventional /oauth2/authorize + /oauth2/token paths when
+// the metadata is unavailable (older on-prem account services).
+func discoverOAuthEndpoints(ctx context.Context, accountURL string) (authorizeURL, tokenURL string) {
+	authorizeURL = accountURL + "/oauth2/authorize"
+	tokenURL = accountURL + "/oauth2/token"
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	mdCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(mdCtx, http.MethodGet, accountURL+"/.well-known/oauth-authorization-server", nil)
+	if err != nil {
+		return authorizeURL, tokenURL
+	}
+	resp, err := authHTTPClient(5 * time.Second).Do(req)
+	if err != nil {
+		log.Printf("oauth discovery: metadata fetch failed (%v) — using conventional endpoints", err)
+		return authorizeURL, tokenURL
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return authorizeURL, tokenURL
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return authorizeURL, tokenURL
+	}
+	var meta struct {
+		AuthorizationEndpoint string `json:"authorization_endpoint"`
+		TokenEndpoint         string `json:"token_endpoint"`
+	}
+	if err := json.Unmarshal(body, &meta); err != nil || meta.AuthorizationEndpoint == "" || meta.TokenEndpoint == "" {
+		return authorizeURL, tokenURL
+	}
+	if validateAccountURLScheme(meta.AuthorizationEndpoint) != nil || validateAccountURLScheme(meta.TokenEndpoint) != nil {
+		log.Printf("oauth discovery: metadata endpoints have an unacceptable scheme — using conventional endpoints")
+		return authorizeURL, tokenURL
+	}
+	return meta.AuthorizationEndpoint, meta.TokenEndpoint
 }
 
 // tokenResponse is the raw JSON response from the Simulator token endpoint.
+// The service returns the JWT as simulator_token; the standard access_token
+// field (RFC 6749 §5.1) is accepted as a fallback for standards-shaped
+// responses. refresh_token, when present, enables silent renewal.
 type tokenResponse struct {
-	SimulatorToken string `json:"simulator_token"` // JWT — the actual MCP auth token
-	Error          string `json:"error"`
-	ErrorDesc      string `json:"error_description"`
+	SimulatorToken string `json:"simulator_token"`
+	AccessToken    string `json:"access_token"`
+	RefreshToken   string `json:"refresh_token"`
+	// The refresh grant answers with its own field names (verified live).
+	NewAccessToken       string  `json:"new_access_token"`
+	NewAccessTokenExpire float64 `json:"new_access_token_expire"`
+	Error                string  `json:"error"`
+	ErrorDesc            string  `json:"error_description"`
+	// The account service reports failures in its own envelope
+	// ({"result":"error","message":"..."}) rather than the RFC 6749 shape.
+	Result  string `json:"result"`
+	Message string `json:"message"`
 }
 
-func postTokenRequest(tokenURL string, data url.Values) (*Credentials, error) {
-	resp, err := http.PostForm(tokenURL, data)
+func postTokenRequest(ctx context.Context, tokenURL string, data url.Values) (*Credentials, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// A bounded, ctx-aware client honouring the --insecure TLS mode: the
+	// default http.Client has no timeout and a stuck token endpoint would
+	// hang the login tool call forever.
+	resp, err := authHTTPClient(60 * time.Second).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("token request failed: %w", err)
 	}
@@ -198,22 +351,46 @@ func postTokenRequest(tokenURL string, data url.Values) (*Credentials, error) {
 	if tr.Error != "" {
 		return nil, fmt.Errorf("token error: %s – %s", tr.Error, tr.ErrorDesc)
 	}
-	if tr.SimulatorToken == "" {
-		return nil, fmt.Errorf("no simulator_token in response: %s", string(body))
+	if tr.Result == "error" {
+		return nil, fmt.Errorf("token error: %s", tr.Message)
+	}
+	token := tr.SimulatorToken
+	if token == "" {
+		token = tr.AccessToken
+	}
+	if token == "" {
+		token = tr.NewAccessToken
+	}
+	if token == "" {
+		// Do NOT include the body: a response we merely failed to recognize
+		// may still carry a live token, and error strings end up in logs.
+		var fields map[string]any
+		_ = json.Unmarshal(body, &fields)
+		keys := make([]string, 0, len(fields))
+		for k := range fields {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		return nil, fmt.Errorf("no simulator_token in response (fields: %s)", strings.Join(keys, ", "))
 	}
 
 	// If the token carries no usable exp claim, fall back to a conservative
 	// window rather than "never expires" (see jwtExpiry / IsExpired): that way
 	// a malformed/exp-less token is re-validated periodically instead of being
 	// trusted forever.
-	expiry := jwtExpiry(tr.SimulatorToken)
+	expiry := jwtExpiry(token)
+	if expiry.IsZero() && tr.NewAccessTokenExpire > 0 {
+		// Opaque (non-JWT) tokens carry their expiry as a unix-seconds field.
+		expiry = time.Unix(int64(tr.NewAccessTokenExpire), 0)
+	}
 	if expiry.IsZero() {
 		expiry = time.Now().Add(12 * time.Hour)
 	}
 	creds := &Credentials{
-		AccessToken: tr.SimulatorToken,
-		TokenType:   "Simulator",
-		ExpiresAt:   expiry,
+		AccessToken:  token,
+		RefreshToken: tr.RefreshToken,
+		TokenType:    "Simulator",
+		ExpiresAt:    expiry,
 	}
 	return creds, nil
 }
@@ -307,6 +484,9 @@ func oauthPageHTML(title, kind, heading, detail, action string) string {
 		"</body>\n" +
 		"</html>"
 }
+
+// openBrowserFn is a seam so tests can intercept the browser launch.
+var openBrowserFn = openBrowser
 
 // openBrowser opens the given URL in the default system browser (macOS / Linux / Windows).
 func openBrowser(u string) error {
