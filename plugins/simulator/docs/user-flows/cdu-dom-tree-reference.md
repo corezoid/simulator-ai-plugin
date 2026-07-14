@@ -446,6 +446,9 @@ Nesting depth → `data-depth` + the `--depth` CSS variable. Active path → `.a
 ```
 > Render path is chosen by mime `value.type`: images → `.file__item__ img`; PDFs/docs →
 > `.pg-viewer`/`.pdf-viewer`. Needs a complete File `value` (see §9).
+> **`align` works from config on a *standalone* `file`/`image`** — `align:"center"|"right"` puts a
+> `.center__`/`.right__` modifier on the root (default `.left__`), no CSS needed. A **`file` cell inside
+> a table has no `align`** field, so it stays `left__` and can only be re-aligned via CSS.
 
 ### upload (default / webcam)
 ```
@@ -532,6 +535,19 @@ Common wrapper (all `type`):
 - Group title row:
   `<tr.table__row__group__…> <th scope=rowgroup colspan=N .sticky-left-content.sticky-left-content__…> <div> → group.title`
 - Then the usual `<tr.table-row.table__row__…>` rows of that group.
+- **Numbered pagination** (`extra.page`/`extra.totalPages`) renders as a **separate block, sibling of
+  `[class*="table__wrap"]`** inside the table root (not part of `<table>`), and defaults to
+  `position:absolute`:
+  ```
+  #<id> .table.table__group …
+  ├ [class*="table__wrap"] > <table> …                         ← the rows
+  └ [class*="table__pagination"]                               ← the pager (sibling, position:absolute)
+    ├ [class*="table__pagination__button"] #<id>-first / -prev / -next / -last   (icon-only, g-secondary g-small)
+    └ [class*="table__pagination__current"]                    → current page number
+  ```
+  The `-next`/`-last` buttons reuse the `-prev`/`-first` arrow with `[class*="rotate__"]`. Because the
+  pager is `position:absolute` and `[class*="table__wrap"]` carries a default `max-height`, laying the
+  pager under a re-flowed table needs a CSS re-place (recipe in the `simulator-styles` skill).
 
 ### type=default — cell mini-components
 Each cell renders inside `<td.table-cell [+ cell.styleClass] [.sticky-col]>`; the cell type
@@ -561,6 +577,11 @@ decides its contents:
 → 33% / 67%). The reliable group hook is `.row__<rowName>` (flex container); items via
 `[class*="row__item"]` (note: the item wrapper has **only** the hashed `.row__item__…` class — there is
 no stable bare `.row__item` class, so use the substring selector).
+- **Multi-token `row`** — the `row` value is space-separated: the first token is the row id (→
+  `.row__<id>`), and every **extra token is emitted as a literal class** on the row wrapper. So
+  `row:"1 my_row"` → `<div class="row row__1 my_row row__hash">…`; `.my_row` is a stable, author-chosen
+  hook (usable across rows). This is the only way to put your own class on a row — a `styleClass` on a
+  `row` is dropped.
 
 ### sortable section + contentLoop
 ```
