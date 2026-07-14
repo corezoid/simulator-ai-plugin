@@ -109,13 +109,23 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   `develop` (or a `release/*` / `hotfix/*` branch). Never open a feature/fix PR against
   `main` — a CI guard (`.github/workflows/guard-base-branch.yml`) rejects any PR into `main`
   whose head isn't `develop`, `release/*`, or `hotfix/*`.
-- **Versioning.** The plugin version appears in **six** files — keep them in lockstep:
-  `plugins/simulator/.claude-plugin/plugin.json`,
-  `plugins/simulator/.codex-plugin/plugin.json`,
-  `plugins/simulator/.kiro-plugin/plugin.json`,
-  `.claude-plugin/marketplace.json`,
-  `.agents/plugins/marketplace.json`,
-  `POWER.md` (frontmatter), plus the top-of-file entry in `CHANGELOG.md`.
+- **Versioning & releases.** The version is minted at **release time**, not per PR — many PRs
+  land on `develop` during the week, so a per-PR bump just makes contributors collide on the
+  same number.
+  - **In a PR:** do **not** touch the version. Append a one-line entry under the
+    `## [Unreleased]` section at the top of `CHANGELOG.md` (under `### Added` / `### Changed` /
+    `### Fixed`). Appending a bullet avoids the merge conflicts a version bump causes.
+  - **At release (promoting `develop` → `main`):** run `make release VERSION=x.y.z`. It rewrites
+    `## [Unreleased]` into a dated `## [x.y.z]` section (and starts a fresh empty `Unreleased`),
+    then bumps the version in lockstep across the **six** files that carry it:
+    `plugins/simulator/.claude-plugin/plugin.json`,
+    `plugins/simulator/.codex-plugin/plugin.json`,
+    `plugins/simulator/.kiro-plugin/plugin.json`,
+    `.claude-plugin/marketplace.json`,
+    `.agents/plugins/marketplace.json`,
+    `POWER.md` (frontmatter). The script does not commit/tag/push — review the diff, commit,
+    merge to `main`, then tag `vx.y.z`. The `Release` workflow reads the `## [x.y.z]` CHANGELOG
+    section for the GitHub release notes, so the section must exist before the tag.
 - **Linter.** `make lint` runs golangci-lint v2 (config `plugins/simulator/mcp-server/.golangci.yml`,
   shared with sibling Go services). `gosec` is clean (real findings fixed; trusted-input taint
   false positives are documented in the `gosec.excludes` list). The broader `default: all` set

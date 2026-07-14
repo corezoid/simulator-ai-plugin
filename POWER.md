@@ -1,7 +1,7 @@
 ---
 name: simulator
 displayName: Simulator.Company
-version: 2.4.2
+version: 2.5.0
 description: BPM, graph, and financial-tracking toolkit for the Simulator.Company platform. Exposes the Simulator REST API as MCP tools plus 16 skills covering actors, forms, graphs, layers, accounts, transactions, transfers, charts, smart forms, meetings, reactions, and attachments.
 author:
   name: Simulator.Company
