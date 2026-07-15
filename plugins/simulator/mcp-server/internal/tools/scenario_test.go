@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -389,5 +390,52 @@ func TestQueryParam(t *testing.T) {
 	}
 	if rec.query != "limit=5" {
 		t.Errorf("query = %q, want limit=5", rec.query)
+	}
+}
+
+// TestGetAccountsDefaultsLimitTo100 verifies getAccounts requests limit=100
+// (the backend max) when the caller does not page explicitly: the backend's
+// own default page is ~30 with no has-more marker, so accounts created last
+// silently fell off the first page. An explicit limit is passed through.
+func TestGetAccountsDefaultsLimitTo100(t *testing.T) {
+	c, rec := setup(t)
+	call(t, c, opByName(t, "getAccounts"), map[string]any{
+		"actorId": "00000000-0000-4000-8000-0000000a0001",
+	})
+	if rec.query != "limit=100" {
+		t.Errorf("query = %q, want limit=100 (default page must be the backend max)", rec.query)
+	}
+
+	c2, rec2 := setup(t)
+	call(t, c2, opByName(t, "getAccounts"), map[string]any{
+		"actorId": "00000000-0000-4000-8000-0000000a0001",
+		"limit":   float64(10),
+	})
+	if rec2.query != "limit=10" {
+		t.Errorf("query = %q, want limit=10 (explicit paging untouched)", rec2.query)
+	}
+}
+
+// TestGetActorRejectsTruncatedUUID verifies a malformed/truncated actorId fails
+// fast with an explanation instead of reaching the backend, which answers a
+// misleading 403 Access Denied for any non-UUID id.
+func TestGetActorRejectsTruncatedUUID(t *testing.T) {
+	c, _ := setup(t)
+	res := call(t, c, opByName(t, "getActor"), map[string]any{"actorId": "6bf39ec9"})
+	if !res.IsError {
+		t.Fatal("expected an error for a truncated actorId, got success")
+	}
+	text := fmt.Sprintf("%+v", res.Content)
+	if !strings.Contains(text, "not a full actor UUID") {
+		t.Errorf("error must explain the UUID format problem, got: %s", text)
+	}
+
+	c2, rec2 := setup(t)
+	res2 := call(t, c2, opByName(t, "getActor"), map[string]any{"actorId": "00000000-0000-4000-8000-0000000a0001"})
+	if res2.IsError {
+		t.Fatalf("full UUID must pass validation, got: %+v", res2.Content)
+	}
+	if rec2.path != "/actors/00000000-0000-4000-8000-0000000a0001" {
+		t.Errorf("path = %q", rec2.path)
 	}
 }

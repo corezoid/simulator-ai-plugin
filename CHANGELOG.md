@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- PRs: add your entry under ## [Unreleased] (### Added / Changed / Fixed).
+     Do NOT bump the version or add a dated section — that is minted at release
+     time by `make release VERSION=x.y.z`. See AGENTS.md → Versioning & releases. -->
+
+## [Unreleased]
+
+## [2.5.0] - 2026-07-14
+
+### Added
+- **Actor geolocation — `geoPosition` / `geoName` on `createActor` / `updateActor` (#74).** An actor now carries an optional real-world position independent of its form `data`: `geoPosition` — `{"lat": <number>, "lon": <number>}` in WGS84 decimal degrees, or `null` to clear — and `geoName` — a location-name string (max 255 chars), or `null`. Coordinates are validated backend-side: latitude is hard-bounded to -90..90 (out of range rejected), longitude outside ±180 wraps cyclically, and values round to 6 decimals; `lat`/`lon` are set as a pair. Documented in `/simulator-actors` and `docs/entities/actors.md`; drift snapshot and an eval scenario updated.
+
+## [2.4.2]
+
+### Fixed
+- **Kiro MCP server path resolution in a dev checkout.** `.mcp.kiro.json`'s `${KIRO_PLUGIN_ROOT:-$PWD/.kiro/..}` fallback resolved to the repo root (not `plugins/simulator/`) when a developer opened the repo directly in Kiro without running `install-kiro.sh`, so the server tried (and failed) to run `<repo>/mcp-server/run.sh`. It now probes for `mcp-server/run.sh` at that path and falls back to `plugins/simulator/` when missing, with a final guard that prints a clear error and exits if neither candidate has it. `install-kiro.sh` also now `sed`-resolves the same fallback to the absolute plugin path (escaping `\`, `&`, and the `#` delimiter) when generating a workspace's `mcp.json`, instead of a plain copy, so an external workspace's config no longer depends on `KIRO_PLUGIN_ROOT` at all. README's Kiro install instructions updated to match.
+
+## [2.4.1]
+
+### Fixed
+- **`pushSmartForm` failed on Windows when creating files in a new subfolder (e.g. a new Smart Form page `pages/<id>/config`).** Phase 2 mapped the server's create response back to local paths using `filepath.Dir`, which yields backslash-separated paths on Windows and misses the slash-keyed folder map — so the push aborted with "server did not return id for created file …" even though the server had already created the folder and files (a subsequent `pullSmartForm` showed them). The response mapping now reuses `resolveParentID` (the same `ToSlash`-normalized lookup used when POSTing), keeping the key consistent across OSes. macOS/Linux behaviour is unchanged (`ToSlash` is a no-op there).
+
 ## [2.4.0]
 
 ### Added

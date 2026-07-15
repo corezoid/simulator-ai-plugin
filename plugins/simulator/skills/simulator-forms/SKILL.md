@@ -150,6 +150,8 @@ actor data is keyed by field **`id`**, never by the field `title` or its seconda
 | `workspaceMembers` | — | workspace members (users) | `workspaceMembers` |
 | `api` / `corezoidSyncApi` | endpoint cfg / `{convId,apiLogin,apiSecret}` | a generic / Corezoid HTTP source | (source-defined) |
 
+**Link direction** — for actor-reference fields (`layer`/`actorFilter`/`actorsBag`/`actors`/`formFilter`) picking an actor auto-creates a `hierarchy` link. Default is current-actor→referenced-actor; set `extra.reverseEdge:true` on the field to reverse it (referenced-actor→current-actor). Omit/false keeps the default.
+
 > Full reference + the matching actor-`data` value shapes:
 > `$CLAUDE_PLUGIN_ROOT/docs/entities/forms.md` and `…/docs/entities/actors.md`.
 

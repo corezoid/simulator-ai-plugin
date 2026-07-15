@@ -1,5 +1,11 @@
 package tools
 
+import (
+	"context"
+
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
+)
+
 // accountTypes are the FORM_VALUE_ACCOUNT_TYPES — the account's VALUE type:
 // fact (the actual recorded value) | plan (a planned/budget value) | min | max | avg
 // (aggregates over children). Default fact. This is NOT an accounting category
@@ -32,7 +38,10 @@ var accountOps = []Operation{
 	},
 	{
 		Name: "getAccounts", Method: "GET", Path: "/accounts/{actorId}",
-		Summary: "List the accounts on an actor with their balances. Pass `from`/`to` to get each account's turnover/balance over that period (the account's movements summed within the window) — this is the account turnover for the period. The returned `amount` is the real balance value as a decimal (e.g. 1600 = 1600 USD); the currency `precision` only controls display rounding — do NOT divide by 10^precision.",
+		Summary: "List the accounts on an actor with their balances. Pass `from`/`to` to get each account's turnover/balance over that period (the account's movements summed within the window) — this is the account turnover for the period. The returned `amount` is the real balance value as a decimal (e.g. 1600 = 1600 USD); the currency `precision` only controls display rounding — do NOT divide by 10^precision. " +
+			"PAGINATION: the backend's default page is ~30 rows and the response carries NO has-more marker, so accounts created last (usually the ones you are looking for) silently fall off the first page — this tool therefore requests limit=100 (the backend max) when you don't pass `limit` yourself. If an actor may hold more than 100 accounts, page with `offset` until a short page. Note `total:true` counts only fact-type accounts. " +
+			"An account you KNOW exists (createAccount succeeded / \"already exist\") but that never appears in any page means you lack access to its (nameId, currencyId) PAIR — see createAccountPair.",
+		Resolve: defaultAccountsLimit,
 		Params: []Param{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
 			{Name: "accountType", In: InQuery, Type: "string", Enum: accountTypes, Desc: "Filter by account type."},
@@ -48,7 +57,7 @@ var accountOps = []Operation{
 			{Name: "withAggTypes", In: InQuery, Type: "boolean", Desc: "Include aggregated turnover by type in the response."},
 			{Name: "query", In: InQuery, Type: "string", Desc: "Search accounts by name."},
 			{Name: "total", In: InQuery, Type: "boolean", Desc: "Return the total count instead of the list."},
-			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 100)."},
+			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (max 100; defaults to 100 — the backend's own default is ~30 with no has-more marker)."},
 			{Name: "offset", In: InQuery, Type: "number", Desc: "Page offset."},
 			fieldFilterParam("id,accountName,currencyName,amount,availableAmount,incomeType,counterType"),
 			{Name: "highPrecision", In: InQuery, Type: "boolean", Desc: "Return transaction sums with high precision."},
@@ -233,4 +242,17 @@ var accountOps = []Operation{
 			fieldFilterParam("formula,accounts"),
 		},
 	},
+}
+
+// defaultAccountsLimit fills limit=100 (the backend max) when the caller does
+// not page explicitly. The backend's own default page is ~30 rows and the
+// response has no has-more marker, so accounts created last — usually exactly
+// the ones the caller is trying to see — silently fell off the first page and
+// read as "the account was never created". Callers that page explicitly are
+// untouched.
+func defaultAccountsLimit(_ context.Context, args map[string]any, _ *apiclient.Client) error {
+	if _, ok := args["limit"]; !ok {
+		args["limit"] = float64(100)
+	}
+	return nil
 }

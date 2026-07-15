@@ -177,6 +177,24 @@
     ]
   },
   {
+    "name": "Actor geolocation value shape",
+    "prompt": "Create an actor under form 42 titled \"Belgrade office\" located at latitude 44.7866, longitude 20.4489, with the location name \"Belgrade office\". Set its geolocation.",
+    "tools": [
+      "createActor"
+    ],
+    "argChecks": [
+      {
+        "tool": "createActor",
+        "mustContain": [
+          "geoPosition",
+          "\"lat\":44.7866",
+          "\"lon\":20.4489",
+          "geoName"
+        ]
+      }
+    ]
+  },
+  {
     "name": "Check before creating (no duplicate)",
     "prompt": "Make sure there is a Camry actor; create one only if it does not already exist.",
     "tools": [
@@ -247,6 +265,23 @@
         "mustContain": [
           "amountFrom",
           "balance"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "List only the child actors of a node",
+    "prompt": "On form 42, list only the child actors of the node a4a7f284-2763-4bce-8b1b-c10bddd207ca (its direct children in the hierarchy), not its parents.",
+    "tools": [
+      "filterActors"
+    ],
+    "argChecks": [
+      {
+        "tool": "filterActors",
+        "mustContain": [
+          "linkedToActorId",
+          "linkedToActorDirection",
+          "children"
         ]
       }
     ]

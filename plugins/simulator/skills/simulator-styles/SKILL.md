@@ -410,17 +410,44 @@ input, textarea, .button > span, .toggle__title,
   `[data-class="grid-one-column"] { max-width:440px; margin:20px auto; padding:20px; background:#fff; border-radius:8px; box-shadow:0 0 10px #0000001a; }`
 - **Full-bleed admin** — unlock the cap: `.content__main [data-class="grid-one-column"] { max-width:none; }`
 - **Fixed sidebar shell** — `.sidebar { width:250px; grid-template-rows:80px 1fr 120px; }` with header/content/footer panes.
+- **Sidebar `styleClass` + `mainMenu` indent trap** — the sidebar rail **ignores `grid.sideBar.styleClass`**; style it via the base slots `.sidebar` / `.sidebar__header|__content|__footer` / `.page__sidebar` (layout — fixed width, pinned footer — as in *Fixed sidebar shell* above). For a `mainMenu` inside it, **do not** target `[class*="mainMenuItem"]` — the substring also matches the branch wrappers (`.mainMenuItemGroup`, `__summary`, `__dropdown`), so `padding` accumulates per level into huge gaps. Zero the wrappers, style only the exact `.mainMenuItem` (the clickable row), and indent by level with the renderer's `--depth` var:
+  ```less
+  nav.mainMenu [class*="mainMenuItemGroup"], nav.mainMenu details, nav.mainMenu summary { margin:0 !important; padding:0 !important; }
+  nav.mainMenu .mainMenuItem { padding:7px 10px; padding-left:calc(10px + var(--depth,0) * 14px); }
+  ```
 - **Pinned footer + scrolling body** — `.info_form{height:calc(100vh - 50px); display:flex; flex-direction:column;} .content_section{flex:1; max-height:calc(100vh - 100px);}`
+- **Card-per-iteration wrapper** — a bare `contentLoop` renders its iterations flat, with no per-iteration box. Set the section's `sortable:true` and the renderer wraps **each iteration** in a `.draggable` card with a drag handle; hide the handle to drop the drag affordance and keep just the wrapper (hiding `.draggable__handle` fully disables dragging — it is the only activator — so there is no `reorder` submit to handle):
+  ```less
+  .section__content .draggable__handle { display:none !important; }          /* kill grip → drag off */
+  .section__content .draggable { border:none !important; background:transparent !important;
+    padding:0 !important; box-shadow:none !important; cursor:default; }       /* reset outer card, avoid double frame */
+  .section__content .draggable__content { border:1px solid #ececec; border-radius:10px; padding:14px; }
+  ```
+- **Give a `row` its own class (multi-token `row`)** — `styleClass` on a `row` is dropped, but the `row` value is space-separated: the first token is the row id (→ `.row__<id>`), and every **extra token the renderer adds as a literal class** on the row wrapper. So `row:"1 my_row"` and `row:"2 my_row"` both get `.my_row` — a shared, stable hook to style many rows at once (the hashed `.row__…` is per-build and unreliable).
 
 ### Components — re-skin, don't accept defaults
 - **Floating-label input** — `.edit__text .label { top:36px; } .edit__text.selected .label { top:16px; font-size:12px; } .edit__text.focus .field { border-color:@blue; box-shadow:0 0 0 2px #007bff40; }`
 - **Custom checkbox** — hide native (`input{-webkit-appearance:none}`, `i{display:none}`), draw tick on `.checked input::after` (rotated border).
 - **Card data table** — `.main_table { border-radius:12px; border:1px solid @border; } .main_table [class*="table__wrap"]{ overflow:hidden; border-radius:12px 12px 0 0; }` + custom pagination by swapping `[id*="table-next"] i::after { content:""; background-image:@icon_arrow_right; }`. Use **modifier classes**: `.main_table.thin_table`, `.no_thead`, `.center_cell`.
 - **Table/radio → cards** (the e-commerce look): `thead{display:none}`, `tbody{display:flex;flex-direction:column;gap:10px}`, `.table-row{border:1px solid #ddd;border-radius:8px;padding:10px}`, highlight selection with `.table-row:has([class*="radioItem"].checked){border-color:#34303d}`.
+- **Table pagination at the bottom, centered** — a `table type:"group"`'s pagination is a **sibling** of `[class*="table__wrap"]` (not part of the rows) and defaults to `position:absolute` (pinned top, overlapping content). Lay the table root as a column and re-place it:
+  ```less
+  .myTable { display:flex; flex-direction:column; }
+  .myTable [class*="table__wrap"] { max-height:none !important; height:auto !important; }
+  .myTable [class*="table__pagination"] { position:static !important; order:99;
+    display:flex; justify-content:center; gap:8px; margin-top:20px; }
+  ```
 - **Status chip** — state-class + token map: `.status_cell.completed-… div{ background:@color_completed; }` (backend sets `styleClass:"status_cell completed-…"`).
 - **Button variants** — base `.button` + semantic modifiers (`.blue_btn`, `.red_button`, `.submit_btn`); hover-lift (`transform:scale(1.02); box-shadow:…`) or an animated `::after` fill-sweep (`transform:skewX(-20deg)`).
 - **Toast notifications** — centered, severity icon via `[class*="notifyItem"][class*="success"]::before{ background-image:@icon_success; }`.
 - **Modal sizing** — base `.modal` + `:has(.<innerSection>)` to size each, or size-class match `&[class*="xlarge"]{ width:80% !important; }`.
+- **Breadcrumbs (via `tab`)** — model a crumb trail as a `tab` (`options[]` = crumbs, each `{value,title}`; `value` = current; `submitOnChange:true` so a click posts the value). Two `tab` traps surface only once you restyle it: the label `[class*="i-label"]` defaults to `width:0; overflow:hidden` (text clips to nothing), and in a fixed tab (`i-fixed`) each `[class*="tab__item"]` collapses to `width:0` (options overlap). Fix both with `width:auto`:
+  ```less
+  .breadcrumbs [class*="tab__item"] { width:auto !important; min-width:max-content !important;
+    flex:0 0 auto !important; margin:0 !important; }
+  .breadcrumbs [class*="tab__item"] [class*="i-label"] { width:auto !important; overflow:visible !important; }
+  .breadcrumbs [class*="tab__item"]:not(:last-child)::after { content:"›"; margin:0 10px; opacity:.6; }
+  ```
 
 ### Interactivity (CSS-only, no backend round-trip)
 - **Accordion / dropdown / collapsible tree** — a `check`/`toggle` with `.checked`, expanded by parent `:has()`, animated via `grid-template-rows:0fr → 1fr`:
@@ -428,6 +455,7 @@ input, textarea, .button > span, .toggle__title,
   .menu { display:grid; grid-template-rows:0fr; overflow:hidden; transition:grid-template-rows .32s; }
   .sidebar:has(.nav_btn.checked) .menu { grid-template-rows:1fr; }
   ```
+  When the toggle and its target are **siblings in the same `.section__content`** (the common case), prefer the sibling combinator — no `:has()` needed: `.myCheck.checked ~ .myCollapsible { max-height:300px; }`. `.checked` lands on the component's outer wrapper. Reserve `:has()` for non-sibling targets.
 - **Slide-in panel / popover** — toggle `opacity`/`transform`/`pointer-events` under `&:has(.trigger.checked)`.
 
 ### State without CSS-only tricks
@@ -484,10 +512,22 @@ Advanced Less available: `each()`, guards (`when`), maps + indirect lookup (`@@k
 - **Winning the cascade**: component CSS-modules load after you and win equal-specificity ties — beat
   them with a chain of stable classes (`styleClass` + `[class*="…"]` + tag), not `#id` or a lone
   `!important`. Full worked example + cascade math in §"How Smart Form styling works" pt 5.
+- **Never write `.cdu-page` yourself**: the compiler wraps your whole stylesheet in `.cdu-page { … }`
+  at serve-time, so a hand-written `.cdu-page` (or `.cdu-page:has(…)`) becomes a *descendant*
+  (`.cdu-page .cdu-page…`) and silently never matches. The page root is `&` (= `.cdu-page`): paint the
+  page with `& { background:#e30613; min-height:100vh; }` and target it with `&:has(…)`.
 - **Image/`file` cell renders "wide but a thin strip"**: not a width bug but a **clipping ancestor** —
   a wrapper (`.file` / `.file__item`) keeps a small fixed height + `overflow:hidden`. Force the box at
   **every** wrapper level (`height` + `min/max-height` + `width:100%` + `max-width:none` +
-  `overflow`), not only on `<img>`.
+  `overflow`), not only on `<img>`. The default clamp is `max-height:32px` on both `<img>` and
+  `[class*="table__img"]`, and `max-height` always beats `height` — so `max-height:none` is the key.
+  One height knob down the whole chain (`.card-img` = the cell's `styleClass`, applied on `<td>`):
+  ```less
+  .card-img, .card-img [class*="table__img"], .card-img .file, .card-img [class*="file__item"] {
+    width:100%; height:240px !important; max-height:none !important; display:block; }
+  .card-img img { width:100% !important; height:100% !important; max-width:none !important;
+    max-height:none !important; object-fit:contain; }   /* contain = whole image; cover = fill + crop */
+  ```
 - **Dead `styleClass`**: placeholder classes (`my-custom-class`) with no rule are harmless but
   noise — remove them.
 - **Stale copies**: forms accumulate `style(copy)` / `style BACKUP` files — they're not wired in;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
 )
@@ -76,6 +77,18 @@ const pictureObjectDesc = "Render a custom image AS the node itself — the back
 	"The image is anchored at its CENTRE and keeps the source's aspect ratio (set width; height follows) — e.g. for a thin divider line use a wide-and-short source PNG. " +
 	"Uses: dividers/separators, a custom shape or icon the form catalogue does not cover, an embedded picture or logo on a graph."
 
+// geoPositionDesc / geoNameDesc document the actor geolocation fields. The
+// backend stores the position as a PostGIS point and validates coordinates:
+// latitude is hard-bounded, longitude wraps cyclically, and excess precision
+// is rounded (not rejected).
+const geoPositionDesc = "Actor geolocation as an object {\"lat\": <number>, \"lon\": <number>} in WGS84 decimal degrees " +
+	"(e.g. {\"lat\": 44.7866, \"lon\": 20.4489}). Latitude is hard-bounded to -90..90 (out of range is rejected); " +
+	"longitude outside ±180 wraps cyclically (e.g. 200 → -160); both are rounded to 6 decimals. " +
+	"Pass null to clear the position. lat and lon are set together — a partial object is invalid."
+
+const geoNameDesc = "Optional human-readable location name for the actor (e.g. \"Belgrade office\"), max 255 chars. " +
+	"Independent of geoPosition; pass null to clear."
+
 // actorOps — actor (graph node) CRUD. Actors are instances of a form; their
 // fields live in the free-form `data` object keyed by the form's field schema.
 var actorOps = []Operation{
@@ -97,6 +110,8 @@ var actorOps = []Operation{
 			{Name: "appId", In: InBody, Type: "string", Desc: appIdDesc},
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 			{Name: "hole", In: InBody, Type: "boolean", Desc: holeDesc},
+			{Name: "geoPosition", In: InBody, Type: "object", Desc: geoPositionDesc},
+			{Name: "geoName", In: InBody, Type: "string", Desc: geoNameDesc},
 			{Name: "contextLayerId", In: InQuery, Type: "string", Desc: "Optional layer to place the new actor on."},
 		},
 	},
@@ -108,8 +123,9 @@ var actorOps = []Operation{
 			"tens of thousands of tokens you rarely need. For a normal actor summary pass e.g. " +
 			"filter=\"id,title,description,status,data,formId,formTitle,ownerId,createdAt,updatedAt,access\"; " +
 			"omit `filter` only when you specifically need the form schema.",
+		Resolve: requireActorUUID,
 		Params: []Param{
-			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID."},
+			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID (full 36-character form)."},
 			fieldFilterParam("id,title,description,status,data,formId,formTitle,ownerId,createdAt,updatedAt,access"),
 		},
 	},
@@ -138,6 +154,8 @@ var actorOps = []Operation{
 			{Name: "appSettings", In: InBody, Type: "object", Desc: appSettingsDesc},
 			{Name: "hole", In: InBody, Type: "boolean", Desc: holeDesc},
 			{Name: "ref", In: InBody, Type: "string", Desc: "Set or change the actor's external reference — a stable business key, 1-255 chars, UNIQUE per form (formId). Lets you address the actor by (formId, ref) via getActorByRef instead of its UUID — the same key createActor sets, now editable after creation. Omit to leave it unchanged."},
+			{Name: "geoPosition", In: InBody, Type: "object", Desc: geoPositionDesc},
+			{Name: "geoName", In: InBody, Type: "string", Desc: geoNameDesc},
 		},
 	},
 	{
@@ -181,7 +199,7 @@ var actorOps = []Operation{
 		Name: "filterActors", Method: "GET", Path: "/actors_filters/{formId}",
 		Summary: "List/rank the actors of a form, optionally filtered by an account's balance. " +
 			"Set linkedToActorId to restrict candidates to a single anchor actor's graph neighbours " +
-			"(both directions along the hierarchy link) — that answers \"the actors related to X whose " +
+			"(both directions along the hierarchy link by default; set linkedToActorDirection=children for only the anchor's child actors, or =parents for only its parents) — that answers \"the actors related to X whose " +
 			"account N balance is > / < some value\". Give accountNameId+currencyId to select the account, " +
 			"amountFrom/amountTo for the balance threshold (amountFrom = balance >=, amountTo = balance <=), " +
 			"and orderBy=balance to rank by it. Returned balances are real decimal values (e.g. 1600 = 1600 USD); " +
@@ -192,6 +210,7 @@ var actorOps = []Operation{
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id whose actors are filtered/ranked."},
 			{Name: "linkedToActorId", In: InQuery, Type: "string", Desc: "Anchor actor UUID. When set, only actors directly linked to this actor (parents or children along the hierarchy edge) are considered — use it for \"actors related to this one\". Omit for a form-wide listing."},
+			{Name: "linkedToActorDirection", In: InQuery, Type: "string", Enum: []string{"children", "parents", "both"}, Desc: "Which side of the hierarchy link to keep, relative to linkedToActorId (no effect without it). children = only the anchor's child actors (use to expand/collapse a node); parents = only its parents; both (default) = either direction."},
 			{Name: "accountNameId", In: InQuery, Type: "string", Desc: "Account name id to read the balance from (see getAccountNames). Required to filter/rank by balance."},
 			{Name: "currencyId", In: InQuery, Type: "number", Desc: "Currency id of the account (see getCurrencies). Pairs with accountNameId."},
 			{Name: "incomeType", In: InQuery, Type: "string", Enum: []string{"credit", "debit"}, Desc: "Restrict the balance to one direction. Omit to net credit minus debit."},
@@ -237,4 +256,23 @@ var actorOps = []Operation{
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Actor UUID whose connected Corezoid processes to list."},
 		},
 	},
+}
+
+// actorUUIDRe matches the full 36-character UUID form the backend expects in
+// /actors/{actorId}.
+var actorUUIDRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// requireActorUUID rejects a malformed or truncated actorId before the request
+// goes out: the backend answers 403 Access Denied for any non-UUID id, which
+// reads as a permissions problem when it is actually a typo or a copy-paste of
+// a shortened id. Failing fast with the real reason saves that dead end.
+func requireActorUUID(_ context.Context, args map[string]any, _ *apiclient.Client) error {
+	id, _ := args["actorId"].(string)
+	if id == "" {
+		return nil // the required-parameter check reports the missing value
+	}
+	if !actorUUIDRe.MatchString(id) {
+		return fmt.Errorf("actorId %q is not a full actor UUID (36 chars, 8-4-4-4-12) — the backend would answer a misleading 403 Access Denied for it. Pass the complete UUID, or resolve the actor by its external key with getActorByRef(formId, ref)", id)
+	}
+	return nil
 }

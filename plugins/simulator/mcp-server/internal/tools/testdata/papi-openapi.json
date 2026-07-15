@@ -1078,6 +1078,9 @@
                   },
                   "pinned": {
                     "type": "boolean"
+                  },
+                  "hole": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -1156,6 +1159,9 @@
                       "type": "number"
                     },
                     "pinned": {
+                      "type": "boolean"
+                    },
+                    "hole": {
                       "type": "boolean"
                     }
                   },
@@ -1551,6 +1557,39 @@
                   },
                   "ownerId": {
                     "type": "integer"
+                  },
+                  "geoPosition": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "lat": {
+                            "type": "number"
+                          },
+                          "lon": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "lat",
+                          "lon"
+                        ]
+                      }
+                    ]
+                  },
+                  "geoName": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      }
+                    ]
                   },
                   "data": {
                     "type": "object"
@@ -1966,6 +2005,39 @@
                   "ownerId": {
                     "type": "integer"
                   },
+                  "geoPosition": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "lat": {
+                            "type": "number"
+                          },
+                          "lon": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "lat",
+                          "lon"
+                        ]
+                      }
+                    ]
+                  },
+                  "geoName": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      }
+                    ]
+                  },
                   "ref": {
                     "anyOf": [
                       {
@@ -2030,6 +2102,39 @@
                   },
                   "color": {
                     "type": "string"
+                  },
+                  "geoPosition": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "lat": {
+                            "type": "number"
+                          },
+                          "lon": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "lat",
+                          "lon"
+                        ]
+                      }
+                    ]
+                  },
+                  "geoName": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "type": "string",
+                        "maxLength": 255
+                      }
+                    ]
                   },
                   "data": {
                     "type": "object"
@@ -2909,6 +3014,14 @@
                   },
                   "layerId": {
                     "type": "string"
+                  },
+                  "holeLaId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "targetLaId": {
+                    "type": "integer",
+                    "minimum": 1
                   }
                 },
                 "required": [
@@ -2962,6 +3075,100 @@
                 "required": [
                   "targetActorId",
                   "layerId"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "accId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/actors/merge_edge_hole/{accId}": {
+      "post": {
+        "tags": [
+          "Graph"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "holeEdgeId": {
+                    "type": "string"
+                  },
+                  "targetEdgeId": {
+                    "type": "string"
+                  },
+                  "layerId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "holeEdgeId",
+                  "targetEdgeId",
+                  "layerId"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "accId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/papi/1.0/actors/revert_edge_hole/{accId}": {
+      "post": {
+        "tags": [
+          "Graph"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "targetEdgeId": {
+                    "type": "string"
+                  },
+                  "layerId": {
+                    "type": "string"
+                  },
+                  "holeEdgeId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "targetEdgeId"
                 ]
               }
             }
@@ -10325,6 +10532,9 @@
                                   "extraText": {
                                     "type": "string"
                                   },
+                                  "reverseEdge": {
+                                    "type": "boolean"
+                                  },
                                   "optionsSource": {
                                     "type": "object",
                                     "properties": {
@@ -10913,6 +11123,9 @@
                                   },
                                   "extraText": {
                                     "type": "string"
+                                  },
+                                  "reverseEdge": {
+                                    "type": "boolean"
                                   },
                                   "optionsSource": {
                                     "type": "object",

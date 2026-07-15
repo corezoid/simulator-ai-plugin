@@ -26,6 +26,8 @@ Actors are the fundamental building blocks of the platform, representing various
 | created_at | Integer | Unix timestamp of creation time |
 | updated_at | Integer | Unix timestamp of last update |
 | app_id | String | ID of the application this actor belongs to (if applicable) |
+| geoPosition | Object \| null | Actor geolocation as `{"lat": <number>, "lon": <number>}` in WGS84 decimal degrees (e.g. `{"lat": 44.7866, "lon": 20.4489}`). Latitude is hard-bounded to -90..90 (out of range rejected); longitude outside ±180 wraps cyclically; both rounded to 6 decimals. `lat`/`lon` are set together; `null` clears. Settable on createActor / updateActor. |
+| geoName | String \| null | Optional human-readable location name (max 255 chars), independent of geoPosition. `null` clears. Settable on createActor / updateActor. |
 
 ## Actor Types
 

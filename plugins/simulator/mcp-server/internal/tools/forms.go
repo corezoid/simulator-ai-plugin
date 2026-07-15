@@ -16,6 +16,9 @@ const sectionsDesc = "Ordered array of sections. Each section = {title, content[
 	"multiSelect (multi dropdown; static options[]), " +
 	"calendar (date/time; extra.{time,minDate,maxDate,dateRange,timeZone,static}, unix seconds), " +
 	"upload (file), label/button/image (display-only; image value is a URL — these produce NO actor data). " +
+	"For actor-reference fields (optionsSource actors|actorsBag|actorFilter|layer) an actor set in the " +
+	"field auto-creates a hierarchy link current-actor→referenced-actor; set extra.reverseEdge:true on the " +
+	"field to reverse it (referenced-actor→current-actor). Omit/false keeps the default direction. " +
 	"Generate unique item ids per field."
 
 // formOps — form template CRUD. Forms define the field structure (and default
