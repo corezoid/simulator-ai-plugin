@@ -694,6 +694,8 @@ filterActors(formId=<formId>, linkedToActorId="<anchorActorId>",
              accountNameId="<nameId>", currencyId=<id>,
              amountFrom=<min>, amountTo=<max>,        // amountFrom = balance >=, amountTo = balance <=
              orderBy="balance", orderValue="DESC")    // omit linkedToActorId for a form-wide ranking
+// linkedToActorDirection="children" keeps only the anchor's children (expand/collapse a node),
+// "parents" only its parents; omit / "both" = either direction (default).
 
 // Save tokens: every read/traversal tool above (getRelatedActors, getActor,
 // getLayerActors, searchLayerActors, searchActors, filterActors, ...) accepts an

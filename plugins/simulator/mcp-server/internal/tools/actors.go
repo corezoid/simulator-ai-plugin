@@ -199,7 +199,7 @@ var actorOps = []Operation{
 		Name: "filterActors", Method: "GET", Path: "/actors_filters/{formId}",
 		Summary: "List/rank the actors of a form, optionally filtered by an account's balance. " +
 			"Set linkedToActorId to restrict candidates to a single anchor actor's graph neighbours " +
-			"(both directions along the hierarchy link) — that answers \"the actors related to X whose " +
+			"(both directions along the hierarchy link by default; set linkedToActorDirection=children for only the anchor's child actors, or =parents for only its parents) — that answers \"the actors related to X whose " +
 			"account N balance is > / < some value\". Give accountNameId+currencyId to select the account, " +
 			"amountFrom/amountTo for the balance threshold (amountFrom = balance >=, amountTo = balance <=), " +
 			"and orderBy=balance to rank by it. Returned balances are real decimal values (e.g. 1600 = 1600 USD); " +
@@ -210,6 +210,7 @@ var actorOps = []Operation{
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id whose actors are filtered/ranked."},
 			{Name: "linkedToActorId", In: InQuery, Type: "string", Desc: "Anchor actor UUID. When set, only actors directly linked to this actor (parents or children along the hierarchy edge) are considered — use it for \"actors related to this one\". Omit for a form-wide listing."},
+			{Name: "linkedToActorDirection", In: InQuery, Type: "string", Enum: []string{"children", "parents", "both"}, Desc: "Which side of the hierarchy link to keep, relative to linkedToActorId (no effect without it). children = only the anchor's child actors (use to expand/collapse a node); parents = only its parents; both (default) = either direction."},
 			{Name: "accountNameId", In: InQuery, Type: "string", Desc: "Account name id to read the balance from (see getAccountNames). Required to filter/rank by balance."},
 			{Name: "currencyId", In: InQuery, Type: "number", Desc: "Currency id of the account (see getCurrencies). Pairs with accountNameId."},
 			{Name: "incomeType", In: InQuery, Type: "string", Enum: []string{"credit", "debit"}, Desc: "Restrict the balance to one direction. Omit to net credit minus debit."},

@@ -270,6 +270,23 @@
     ]
   },
   {
+    "name": "List only the child actors of a node",
+    "prompt": "On form 42, list only the child actors of the node a4a7f284-2763-4bce-8b1b-c10bddd207ca (its direct children in the hierarchy), not its parents.",
+    "tools": [
+      "filterActors"
+    ],
+    "argChecks": [
+      {
+        "tool": "filterActors",
+        "mustContain": [
+          "linkedToActorId",
+          "linkedToActorDirection",
+          "children"
+        ]
+      }
+    ]
+  },
+  {
     "name": "Search actors on a layer",
     "prompt": "On layer 14b284e0-5f77-4b40-bdde-f7058b05939f, find the actors matching \"camry\".",
     "tools": [
