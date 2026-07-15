@@ -272,6 +272,10 @@ filterActors(
   amountFrom=1000,                    # balance >= 1000
   orderBy="balance", orderValue="DESC",
   withStats=true)
+
+# Only the CHILD actors of a node (e.g. expand/collapse a node's children)
+filterActors(formId=42, linkedToActorId="<anchor UUID>", linkedToActorDirection="children")
+# ...or only its parents: linkedToActorDirection="parents"; omit / "both" = either direction (default)
 ```
 
 - `q` filters on actor **data** fields; `search` does full-text on the title; `status`
