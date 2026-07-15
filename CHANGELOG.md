@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.5.0]
+
+### Added
+- actor geolocation fields on createActor/updateActor (#74)
+
+### Changed
+- CE-15667 feat(actors): filterActors linkedToActorDirection param (#77)
+- add CDU UI pattern recipes & DOM/protocol notes (#70)
+- document extra.reverseEdge link-direction flag
+
+### Fixed
+- self-healing MCP path resolution in dev checkouts, bump to 2.4.1 (#72)
+- pushSmartForm Windows path bug, bump to 2.4.1 (#71)
+- getAccounts defaults to limit=100; getActor validates the UUID up front (#69)
+
 <!-- PRs: add your entry under ## [Unreleased] (### Added / Changed / Fixed).
      Do NOT bump the version or add a dated section — that is minted at release
      time by `make release VERSION=x.y.z`. See AGENTS.md → Versioning & releases. -->
