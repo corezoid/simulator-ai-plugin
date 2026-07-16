@@ -121,7 +121,10 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		return newFolderPaths[i] < newFolderPaths[j]
 	})
 
-	// Diff files: new (not in manifest) vs modified (in manifest but hash differs).
+	// Diff files: new (not in manifest) vs modified (in manifest but hash or
+	// mimeType differs). MIME drift — where content is unchanged but the stored
+	// type is wrong (e.g. application/json on a pages/<page>/style file) — is
+	// treated as "modified" so the PUT corrects the server's Content-Type.
 	var newFilePaths []string
 	var modifiedFilePaths []string
 	newHashes := make(map[string]string, len(localFiles))
@@ -133,7 +136,9 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		switch {
 		case !ok:
 			newFilePaths = append(newFilePaths, relPath)
-		case node.Hash != h:
+		case node.Hash != h || node.MimeType != defaultMimeType(relPath):
+			// Include MIME-only drift so a wrong Content-Type is healed via PUT
+			// even when the file's content bytes haven't changed.
 			modifiedFilePaths = append(modifiedFilePaths, relPath)
 		default:
 			unchanged++
@@ -207,13 +212,43 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	}
 
 	// Phase 2 — create missing files in one batch.
+	// Before POSTing, check the live server tree for files that already exist
+	// at the same (folder, title) slot — i.e. files that are "new" from the
+	// manifest's perspective but are already present on the server (e.g. a
+	// style file manually deleted+recreated via the UI, or a duplicate orphan
+	// produced by a previous push with a since-deleted manifest entry).
+	// The Simulator UI enforces a hard one-style-file-per-page limit; the
+	// create API path does not, so we mirror that check here to prevent silent
+	// accumulation of duplicate files on the server.
 	createdFiles := 0
 	if len(newFilePaths) > 0 {
+		// Fetch the current server tree to detect pre-existing file slots.
+		serverFiles, serverFetchErr := fetchServerFilesBySlot(ctx, actorID, manifest.EnvID)
+		if serverFetchErr != nil {
+			// Non-fatal: log the warning but proceed — a missing tree fetch
+			// should not block a push. Duplicate detection is best-effort.
+			serverFiles = nil
+		}
+
+		var duplicateFiles []string
 		batch := make([]createItem, 0, len(newFilePaths))
 		for _, relPath := range newFilePaths {
 			parentID, ok := resolveParentID(relPath, manifest.Folders, manifest.EnvRootFolderID)
 			if !ok {
 				return mcp.NewToolResultError(fmt.Sprintf("[Error] cannot resolve parent folder id for %q — run pullSmartForm to refresh manifest", relPath)), nil
+			}
+			slot := fmt.Sprintf("%d/%s", parentID, filepath.Base(relPath))
+			if serverFiles != nil {
+				if existing, dup := serverFiles[slot]; dup {
+					// A file already occupies this (folder, title) slot on the
+					// server. Creating a second one would produce a silent
+					// orphan, bypassing the UI's uniqueness constraint.
+					duplicateFiles = append(duplicateFiles, fmt.Sprintf(
+						"%s (server already has fileId=%d, mimeType=%s — run pullSmartForm to re-sync manifest)",
+						relPath, existing.ID, existing.Type,
+					))
+					continue
+				}
 			}
 			batch = append(batch, createItem{
 				ObjType:  "file",
@@ -222,6 +257,15 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 				Type:     defaultMimeType(relPath),
 				Source:   localFiles[relPath],
 			})
+		}
+		if len(duplicateFiles) > 0 {
+			out, _ := json.Marshal(map[string]interface{}{
+				"actorId":        actorID,
+				"env":            "develop",
+				"duplicateFiles": duplicateFiles,
+				"message":        "push aborted: server already contains files at the listed paths; run pullSmartForm to re-sync the manifest before pushing",
+			})
+			return mcp.NewToolResultError(string(out)), nil
 		}
 		body, _ := json.Marshal(batch)
 		respBytes, err := ecore.PapiPOST(ctx, apiURL, body)
@@ -263,6 +307,9 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	}
 
 	// Phase 3 — update modified existing files (one batch PUT).
+	// Always re-derive the MIME type from the path rather than trusting the
+	// manifest's stored value, so a previously wrong Content-Type is corrected
+	// on the server and in the manifest in the same PUT that updates the source.
 	updated := 0
 	if len(modifiedFilePaths) > 0 {
 		batch := make([]updateItem, 0, len(modifiedFilePaths))
@@ -273,7 +320,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 				ObjType:  "file",
 				FolderID: node.FolderID,
 				Title:    filepath.Base(relPath),
-				Type:     node.MimeType,
+				Type:     defaultMimeType(relPath), // re-derive; heals stale wrong type
 				Source:   localFiles[relPath],
 			})
 		}
@@ -283,6 +330,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		}
 		for _, relPath := range modifiedFilePaths {
 			node := manifest.Files[relPath]
+			node.MimeType = defaultMimeType(relPath) // keep manifest in sync
 			node.Hash = newHashes[relPath]
 			manifest.Files[relPath] = node
 			updated++
@@ -404,11 +452,32 @@ func parseCreatedObjs(respBytes []byte) ([]createdObj, error) {
 	return resp.Data, nil
 }
 
-// defaultMimeType returns the MIME type to assign to a newly-created file
-// based on its env-relative path. The default skeleton uses application/json
-// everywhere except the styles tree, which is Less/CSS source.
+// defaultMimeType returns the MIME type to assign to a newly-created (or
+// repaired) file based on its env-relative path.
+//
+// CSS detection rules (evaluated in order):
+//  1. Top-level styles/ directory — Less/CSS source files.
+//  2. pages/<page>/style — per-page stylesheet. The platform always names this
+//     file exactly "style" (no extension); the UI enforces this convention and
+//     the backend stores it as text/css. Key off the base name within the
+//     pages/ tree so any page depth is covered, regardless of extension.
+//  3. Explicit .css extension — explicit fallback for any other CSS file.
+//
+// Everything else defaults to application/json (config, viewModel, locale …).
 func defaultMimeType(relPath string) string {
 	if relPath == "styles" || strings.HasPrefix(relPath, "styles/") {
+		return "text/css"
+	}
+	// pages/<page>/style — the file is named "style" (no extension) but
+	// contains Less/CSS. The old code missed this case and assigned
+	// application/json, which cannot be corrected by a content-only PUT.
+	if strings.HasPrefix(relPath, "pages/") {
+		base := relPath[strings.LastIndex(relPath, "/")+1:]
+		if base == "style" {
+			return "text/css"
+		}
+	}
+	if strings.HasSuffix(relPath, ".css") {
 		return "text/css"
 	}
 	return "application/json"
@@ -457,5 +526,46 @@ func collectFoldersFromTree(node appTreeNode, relDir string, folders map[string]
 		}
 		folders[childRel] = child.ID
 		collectFoldersFromTree(child, childRel, folders, rootFolderID)
+	}
+}
+
+// serverFileSlot carries the server-side metadata for one file needed by
+// duplicate detection: its numeric id and current MIME type.
+type serverFileSlot struct {
+	ID   int
+	Type string
+}
+
+// fetchServerFilesBySlot fetches the live env tree and returns a map of
+// "parentFolderID/title" → serverFileSlot for every file currently on the
+// server. This lets push detect files that already occupy a slot that a new
+// local file would be created into — the symptom of a manifest/server drift
+// (e.g. the server file was deleted+recreated via the UI with a different id).
+//
+// The returned map is nil on error; callers treat a nil map as "skip check".
+func fetchServerFilesBySlot(ctx context.Context, actorID string, envID int) (map[string]serverFileSlot, error) {
+	if envID == 0 {
+		return nil, fmt.Errorf("envId unknown — cannot fetch server tree")
+	}
+	tree, err := fetchEnvStruct(ctx, actorID, envID)
+	if err != nil {
+		return nil, err
+	}
+	slots := make(map[string]serverFileSlot)
+	collectFileSlots(*tree, slots)
+	return slots, nil
+}
+
+// collectFileSlots walks a tree node recursively and populates slots with
+// every file's "folderId/title" key so callers can detect slot collisions.
+func collectFileSlots(node appTreeNode, slots map[string]serverFileSlot) {
+	for _, child := range node.Children {
+		switch child.ObjType {
+		case "file":
+			key := fmt.Sprintf("%d/%s", child.FolderID, child.Title)
+			slots[key] = serverFileSlot{ID: child.ID, Type: child.Type}
+		case "folder":
+			collectFileSlots(child, slots)
+		}
 	}
 }

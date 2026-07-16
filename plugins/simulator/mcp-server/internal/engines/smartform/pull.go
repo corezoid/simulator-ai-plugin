@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -144,6 +145,12 @@ func writeEnvTree(node appTreeNode, dir, relDir string, files map[string]manifes
 // (falling back to cwd when the env var is unset — see ecore.WorkDir). A
 // .manifest.json is written in each env folder to track file IDs and content
 // hashes (used by pushSmartForm for diffing).
+//
+// Conflict detection: if a prior manifest exists and any local file has been
+// modified since the last pull (local hash ≠ manifest hash), the pull refuses
+// to overwrite those local edits unless force=true is passed. This prevents
+// silent loss of work when a pushSmartForm succeeded server-side but the caller
+// treated it as failed and edited locally a second time.
 func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	if authResult := ecore.EnsureAuth(ctx); authResult != nil {
 		return authResult, nil
@@ -157,6 +164,7 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	if r := ecore.RequireUUID("actorId", actorID); r != nil {
 		return r, nil
 	}
+	force, _ := args["force"].(bool)
 
 	envs, err := fetchAppEnvs(ctx, actorID)
 	if err != nil {
@@ -175,11 +183,32 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 
 	baseDir := ecore.ResolvePath(actorID)
 	for _, env := range envs {
+		envDir := filepath.Join(baseDir, env.Title)
+
+		// Conflict detection: compare local files against the stored manifest
+		// hashes. A file is "locally modified" when it exists on disk with a
+		// hash that differs from what was recorded at the last pull — that means
+		// the caller edited it (possibly after a push that succeeded server-side
+		// but appeared to fail locally). Overwriting such a file silently would
+		// discard unsynced work.
+		if !force {
+			if conflicts := detectPullConflicts(envDir); len(conflicts) > 0 {
+				out, _ := json.Marshal(map[string]interface{}{
+					"actorId":   actorID,
+					"env":       env.Title,
+					"conflicts": conflicts,
+					"message": "pull aborted: local files have unsaved edits that differ from the last-pulled " +
+						"state. Push them first (pushSmartForm) or re-run pullSmartForm with force=true to " +
+						"discard local changes.",
+				})
+				return mcp.NewToolResultError(string(out)), nil
+			}
+		}
+
 		tree, err := fetchEnvStruct(ctx, actorID, env.ID)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] fetch struct for env %q (id=%d): %v", env.Title, env.ID, err)), nil
 		}
-		envDir := filepath.Join(baseDir, env.Title)
 		files := make(map[string]manifestNode)
 		folders := make(map[string]int)
 		var rootFolderID int
@@ -210,4 +239,39 @@ func handlePullSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		"envs":    summary,
 	})
 	return mcp.NewToolResultText(string(out)), nil
+}
+
+// detectPullConflicts loads the existing .manifest.json from envDir (if any)
+// and returns the env-relative paths of every locally-modified file — i.e.
+// files whose on-disk content hash differs from the hash recorded at the last
+// pull. Returns nil when no manifest exists yet (first-ever pull is always safe)
+// or when no local modifications are detected.
+func detectPullConflicts(envDir string) []string {
+	manifestPath := filepath.Join(envDir, manifestFileName)
+	raw, err := os.ReadFile(manifestPath)
+	if err != nil {
+		// No manifest → first pull, no conflicts possible.
+		return nil
+	}
+	var manifest smartFormManifest
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		// Corrupt manifest: can't tell; treat as no conflicts (pull will fix it).
+		return nil
+	}
+
+	var conflicts []string
+	for relPath, node := range manifest.Files {
+		localPath := filepath.Join(envDir, filepath.FromSlash(relPath))
+		data, err := os.ReadFile(localPath)
+		if err != nil {
+			// File not present locally: not a conflict (it's an orphan the
+			// pull will restore; that's expected behaviour).
+			continue
+		}
+		if hashSource(string(data)) != node.Hash {
+			conflicts = append(conflicts, relPath)
+		}
+	}
+	sort.Strings(conflicts)
+	return conflicts
 }
