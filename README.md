@@ -358,7 +358,7 @@ simulator-ai-plugin/
 │   ├── ARCHITECTURE.md          # Plugin & MCP-server architecture
 │   └── INTEGRATION.md           # pong-server integration plan & status
 ├── public/                      # Generated AI-discovery artifacts (llms.txt, .well-known/skills/index.json)
-└── plugins/simulator/           # Plugin root ($CLAUDE_PLUGIN_ROOT for Claude Code, Codex and Kiro)
+└── plugins/simulator/           # Plugin root (skill path token; MCP launcher resolves it per host)
     ├── .claude-plugin/
     │   └── plugin.json          # Claude Code plugin manifest
     ├── .codex-plugin/

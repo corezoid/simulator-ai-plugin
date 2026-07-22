@@ -6,6 +6,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Codex MCP startup no longer depends on `CLAUDE_PLUGIN_ROOT`.** The launcher now preserves the user's workspace in `SIMULATOR_WORK_DIR` while resolving the installed plugin root separately, so Codex can complete the MCP initialize handshake after a marketplace install.
+
 ## [2.5.0] - 2026-07-14
 
 ### Added

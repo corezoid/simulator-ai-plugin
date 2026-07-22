@@ -25,6 +25,68 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: MCP launcher resolves plugin root and preserves workspace
+        run: |
+          python3 - <<'EOF'
+          import json, os, pathlib, stat, subprocess, tempfile
+
+          with open("plugins/simulator/.mcp.json") as f:
+              cfg = json.load(f)
+
+          server = cfg.get("mcpServers", cfg)["simulator"]
+
+          def fake_run_sh(plugin_root):
+              run = pathlib.Path(plugin_root) / "mcp-server" / "run.sh"
+              run.parent.mkdir(parents=True, exist_ok=True)
+              run.write_text("#!/bin/sh\nprintf '%s\n' \"$SIMULATOR_WORK_DIR\" > \"$PROBE_OUT\"\n")
+              run.chmod(run.stat().st_mode | stat.S_IXUSR)
+              return run
+
+          def run_case(label, env_extra, home_builder):
+              with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as workspace:
+                  probe_out = pathlib.Path(home) / "probe.txt"
+                  env = {
+                      "HOME": home,
+                      "PATH": os.environ["PATH"],
+                      "PROBE_OUT": str(probe_out),
+                      **env_extra,
+                  }
+                  env.update(home_builder(home, probe_out) or {})
+                  res = subprocess.run(
+                      [server["command"], *server.get("args", [])],
+                      cwd=workspace,
+                      env=env,
+                      text=True,
+                      capture_output=True,
+                      timeout=10,
+                  )
+                  if res.returncode != 0:
+                      raise SystemExit(f"{label}: launcher failed\nstdout={res.stdout}\nstderr={res.stderr}")
+                  got = probe_out.read_text().strip()
+                  want = os.path.realpath(workspace)
+                  if got != want:
+                      raise SystemExit(f"{label}: SIMULATOR_WORK_DIR={got!r}, want {want!r}")
+
+          with tempfile.TemporaryDirectory() as claude_root:
+              fake_run_sh(claude_root)
+              run_case("claude", {"CLAUDE_PLUGIN_ROOT": claude_root}, lambda home, out: None)
+
+          def codex_home_case(home, probe_out):
+              root = pathlib.Path(home) / ".codex" / "plugins" / "cache" / "simulator" / "simulator" / "999.0.0"
+              fake_run_sh(root)
+
+          run_case("codex-home", {}, codex_home_case)
+
+          def codex_home_env_case(home, probe_out):
+              codex_home = pathlib.Path(home) / "custom-codex-home"
+              root = codex_home / "plugins" / "cache" / "simulator" / "simulator" / "999.0.0"
+              fake_run_sh(root)
+              return {"CODEX_HOME": str(codex_home)}
+
+          run_case("codex-home-env", {}, codex_home_env_case)
+          print(".mcp.json launcher smoke test passed.")
+          EOF
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:

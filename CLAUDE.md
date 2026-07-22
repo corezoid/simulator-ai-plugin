@@ -31,7 +31,10 @@ Guidance for Claude Code when working in the **simulator-ai-plugin** repository.
   text substitution at skill-load time; renaming it breaks doc loading on both hosts
   (anthropics/claude-code#48230, #47789, #44057). For AWS Kiro — which does no such
   substitution — `install-kiro.sh` and the release-zip generator hard-copy the skills
-  and `sed`-replace the token with the absolute plugin path at install time.
+  and `sed`-replace the token with the absolute plugin path at install time. MCP
+  subprocesses are separate from skill loading: Codex does not expose
+  `CLAUDE_PLUGIN_ROOT` there, so `.mcp.json` must preserve the user's `PWD` as
+  `SIMULATOR_WORK_DIR` and resolve the installed plugin root separately.
 - **MCP tools.** When you add or rename a tool, update the MCP-tools table in the root
   [`README.md`](README.md) and §4 of [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - **Curated tools live in Go** under `internal/tools/<domain>.go` (declared as typed
