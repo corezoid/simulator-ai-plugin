@@ -103,7 +103,9 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
   skill-load time (anthropics/claude-code#48230, #47789, #44057). Renaming it breaks both
   hosts. AWS Kiro doesn't substitute the token at all — `install-kiro.sh` and the release
   generator hard-copy the skills and `sed`-replace the token with the absolute plugin path
-  at install time instead.
+  at install time instead. MCP subprocesses are not skill loading: Codex does not expose
+  `CLAUDE_PLUGIN_ROOT` there, so `.mcp.json` must keep the user's `PWD` as
+  `SIMULATOR_WORK_DIR` and resolve the installed plugin root separately.
 - **Branching model.** `develop` is the integration branch and the **default base for
   every feature/fix PR**; `main` is release-only and receives changes solely by promoting
   `develop` (or a `release/*` / `hotfix/*` branch). Never open a feature/fix PR against
