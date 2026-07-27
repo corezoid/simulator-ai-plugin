@@ -7,6 +7,8 @@ import (
 
 // Register adds all graph engine tools to the MCP server.
 func Register(s *server.MCPServer) {
+	registerGraphImportExportTools(s)
+
 	s.AddTool(
 		mcp.NewTool("pullGraphFile",
 			mcp.WithDescription("Fetch all actors and edges from a layer and write them to <layerId>.yaml in the current working directory."),

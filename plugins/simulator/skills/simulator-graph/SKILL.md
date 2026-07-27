@@ -28,7 +28,7 @@ description: >
   traversal operations, layer management, and FlowchartBlock diagram creation.
 ---
 
-> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read a layer's contents — prefer `getLayerActorsPaginated` (page nodes then edges; works for any size) or `getAllLayerPlacements`, falling back to `getLayerActors` only for small layers (it loads the whole layer in one call and is rejected with a "Layer is too large" 400 above the size cap); create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge CRUD with `getEdge` / `updateEdge` / `deleteEdge` / `existLink` / `deleteEdgesByNodes`; edge types with `getEdgeTypes`. Traverse from an actor with `getRelatedActors` (type = linked | parents | children; hierarchy link type by default; paginated/filterable/sortable), `getLinkedActors` (directly-linked actors across edge types, with `edgeTypes`/`withSystem`/`pinned` filters), and `getActorLinks` (every edge of an actor). Layer ops: `layerStats` (node/edge counts), `existLayerElement` (is a node/edge on a layer — dedup before placing), `moveActors` (move ≤10 actors between layers), `cleanGraphLayer` (wipe a layer — destructive). See `/simulator` for the full list.
+> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read a layer's contents — prefer `getLayerActorsPaginated` (page nodes then edges; works for any size) or `getAllLayerPlacements`, falling back to `getLayerActors` only for small layers (it loads the whole layer in one call and is rejected with a "Layer is too large" 400 above the size cap); create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge CRUD with `getEdge` / `updateEdge` / `deleteEdge` / `existLink` / `deleteEdgesByNodes`; edge types with `getEdgeTypes`. Traverse from an actor with `getRelatedActors` (type = linked | parents | children; hierarchy link type by default; paginated/filterable/sortable), `getLinkedActors` (directly-linked actors across edge types, with `edgeTypes`/`withSystem`/`pinned` filters), and `getActorLinks` (every edge of an actor). Layer ops: `layerStats` (node/edge counts), `existLayerElement` (is a node/edge on a layer — dedup before placing), `moveActors` (move ≤10 actors between layers), `cleanGraphLayer` (wipe a layer — destructive). Official `.graph` import/export flow: `createGraphExportTask`, `getGraphImportExportTask`, `importGraphArchive`, `cloneGraphObjects`, `cloneGraphLayer`. See `/simulator` for the full list.
 
 # Simulator.Company Graph Builder
 
@@ -53,6 +53,7 @@ Simulator.Company using the `simulator` MCP server.
 | **Graph actor** | An actor with `formName="Graphs"` — the logical container for a diagram.                             |
 | **Layer actor** | An actor with `formName="Layers"` — the visual canvas where nodes are placed at (x, y).              |
 | **Graph file**  | A YAML file named `<layerId>.yaml` in the current working directory describing the full layer state. |
+| **.graph archive** | The official Simulator import/export zip archive used by the web UI. It contains `GraphManifest.yaml`, forms, actors, edges, geometry, accounts, and optional access/scripts/files. |
 | **laId**        | Layer Actor ID. Assigned by `manageLayerActors` when an actor is placed on a layer.                        |
 
 ---
@@ -147,6 +148,206 @@ The server will:
 - **Update positions** for actors whose `position` changed
 
 After push the file is updated in place with all server UUIDs.
+
+---
+
+## Official `.graph` Export / Import / Clone
+
+Use the `.graph` import/export task tools when the user wants to clone a graph
+or layer, move a graph/layer between workspaces, preserve platform-level
+topology, or work with the same archive format as the Simulator web UI. Do not
+confuse this with
+`pullGraphFile` / `pushGraphFile`: those are convenient YAML sync tools for
+editing a single layer, while `.graph` export/import is the official async
+workspace object transfer mechanism.
+
+Treat user phrases like "move" or "transfer" as **copy/import** by default: the
+source graph/layer is not deleted. Do not delete source objects after import
+unless the user gives a separate explicit destructive confirmation.
+
+The target environment is the Simulator API/auth environment of the current MCP
+session. `targetAccId` selects a workspace inside that environment. If
+`targetAccId` is omitted, imports default to `sourceAccId`; if `sourceAccId` is
+also omitted, both default to the configured/request workspace. To import into a
+different Simulator environment, switch the MCP environment/auth first, then run
+the import there.
+
+### Export
+
+```
+createGraphExportTask(
+  actorIds=["<layerActorId>"],
+  maxRecursionLevel="max",
+  attachments=false,
+  waitSec=300
+)
+```
+
+- To export a layer, pass the **layer actor UUID** in `actorIds`.
+- To export a whole graph, pass the **graph root actor UUID** in `actorIds`.
+- For clone operations, a full Simulator URL can be passed as `sourceUrl`; the
+  tool will infer `sourceAccId`, graph id and layer id when possible.
+- `maxRecursionLevel="max"` is safest for a later import because low numeric
+  recursion can omit referenced actors. A shallow export may look valid but fail
+  during import with an `ImportReplaces.Get NotFound`-style error.
+- `max` can include much more than the visible canvas. Always inspect
+  `details.manifest.stats.counters` before production use.
+- Export requires access to every object included by recursion. If a layer
+  contains actors/forms/accounts/files/linked objects the current user cannot
+  read, the backend can fail the export; surface `details.errMsg` and ask for
+  access or a narrower export selection.
+- `allWorkspace=true` is a wide export and requires
+  `confirmAllWorkspaceExport=true`.
+
+Export settings:
+
+| Setting | Default | Meaning | Ask / require |
+|---------|---------|---------|---------------|
+| `actorIds` | `[]` | Explicit graph/layer/actor UUIDs to export. A layer clone uses the layer actor UUID. | Required unless `formIds`, `allWorkspace`, or `sourceUrl` derives it. |
+| `formIds` | `[]` | Export form templates and referenced objects for those forms. | Ask before broad form export; it can pull many records. |
+| `allWorkspace` | `false` | Export the whole workspace. | Requires `confirmAllWorkspaceExport=true`; do not use casually. |
+| `maxRecursionLevel` | backend default / `max` when omitted | How deeply referenced actors/forms/accounts are followed. Numeric `1..10` narrows recursion; `"max"`/omitted is safest for complete import. | For production, ask whether the user wants complete clone (`max`) or bounded export (`1..10`). |
+| `attachments` | `false` | Include uploaded files/attachments in the archive. | Ask explicitly; this can export private files and make archives large. |
+| `transactions` | `false` | Include transaction history. | Ask explicitly; can export financial/audit data. |
+| `processes` | `false` | Include linked Corezoid processes/projects/stages where present. | Ask explicitly; cross-system dependencies may be sensitive. |
+| `users` | `false` | Include users/groups/access mapping metadata. | Ask for user/group mapping on import if access must be preserved. |
+| `balances` | `false` | Include account balances. | Ask explicitly for finance-sensitive clones. |
+| `connectorsToAccounts` | `false` | Include connector-to-account links. | Enable only when account connector topology matters. |
+| `accountToActors` | `false` | Include account-to-actor links. | Enable only when account ownership/placement relations matter. |
+| `systemCounters` | `false` | Include system counter data. | Enable only if the target needs those counters. |
+
+Implementation detail: live PAPI expects `actors` and `forms` to be JSON arrays
+even when empty, and expects `balances`, `connectorsToAccounts`,
+`accountToActors` both in `ops` and as top-level booleans. Do not send `null`
+for omitted selections.
+
+### Import
+
+```
+importGraphArchive(
+  fileName="<uploaded .graph storage fileName>",
+  refStrategy="replace",
+  refReplacePrefix="clone_YYYYMMDD_",
+  confirmImport=true,
+  waitSec=300
+)
+```
+
+- Import is a write operation. It can create many actors/forms/edges/accounts.
+- Prefer `refStrategy="replace"` with a unique `refReplacePrefix` for cloning.
+  This creates imported refs under the prefix instead of silently colliding with
+  existing refs.
+- `refStrategy="error"` does not use a prefix. It asks the backend to fail on
+  REF collisions. Use it when the target workspace should stay untouched unless
+  every imported REF is new.
+- `refStrategy="reuse"` can update existing objects that have matching refs. Use
+  it only when the user explicitly wants a merge/update and pass
+  `allowReuseImport=true`.
+- `refReplacePrefix` is required only with `replace`. Omit it for
+  `error`/`reuse`; the MCP tool rejects a non-empty prefix for those strategies
+  to avoid ambiguous imports.
+- If access users/groups are included but not mapped, backend/UI defaults may
+  grant imported access to the importing user. Ask for mapping when access rules
+  matter.
+- Avoid casual imports in production workspaces. If the workspace is production
+  or business-critical, pause for explicit confirmation and show manifest
+  counters first.
+
+Import strategy decision table:
+
+| Strategy | Prefix | Effect | When to use |
+|----------|--------|--------|-------------|
+| `replace` | Required, unique, at least 8 chars | Creates imported refs under the prefix and avoids silent collisions. | Normal clone/copy, especially same-workspace copy or uncertain target. |
+| `error` | Must be omitted | Backend rejects existing REF collisions. | Strict import into a clean target where collisions should abort. |
+| `reuse` | Must be omitted | Reuses/updates matching REF objects in the target. | Intentional merge/update only, with `allowReuseImport=true` and explicit user confirmation. |
+
+Before calling import/clone, decide with the user:
+
+1. Source: pasted `sourceUrl`, `actorIds`, `formIds`, or `allWorkspace`.
+2. Target: same workspace by default, or explicit `targetAccId`; different
+   environment requires switching MCP environment/auth first.
+3. Export scope: attachments, transactions, processes, users/access, balances,
+   account links, recursion depth.
+4. Import strategy: `replace` with prefix for copy, `error` for collision-safe
+   strict import, or `reuse` for deliberate merge/update.
+5. Access mapping: if `users=true`, ask whether user/group mappings are needed.
+6. Production safety: show manifest counters and require explicit confirmation
+   before importing into production/business-critical workspaces.
+
+### Clone a graph or layer
+
+For normal graph/layer cloning, prefer the combined tool:
+
+```
+cloneGraphObjects(
+  sourceUrl="<Simulator graph/layer URL>",
+  sourceKind="auto",
+  targetAccId="<targetWorkspaceId>",
+  refStrategy="replace",
+  refReplacePrefix="clone_YYYYMMDD_",
+  attachments=false,
+  confirmClone=true,
+  waitSec=300
+)
+```
+
+- Use `sourceUrl` when the user pastes a Simulator graph/layer link. In
+  `sourceKind="auto"` a URL with `/layers/<layerId>` clones the layer; use
+  `sourceKind="graph"` when the user explicitly wants the graph root from that
+  same URL.
+- Use `actorIds=["<graphActorId or layerActorId>"]` when the user gives UUIDs
+  instead of a URL.
+- Pass a graph root UUID to clone a graph; pass a layer UUID to clone that layer.
+- Omit `targetAccId` to import into the current/source workspace in the current
+  environment.
+- If `targetAccId` equals `sourceAccId`, `refStrategy="replace"` creates
+  duplicates in the same workspace under `refReplacePrefix`. This is valid for
+  tests and explicit copy operations, but mention it before production use.
+- `refReplacePrefix` is required for the default `replace` clone path. It is not
+  allowed for `refStrategy="error"` or `refStrategy="reuse"`; `reuse` needs
+  `allowReuseImport=true`.
+- When both export/import manifests are available, check `countersMatch`; a
+  completed import with mismatched counters needs investigation before calling
+  the clone equivalent.
+- On successful `replace` imports the tool tries to return `target.url`,
+  `target.graphId` and/or `target.layerId` for the imported copy. It prefers
+  exact REF lookup when the archive has form/ref metadata. For no-REF graph
+  actors or layers it may fall back to exact title + formId + import-time
+  matching and emits a warning asking you to verify the resolved URL. If target
+  resolution is missing or ambiguous, the clone may still be complete; explain
+  the warning and resolve the imported actor manually from the import task or
+  by searching the target workspace.
+- A graph root can export successfully but still be rejected by the backend
+  import validator. Do not report clone success until the final import task is
+  `status="completed"`; if it fails, surface `details.errMsg` exactly and
+  suggest cloning the needed layer(s) separately when appropriate.
+- Use `cloneGraphLayer` only as a shortcut when you specifically have a
+  `layerId`.
+
+### Clone a layer shortcut
+
+When the user specifically asks for a single layer and gives a layer UUID, this
+shortcut is equivalent to `cloneGraphObjects(actorIds=["<layerId>"], ...)`:
+
+```
+cloneGraphLayer(
+  sourceUrl="<Simulator graph/layer URL>",
+  targetAccId="<targetWorkspaceId>",
+  refStrategy="replace",
+  refReplacePrefix="clone_YYYYMMDD_",
+  attachments=false,
+  confirmClone=true,
+  waitSec=300
+)
+```
+
+`layerId` can be passed instead of `sourceUrl`. If `sourceUrl` is used, it must
+contain `/layers/<layerId>`.
+
+This runs export → wait → download `.graph` → upload → import → wait. Treat a
+created task as queued, not successful; final success is only
+`status="completed"`. On `status="failed"`, read `details.errMsg` and explain it
+to the user.
 
 ---
 

@@ -269,6 +269,10 @@ ported from the original implementation:
 | `pullGraphFile`          | `sync_graph.go`          | Export a layer's actors + edges to `<layerId>.yaml`                  |
 | `pushGraphFile`          | `sync_graph.go` / `push_graph.go` | Diff a local YAML against the layer and create/update/delete |
 | `getAllLayerPlacements`  | `get_layer_placements.go`| Return every placement on a layer in one paginated call             |
+| `createGraphExportTask`  | `import_export.go`       | Start an async `.graph` export task for selected actors/forms       |
+| `getGraphImportExportTask` | `import_export.go`     | Read export/import task status, manifest counters, file metadata, and errors |
+| `importGraphArchive`     | `import_export.go`       | Upload/import a `.graph` archive with guarded REF collision strategy |
+| `cloneGraphLayer` / `cloneGraphObjects` | `import_export.go` | Clone graph/layer objects via export → download → upload → import |
 | `compactGraphLayout`     | `compact_layout.go`      | Auto-layout a layer into domain-clustered grids                     |
 | `pruneLongEdges`         | `prune_edges.go`         | Delete edges longer than a distance threshold; preserves hierarchy  |
 | `uploadActorPicture(Bulk)`| `upload.go` + `svg.go`  | Set actor pictures (URL/file/base64); auto-rasterise SVG→PNG        |

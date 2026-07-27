@@ -233,6 +233,10 @@ the actor/node items.)
 | `pullGraphFile`          | Fetch all actors and edges from a layer and write them to `<layerId>.yaml` in the working directory  |
 | `pushGraphFile`          | Read `<layerId>.yaml` and sync it with the server layer: create / update / remove to match the file  |
 | `getAllLayerPlacements`  | Return every actor placement on a layer in one paginated call                                        |
+| `createGraphExportTask`  | Start an async `.graph` export task for selected graph/layer actors, forms, or a confirmed workspace-wide export |
+| `getGraphImportExportTask` | Read an async `.graph` export/import task status, file metadata, manifest counters, and backend errors |
+| `importGraphArchive`     | Import an uploaded or local `.graph` archive with guarded REF strategy options; requires confirmation |
+| `cloneGraphLayer` / `cloneGraphObjects` | Clone graph/layer objects via export → download → upload → import, returning target ids/URL when safely resolvable |
 | `compactGraphLayout`     | Auto-layout a layer into domain-clustered grids (replaces the pull → edit → push loop)               |
 | `pruneLongEdges`         | Delete edges longer than a distance threshold; preserves hierarchy edges                             |
 | `uploadActorPicture` / `uploadActorPictureBulk` | Set actor pictures from URL / file / base64; auto-rasterise SVG → PNG; bulk dedupes by SHA-256 |

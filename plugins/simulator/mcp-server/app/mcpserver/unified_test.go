@@ -3,6 +3,7 @@ package mcpserver_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	mcpserver "github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
@@ -10,7 +11,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// One stateless server: tools/list switches between the full curated catalogue
+// One stateless server: tools/list switches between the full curated catalog
 // (no actor on ctx) and the per-actor subset (WithActorID on ctx) based on the
 // per-request value alone. Same server instance, two views.
 func TestUnifiedServerSwitchesModeOnCtxActor(t *testing.T) {
@@ -46,9 +47,14 @@ func TestUnifiedServerSwitchesModeOnCtxActor(t *testing.T) {
 		t.Fatalf("tools/list (full): %v", err)
 	}
 	full := toolMap(fullList.Tools)
-	for _, want := range []string{"getCurrencies", "getWorkspaces", "createForm"} {
+	for _, want := range []string{"getCurrencies", "getWorkspaces", "createForm", "createGraphExportTask", "getGraphImportExportTask", "importGraphArchive", "cloneGraphLayer", "cloneGraphObjects"} {
 		if _, ok := full[want]; !ok {
 			t.Errorf("full mode is missing workspace-wide tool %q", want)
+		}
+	}
+	for _, name := range []string{"cloneGraphLayer", "cloneGraphObjects"} {
+		if schemaRequires(full[name], "refReplacePrefix") {
+			t.Errorf("%s must not mark refReplacePrefix globally required; it is required only with refStrategy=replace", name)
 		}
 	}
 	if _, ok := full["getActor"]; !ok {
@@ -56,7 +62,8 @@ func TestUnifiedServerSwitchesModeOnCtxActor(t *testing.T) {
 	}
 	// In full mode the actor-scoped tools still expose actorId — the model
 	// supplies it explicitly.
-	if !schemaContains(t, full["getActor"], `"actorId"`) {
+	getActor := full["getActor"]
+	if getActor == nil || !schemaContains(t, *getActor, `"actorId"`) {
 		t.Error("full mode getActor should expose actorId in its schema")
 	}
 
@@ -82,47 +89,52 @@ func TestUnifiedServerSwitchesModeOnCtxActor(t *testing.T) {
 		}
 	}
 	// Workspace-wide tools and engine tools are filtered out.
-	for _, notWant := range []string{"getCurrencies", "getWorkspaces", "createForm", "login", "set-workspace", "set-environment"} {
+	for _, notWant := range []string{"getCurrencies", "getWorkspaces", "createForm", "login", "set-workspace", "set-environment", "createGraphExportTask", "getGraphImportExportTask", "importGraphArchive", "cloneGraphLayer", "cloneGraphObjects"} {
 		if _, ok := actor[notWant]; ok {
 			t.Errorf("actor mode must not expose %q", notWant)
 		}
 	}
 	// Bound identity is stripped from every actor-mode schema.
 	for name, tool := range actor {
-		if schemaContains(t, tool, `"actorId"`) {
+		if schemaContains(t, *tool, `"actorId"`) {
 			t.Errorf("actor mode leaks the bound actorId in %q", name)
 		}
 	}
 	for _, name := range []string{"getAccessRules", "saveAccessRules"} {
 		for _, hidden := range []string{`"objType"`, `"objId"`} {
-			if schemaContains(t, actor[name], hidden) {
+			tool := actor[name]
+			if tool != nil && schemaContains(t, *tool, hidden) {
 				t.Errorf("actor mode leaks bound %s in %q", hidden, name)
 			}
 		}
 	}
 	for _, name := range []string{"createLink", "existLink"} {
-		if schemaContains(t, actor[name], `"source"`) {
+		tool := actor[name]
+		if tool != nil && schemaContains(t, *tool, `"source"`) {
 			t.Errorf("actor mode leaks the bound source in %q", name)
 		}
 	}
 
 	// Flipping the same client back to full mode (no actor on the next call's
-	// ctx) restores the full catalogue — the switch is per request, not per
+	// ctx) restores the full catalog — the switch is per request, not per
 	// session, so the test for that is just symmetric coverage.
 	again, err := cli.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		t.Fatalf("tools/list (full, second call): %v", err)
 	}
 	if got := len(again.Tools); got <= len(actor) {
-		t.Errorf("full-mode catalogue smaller than actor-mode (%d vs %d) — filter is leaking state", got, len(actor))
+		t.Errorf("full-mode catalog smaller than actor-mode (%d vs %d) — filter is leaking state", got, len(actor))
 	}
 }
 
-func toolMap(list []mcp.Tool) map[string]mcp.Tool {
-	out := make(map[string]mcp.Tool, len(list))
-	for _, t := range list {
-		out[t.Name] = t
+func toolMap(list []mcp.Tool) map[string]*mcp.Tool {
+	out := make(map[string]*mcp.Tool, len(list))
+	for i := range list {
+		out[list[i].Name] = &list[i]
 	}
 	return out
 }
 
+func schemaRequires(tool *mcp.Tool, name string) bool {
+	return tool != nil && slices.Contains(tool.InputSchema.Required, name)
+}

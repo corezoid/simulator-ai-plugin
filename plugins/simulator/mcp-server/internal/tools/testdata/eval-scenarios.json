@@ -554,6 +554,27 @@
     ]
   },
   {
+    "name": "Clone a graph layer by URL",
+    "prompt": "Clone this Simulator graph layer into the current workspace and give me the new link: https://mw.simulator.company/actors_graph/11111111/graph/33333333-3333-4333-8333-333333333333/layers/22222222-2222-4222-8222-222222222222. Preserve names and avoid updating existing objects.",
+    "tools": [
+      "cloneGraphObjects"
+    ],
+    "argChecks": [
+      {
+        "tool": "cloneGraphObjects",
+        "mustContain": [
+          "sourceUrl",
+          "confirmClone",
+          "refReplacePrefix"
+        ],
+        "mustNotContain": [
+          "\"refStrategy\":\"reuse\""
+        ]
+      }
+    ],
+    "liveOnly": true
+  },
+  {
     "name": "Chart top accounts on a layer",
     "prompt": "Create a chart (use createChart) of the top maintenance spenders on layer 14b284e0-5f77-4b40-bdde-f7058b05939f.",
     "tools": [

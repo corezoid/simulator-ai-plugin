@@ -38,6 +38,8 @@ func knownToolNames() map[string]bool {
 	for _, n := range []string{
 		"pullGraphFile", "pushGraphFile", "getAllLayerPlacements",
 		"compactGraphLayout", "pruneLongEdges", "createChart",
+		"createGraphExportTask", "getGraphImportExportTask",
+		"importGraphArchive", "cloneGraphLayer", "cloneGraphObjects",
 		"uploadActorPicture", "uploadActorPictureBulk",
 		"buildLink", "getBbcodeTags", "readAttachment",
 		"createSmartForm", "pullSmartForm", "pushSmartForm",
