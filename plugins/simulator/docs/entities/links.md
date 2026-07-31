@@ -103,6 +103,12 @@ in `closed_edge_holes`. The hole edge itself is **never modified or deleted** (i
 merge/revert routes have no operationId and are not curated MCP tools — same as the actor-hole
 `merge_hole`/`revert_hole` routes.)
 
+Closing an **actor** hole (`merge_hole`) never changes the KIND of its links: the closer inherits the
+hole's connections as links of the same kind — a hole link stays a hole link (`hole: true`), an
+ordinary link stays ordinary. Revert moves them back the same way. An already-existing closer link to
+that neighbor is reused as-is and keeps its own kind (only one row per
+`source`/`target`/`edgeTypeId` may exist).
+
 ## Database Structure
 
 Links are stored in the `actors_edges` table with the following structure:
