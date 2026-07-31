@@ -89,7 +89,7 @@ An edge can be a **hole** — a placeholder link (`hole: true` on `createLink`, 
 `actors_edges.hole`). It renders as a dashed placeholder on a layer. Closing a hole is a
 **layer-level placement swap** (the exact edge analogue of closing an actor hole): the hole edge's
 `layer_to_edges` placement is replaced by a real "closer" edge's placement on that layer, recorded
-in `closed_edge_holes`. The hole edge itself is **never modified or deleted** (its `hole` flag stays
+in `closed_edge_holes`. **Closing** never modifies or deletes the hole edge (its `hole` flag stays
 `true`) — both edges persist, only the layer view changes. A hole is closed either:
 
 - **automatically** when a financial **transfer** runs between the two actors a hole connects — the
@@ -102,6 +102,19 @@ in `closed_edge_holes`. The hole edge itself is **never modified or deleted** (i
 `holeEdgeId`) re-opens the holes a closer edge closed, restoring the hole's layer placement. (These
 merge/revert routes have no operationId and are not curated MCP tools — same as the actor-hole
 `merge_hole`/`revert_hole` routes.)
+
+**Replacing a hole with a real link is a different operation from closing it.** A plain `createLink`
+over a pair already joined by a hole edge — no `hole`, no `linkedActorId` — means "this placeholder is
+a real link now": the hole row is **deleted** and a fresh ordinary edge is created in the requested
+direction. `hole` is insert-only, so it cannot be flipped in place; that delete also drops the hole's
+`closed_edge_holes` rows, i.e. it gives up the ability to `revert_edge_hole` that hole. Pass
+`hole: true` (to keep the placeholder) or a `linkedActorId` (to add a distinct linked edge alongside
+it) when that is not what you want. Tree-type edges are exempt — their holes are never replaced.
+
+Note that a hole and a linked edge on the same `(edgeTypeId, source, target)` are **two different
+rows**, since `linked_actor_id` is part of the unique index and NULLs are not distinct there. That is
+exactly the pair a transfer leaves behind, so a lookup by endpoints alone (`existLink`) may return
+either one — prefer `getEdge` on an id you already hold when you need a specific row.
 
 ## Database Structure
 
