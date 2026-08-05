@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+### Added
+- **Anonymous tool-call telemetry + opt-in email.** The MCP server now sends anonymous usage
+  events (tool name, duration, error type, API hostname, transport, server version, a
+  per-installation UUID, and MCP client name/version) to the same Corezoid ingest process
+  corezoid-ai-plugin uses, tagged `product: "simulator"` so the two stay distinguishable
+  downstream. No tokens, workspace/actor/form identifiers, or graph content are ever sent. Opt out
+  entirely with `SIMULATOR_ANALYTICS_DISABLED=1`. After the first successful `login`, clients that
+  support MCP elicitation are offered a one-time opt-in to include an email address, stored in
+  `~/.simulator/preferences.json`. New `internal/telemetry` package; wired via
+  `server.WithToolHandlerMiddleware` in `app/mcpserver.New` so it covers every registered tool
+  without touching individual handlers. See README's Telemetry section and SECURITY.md for the
+  full field list.
+
 ## [2.5.0] - 2026-07-14
 
 ### Added
