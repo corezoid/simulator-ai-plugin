@@ -97,7 +97,7 @@ func AskForEmailOnce(ctx context.Context, s *server.MCPServer) {
 		if content, ok := result.Content.(map[string]any); ok {
 			if email, _ := content["email"].(string); email != "" {
 				prefs.TelemetryEmail = email
-				telemetryEmail = email
+				setTelemetryEmail(email)
 			}
 		}
 	}

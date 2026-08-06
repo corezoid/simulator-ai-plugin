@@ -19,6 +19,13 @@
   without touching individual handlers. See README's Telemetry section and SECURITY.md for the
   full field list.
 
+### Fixed
+- **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
+  `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
+  call — safe under the current single-threaded stdio transport, but a data race under `go test
+  -race` if a concurrent transport (HTTP/SSE) were ever added. Now uses `atomic.Pointer[string]`,
+  matching the `atomic.Bool` discipline already used for the telemetry `enabled` flag.
+
 ## [2.5.0] - 2026-07-14
 
 ### Added

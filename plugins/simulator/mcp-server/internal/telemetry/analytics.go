@@ -28,8 +28,23 @@ var enabled atomic.Bool
 var transport string
 var serverVersion string
 var installationID string
-var telemetryEmail string
+var telemetryEmail atomic.Pointer[string]
 var eventCh chan Event
+
+// setTelemetryEmail and telemetryEmailValue give telemetryEmail the same
+// atomic discipline as enabled: AskForEmailOnce (triggered by login) and
+// Middleware (triggered by every tool call) can otherwise run concurrently
+// under a future non-stdio transport.
+func setTelemetryEmail(email string) {
+	telemetryEmail.Store(&email)
+}
+
+func telemetryEmailValue() string {
+	if v := telemetryEmail.Load(); v != nil {
+		return *v
+	}
+	return ""
+}
 
 // flushCh lets Stop ask the sender goroutine to drain and flush
 // synchronously before process exit, avoiding the loss of events that would
@@ -167,7 +182,7 @@ func Init(transportName, version string) {
 	}
 	installationID = loadOrCreateInstallationID()
 	prefs := LoadPreferences()
-	telemetryEmail = prefs.TelemetryEmail
+	setTelemetryEmail(prefs.TelemetryEmail)
 	eventCh = make(chan Event, 100)
 	flushCh = make(chan chan struct{})
 	enabled.Store(true)
@@ -200,7 +215,7 @@ func Middleware(apiURL func() string) server.ToolHandlerMiddleware {
 				Transport:      transport,
 				ServerVersion:  serverVersion,
 				InstallationID: installationID,
-				UserEmail:      telemetryEmail,
+				UserEmail:      telemetryEmailValue(),
 			}
 			if session, ok := server.ClientSessionFromContext(ctx).(server.SessionWithClientInfo); ok {
 				info := session.GetClientInfo()
