@@ -208,6 +208,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 
 	// Phase 2 — create missing files in one batch.
 	createdFiles := 0
+	var reconciledFiles []string
 	if len(newFilePaths) > 0 {
 		batch := make([]createItem, 0, len(newFilePaths))
 		for _, relPath := range newFilePaths {
@@ -241,6 +242,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			}
 			byKey[fmt.Sprintf("%d/%s", c.FolderID, c.Title)] = c
 		}
+		var missingFromResponse []string
 		for _, relPath := range newFilePaths {
 			// Reuse resolveParentID (with ToSlash) so the lookup key matches the
 			// parentID actually POSTed above. Computing filepath.Dir inline here
@@ -250,7 +252,10 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			key := fmt.Sprintf("%d/%s", parentID, filepath.Base(relPath))
 			c, ok := byKey[key]
 			if !ok {
-				return mcp.NewToolResultError(fmt.Sprintf("[Error] server did not return id for created file %q", relPath)), nil
+				// Server create likely succeeded but the id was absent from the
+				// batch response; defer reconciliation instead of aborting.
+				missingFromResponse = append(missingFromResponse, relPath)
+				continue
 			}
 			manifest.Files[relPath] = manifestNode{
 				FileID:   c.ID,
@@ -259,6 +264,45 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 				Hash:     newHashes[relPath],
 			}
 			createdFiles++
+		}
+
+		// Reconcile files whose ids were absent from the batch create response.
+		// Re-fetching the env tree recovers their server-assigned ids so the
+		// manifest stays in sync and a retry does not create duplicate files.
+		if len(missingFromResponse) > 0 {
+			recovered, reconcileErr := reconcileCreatedFiles(ctx, actorID, &manifest, missingFromResponse)
+			var stillMissing []string
+			for _, relPath := range missingFromResponse {
+				if c, ok := recovered[relPath]; ok {
+					manifest.Files[relPath] = manifestNode{
+						FileID:   c.ID,
+						FolderID: c.FolderID,
+						MimeType: c.Type,
+						Hash:     newHashes[relPath],
+					}
+					createdFiles++
+					reconciledFiles = append(reconciledFiles, relPath)
+				} else {
+					stillMissing = append(stillMissing, relPath)
+				}
+			}
+			if len(stillMissing) > 0 {
+				// Persist partial progress so a retry does not re-create the
+				// files that were successfully tracked, then surface a clear
+				// warning distinct from "nothing happened".
+				updatedManifest, _ := json.MarshalIndent(manifest, "", "  ")
+				_ = os.WriteFile(manifestPath, updatedManifest, 0600)
+				errMsg := fmt.Sprintf(
+					"[Error] %d file(s) may have been created server-side but could not "+
+						"be tracked in the manifest — run pullSmartForm to reconcile "+
+						"before retrying (retrying without reconciliation risks duplicate "+
+						"files): %v",
+					len(stillMissing), stillMissing)
+				if reconcileErr != nil {
+					errMsg += fmt.Sprintf("; reconcile fetch error: %v", reconcileErr)
+				}
+				return mcp.NewToolResultError(errMsg), nil
+			}
 		}
 	}
 
@@ -318,6 +362,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		"orphanFiles":       orphanFiles,
 		"createdFolderPath": newFolderPaths,
 		"createdFilePath":   newFilePaths,
+		"reconciledFiles":   reconciledFiles,
 	})
 	return mcp.NewToolResultText(string(out)), nil
 }
@@ -433,6 +478,49 @@ func backfillManifestFromServer(ctx context.Context, actorID string, manifest *s
 		manifest.EnvRootFolderID = rootFolderID
 	}
 	return nil
+}
+
+// reconcileCreatedFiles re-fetches the full env struct and returns a map from
+// env-relative path to the server's createdObj for each relPath that can be
+// found.  Paths not present on the server are omitted from the result.
+func reconcileCreatedFiles(ctx context.Context, actorID string, manifest *smartFormManifest, relPaths []string) (map[string]createdObj, error) {
+	tree, err := fetchEnvStruct(ctx, actorID, manifest.EnvID)
+	if err != nil {
+		return nil, err
+	}
+	byPath := make(map[string]createdObj, len(relPaths))
+	collectCreatedFilesByPath(*tree, "", byPath)
+	result := make(map[string]createdObj, len(relPaths))
+	for _, p := range relPaths {
+		if c, ok := byPath[p]; ok {
+			result[p] = c
+		}
+	}
+	return result, nil
+}
+
+// collectCreatedFilesByPath walks an appTreeNode recursively and populates
+// byPath with a createdObj for every file node, keyed by env-relative path.
+func collectCreatedFilesByPath(node appTreeNode, relDir string, byPath map[string]createdObj) {
+	for _, child := range node.Children {
+		childRel := child.Title
+		if relDir != "" {
+			childRel = relDir + "/" + child.Title
+		}
+		switch child.ObjType {
+		case "file":
+			byPath[childRel] = createdObj{
+				ID:       child.ID,
+				ObjType:  child.ObjType,
+				FolderID: child.FolderID,
+				Title:    child.Title,
+				Type:     child.Type,
+				Source:   child.Source,
+			}
+		case "folder":
+			collectCreatedFilesByPath(child, childRel, byPath)
+		}
+	}
 }
 
 // collectFoldersFromTree walks the env struct returned by app_content/struct
