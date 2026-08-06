@@ -26,15 +26,16 @@ func Register(s *server.MCPServer) {
 
 	s.AddTool(
 		mcp.NewTool("pullSmartForm",
-			mcp.WithDescription("Fetch all environment file trees (pages, locale, viewModel, styles, definitions, widgets) of a smart form (CDU / Script application) and write them to <actorId>/<envTitle>/... in the current working directory. Also writes a .manifest.json in each env folder with file IDs and content hashes for use by pushSmartForm. Requires actors.management scope."),
+			mcp.WithDescription("Fetch all environment file trees (pages, locale, viewModel, styles, definitions, widgets) of a smart form (CDU / Script application) and write them to <actorId>/<envTitle>/... in the current working directory. Also writes a .manifest.json in each env folder with file IDs and content hashes for use by pushSmartForm. Conflict detection: if a prior manifest exists and any local file differs from its last-pulled hash, the pull is refused — push your changes first or pass force=true to discard local edits. Requires actors.management scope."),
 			mcp.WithString("actorId", mcp.Description("Smart form actor UUID."), mcp.Required()),
+			mcp.WithBoolean("force", mcp.Description("Overwrite local files even when they have unsaved edits (local hash differs from the last-pulled manifest hash). Default false — the pull aborts and lists the conflicting files so you can decide what to do.")),
 		),
 		handlePullSmartForm,
 	)
 
 	s.AddTool(
 		mcp.NewTool("pushSmartForm",
-			mcp.WithDescription("Reconcile the local develop tree with the server: POST any new folders (parents first) and new files (e.g. a new page like pages/<id>/config + locale), PUT any modified files, and update .manifest.json with the returned ids and content hashes. Files/folders present in the manifest but missing locally are reported as orphanFiles but never deleted server-side. MIME defaults: text/css under styles/, application/json elsewhere. Only the develop env is writable; run pullSmartForm first to create the manifest. Requires actors.management scope."),
+			mcp.WithDescription("Reconcile the local develop tree with the server: POST any new folders (parents first) and new files, PUT any modified files (including MIME-only drift), and update .manifest.json. MIME rules: text/css for styles/, pages/<page>/style, and *.css; application/json for everything else. Duplicate guard: before creating a new file, the server tree is checked — if a file already occupies that (folder, title) slot the push aborts with guidance to re-run pullSmartForm. PUT always re-derives the correct MIME type so a previously wrong Content-Type is self-healed without manual delete/recreate. Files in the manifest but missing locally are reported as orphanFiles. Only develop is writable; run pullSmartForm first. Requires actors.management scope."),
 			mcp.WithString("actorId", mcp.Description("Smart form actor UUID — directory <actorId>/develop/ must exist with a .manifest.json."), mcp.Required()),
 		),
 		handlePushSmartForm,
