@@ -408,6 +408,7 @@ data.responseData = { changes: data.changes, notifications: data.notifications }
   "extra":      { "code": "200", "viewModel": "{{viewModel}}" },
   "extra_type": { "code": "number", "viewModel": "object" },
   "extra_headers": { "content-type": "application/json; charset=utf-8" },
+  "customize_response": false,
   "err_node_id": "<errorNodeId>",
   "version": 2
 }
@@ -427,6 +428,7 @@ Identical shape, with `data` in place of `viewModel`:
   "extra":      { "code": "200", "data": "{{responseData}}" },
   "extra_type": { "code": "number", "data": "object" },
   "extra_headers": { "content-type": "application/json; charset=utf-8" },
+  "customize_response": false,
   "err_node_id": "<errorNodeId>",
   "version": 2
 }
@@ -868,7 +870,9 @@ exact node shapes for additions. Use this template:
 >
 > **Callback contract reminder:** the API node that POSTs to `{{__callback_url}}`
 > must keep `extra_type.code: "number"` and the viewModel/data payload typed as
-> `object`.
+> `object`. Always set `customize_response: false` — cb-apigw acks the callback
+> POST with an empty (non-JSON) body, so enabling response-body casting throws
+> `api_wrong_convert_param: "Param: body, Value: , Try convert to: object"`.
 >
 > **After deploy:** push the process (`corezoid-edit` does this automatically in
 > its Step 3) and ask me to re-test in the UI.
@@ -909,34 +913,41 @@ does **not** require re-sharing or re-binding.
 2. **Object payloads need `extra_type: "object"`.** `viewModel` and `data` in the
    final API node must be declared as object types so Corezoid serializes them as
    JSON, not stringified strings.
-3. **Numeric `code`.** `extra.code = "200"`, `extra_type.code = "number"`. The
+3. **Set `customize_response: false` on the callback API node.** cb-apigw returns
+   an empty (non-JSON) body when it acks the callback POST. If `customize_response`
+   is `true` (or left at a default that enables response-body casting), Corezoid
+   tries to convert the empty string to `object` and throws
+   `api_wrong_convert_param: "Param: body, Value: , Try convert to: object"` —
+   even though the payload was already delivered successfully. The ack body is never
+   used downstream, so always set `customize_response: false` (see §2.7, §2.8).
+4. **Numeric `code`.** `extra.code = "200"`, `extra_type.code = "number"`. The
    Smart Form serve layer rejects responses where `code` arrives as a string.
-4. **Every fallible node needs `err_node_id`.** Code Nodes, API Calls, Call a
+5. **Every fallible node needs `err_node_id`.** Code Nodes, API Calls, Call a
    Process, Copy Task, Set Param all need an escalation target. Errors should
    POST `code: 500` (or 4xx for validation) back to `{{__callback_url}}` so the
    user sees a usable error notification instead of a hung page.
-5. **Match `id` values to the page config.** Every `changes[].id` must match the
+6. **Match `id` values to the page config.** Every `changes[].id` must match the
    `id` of a real item in `pages/<page>/config`. Unknown ids are silently dropped.
-6. **`buttonId` is the source id for every `/send` event — not only buttons.**
+7. **`buttonId` is the source id for every `/send` event — not only buttons.**
    Both button clicks and `submitOnChange` field changes arrive as `/send` with
    `body.buttonId` set to the triggering element's `id`. Distinguish the two by
    `body.buttonData`: it is `{}` for button clicks and `{ action, value }` for
    field-change events (see §2.3a). Always check which elements on a page have
    `submitOnChange: true` before designing the `/send` dispatch tree.
-7. **`memberGroups` for authz.** `sessionData.userInfo.memberGroups` is the source
+8. **`memberGroups` for authz.** `sessionData.userInfo.memberGroups` is the source
    of truth for role-based logic — do not call simulator APIs to re-derive group
    membership.
-8. **Aliases over numeric ids for sub-process calls.** Wherever the topology uses
+9. **Aliases over numeric ids for sub-process calls.** Wherever the topology uses
    `api_copy` / `api_rpc`, reference the target by `@short-name`, not by numeric
    id — aliases survive stage moves; numeric ids do not.
-9. **`api_copy` is fire-and-forget.** When you fan out via `api_copy`, the parent
-   exits immediately and the child owns the callback. Use `api_rpc` instead if
-   the parent needs the result.
-10. **Develop vs production.** A Smart Form release deploys *files only*. The env
+10. **`api_copy` is fire-and-forget.** When you fan out via `api_copy`, the parent
+    exits immediately and the child owns the callback. Use `api_rpc` instead if
+    the parent needs the result.
+11. **Develop vs production.** A Smart Form release deploys *files only*. The env
     credentials (`procId` etc.) are **not** part of the release snapshot — they
     are set per env via the binding endpoint. When promoting, update both
     bindings explicitly if dev and prod should hit different Corezoid stages.
-11. **The API key must be shared to the bound process.** `apiLogin` /
+12. **The API key must be shared to the bound process.** `apiLogin` /
     `apiSecret` alone are not enough — the platform calls the process *as*
     that key, and Corezoid will reject the call unless the key has at least
     `create` privilege on the conv. Symptom of a missing share: every `/get`
