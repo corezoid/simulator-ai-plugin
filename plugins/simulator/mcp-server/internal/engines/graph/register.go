@@ -105,4 +105,68 @@ func Register(s *server.MCPServer) {
 		),
 		handleCreateChart,
 	)
+
+	// ---- Async import/export tasks (backed by pong-server task API) ----
+	//
+	// Export flow:  exportGraph → poll getTaskStatus → completed details contain
+	//               file.fileName which can be passed to importGraph.
+	// Import flow:  uploadGraphFile (if importing an external file) → get
+	//               fileName → importGraph(fileName) → poll getTaskStatus.
+
+	s.AddTool(
+		mcp.NewTool("exportGraph",
+			mcp.WithDescription("Export selected actors (by UUID, form, or entire workspace) to a .graph archive file visible in the workspace Exports section. Before calling: 1) ask the user whether to export the entire workspace (allWorkspace:true) or a specific graph — if specific, use searchActors or getForms to find actor/form IDs; 2) ask which data to include: attachments, transactions, processes, users, balances (show defaults so the user can confirm or change). Operation is async — poll getTaskStatus until status is \"completed\"; completed details include file.fileName (pass to importGraph to re-import). Provide at least one filter: actors, forms, or allWorkspace."),
+			mcp.WithArray("actors", mcp.Description("List of actor UUIDs to export.")),
+			mcp.WithArray("forms", mcp.Description("List of numeric form IDs — all actors in these forms are exported.")),
+			mcp.WithBoolean("allWorkspace", mcp.Description("Export every actor in the workspace. Default false.")),
+			mcp.WithBoolean("attachments", mcp.Description("Include attachment files and pictures. Default true.")),
+			mcp.WithBoolean("transactions", mcp.Description("Include account transactions and transfers. Default false.")),
+			mcp.WithBoolean("processes", mcp.Description("Include Corezoid processes and API Gateway configs. Default false.")),
+			mcp.WithBoolean("users", mcp.Description("Include user access rules and permissions. Default false.")),
+			mcp.WithBoolean("balances", mcp.Description("Include account balances. Default false.")),
+			mcp.WithBoolean("connectorsToAccounts", mcp.Description("Include account connectors/integrations. Default true.")),
+			mcp.WithBoolean("accountToActors", mcp.Description("Include account-to-actor mappings. Default true.")),
+			mcp.WithBoolean("systemCounters", mcp.Description("Include system counter accounts. Default false.")),
+			mcp.WithNumber("maxRecursionLevel", mcp.Description("Max depth when traversing actor relationships. 0 = unlimited (default).")),
+		),
+		handleExportGraph,
+	)
+
+	s.AddTool(
+		mcp.NewTool("uploadGraphFile",
+			mcp.WithDescription("Upload a .graph archive to workspace storage and return the storage fileName for use with importGraph. Accepts base64-encoded content or a public URL. Not needed when re-importing a file exported in the same workspace — pass details.file.fileName from the completed exportGraph task directly to importGraph."),
+			mcp.WithString("base64", mcp.Description("Base64-encoded .graph file content (optionally with data: URI prefix). One of base64 or fileUrl is required.")),
+			mcp.WithString("fileUrl", mcp.Description("Public URL to download the .graph file from. One of base64 or fileUrl is required.")),
+			mcp.WithString("originalName", mcp.Description("Original filename (e.g. \"backup.graph\"). Default \"import.graph\".")),
+		),
+		handleUploadGraphFile,
+	)
+
+	s.AddTool(
+		mcp.NewTool("importGraph",
+			mcp.WithDescription("Import a .graph archive into the workspace, restoring actors, forms, edges, and related data. Before calling: 1) determine the file source — if re-importing from a previous export, use details.file.fileName from getTaskStatus; if importing an external file, ask the user for a URL and upload it first with uploadGraphFile to get the fileName; 2) ask the user about reference strategies — for each entity type (actors, forms, transfers, transactions, processes) choose \"reuse\" (merge with existing data) or \"replace\" (create new copies), show defaults and let the user confirm or change; 3) ask if user permission remapping is needed. Operation is async — poll getTaskStatus until done."),
+			mcp.WithString("fileName", mcp.Description("Storage fileName of the .graph file (from exportGraph details or uploadGraphFile result)."), mcp.Required()),
+			mcp.WithArray("users", mcp.Description("User ID remapping array. Each element: {fromId (number), toIds (number array)}.")),
+			mcp.WithString("actorRefStrategy", mcp.Description("Actor reference strategy: \"reuse\" (merge with existing) or \"replace\" (create new). Empty = server default.")),
+			mcp.WithString("actorRefReplacePrefix", mcp.Description("Prefix for actor references when strategy is \"replace\". Auto-generated if empty.")),
+			mcp.WithString("formRefStrategy", mcp.Description("Form reference strategy: \"reuse\" or \"replace\".")),
+			mcp.WithString("formRefReplacePrefix", mcp.Description("Prefix for form references when strategy is \"replace\". Auto-generated if empty.")),
+			mcp.WithString("transferRefStrategy", mcp.Description("Transfer reference strategy: \"reuse\" or \"replace\".")),
+			mcp.WithString("transferRefReplacePrefix", mcp.Description("Prefix for transfer references when strategy is \"replace\". Auto-generated if empty.")),
+			mcp.WithString("transactionRefStrategy", mcp.Description("Transaction reference strategy: \"reuse\" or \"replace\".")),
+			mcp.WithString("transactionRefReplacePrefix", mcp.Description("Prefix for transaction references when strategy is \"replace\". Auto-generated if empty.")),
+			mcp.WithString("processesRefStrategy", mcp.Description("Corezoid processes reference strategy: \"reuse\" (merge) or \"replace\" (reimport).")),
+			mcp.WithArray("dataReplace", mcp.Description("Data replacement rules. Each element: {from: {type, ref?, id?}, to: {title?, description?, ref?}}.")),
+		),
+		handleImportGraph,
+	)
+
+	s.AddTool(
+		mcp.NewTool("getTaskStatus",
+			mcp.WithDescription("Poll the status of an export or import task. Returns status (created, started, completed, failed, canceled) and structured details. Call repeatedly every 2-3 seconds until terminal status. For completed exports, the response includes downloadUrl (ready to share with the user) and details.file.fileName (the same file, usable with readAttachment or passed to importGraph for re-import)."),
+			mcp.WithNumber("taskId", mcp.Description("Numeric task ID returned by exportGraph or importGraph."), mcp.Required()),
+			mcp.WithString("name", mcp.Description("Task type: \"import\" or \"export\"."), mcp.Required()),
+		),
+		handleGetTaskStatus,
+	)
 }

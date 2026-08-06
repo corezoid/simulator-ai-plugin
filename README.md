@@ -249,6 +249,9 @@ the actor/node items.)
 |--------------------------|------------------------------------------------------------------------------------------------------|
 | `pullGraphFile`          | Fetch all actors and edges from a layer and write them to `<layerId>.yaml` in the working directory  |
 | `pushGraphFile`          | Read `<layerId>.yaml` and sync it with the server layer: create / update / remove to match the file  |
+| `exportGraph` / `importGraph` | Export actors (by UUID, form, or whole workspace) to a `.graph` archive, or import one back — same as the UI Export/Import buttons. Async; poll with `getTaskStatus` |
+| `uploadGraphFile`        | Upload a `.graph` archive (base64 or public URL) to workspace storage, returning the `fileName` for `importGraph` |
+| `getTaskStatus`          | Poll an `exportGraph` / `importGraph` task; completed exports include a ready-to-share `downloadUrl` |
 | `getAllLayerPlacements`  | Return every actor placement on a layer in one paginated call                                        |
 | `compactGraphLayout`     | Auto-layout a layer into domain-clustered grids (replaces the pull → edit → push loop)               |
 | `pruneLongEdges`         | Delete edges longer than a distance threshold; preserves hierarchy edges                             |
@@ -278,7 +281,8 @@ Claude Code / Codex / Kiro
         ├── auth        set-environment (public config → account URL), login (OAuth2 PKCE → .env), set-workspace
         ├── tools       curated typed operations (forms, actors, accounts,
         │               transactions, graph, apps) — one tool per backend op
-        ├── engines     pullGraphFile, pushGraphFile, compactGraphLayout,
+        ├── engines     pullGraphFile, pushGraphFile, exportGraph, importGraph,
+        │               uploadGraphFile, getTaskStatus, compactGraphLayout,
         │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, buildLink
         └── apiclient   HTTP → Simulator /papi/1.0 (local :9000 or mw gateway)
 ```

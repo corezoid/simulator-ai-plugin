@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.5.0]
+
+### Added
+- actor geolocation fields on createActor/updateActor (#74)
+
+### Changed
+- CE-15667 feat(actors): filterActors linkedToActorDirection param (#77)
+- add CDU UI pattern recipes & DOM/protocol notes (#70)
+- document extra.reverseEdge link-direction flag
+
+### Fixed
+- self-healing MCP path resolution in dev checkouts, bump to 2.4.1 (#72)
+- pushSmartForm Windows path bug, bump to 2.4.1 (#71)
+- getAccounts defaults to limit=100; getActor validates the UUID up front (#69)
+
 <!-- PRs: add your entry under ## [Unreleased] (### Added / Changed / Fixed).
      Do NOT bump the version or add a dated section — that is minted at release
      time by `make release VERSION=x.y.z`. See AGENTS.md → Versioning & releases. -->
@@ -18,6 +33,7 @@
   `server.WithToolHandlerMiddleware` in `app/mcpserver.New` so it covers every registered tool
   without touching individual handlers. See README's Telemetry section and SECURITY.md for the
   full field list.
+- **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
 
 ### Fixed
 - **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
@@ -40,6 +56,29 @@
 
 ### Fixed
 - **`pushSmartForm` failed on Windows when creating files in a new subfolder (e.g. a new Smart Form page `pages/<id>/config`).** Phase 2 mapped the server's create response back to local paths using `filepath.Dir`, which yields backslash-separated paths on Windows and misses the slash-keyed folder map — so the push aborted with "server did not return id for created file …" even though the server had already created the folder and files (a subsequent `pullSmartForm` showed them). The response mapping now reuses `resolveParentID` (the same `ToSlash`-normalized lookup used when POSTing), keeping the key consistent across OSes. macOS/Linux behaviour is unchanged (`ToSlash` is a no-op there).
+
+## [2.4.0]
+
+### Added
+- extend agents to any actor, not just user twins
+- add /simulator-agents digital-twin agent skill + findAgent/getAgent
+- add /simulator-agents digital-twin agent skill + findAgent/getAgent
+- expose hole field on createLink; document edge-hole
+- add simulator-styles skill (#61)
+- resolve target entity before creating; offer Total for debit/credit pairs (#60)
+- add AWS Kiro support (#42)
+
+### Changed
+- fix Codex test step — no Plugin Directory GUI in CLI
+- fix Codex plugin commands (install→add, update flow)
+- record CDU Smart Forms doc changes under 2.4.0 (#68)
+- record CDU Smart Forms doc changes under 2.4.0
+- detect submitOnChange by buttonId, not buttonData.action (#67)
+- document CDU rendering gotchas (#62)
+- getForm filter guidance — request `form`, not `sections` (#66)
+- document CDU form links & button.extra spec (#64)
+- note #60 skill behaviour under 2.3.0
+- release v2.1.0
 
 ## [2.4.0]
 
