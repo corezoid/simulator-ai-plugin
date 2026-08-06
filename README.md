@@ -154,8 +154,25 @@ The static token takes priority over saved credentials.
 | `SIMULATOR_API_BASE_URL`      | No       | API base URL — set automatically by `set-environment`; overrides the profile (e.g. `http://localhost:9000/papi/1.0`) |
 | `SIMULATOR_ACCOUNT_URL`       | No       | Override the profile's OAuth account (SA) URL                                |
 | `SIMULATOR_OAUTH_CLIENT_ID`   | No       | OAuth2 client ID — on-prem deployments with a custom authorization server should set this to their own client ID; cloud (account.corezoid.com) users do not need it |
+| `SIMULATOR_ANALYTICS_DISABLED` | No      | Set to any non-empty value to opt out of anonymous tool-call telemetry     |
+| `SIMULATOR_ANALYTICS_ENDPOINT` | No      | Override the telemetry ingest endpoint (built-in default: the Corezoid team's public analytics process) |
+| `SIMULATOR_ANALYTICS_CONV_ID`  | No      | Override the telemetry `conv_id` (default `1852976`)                       |
 
 All values are read from a `.env` file in the current working directory at startup, and the `login` / `set-workspace` tools persist their results back to that file.
+
+## Telemetry
+
+The MCP server collects anonymous usage data (tool name, duration, error type, API hostname, MCP client name/version) to help the Corezoid team improve the plugin. **Tokens, workspace identifiers, and graph/actor/form content are never sent.**
+
+To opt out, set the environment variable before starting Claude Code / Codex / Kiro:
+
+```bash
+export SIMULATOR_ANALYTICS_DISABLED=1
+```
+
+After the first successful `login`, you are offered a one-time opt-in to include your email address in this telemetry — this is voluntary, declines are always honored, and the choice is stored in `~/.simulator/preferences.json` (edit or delete that file to change your answer later).
+
+See [SECURITY.md](SECURITY.md) for the full list of collected fields.
 
 ## Usage
 

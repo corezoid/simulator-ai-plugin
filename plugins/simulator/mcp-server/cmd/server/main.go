@@ -9,14 +9,32 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/telemetry"
 	"github.com/mark3labs/mcp-go/server"
 )
 
 const version = "2.1.0"
+
+// installShutdownFlush flushes buffered telemetry events before the process
+// exits on SIGINT/SIGTERM (e.g. the MCP client terminating the server). Go's
+// default signal handling terminates immediately without running deferred
+// calls, so this is the only chance to send events queued right before
+// shutdown.
+func installShutdownFlush() {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		telemetry.Stop()
+		os.Exit(0)
+	}()
+}
 
 func main() {
 	profileFlag := flag.String("profile", "", "Environment profile: local | prod (default: SIMULATOR_PROFILE or prod)")
@@ -42,6 +60,14 @@ func main() {
 		log.Printf("WARNING: API base URL %q uses plaintext HTTP to a non-local host — the auth token will be sent unencrypted. Use HTTPS.", info.APIBaseURL)
 	}
 	log.Printf("registered %d curated API tools + auth helpers + engine tools", mcpserver.ToolCount())
+
+	// Flush any buffered telemetry events before exit. Covers both a normal
+	// return (stdio EOF) via defer, and the client killing the process with
+	// SIGINT/SIGTERM, which by default terminates immediately without running
+	// deferred calls.
+	telemetry.Init("stdio", version)
+	defer telemetry.Stop()
+	installShutdownFlush()
 
 	if err := server.ServeStdio(s); err != nil {
 		log.Fatalf("server error: %v", err)

@@ -41,3 +41,21 @@ Out of scope:
   HTTP to a non-local host.
 - Tokens and `.env` are never logged or committed. If you find a path where they leak, that is
   in scope — please report it.
+
+## Telemetry
+
+The MCP server sends anonymous tool-call telemetry to a Corezoid-owned ingest endpoint
+(`www.corezoid.com`, the same process corezoid-ai-plugin uses — events carry `product: "simulator"`
+so the two plugins' data stays distinguishable). Each event carries: timestamp, tool name, call
+duration, a fixed error-type enum (no free-form error text), the API hostname currently in use
+(host only — no path or query), the serving transport, the server version, a random
+per-installation UUID (`~/.simulator/installation_id`), and the connected MCP client's name/version
+(e.g. Claude Code, Codex, Kiro).
+
+**Never sent:** tokens, workspace/actor/form/graph identifiers, or any graph/actor/form content.
+
+Set `SIMULATOR_ANALYTICS_DISABLED=1` to opt out entirely. After the first successful `login`, and
+only if the connected client supports MCP elicitation, you are offered a one-time opt-in to
+include your email address in telemetry — declining is always honored, and the choice (asked-once
+flag, and the email if you opted in) is stored in `~/.simulator/preferences.json`, editable or
+deletable at any time.

@@ -19,6 +19,7 @@ import (
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/config"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/telemetry"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/tools"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -122,7 +123,17 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 	// sessions; the filter switches the visible tool set based on ctx
 	// (WithActorID). In stateful (stdio) mode there is only one client and no ctx
 	// actor id is ever attached, so the filter is a passthrough.
-	s := server.NewMCPServer(name, version, server.WithToolFilter(tools.ActorToolFilter))
+	//
+	// WithElicitation() declares server-side elicitation support so the login
+	// tool can offer the one-time telemetry-email opt-in (see
+	// telemetry.AskForEmailOnce); it's a capability declaration only and has no
+	// effect unless a handler actually calls RequestElicitation.
+	s := server.NewMCPServer(name, version, server.WithToolFilter(tools.ActorToolFilter), server.WithElicitation())
+	// Instrument every registered tool — curated ops, auth helpers, and engine
+	// tools alike — with anonymous call telemetry. A no-op until the caller
+	// (cmd/server's main, typically) calls telemetry.Init; embedders that never
+	// call Init see no behavior change.
+	s.Use(telemetry.Middleware(client.BaseURL))
 	ecore.SetStateless(opts.Stateless)
 	if opts.Stateless {
 		tools.BuildUnified(s, client, true)

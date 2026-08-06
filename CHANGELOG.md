@@ -22,7 +22,25 @@
 ## [Unreleased]
 
 ### Added
+- **Anonymous tool-call telemetry + opt-in email.** The MCP server now sends anonymous usage
+  events (tool name, duration, error type, API hostname, transport, server version, a
+  per-installation UUID, and MCP client name/version) to the same Corezoid ingest process
+  corezoid-ai-plugin uses, tagged `product: "simulator"` so the two stay distinguishable
+  downstream. No tokens, workspace/actor/form identifiers, or graph content are ever sent. Opt out
+  entirely with `SIMULATOR_ANALYTICS_DISABLED=1`. After the first successful `login`, clients that
+  support MCP elicitation are offered a one-time opt-in to include an email address, stored in
+  `~/.simulator/preferences.json`. New `internal/telemetry` package; wired via
+  `server.WithToolHandlerMiddleware` in `app/mcpserver.New` so it covers every registered tool
+  without touching individual handlers. See README's Telemetry section and SECURITY.md for the
+  full field list.
 - **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
+
+### Fixed
+- **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
+  `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
+  call — safe under the current single-threaded stdio transport, but a data race under `go test
+  -race` if a concurrent transport (HTTP/SSE) were ever added. Now uses `atomic.Pointer[string]`,
+  matching the `atomic.Bool` discipline already used for the telemetry `enabled` flag.
 
 ## [2.5.0] - 2026-07-14
 
