@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -70,13 +71,49 @@ const maxGraphFileBytes = 100 << 20 // 100 MiB
 
 // maxGraphFileBase64Chars caps the base64 source so decoded output can't
 // exceed maxGraphFileBytes (base64 expands raw bytes by 4/3).
-const maxGraphFileBase64Chars = (maxGraphFileBytes / 3) * 4
+const maxGraphFileBase64Chars = ((maxGraphFileBytes + 2) / 3) * 4
 
-// downloadGraphFileFromURL downloads a file from a public URL.
-func downloadGraphFileFromURL(ctx context.Context, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+const minGraphImportPrefixLength = 8
+
+const (
+	graphImportStrategyReuse   = "reuse"
+	graphImportStrategyReplace = "replace"
+)
+
+type graphImportStrategyField struct {
+	strategy string
+	prefix   string
+}
+
+var graphImportStrategyFields = []graphImportStrategyField{
+	{strategy: "actorRefStrategy", prefix: "actorRefReplacePrefix"},
+	{strategy: "formRefStrategy", prefix: "formRefReplacePrefix"},
+	{strategy: "transferRefStrategy", prefix: "transferRefReplacePrefix"},
+	{strategy: "transactionRefStrategy", prefix: "transactionRefReplacePrefix"},
+	{strategy: "processesRefStrategy"},
+}
+
+func sameURLOrigin(rawURL, baseURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return false
+	}
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Scheme, base.Scheme) && strings.EqualFold(u.Host, base.Host)
+}
+
+// downloadGraphFileFromURL downloads a graph archive. Simulator authorization
+// is sent only to the configured API origin, never to an arbitrary external URL.
+func downloadGraphFileFromURL(ctx context.Context, rawURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
 	if err != nil {
 		return nil, err
+	}
+	if sameURLOrigin(rawURL, ecore.BuildBaseURLForContext(ctx)) {
+		req.Header.Set("Authorization", ecore.AuthHeaderForContext(ctx))
 	}
 	client := ecore.APIHTTPClient()
 	resp, err := client.Do(req)
@@ -87,11 +124,73 @@ func downloadGraphFileFromURL(ctx context.Context, url string) ([]byte, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxGraphFileBytes))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxGraphFileBytes+1))
 	if err != nil {
 		return nil, err
 	}
+	if len(data) > maxGraphFileBytes {
+		return nil, fmt.Errorf("file exceeds %d MiB limit", maxGraphFileBytes>>20)
+	}
 	return data, nil
+}
+
+func buildGraphImportOps(args map[string]any) (map[string]any, error) {
+	if confirmed, _ := args["confirmImport"].(bool); !confirmed {
+		return nil, errors.New("confirmImport=true is required after the user reviews the target workspace, file, mappings, and reference strategies")
+	}
+
+	ops := make(map[string]any, len(graphImportStrategyFields)*2)
+	usesReuse := false
+	for _, field := range graphImportStrategyFields {
+		strategy, _ := args[field.strategy].(string)
+		strategy = strings.TrimSpace(strategy)
+		if strategy != graphImportStrategyReuse && strategy != graphImportStrategyReplace {
+			return nil, fmt.Errorf("%s is required and must be %q or %q", field.strategy, graphImportStrategyReuse, graphImportStrategyReplace)
+		}
+		ops[field.strategy] = strategy
+		if strategy == graphImportStrategyReuse {
+			usesReuse = true
+		}
+
+		if field.prefix == "" {
+			continue
+		}
+		prefix, _ := args[field.prefix].(string)
+		prefix = strings.TrimSpace(prefix)
+		switch strategy {
+		case graphImportStrategyReplace:
+			if len(prefix) < minGraphImportPrefixLength {
+				return nil, fmt.Errorf("%s must be at least %d characters when %s=replace", field.prefix, minGraphImportPrefixLength, field.strategy)
+			}
+			ops[field.prefix] = prefix
+		case graphImportStrategyReuse:
+			if prefix != "" {
+				return nil, fmt.Errorf("%s must be omitted when %s=reuse", field.prefix, field.strategy)
+			}
+		}
+	}
+
+	if allowed, _ := args["allowReuseImport"].(bool); usesReuse && !allowed {
+		return nil, errors.New("allowReuseImport=true is required when any reference strategy is reuse because matching target objects may be updated")
+	}
+	return ops, nil
+}
+
+func decodeGraphFileBase64(raw string) ([]byte, error) {
+	if i := strings.Index(raw, "base64,"); i >= 0 {
+		raw = raw[i+len("base64,"):]
+	}
+	if len(raw) > maxGraphFileBase64Chars {
+		return nil, fmt.Errorf("base64 payload too large (max %d MiB)", maxGraphFileBytes>>20)
+	}
+	decoded, err := decodeBase64Flexible(raw)
+	if err != nil {
+		return nil, fmt.Errorf("decode base64: %w", err)
+	}
+	if len(decoded) > maxGraphFileBytes {
+		return nil, fmt.Errorf("decoded file too large (max %d MiB)", maxGraphFileBytes>>20)
+	}
+	return decoded, nil
 }
 
 // handleExportGraph creates an async export task for graph actors.
@@ -134,6 +233,9 @@ func handleExportGraph(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	}
 
 	allWorkspace, _ := args["allWorkspace"].(bool)
+	if confirmed, _ := args["confirmAllWorkspaceExport"].(bool); allWorkspace && !confirmed {
+		return mcp.NewToolResultError("[Error] confirmAllWorkspaceExport=true is required after the user explicitly confirms the broad and potentially sensitive workspace export"), nil
+	}
 
 	if len(actors) == 0 && len(forms) == 0 && !allWorkspace {
 		return mcp.NewToolResultError("[Error] provide at least one filter: actors, forms, or allWorkspace"), nil
@@ -231,18 +333,11 @@ func handleImportGraph(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		}
 	}
 
-	// Import options (control-tasks ImportTaskOps).
-	ops := map[string]interface{}{}
-	for _, key := range []string{
-		"actorRefStrategy", "actorRefReplacePrefix",
-		"formRefStrategy", "formRefReplacePrefix",
-		"transferRefStrategy", "transferRefReplacePrefix",
-		"transactionRefStrategy", "transactionRefReplacePrefix",
-		"processesRefStrategy",
-	} {
-		if v, _ := args[key].(string); v != "" {
-			ops[key] = v
-		}
+	// Import options (control-tasks ImportTaskOps). Build these only after the
+	// confirmation and collision strategy guards pass; guard fields stay local.
+	ops, err := buildGraphImportOps(args)
+	if err != nil {
+		return mcp.NewToolResultError("[Error] " + err.Error()), nil //nolint:nilerr // Validation errors are MCP tool results.
 	}
 
 	// dataReplace — from/to replacement rules (passed through as-is).
@@ -356,31 +451,30 @@ func handleUploadGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 		filename  string
 	)
 
-	if b64, ok := args["base64"].(string); ok && b64 != "" {
-		// Strip optional data URI prefix.
-		if i := strings.Index(b64, "base64,"); i >= 0 {
-			b64 = b64[i+len("base64,"):]
-		}
-		if len(b64) > maxGraphFileBase64Chars {
-			return mcp.NewToolResultError(fmt.Sprintf("[Error] base64 payload too large (max %d MiB)", maxGraphFileBytes>>20)), nil
-		}
-		b, err := decodeBase64Flexible(b64)
+	b64, _ := args["base64"].(string)
+	fileURL, _ := args["fileUrl"].(string)
+	b64 = strings.TrimSpace(b64)
+	fileURL = strings.TrimSpace(fileURL)
+	if (b64 == "") == (fileURL == "") {
+		return mcp.NewToolResultError("[Error] provide exactly one of base64 or fileUrl"), nil
+	}
+
+	if b64 != "" {
+		b, err := decodeGraphFileBase64(b64)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("[Error] decode base64: %v", err)), nil
+			return mcp.NewToolResultError("[Error] " + err.Error()), nil //nolint:nilerr // Validation errors are MCP tool results.
 		}
 		fileBytes = b
-	} else if u, ok := args["fileUrl"].(string); ok && u != "" {
-		b, err := downloadGraphFileFromURL(ctx, u)
+	} else {
+		b, err := downloadGraphFileFromURL(ctx, fileURL)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("[Error] download fileUrl: %v", err)), nil
 		}
 		fileBytes = b
-		filename = filepath.Base(u)
+		filename = filepath.Base(fileURL)
 		if i := strings.IndexAny(filename, "?#"); i >= 0 {
 			filename = filename[:i]
 		}
-	} else {
-		return mcp.NewToolResultError("[Error] one of base64 or fileUrl is required"), nil
 	}
 
 	if fn, ok := args["originalName"].(string); ok && fn != "" {

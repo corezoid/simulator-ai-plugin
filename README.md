@@ -249,9 +249,9 @@ the actor/node items.)
 |--------------------------|------------------------------------------------------------------------------------------------------|
 | `pullGraphFile`          | Fetch all actors and edges from a layer and write them to `<layerId>.yaml` in the working directory  |
 | `pushGraphFile`          | Read `<layerId>.yaml` and sync it with the server layer: create / update / remove to match the file  |
-| `exportGraph` / `importGraph` | Export actors (by UUID, form, or whole workspace) to a `.graph` archive, or import one back — same as the UI Export/Import buttons. Async; poll with `getTaskStatus` |
-| `uploadGraphFile`        | Upload a `.graph` archive (base64 or public URL) to workspace storage, returning the `fileName` for `importGraph` |
-| `getTaskStatus`          | Poll an `exportGraph` / `importGraph` task; completed exports include a ready-to-share `downloadUrl` |
+| `exportGraph` / `importGraph` | Export actors (by UUID, form, or whole workspace) to a `.graph` archive, or import one back — same as the UI Export/Import buttons. Whole-workspace export and every import have explicit confirmation guards; import requires per-entity REF strategies |
+| `uploadGraphFile`        | Upload a `.graph` archive (base64 or public URL, exactly one) to workspace storage, returning the `fileName` for `importGraph`; Simulator auth is forwarded only to the configured API origin |
+| `getTaskStatus`          | Poll an `exportGraph` / `importGraph` task with a bounded retry budget; completed exports include a ready-to-share `downloadUrl` |
 | `getAllLayerPlacements`  | Return every actor placement on a layer in one paginated call                                        |
 | `compactGraphLayout`     | Auto-layout a layer into domain-clustered grids (replaces the pull → edit → push loop)               |
 | `pruneLongEdges`         | Delete edges longer than a distance threshold; preserves hierarchy edges                             |

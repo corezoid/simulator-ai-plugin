@@ -268,9 +268,9 @@ ported from the original implementation:
 |--------------------------|--------------------------|----------------------------------------------------------------------|
 | `pullGraphFile`          | `sync_graph.go`          | Export a layer's actors + edges to `<layerId>.yaml`                  |
 | `pushGraphFile`          | `sync_graph.go` / `push_graph.go` | Diff a local YAML against the layer and create/update/delete |
-| `exportGraph` / `importGraph` | `tasks.go`          | Create an async export/import task against the pong-server task API (actors/forms/whole workspace ↔ `.graph` archive), mirroring the UI Export/Import buttons |
-| `uploadGraphFile`        | `tasks.go`               | Upload a `.graph` archive (base64 or public URL, capped at 100 MiB) to workspace storage; returns the storage `fileName` for `importGraph` |
-| `getTaskStatus`          | `tasks.go`               | Poll an export/import task by id; unwraps the pong-server `details` TEXT blob into structured JSON and, for completed exports, adds a ready-to-use `downloadUrl` |
+| `exportGraph` / `importGraph` | `tasks.go`          | Create guarded async export/import tasks against the pong-server task API; whole-workspace export needs confirmation, while import needs confirmation plus explicit per-entity REF strategies |
+| `uploadGraphFile`        | `tasks.go`               | Upload exactly one `.graph` source (base64 or public URL, capped at 100 MiB); same-origin Simulator downloads retain auth without forwarding it to external origins |
+| `getTaskStatus`          | `tasks.go`               | Poll an export/import task by id; unwraps the pong-server `details` TEXT blob and adds a completed export `downloadUrl` (callers must impose a finite poll budget) |
 | `getAllLayerPlacements`  | `get_layer_placements.go`| Return every placement on a layer in one paginated call             |
 | `compactGraphLayout`     | `compact_layout.go`      | Auto-layout a layer into domain-clustered grids                     |
 | `pruneLongEdges`         | `prune_edges.go`         | Delete edges longer than a distance threshold; preserves hierarchy  |
