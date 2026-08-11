@@ -592,6 +592,100 @@
     "liveOnly": true
   },
   {
+    "name": "Export one graph layer with explicit scope",
+    "prompt": "Export only layer 14b284e0-5f77-4b40-bdde-f7058b05939f as an official .graph archive. I explicitly want attachments=false, transactions=false, processes=false, users=false, balances=false, connectorsToAccounts=false, accountToActors=false, systemCounters=false, and maxRecursionLevel=3. Start the export and check its status.",
+    "tools": [
+      "exportGraph",
+      "getTaskStatus"
+    ],
+    "argChecks": [
+      {
+        "tool": "exportGraph",
+        "mustContain": [
+          "14b284e0-5f77-4b40-bdde-f7058b05939f",
+          "\"attachments\":false",
+          "\"transactions\":false",
+          "\"processes\":false",
+          "\"users\":false",
+          "\"balances\":false",
+          "\"connectorsToAccounts\":false",
+          "\"accountToActors\":false",
+          "\"systemCounters\":false",
+          "\"maxRecursionLevel\":3"
+        ],
+        "mustNotContain": [
+          "\"allWorkspace\":true"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Copy a layer in the current workspace safely",
+    "prompt": "Create a separate copy of layer 14b284e0-5f77-4b40-bdde-f7058b05939f in the current workspace through the official .graph export/import flow. Export no attachments, transactions, processes, users, balances, connectors, account mappings, or system counters, with maxRecursionLevel=3. For import use replace for actors, forms, transfers, transactions, and processes. Use clone_20260811_ for every supported replacement prefix. I have reviewed this plan and explicitly confirm the import. Start each async task and check its status; do not delete the source.",
+    "tools": [
+      "exportGraph",
+      "getTaskStatus",
+      "importGraph"
+    ],
+    "argChecks": [
+      {
+        "tool": "importGraph",
+        "mustContain": [
+          "\"confirmImport\":true",
+          "\"actorRefStrategy\":\"replace\"",
+          "\"formRefStrategy\":\"replace\"",
+          "\"transferRefStrategy\":\"replace\"",
+          "\"transactionRefStrategy\":\"replace\"",
+          "\"processesRefStrategy\":\"replace\"",
+          "\"actorRefReplacePrefix\":\"clone_20260811_\"",
+          "\"formRefReplacePrefix\":\"clone_20260811_\"",
+          "\"transferRefReplacePrefix\":\"clone_20260811_\"",
+          "\"transactionRefReplacePrefix\":\"clone_20260811_\""
+        ],
+        "mustNotContain": [
+          "\"allowReuseImport\":true"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Transfer a layer to another workspace",
+    "prompt": "Copy layer 14b284e0-5f77-4b40-bdde-f7058b05939f from workspace source-workspace to workspace target-workspace in the same Simulator environment. Use the official .graph flow: select the source, export without attachments, transactions, processes, users, balances, connectors, account mappings, or system counters and poll it; then select the target, upload the completed export by downloadUrl, and import. Use replace for all five REF strategies and prefix clone_20260811_ for the four supported prefix fields. I explicitly confirm this target and import plan. Keep the source unchanged and poll the import task.",
+    "tools": [
+      "set-workspace",
+      "exportGraph",
+      "getTaskStatus",
+      "uploadGraphFile",
+      "importGraph"
+    ],
+    "argChecks": [
+      {
+        "tool": "set-workspace",
+        "mustContain": [
+          "target-workspace"
+        ]
+      },
+      {
+        "tool": "uploadGraphFile",
+        "mustContain": [
+          "download/exports/demo.graph"
+        ]
+      },
+      {
+        "tool": "importGraph",
+        "mustContain": [
+          "\"confirmImport\":true",
+          "\"actorRefStrategy\":\"replace\"",
+          "\"formRefStrategy\":\"replace\"",
+          "\"transferRefStrategy\":\"replace\"",
+          "\"transactionRefStrategy\":\"replace\"",
+          "\"processesRefStrategy\":\"replace\"",
+          "clone_20260811_"
+        ]
+      }
+    ]
+  },
+  {
     "name": "List who has access to an actor",
     "prompt": "Who has access to actor 9f3c0000-0000-0000-0000-000000000001 and what can they do?",
     "tools": [

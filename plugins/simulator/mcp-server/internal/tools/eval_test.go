@@ -39,6 +39,7 @@ func knownToolNames() map[string]bool {
 		"pullGraphFile", "pushGraphFile", "getAllLayerPlacements",
 		"compactGraphLayout", "pruneLongEdges", "createChart",
 		"uploadActorPicture", "uploadActorPictureBulk",
+		"exportGraph", "importGraph", "uploadGraphFile", "getTaskStatus",
 		"buildLink", "getBbcodeTags", "readAttachment",
 		"createSmartForm", "pullSmartForm", "pushSmartForm",
 		"updateSmartFormEnv", "deploySmartForm", "listReleases",

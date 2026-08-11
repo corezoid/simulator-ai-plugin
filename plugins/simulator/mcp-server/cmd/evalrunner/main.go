@@ -334,6 +334,10 @@ var dryFixtures = map[string]string{
 	"getTransactions":       `{"data":[{"id":"tx-1","amount":450}]}`,
 	"getTransfer":           `{"data":{"id":"tr-1","amount":200}}`,
 	"getAllLayerPlacements": `{"data":[{"layerId":"33333333-3333-3333-3333-333333333333"}]}`,
+	"exportGraph":           `{"id":701,"name":"export","status":"created"}`,
+	"getTaskStatus":         `{"id":701,"name":"export","status":"completed","details":{"file":{"fileName":"exports/demo.graph","title":"demo.graph"},"manifest":{"stats":{"counters":{"actors":3,"forms":2,"edges":2}}}},"downloadUrl":"https://api.simulator.company/v/1.0/download/exports/demo.graph"}`,
+	"uploadGraphFile":       `{"fileName":"uploads/demo.graph","title":"demo.graph"}`,
+	"importGraph":           `{"id":702,"name":"import","status":"created"}`,
 	// create/setup tools: return an id so multi-step dry scenarios can chain.
 	"createForm":        `{"data":{"id":42,"title":"Vehicle"}}`,
 	"createActor":       `{"data":{"id":"11111111-1111-1111-1111-111111111111","formId":42}}`,
