@@ -21,6 +21,7 @@ The Simulator.Company platform provides a comprehensive API for managing busines
 
 - [Graph Functionality](graph-functionality.md) - Creating and managing actors, links, and layers in graph structures
 - [Actor Graph Management](actor-graph-management.md) - Managing actors on graphs: creating links, organizing on layers, searching and filtering
+- [Graph Archive Transfer](graph-archive-transfer.md) - Safely exporting, importing, backing up, and copying graphs/layers with asynchronous `.graph` archives
 
 ### Smart Forms (Applications / CDU)
 

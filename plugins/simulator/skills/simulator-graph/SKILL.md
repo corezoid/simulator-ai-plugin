@@ -16,6 +16,9 @@ description: >
     process", "add edge", "remove link", "reorder steps", "update layer".
   — Syncing: "push graph", "pull graph", "sync graph", "push changes",
     "apply edits to layer".
+  — Archive / transfer: "export graph", "import graph", "clone graph", "copy
+    layer", "move graph to another workspace", "backup graph", "restore .graph",
+    "transfer diagram", "migrate layer".
   — Querying / analysis: "what actors are on this layer", "show me the graph",
     "who is connected to", "find actor", "list nodes", "describe the process",
     "analyze the flowchart", "how many steps", "what links exist",
@@ -28,7 +31,7 @@ description: >
   traversal operations, layer management, and FlowchartBlock diagram creation.
 ---
 
-> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read a layer's contents — prefer `getLayerActorsPaginated` (page nodes then edges; works for any size) or `getAllLayerPlacements`, falling back to `getLayerActors` only for small layers (it loads the whole layer in one call and is rejected with a "Layer is too large" 400 above the size cap); create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge CRUD with `getEdge` / `updateEdge` / `deleteEdge` / `existLink` / `deleteEdgesByNodes`; edge types with `getEdgeTypes`. Traverse from an actor with `getRelatedActors` (type = linked | parents | children; hierarchy link type by default; paginated/filterable/sortable), `getLinkedActors` (directly-linked actors across edge types, with `edgeTypes`/`withSystem`/`pinned` filters), and `getActorLinks` (every edge of an actor). Layer ops: `layerStats` (node/edge counts), `existLayerElement` (is a node/edge on a layer — dedup before placing), `moveActors` (move ≤10 actors between layers), `cleanGraphLayer` (wipe a layer — destructive). See `/simulator` for the full list.
+> **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read a layer's contents — prefer `getLayerActorsPaginated` (page nodes then edges; works for any size) or `getAllLayerPlacements`, falling back to `getLayerActors` only for small layers (it loads the whole layer in one call and is rejected with a "Layer is too large" 400 above the size cap); create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge CRUD with `getEdge` / `updateEdge` / `deleteEdge` / `existLink` / `deleteEdgesByNodes`; edge types with `getEdgeTypes`. Traverse from an actor with `getRelatedActors` (type = linked | parents | children; hierarchy link type by default; paginated/filterable/sortable), `getLinkedActors` (directly-linked actors across edge types, with `edgeTypes`/`withSystem`/`pinned` filters), and `getActorLinks` (every edge of an actor). Layer ops: `layerStats` (node/edge counts), `existLayerElement` (is a node/edge on a layer — dedup before placing), `moveActors` (move ≤10 actors between layers), `cleanGraphLayer` (wipe a layer — destructive). Official `.graph` archive flow: `exportGraph`, `getTaskStatus`, `uploadGraphFile`, `importGraph`. See `/simulator` for the full list.
 
 # Simulator.Company Graph Builder
 
@@ -53,6 +56,7 @@ Simulator.Company using the `simulator` MCP server.
 | **Graph actor** | An actor with `formName="Graphs"` — the logical container for a diagram.                             |
 | **Layer actor** | An actor with `formName="Layers"` — the visual canvas where nodes are placed at (x, y).              |
 | **Graph file**  | A YAML file named `<layerId>.yaml` in the current working directory describing the full layer state. |
+| **`.graph` archive** | The official async export/import package for copying or backing up graph objects and their selected related data. |
 | **laId**        | Layer Actor ID. Assigned by `manageLayerActors` when an actor is placed on a layer.                        |
 
 ---
@@ -161,6 +165,47 @@ pullGraphFile(layerId="<layerId>")
 // 3. Push changes
 pushGraphFile(layerId="<layerId>")
 ```
+
+---
+
+## Official `.graph` Archive Transfer
+
+Use the archive tools for backup/restore or copying a graph/layer between
+workspaces. They are different from `pullGraphFile` / `pushGraphFile`, which
+edit one layer as local YAML and are not a platform archive workflow.
+
+Before any archive operation, read:
+
+`$CLAUDE_PLUGIN_ROOT/docs/user-flows/graph-archive-transfer.md`
+
+Required behaviour:
+
+1. Resolve whether the source is a graph root, one layer, selected forms/actors,
+   or the entire workspace. In a graph URL, the UUID after `/graph/` is the graph
+   root and the UUID after `/layers/` is the layer actor.
+2. Ask for every export option explicitly. Never infer permission to include
+   attachments, transactions, balances, users/access rules, connectors, system
+   counters, or Corezoid processes. `allWorkspace=true` needs a separate explicit
+   confirmation and `confirmAllWorkspaceExport=true`.
+3. Treat "move" or "transfer" as copy/import. Archive import never deletes the
+   source; source deletion is a separate destructive operation requiring a new
+   explicit request and confirmation.
+4. Do not start `importGraph` until the user has reviewed the target workspace,
+   archive, mappings, and all five REF strategies. Use `replace` plus unique
+   prefixes for a copy. Use `reuse` only for an intentional merge/update and set
+   `allowReuseImport=true`. Set `confirmImport=true` only after confirmation.
+5. Poll with a finite budget and backoff. Stop after at most 20 status checks or
+   10 minutes; return the task id and latest status if it is still running. Only
+   `completed` is success. Surface `failed` / `canceled` details verbatim.
+6. After import, validate the target object names, actor/edge counts where
+   available, and source independence. Never invent a target URL or claim that a
+   created task means the import succeeded.
+
+The current MCP workspace is always the destination of `importGraph`. For a
+different workspace in the same environment, export and finish polling first,
+then call `set-workspace`, upload the completed export via its `downloadUrl`, and
+import there. Cross-environment transfer requires switching environment/auth and
+providing an archive reachable in that target session.
 
 ---
 

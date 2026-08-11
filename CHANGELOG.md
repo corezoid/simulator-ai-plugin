@@ -22,6 +22,7 @@
 ## [Unreleased]
 
 ### Added
+- **Safe `.graph` archive workflows.** The graph skill now covers backup/restore and same-/cross-workspace graph or layer transfer using `exportGraph`, `getTaskStatus`, `uploadGraphFile`, and `importGraph`; import requires explicit per-entity REF strategies and confirmation, `reuse` requires a separate overwrite acknowledgement, whole-workspace export requires confirmation, polling is bounded, and same-origin archive downloads retain Simulator auth without leaking it to external URLs. Adds handler guardrail tests and behavioural eval scenarios for the four tools.
 - **Anonymous tool-call telemetry + opt-in email.** The MCP server now sends anonymous usage
   events (tool name, duration, error type, API hostname, transport, server version, a
   per-installation UUID, and MCP client name/version) to the same Corezoid ingest process
