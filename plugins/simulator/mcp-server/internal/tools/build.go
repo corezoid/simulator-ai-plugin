@@ -11,6 +11,7 @@ import (
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/config"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/telemetry"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -124,6 +125,10 @@ func registerAuth(s *server.MCPServer, c *apiclient.Client, prof config.Profile,
 			if err := auth.Save(creds); err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to save token: %v", err)), nil
 			}
+			// One-time opt-in: ask for email to include in telemetry. Only
+			// shown once per installation, and only if the client supports
+			// elicitation; skipping is always valid.
+			telemetry.AskForEmailOnce(ctx, s)
 			return mcp.NewToolResultText("Authenticated. Token saved to .env. Next: call getWorkspaces to list your workspaces, show them to the user to pick one, then call set-workspace (by accId or name)."), nil
 		},
 	)
