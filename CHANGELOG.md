@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.6.0]
+
+### Added
+- anonymous tool-call analytics + opt-in email (#86)
+
+### Changed
+- bump actions/setup-go from 6 to 7 (#80)
+- bump github.com/mark3labs/mcp-go from 0.55.1 to 0.57.0 in /plugins/simulator/mcp-server (#84)
+- CE-15765 feat(graph): exportGraph/importGraph/uploadGraphFile/getTaskStatus (#90)
+- CE-15784 docs(links): closing an actor hole keeps each link's kind (#85)
+
+### Fixed
+- mime type, conflict detection, dup guard (#79)
+- reconcile missing file id after create (#78)
+- set customize_response:false on callback nodes (#82)
+
 ## [2.5.0]
 
 ### Added
