@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+const (
+	visibilityValues            = "visible|disabled|hidden"
+	visibilityPlaceholderValues = visibilityValues + " or a {{viewModelKey}} placeholder"
+)
+
 // ValidateFile validates the source of a single Smart Form env file before push.
 // relPath is the env-relative path (e.g. "pages/index/config", "locale", "definitions/button").
 // Returns a slice of human-readable error messages; empty means valid.
@@ -101,9 +106,9 @@ func validatePageConfig(relPath, source string) []string {
 			errs = append(errs, fmt.Sprintf(`%s: %s: missing required field "id"`, relPath, fLabel))
 		}
 
-		if vis, _ := form["visibility"].(string); vis != "" && !r.Visibility[vis] {
+		if vis, _ := form["visibility"].(string); vis != "" && !validVisibility(vis, r, true) {
 			errs = append(errs, fmt.Sprintf(
-				"%s: %s: invalid visibility %q; must be visible|disabled|hidden", relPath, fLabel, vis,
+				"%s: %s: invalid visibility %q; must be %s", relPath, fLabel, vis, visibilityPlaceholderValues,
 			))
 		}
 
@@ -134,21 +139,27 @@ func validateSection(relPath, formLabel string, idx int, raw any, r *Rules) []st
 			"%s: %s: invalid type %q; must be body|block|modal|float", relPath, secLabel, secType,
 		))
 	}
-	if vis, _ := section["visibility"].(string); vis != "" && !r.Visibility[vis] {
+	if vis, _ := section["visibility"].(string); vis != "" && !validVisibility(vis, r, true) {
 		errs = append(errs, fmt.Sprintf(
-			"%s: %s: invalid visibility %q; must be visible|disabled|hidden", relPath, secLabel, vis,
+			"%s: %s: invalid visibility %q; must be %s", relPath, secLabel, vis, visibilityPlaceholderValues,
 		))
 	}
 
-	for _, slot := range []string{"header", "content", "footer", "modalHeader"} {
+	// renderPage resolves item placeholders in these section slots.
+	for _, slot := range []string{"header", "content", "modalHeader"} {
 		items, _ := section[slot].([]any)
 		slotLabel := fmt.Sprintf("%s.%s", secLabel, slot)
-		errs = append(errs, validateItems(relPath, slotLabel, items, r)...)
+		errs = append(errs, validateItems(relPath, slotLabel, items, r, true)...)
 	}
+
+	// Keep validating the legacy slot, but do not accept placeholders that the
+	// server does not resolve.
+	footer, _ := section["footer"].([]any)
+	errs = append(errs, validateItems(relPath, secLabel+".footer", footer, r, false)...)
 	return errs
 }
 
-func validateItems(relPath, path string, items []any, r *Rules) []string {
+func validateItems(relPath, path string, items []any, r *Rules, allowVisibilityPlaceholder bool) []string {
 	var errs []string
 	for i, raw := range items {
 		item, _ := raw.(map[string]any)
@@ -182,9 +193,13 @@ func validateItems(relPath, path string, items []any, r *Rules) []string {
 			errs = append(errs, fmt.Sprintf(`%s: %s: missing required field "id"`, relPath, itemLabel))
 		}
 
-		if vis, _ := item["visibility"].(string); vis != "" && !r.Visibility[vis] {
+		if vis, _ := item["visibility"].(string); vis != "" && !validVisibility(vis, r, allowVisibilityPlaceholder) {
+			expected := visibilityValues
+			if allowVisibilityPlaceholder {
+				expected = visibilityPlaceholderValues
+			}
 			errs = append(errs, fmt.Sprintf(
-				"%s: %s: invalid visibility %q; must be visible|disabled|hidden", relPath, itemLabel, vis,
+				"%s: %s: invalid visibility %q; must be %s", relPath, itemLabel, vis, expected,
 			))
 		}
 
@@ -195,7 +210,7 @@ func validateItems(relPath, path string, items []any, r *Rules) []string {
 		// Recurse into row/draggable layout wrapper children.
 		if class == "row" || class == "draggable" {
 			nested, _ := item["items"].([]any)
-			errs = append(errs, validateItems(relPath, itemLabel+".items", nested, r)...)
+			errs = append(errs, validateItems(relPath, itemLabel+".items", nested, r, allowVisibilityPlaceholder)...)
 		}
 	}
 	return errs
@@ -338,4 +353,17 @@ func validateItemKeys(relPath, itemLabel, class string, item map[string]any, r *
 		}
 	}
 	return errs
+}
+
+func validVisibility(value string, r *Rules, allowPlaceholder bool) bool {
+	return r.Visibility[value] || allowPlaceholder && isViewModelPlaceholder(value)
+}
+
+func isViewModelPlaceholder(value string) bool {
+	if !strings.HasPrefix(value, "{{") || !strings.HasSuffix(value, "}}") {
+		return false
+	}
+
+	key := value[2 : len(value)-2]
+	return strings.TrimSpace(key) != "" && !strings.ContainsAny(key, "{}")
 }

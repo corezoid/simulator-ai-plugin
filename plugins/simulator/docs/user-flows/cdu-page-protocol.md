@@ -233,7 +233,7 @@ Every entry in a section's `header`/`content` is an **Item**, dispatched by its 
 | `id` | string | item id; key under which its `value` is submitted |
 | `class` | enum (see §5) | which component to render |
 | `value` | string \| object \| array | current value (type depends on component) |
-| `visibility` | `visible`\|`disabled`\|`hidden` | render state |
+| `visibility` | `visible`\|`disabled`\|`hidden` or a pure `{{viewModelKey}}` placeholder | render state after server-side resolution |
 | `required` | boolean | required for submit (drives auto-disable of submit buttons) |
 | `error` | boolean | error state (server- or client-set) |
 | `errorMsg` | string | message shown when `error` |
@@ -362,7 +362,10 @@ shape the page **before** it reaches the renderer. All are resolved server-side
 
 - **`viewModel`** — a key/value bag. The app-wide `viewModel` file is merged with the
   per-request `viewModel` returned by the Corezoid process; values fill `{{token}}`
-  placeholders in the config.
+  placeholders in the config. A form, section, or rendered item in `header`, `modalHeader`, or
+  `content` may use a pure placeholder such as `"visibility": "{{graphPreviewVisibility}}"`;
+  its resolved value must be `visible`, `disabled`, or `hidden`. This also applies to nested
+  items and items expanded from `contentLoop`.
 - **`locale`** — i18n strings keyed by language. The app `locale` and the page `locale` are
   merged and resolved for the active `language`; values fill `[[token]]` placeholders.
   (`createPageData` merges `{ ...appLocale, ...pageLocale }` and `{ ...appViewModel,
@@ -621,11 +624,13 @@ wrapper.
 > generated row wrapper. So `row:"1 my_row"` puts `.my_row` on the wrapper — the one stable hook you
 > can style a whole row by (and reuse across rows: `row:"1 my_row"` + `row:"2 my_row"` share `.my_row`).
 
-### 12.3 No client-side conditional visibility — reveal = `submitOnChange` + 200 `changes`
-`visibility` is a static enum (`visible|disabled|hidden`); there is no expression/binding language,
-so a field cannot show/hide reactively from another field's value on the client. The only way to
-"reveal B when A changes" is a server round-trip: set `submitOnChange:true` on A; the `/send` handler
-returns **200** with `changes:[{id:"B", visibility:"visible|hidden"}]` (see §7). A `submitOnChange`
+### 12.3 No client-side reactive visibility — reveal = `submitOnChange` + 200 `changes`
+The raw config may set form, section, and rendered-item `visibility` to a pure
+`{{viewModelKey}}` placeholder, but the server resolves it to `visible|disabled|hidden` before the
+page reaches the client. It is initial/server-render binding, not a client-side expression: changing
+another field does not re-evaluate the placeholder locally. To "reveal B when A changes", use a
+server round-trip: set `submitOnChange:true` on A; the `/send` handler returns **200** with
+`changes:[{id:"B", visibility:"visible|hidden"}]` (see §7). A `submitOnChange`
 event posts with `buttonId = <element id>` (not a button). **Read the new value from
 `body.data.<fieldId>`** — that is the reliable source across components. `body.buttonData.value` is
 populated **only by `select`** (and a few components); `radio`, `edit`, `check`, `toggle`, etc. send no

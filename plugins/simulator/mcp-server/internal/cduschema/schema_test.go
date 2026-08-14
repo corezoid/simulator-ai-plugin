@@ -58,6 +58,74 @@ func TestValidatePageConfig_Valid(t *testing.T) {
 	}
 }
 
+func TestValidatePageConfig_VisibilityPlaceholders(t *testing.T) {
+	config := `{
+		"grid": {"type": "one_column"},
+		"forms": [{
+			"id": "main",
+			"visibility": "{{formVisibility}}",
+			"sections": [{
+				"id": "body",
+				"visibility": "{{sectionVisibility}}",
+				"header": [{"id": "heading", "class": "label", "visibility": "{{headingVisibility}}"}],
+				"modalHeader": [{"id": "close", "class": "button", "visibility": "{{closeVisibility}}"}],
+				"content": [{
+					"id": "layout",
+					"class": "row",
+					"items": [{"id": "field", "class": "edit", "visibility": "{{fieldVisibility}}"}]
+				}]
+			}]
+		}]
+	}`
+
+	if errs := ValidateFile("pages/index/config", config); len(errs) != 0 {
+		t.Errorf("expected visibility placeholders to be valid, got: %v", errs)
+	}
+}
+
+func TestValidatePageConfig_InvalidVisibilityPlaceholders(t *testing.T) {
+	tests := []struct {
+		name       string
+		visibility string
+	}{
+		{name: "unknown literal", visibility: "shown"},
+		{name: "embedded placeholder", visibility: "state-{{visibility}}"},
+		{name: "empty placeholder", visibility: "{{}}"},
+		{name: "multiple placeholders", visibility: "{{first}}{{second}}"},
+		{name: "nested brace", visibility: "{{nested{key}}}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := `{
+				"grid": {"type": "one_column"},
+				"forms": [{"id": "main", "visibility": "` + tt.visibility + `", "sections": []}]
+			}`
+
+			if errs := ValidateFile("pages/index/config", config); len(errs) == 0 {
+				t.Errorf("expected visibility %q to be rejected", tt.visibility)
+			}
+		})
+	}
+}
+
+func TestValidatePageConfig_FooterVisibilityPlaceholder(t *testing.T) {
+	config := `{
+		"grid": {"type": "one_column"},
+		"forms": [{
+			"id": "main",
+			"sections": [{
+				"id": "body",
+				"footer": [{"id": "footer", "class": "label", "visibility": "{{footerVisibility}}"}]
+			}]
+		}]
+	}`
+
+	if errs := ValidateFile("pages/index/config", config); len(errs) == 0 {
+		t.Error("expected a footer visibility placeholder to be rejected")
+	}
+}
+
 func TestValidatePageConfig_Errors(t *testing.T) {
 	config := `{
 		"grid": {"type": "bad_type"},
