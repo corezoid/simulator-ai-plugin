@@ -67,7 +67,7 @@ func TestValidatePageConfig_VisibilityPlaceholders(t *testing.T) {
 			"sections": [{
 				"id": "body",
 				"visibility": "{{sectionVisibility}}",
-				"header": [{"id": "heading", "class": "label", "visibility": "{{headingVisibility}}"}],
+				"header": [{"id": "heading", "class": "label", "value": "Heading", "visibility": "{{headingVisibility}}"}],
 				"modalHeader": [{"id": "close", "class": "button", "visibility": "{{closeVisibility}}"}],
 				"content": [{
 					"id": "layout",
@@ -80,6 +80,28 @@ func TestValidatePageConfig_VisibilityPlaceholders(t *testing.T) {
 
 	if errs := ValidateFile("pages/index/config", config); len(errs) != 0 {
 		t.Errorf("expected visibility placeholders to be valid, got: %v", errs)
+	}
+}
+
+func TestValidatePageConfig_ContentLoopVisibilityPlaceholder(t *testing.T) {
+	config := `{
+		"grid": {"type": "one_column"},
+		"forms": [{
+			"id": "main",
+			"sections": [{
+				"id": "body",
+				"contentLoop": [{"fieldVisibility": "hidden"}],
+				"content": [{
+					"id": "field",
+					"class": "edit",
+					"visibility": "{{fieldVisibility}}"
+				}]
+			}]
+		}]
+	}`
+
+	if errs := ValidateFile("pages/index/config", config); len(errs) != 0 {
+		t.Errorf("expected a contentLoop visibility placeholder to be valid, got: %v", errs)
 	}
 }
 
@@ -117,7 +139,7 @@ func TestValidatePageConfig_FooterVisibilityPlaceholder(t *testing.T) {
 			"id": "main",
 			"sections": [{
 				"id": "body",
-				"footer": [{"id": "footer", "class": "label", "visibility": "{{footerVisibility}}"}]
+				"footer": [{"id": "footer", "class": "label", "value": "Footer", "visibility": "{{footerVisibility}}"}]
 			}]
 		}]
 	}`
