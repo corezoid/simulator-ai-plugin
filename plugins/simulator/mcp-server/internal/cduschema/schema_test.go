@@ -91,6 +91,7 @@ func TestValidatePageConfig_InvalidVisibilityPlaceholders(t *testing.T) {
 		{name: "unknown literal", visibility: "shown"},
 		{name: "embedded placeholder", visibility: "state-{{visibility}}"},
 		{name: "empty placeholder", visibility: "{{}}"},
+		{name: "placeholder with surrounding whitespace", visibility: "{{ visibility }}"},
 		{name: "multiple placeholders", visibility: "{{first}}{{second}}"},
 		{name: "nested brace", visibility: "{{nested{key}}}"},
 	}

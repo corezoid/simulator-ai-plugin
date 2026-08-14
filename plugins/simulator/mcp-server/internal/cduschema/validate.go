@@ -365,5 +365,5 @@ func isViewModelPlaceholder(value string) bool {
 	}
 
 	key := value[2 : len(value)-2]
-	return strings.TrimSpace(key) != "" && !strings.ContainsAny(key, "{}")
+	return key != "" && key == strings.TrimSpace(key) && !strings.ContainsAny(key, "{}")
 }
