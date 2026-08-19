@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.7.0]
+
+### Changed
+- [CE-15707] Sync the edge-hole link contract into the Simulator plugin
+
 ## [2.6.0]
 
 ### Added
