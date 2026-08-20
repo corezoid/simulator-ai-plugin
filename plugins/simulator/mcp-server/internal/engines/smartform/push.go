@@ -501,16 +501,30 @@ func parseCreatedObjs(respBytes []byte) ([]createdObj, error) {
 // repaired) file based on its env-relative path.
 //
 // CSS detection rules (evaluated in order):
-//  1. Top-level styles/ directory — Less/CSS source files.
-//  2. pages/<page>/style — per-page stylesheet. The platform always names this
+//  1. Top-level styles/ directory — Less/CSS source files (modular layout).
+//  2. The bare top-level "style" file — the legacy single-stylesheet layout
+//     (see simulator-styles skill: "Legacy single file — a root `style` file
+//     holds everything"). It sits directly under the env root, named "style"
+//     with no extension, same convention as the per-page file in rule 3. A
+//     prior version of this function only recognized the styles/ and
+//     pages/<page>/style cases, so pushing this file (even with unchanged
+//     content) re-typed it as application/json on the server and broke the
+//     compiled stylesheet.
+//  3. pages/<page>/style — per-page stylesheet. The platform always names this
 //     file exactly "style" (no extension); the UI enforces this convention and
 //     the backend stores it as text/css. Key off the base name within the
 //     pages/ tree so any page depth is covered, regardless of extension.
-//  3. Explicit .css extension — explicit fallback for any other CSS file.
+//  4. Explicit .css extension — explicit fallback for any other CSS file.
 //
 // Everything else defaults to application/json (config, viewModel, locale …).
 func defaultMimeType(relPath string) string {
 	if relPath == "styles" || strings.HasPrefix(relPath, "styles/") {
+		return "text/css"
+	}
+	// Bare top-level "style" — the legacy single-stylesheet layout. Must be an
+	// exact match (env root only); "definitions/style" or other nested files
+	// named "style" are not CSS.
+	if relPath == "style" {
 		return "text/css"
 	}
 	// pages/<page>/style — the file is named "style" (no extension) but

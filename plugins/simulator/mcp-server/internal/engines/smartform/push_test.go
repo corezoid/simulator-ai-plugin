@@ -29,6 +29,14 @@ func TestDefaultMimeType(t *testing.T) {
 		{"pages/index/style", "text/css"},
 		{"pages/my-page/style", "text/css"},
 
+		// ── bare top-level "style" regression (legacy single-file layout) ──
+		// A root `style` file holds everything for legacy forms (see the
+		// simulator-styles skill). Old code did not recognize this exact
+		// path, only "styles/" and "pages/<page>/style", so pushing this
+		// file — even with byte-identical content — re-typed it as
+		// application/json on the server and broke the compiled styles.
+		{"style", "text/css"},
+
 		// ── explicit .css extension ───────────────────────────────────────
 		{"components/button.css", "text/css"},
 		{"pages/landing/custom.css", "text/css"},
@@ -41,9 +49,7 @@ func TestDefaultMimeType(t *testing.T) {
 		{"locale", "application/json"},
 		{"definitions/types", "application/json"},
 		{"widgets/counter/config", "application/json"},
-		// "style" at root (no pages/ prefix) is not a CSS file
-		{"style", "application/json"},
-		// "style" nested elsewhere is not CSS
+		// "style" nested elsewhere (not the bare top-level file) is not CSS
 		{"definitions/style", "application/json"},
 	}
 
