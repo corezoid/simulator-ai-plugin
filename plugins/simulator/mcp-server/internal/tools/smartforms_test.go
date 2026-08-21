@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"net/url"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -72,7 +73,7 @@ func TestSmartFormRuntimeOps(t *testing.T) {
 	t.Run("appSendForm sends page in BOTH path and body", func(t *testing.T) {
 		c, rec := setup(t)
 		res := call(t, c, opByName(t, "appSendForm"), map[string]any{
-			"ref":      "smart-contract",
+			"ref":       "smart-contract",
 			"envTitle":  "production",
 			"page":      "terms",
 			"formId":    "f_terms",
@@ -106,6 +107,110 @@ func TestSmartFormRuntimeOps(t *testing.T) {
 		}
 		if _, ok := body["data"].(map[string]any); !ok {
 			t.Errorf("body[data] should be an object, got %T", body["data"])
+		}
+	})
+
+	// A Smart Form carries per-session state (a token, a record id) in the page
+	// `query`: a 302 answers {nextPage, query} and the next page's /get reads it as
+	// body.query.*. The keys are app-defined, so the tool takes one object and
+	// InQueryMap flattens it — an InQuery param would have sent the whole object as
+	// a single value and the session would silently never arrive.
+	t.Run("appGetPage flattens the query object into the URL", func(t *testing.T) {
+		c, rec := setup(t)
+		res := call(t, c, opByName(t, "appGetPage"), map[string]any{
+			"ref":      "chudo-market",
+			"envTitle": "develop",
+			"page":     "history",
+			"query":    map[string]any{"token": "tok 1", "cardCode": "777", "page": float64(2)},
+		})
+		if res.IsError {
+			t.Fatalf("appGetPage: unexpected error result: %+v", res.Content)
+		}
+		if want := "/pages/WS/chudo-market/develop/history"; rec.path != want {
+			t.Errorf("path = %s, want %s", rec.path, want)
+		}
+		q, err := url.ParseQuery(rec.query)
+		if err != nil {
+			t.Fatalf("parse query %q: %v", rec.query, err)
+		}
+		for k, want := range map[string]string{"token": "tok 1", "cardCode": "777", "page": "2"} {
+			if got := q.Get(k); got != want {
+				t.Errorf("query[%s] = %q, want %q (raw: %q)", k, got, want, rec.query)
+			}
+		}
+		// The object itself must NOT appear as one opaque value.
+		if q.Get("query") != "" {
+			t.Errorf("query object leaked as a single %q key: %q", "query", rec.query)
+		}
+	})
+
+	t.Run("appGetPage rejects a non-object query", func(t *testing.T) {
+		c, _ := setup(t)
+		res := call(t, c, opByName(t, "appGetPage"), map[string]any{
+			"ref":      "chudo-market",
+			"envTitle": "develop",
+			"page":     "index",
+			"query":    "token=abc",
+		})
+		if !res.IsError {
+			t.Errorf("expected an error result when query is a string, not an object")
+		}
+	})
+
+	t.Run("appGetPage skips blank keys and nil values", func(t *testing.T) {
+		c, rec := setup(t)
+		res := call(t, c, opByName(t, "appGetPage"), map[string]any{
+			"ref":      "chudo-market",
+			"envTitle": "develop",
+			"page":     "index",
+			"query":    map[string]any{"": "dropped", "token": nil, "keep": "yes"},
+		})
+		if res.IsError {
+			t.Fatalf("appGetPage: unexpected error result: %+v", res.Content)
+		}
+		q, _ := url.ParseQuery(rec.query)
+		if q.Get("keep") != "yes" {
+			t.Errorf("query[keep] = %q, want %q", q.Get("keep"), "yes")
+		}
+		// A nil would otherwise render as the literal string "null".
+		if _, present := q["token"]; present {
+			t.Errorf("nil value should be omitted, got %q", rec.query)
+		}
+		if len(q) != 1 {
+			t.Errorf("expected exactly 1 query key, got %d (%q)", len(q), rec.query)
+		}
+	})
+
+	t.Run("appSendForm carries query in the body", func(t *testing.T) {
+		c, rec := setup(t)
+		res := call(t, c, opByName(t, "appSendForm"), map[string]any{
+			"ref":       "chudo-market",
+			"envTitle":  "develop",
+			"page":      "stores",
+			"formId":    "geo",
+			"sectionId": "body",
+			"buttonId":  "find_btn",
+			"data":      map[string]any{"lat": "50.0466"},
+			"query":     map[string]any{"token": "tok"},
+		})
+		if res.IsError {
+			t.Fatalf("appSendForm: unexpected error result: %+v", res.Content)
+		}
+		// /send takes query in the BODY (the handler reads body.query.*), unlike
+		// /get where it is the URL query string.
+		if rec.query != "" {
+			t.Errorf("appSendForm should not put query in the URL, got %q", rec.query)
+		}
+		body, ok := rec.body.(map[string]any)
+		if !ok {
+			t.Fatalf("expected object body, got %T", rec.body)
+		}
+		qb, ok := body["query"].(map[string]any)
+		if !ok {
+			t.Fatalf("body[query] should be an object, got %T", body["query"])
+		}
+		if qb["token"] != "tok" {
+			t.Errorf("body[query][token] = %v, want %q", qb["token"], "tok")
 		}
 	})
 

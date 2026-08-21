@@ -31,6 +31,10 @@ var smartFormOps = []Operation{
 			{Name: "ref", In: InPath, Type: "string", Required: true, Desc: "The Smart Form's ref (its identity in the `scripts` system form). Resolve from the App Catalog or by searching the scripts form."},
 			{Name: "envTitle", In: InPath, Type: "string", Required: true, Desc: "Environment to serve: `production` (live) or `develop` (editable).", Enum: []string{"production", "develop"}},
 			{Name: "page", In: InPath, Type: "string", Required: true, Desc: "Page id to render. Use `index` for the app's landing page; follow `nextPage` / `pageId` from prior responses for subsequent pages."},
+			{Name: "query", In: InQueryMap, Type: "object", Desc: "Query parameters for this page, as {key: value} — flattened into the URL exactly as the renderer sends them. " +
+				"PASS BACK the `query` object from the previous step's 302 response (`{nextPage, query}`): apps routinely carry per-session state there " +
+				"(a token, a record id), and the page's /get reads it as `body.query.*`. Omitting it renders the page as if the user had opened it cold — " +
+				"which is a valid test, but it will NOT reproduce a logged-in page and its backend call may fail or return empty. Example: {\"token\":\"…\",\"cardCode\":\"…\"}."},
 		},
 	},
 	{
@@ -54,8 +58,12 @@ var smartFormOps = []Operation{
 			{Name: "formId", In: InBody, Type: "string", Required: true, Desc: "Id of the form being submitted (from `forms[].id` on the page)."},
 			{Name: "sectionId", In: InBody, Type: "string", Required: true, Desc: "Id of the section the submitted form belongs to (from `forms[].sections[].id`). Required by the backend."},
 			{Name: "data", In: InBody, Type: "object", Required: true, Desc: "Collected values of the form's value-bearing items, keyed by item id, e.g. {\"counterparty\":\"Acme\",\"value\":50000}. Use {} if the button submits no field values."},
-			{Name: "buttonId", In: InBody, Type: "string", Desc: "Optional id of the button that triggered the submit (from a `button` item). Omit for auto-submit / submit-on-change."},
-			{Name: "buttonData", In: InBody, Type: "object", Desc: "Optional extra payload carried by the button (e.g. a menu choice or auto-submit counter)."},
+			{Name: "buttonId", In: InBody, Type: "string", Desc: "Optional id of the button that triggered the submit (from a `button` item). " +
+				"Also the id of a `submitOnChange` FIELD when the submit was triggered by a value change rather than a click — the backend dispatches on this either way."},
+			{Name: "buttonData", In: InBody, Type: "object", Desc: "Optional extra payload carried by the button (e.g. a menu choice or auto-submit counter). " +
+				"Only `select` populates it on a submitOnChange event; `radio`/`check`/`toggle`/`edit` send `{}` exactly like a button click, so the changed value is read from `data`, not here."},
+			{Name: "query", In: InBody, Type: "object", Desc: "Query parameters currently on the page, as {key: value} — pass back the `query` you rendered the page with (see appGetPage). " +
+				"The handler receives it as `body.query.*` and many apps read per-session state (a token, a record id) from there as a fallback when a form carries none."},
 		},
 	},
 }

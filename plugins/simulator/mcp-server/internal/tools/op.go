@@ -27,6 +27,14 @@ const (
 	InBody     ParamIn = "body"      // a named field in the JSON request body
 	InBodyRoot ParamIn = "body_root" // this single param IS the entire request body
 	InLocal    ParamIn = "local"     // consumed by Resolve only; never sent to the API
+	// InQueryMap is one object argument whose entries are FLATTENED into the query
+	// string — `{"token":"abc","page":2}` becomes `?token=abc&page=2`. Use it for
+	// an open-ended bag of query keys the tool cannot enumerate up front, where
+	// InQuery would wrongly send the whole object as a single value. The Smart Form
+	// page routes need it: the renderer calls
+	// `GET /pages/{acc}/{ref}/{env}/{page}?<query>` with whatever the previous
+	// step's `302 {nextPage, query}` handed it, so the keys are app-defined.
+	InQueryMap ParamIn = "query_map"
 	// InPathBody sends one value to BOTH the path segment AND a body field — for
 	// backends that take the same value in both slots (e.g. the pages /send route
 	// reads `page` from the path on GET but from the body on POST). Expressed as a
@@ -249,6 +257,21 @@ func makeHandlerCtxAware(c *apiclient.Client, op Operation, adjust func(context.
 					}
 				}
 				query.Set(wire, toString(val))
+			case InQueryMap:
+				// One object argument, flattened: each entry becomes its own query
+				// key. Skip entries with an empty key or a nil value — a nil would
+				// render as the literal "null" and a blank key is not addressable.
+				m, ok := val.(map[string]any)
+				if !ok {
+					return mcp.NewToolResultError(fmt.Sprintf(
+						"[Error] parameter %q must be an object of query keys, got %T", p.Name, val)), nil
+				}
+				for k, v := range m {
+					if k == "" || v == nil {
+						continue
+					}
+					query.Set(k, toString(v))
+				}
 			case InBody:
 				body[wire] = val
 			case InBodyRoot:
