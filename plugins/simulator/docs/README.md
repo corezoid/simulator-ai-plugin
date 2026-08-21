@@ -42,6 +42,7 @@ Documentation of common user flows through the public API (full index: [user-flo
 - [Actor & Graph Management](user-flows/actor-graph-management.md) - Creating actors, links, and layers
 - [Graph Functionality](user-flows/graph-functionality.md) - Building and traversing business-process graphs
 - [Custom Car Form](user-flows/custom-car-form.md) - End-to-end example: a custom form with accounts and a counter
+- [App Generation](user-flows/app-generation.md) - Generating a whole multi-page Smart Form app from existing Corezoid processes: contract extraction, page-map design, the bridging middleware, and E2E test payloads
 
 ## System Forms
 

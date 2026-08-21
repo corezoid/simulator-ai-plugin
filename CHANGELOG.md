@@ -43,6 +43,15 @@
 ## [Unreleased]
 
 ### Added
+- **`simulator-app-generator` skill.** Generates a complete multi-page Smart Form app from a set
+  of existing Corezoid process ids plus a product description: pulls every process, derives its
+  real input/output contract from its `api_rpc_reply` nodes (declared `params` drift and are only
+  a cross-check), designs a page map that covers all of them, builds the Smart Form and the
+  bridging Corezoid middleware process that calls them via `api_rpc`, binds both envs, then
+  verifies end-to-end (`lint-process` + `pushSmartForm`, synthetic `run-task` payloads, and a
+  live `appGetPage`/`appSendForm` drive) with a self-repair loop. Adds
+  `docs/user-flows/app-generation.md` with the extraction algorithm, middleware skeleton, and
+  test-payload catalogue.
 - **Anonymous tool-call telemetry + opt-in email.** The MCP server now sends anonymous usage
   events (tool name, duration, error type, API hostname, transport, server version, a
   per-installation UUID, and MCP client name/version) to the same Corezoid ingest process
@@ -98,6 +107,82 @@
   may not be an empty string, and an `image` `value` may not be a `data:` URI — the renderer proxies
   it through `/api/1.0/image?src=`, which rejects the scheme with `400 "URL is not allowed"`.
   Documented in `cdu-page-protocol.md` §5.1 / §10.1.
+- **App-generator docs: the callback `api` node snippet was incomplete and failed `lint-process`.**
+  All three copies of it (`simulator-smart-forms-logic` §2.7/§2.8, `simulator-app-generator` §7.2,
+  `app-generation.md` §4.4) omitted `format`, `send_sys`, `debug_info`, `cert_pem` and
+  `max_threads`. Following them verbatim produced a process that fails the JSON-schema gate
+  (`missing property 'max_threads'`) and the `UNDERSPECIFIED API CALL NODES` check — whose
+  real-world symptom is a server commit that hangs ~15–20 s then reports `no response from server`.
+  All three snippets are now complete, with the cost of trimming them spelled out. Also documents
+  that `extra.code` may be templated (`"{{respCode}}"` with `extra_type.code:"number"`), so one
+  callback node can serve 200/205/302 instead of one node per code.
+- **App-generator docs: the `err_node_id` invariant drove authors into a lint-flagged
+  anti-pattern.** §7.7 required an `obj_type: 3` escalation for *every* fallible node; for an error
+  path with no work to do that produces a passthrough escalation (`lint-process` flags it), and
+  padding it with a throwaway `set_param` earns `UNUSED SET_PARAM` **plus** `SHARED ERROR CLUSTERS`.
+  Now states both shapes — straight to an `obj_type: 2` final when there is no logic, escalation
+  only when there is — plus the two facts that make "every branch still answers the runtime"
+  reachable: an escalation's `go` may rejoin the happy path, and each branch needs its own callback
+  node so nine branches don't share one error terminal.
+- **App-generator docs: generated apps looked broken by default.** The two platform defaults that
+  wreck an unstyled app — `.section__content` shipping its own grey background plus
+  `padding: 20px 16px 0`, and `[data-class="grid-one-column"]` being capped and centred — were
+  documented only in `simulator-styles`, which the app-generator reached for in Phase 8, long after
+  the pages were authored. New §6.1 makes the resets, the app shell and the per-page
+  `grid.styleClass` hook part of Phase 4; Phase 8 is now explicitly about branding rather than
+  rescue.
+- **Contract extraction missed real inputs in two node shapes.** `api_copy` carries its payload in
+  `data`/`data_type` (it has no `extra` field at all) and an `api` node with `format: "raw"` carries
+  it in `raw_body`; neither was mentioned anywhere in the plugin, and `raw_body` had zero
+  occurrences. A scan reading only `extra` reports such processes as input-free — and, in a real
+  run, reported a non-existent "sends an empty email" defect in a correct process. §1.7 /
+  `simulator-app-generator` §3.6 now table all three carriers, and §3.9 asks for the field you read
+  to be named before any defect is reported about someone else's backend.
+- **Side-effect classification scored unreachable nodes.** Corezoid never prunes orphans, so a
+  repurposed process keeps every sender it ever had: the reference `Cashback Categories` has 126
+  nodes of which **6** are reachable, and scoring the whole bag marks a safe read-only process as
+  `likely` and excludes it from probing. New §2.1 requires a BFS from Start (over `to_node_id` +
+  `err_node_id` + `semaphors[].to_node_id`) before scoring, notes that unreachable reply nodes
+  otherwise invent outcome branches, and adds a `nodes: "<reachable> of <total>"` manifest field.
+- **A declared input can be dead.** The mirror of the documented output-side `params` drift: a
+  process may declare an `input` no node ever reads, because the value actually comes from a
+  state-diagram read (`{{conv[<id>].ref[SessionData].Session}}` — one workspace-wide session, not a
+  per-user token). New §1.7a plus a `deadDeclaredInputs` manifest field.
+- **Two verified backend facts the extraction docs were missing.** §1.3: a reply value may be a
+  literal JSON *string* rather than a `{{var}}` — such a process is a constant source, so
+  `run-task` returns empty task data and the schema must be read off the literal. And Corezoid
+  translation refs inside that literal resolve to the **empty string**, not to themselves, so a
+  regex hunting `t'([A-Za-z]+)` in the value can never match and a label map keyed on the ref is
+  dead code — recover from a surviving sibling field instead (the reference FAQ used `url`). §1.8:
+  `create-alias` accepts only `a-z`, `0-9` and `-`, so an underscored sub-process name
+  (`chudo_get`) is rejected outright; pick the dashed form up front.
+- **App-generator docs: "seed every `{{key}}`" was unqualified and produced false positives.**
+  Placeholders inside a `contentLoop` section's `content` are **loop-scoped** — substituted from the
+  entries the backend returns — so they are not viewModel keys and must not be seeded or reported as
+  undefaulted (only the array binding itself, e.g. `{{promos_loop}}`, needs a default). Phase 4 now
+  states the exclusion. Also aligns §9.1 with `pushSmartForm`'s new cross-file token audit (locale
+  misses are errors, viewModel misses warnings) and tells the reader to actually read `warnings`,
+  since they do not block a push; and §9.3's L3 assertion now covers unresolved `[[` as well as
+  `{{`.
+- **App-generator docs: node-budget guidance counted the wrong nodes, and two size levers were
+  undocumented.** The "split above ~60 nodes / 8 pages" threshold gave no hint that error clusters
+  scale mechanically with the number of fallible nodes — `layout-process` measures **32%** of both
+  reference handlers as error nodes (77 → ~52 business, 74 → ~50) — so following it splits graphs
+  that are comfortably inside it. §7.1 / §4.1a now say to budget business nodes only. §4.1a also
+  gains a fourth pattern, **mapping an outcome in one Code node instead of a `go_if_const` tree**
+  (7 mappers instead of 7 conditions plus ~20 builders and their clusters on the reference `/send`
+  handler), stated with both sides of the trade: it removes the unbracketed-nested-`param` silent
+  fallthrough entirely, but hides that branching from the Corezoid canvas — so the `path` / `page` /
+  `buttonId` dispatches stay real condition nodes. §7.5 adds the two structural defences that stop
+  `submitOnChange` correctness depending on a hand-maintained id list: prefer zero such fields when
+  the page has no cascade, and make the dispatch default a no-op ack rather than a submit.
+- **`simulator-styles`: silent Less compile failures had no documented check.** A Less error is
+  emitted as a `/* Less Error … */` comment at serve time and the page renders unstyled;
+  `pushSmartForm` does not compile CSS and `appGetPage` never returns it, so nothing reported it.
+  Adds a verified local recipe, including the three traps that break the obvious command: Smart Form
+  partials have no `.less` extension, `lessc` cannot read a `<(…)` process-substitution path
+  (`EBADF`), and the npm package is `less` — a package literally named `lessc` exists and is not the
+  compiler.
 - **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
   `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
   call — safe under the current single-threaded stdio transport, but a data race under `go test
