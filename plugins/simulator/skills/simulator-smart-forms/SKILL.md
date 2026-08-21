@@ -144,14 +144,18 @@ untouched page). The split follows what the runtime can still rescue:
 
 | Finding | Where | Why |
 |---|---|---|
-| `[[key]]` in neither app `locale` nor that page's `locale` | **`validationErrors`** — push aborts | locale resolves from files only; nothing at runtime can supply it, so it always reaches the browser as the literal text `[[key]]` |
+| `[[key]]` in neither app `locale` nor that page's `locale`, **and** that page or one of its locale files is in this push | **`validationErrors`** — push aborts | locale resolves from files only; nothing at runtime can supply it, so it always reaches the browser as the literal text `[[key]]` |
+| the same miss in a page **nobody touched** in this push | `warnings` (tagged `pre-existing`) | it was already live before the push; blocking would strand an unrelated fix, since `pushSmartForm` has no force flag |
 | `{{key}}` with no `viewModel` default | `warnings` | the bound Corezoid process returns a per-request viewModel merged over the defaults, so it may be filled at runtime — it renders literally only when the backend call fails |
 | a `label`/`image` whose whole value is `{{key}}` and whose default is `""` | `warnings` | the renderer rejects an empty value outright; use a non-breaking space (label) or a **fetchable** placeholder URL (image — a `data:` URI is rejected by the image proxy) |
 | a `viewModel` default no page or definition references | `warnings` | dead key, usually left behind by a removed component |
 | a section with **literal** `contentLoop` entries missing a key its template uses | `warnings` | those rows render the literal `{{key}}` — checked per entry, and named |
 
 A **templated** `contentLoop` (`"contentLoop": "{{promos_loop}}"`) is backend-filled, so the
-placeholders inside its `content` template are not viewModel keys and are never reported.
+placeholders inside its `content` template are not viewModel keys and are never reported. Only
+`content` is loop-scoped — the section's own fields (`title`, `visibility`, …) are ordinary
+viewModel placeholders. `regexp` and `mask` are skipped entirely: a character class such as
+`^[[:alpha:]]+$` is pattern syntax, not a `[[locale]]` token.
 
 ---
 

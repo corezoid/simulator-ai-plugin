@@ -218,4 +218,66 @@ func collectProps(data []byte, r *Rules) {
 			}
 		}
 	}
+
+	applySupplements(r, add)
+}
+
+// applySupplements widens the swagger-derived allowlists with the fields the
+// renderer accepts but the bundled swagger omits. Without it the derived union is
+// NARROWER than the protocol this repo documents, and a push carrying a
+// documented shape (`mainMenu.options`, `carousel.items`, `file.extra.downloadUrl`,
+// …) is rejected outright. Provenance for every entry is
+// `docs/user-flows/cdu-page-protocol.md` §4 (base fields) and §5 (per-class table);
+// `TestProbeDocumentedKeysPresentInUnion` walks that same table and fails if any
+// documented key falls out of the union again.
+//
+// Two deliberate limits:
+//
+//   - a class the swagger never described keeps NO rule (the check stays off for
+//     it) — supplements only widen a union that already exists, they never switch
+//     a check on;
+//   - the same holds for a nested spot: `carousel.extra` has no derived rule, so
+//     it is left unchecked rather than pinned to the two keys the docs name.
+func applySupplements(r *Rules, add func(map[string]map[string]bool, string, map[string]bool)) {
+	// §4 "Item — the component envelope": the renderer's baseSchema. The swagger's
+	// File.allOf[0] carries only half of it (id, visibility, row, w, styleClass).
+	baseFields := setOf("id", "class", "value", "visibility", "required", "error",
+		"errorMsg", "styleClass", "row", "w", "submitOnChange", "extra")
+
+	// §5, per class — key fields the swagger's schema for that class does not declare.
+	itemSupplement := map[string]map[string]bool{
+		"carousel": setOf("items"),   // §5: `items[]`, `value` (index)
+		"mainMenu": setOf("options"), // §5: `options[]`, `value`
+		"comments": setOf("title"),   // §5: `value`, `title`
+	}
+
+	// §5, per nested spot — only widens a rule the swagger already produced.
+	nestedSupplement := map[string]map[string]bool{
+		"timer.extra":      setOf("duration"),                         // §5: extra.duration
+		"file.extra":       setOf("downloadUrl", "uploadUrl", "auth"), // §5: extra.{downloadUrl,uploadUrl,auth}
+		"upload.extra":     setOf("compression"),                      // §5: extra.{…,compression}
+		"attachment.extra": setOf("downloadUrl"),                      // §5: extra.downloadUrl
+		"edit.extra":       setOf("lineNumbers"),                      // §5: extra.{length,lineNumbers}
+	}
+
+	for class := range r.ItemProps {
+		add(r.ItemProps, class, baseFields)
+		if extra, ok := itemSupplement[class]; ok {
+			add(r.ItemProps, class, extra)
+		}
+	}
+	for key, extra := range nestedSupplement {
+		if len(r.NestedProps[key]) == 0 {
+			continue // no derived rule — the check is off, keep it off
+		}
+		add(r.NestedProps, key, extra)
+	}
+}
+
+func setOf(names ...string) map[string]bool {
+	out := make(map[string]bool, len(names))
+	for _, n := range names {
+		out[n] = true
+	}
+	return out
 }

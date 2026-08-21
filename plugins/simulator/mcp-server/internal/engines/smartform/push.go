@@ -161,12 +161,22 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			validationErrors = append(validationErrors, errs...)
 		}
 	}
-	// Cross-file audit. Runs over the WHOLE tree, not just the files being
-	// written: a `[[key]]` in an untouched page breaks the moment its locale entry
-	// is deleted, and a per-file check can never see that. Locale misses are
-	// errors (nothing at runtime can supply a locale key); viewModel misses are
-	// warnings (the Corezoid process may fill them per request).
-	tree := cduschema.ValidateTree(localFiles)
+	// Cross-file audit. Reads the WHOLE tree, not just the files being written: a
+	// `[[key]]` in an untouched page breaks the moment its locale entry is deleted,
+	// and a per-file check can never see that. Severity is scoped to this push,
+	// though — a locale miss blocks only when the page or one of its locale files is
+	// what we are writing. A miss in a part of the tree nobody touched was already
+	// live before this push, and blocking on it would strand the user: there is no
+	// force flag to get an unrelated fix out. viewModel misses stay warnings either
+	// way (the Corezoid process may fill them per request).
+	changedPaths := make(map[string]bool, len(newFilePaths)+len(modifiedFilePaths))
+	for _, p := range newFilePaths {
+		changedPaths[p] = true
+	}
+	for _, p := range modifiedFilePaths {
+		changedPaths[p] = true
+	}
+	tree := cduschema.ValidateTreeScoped(localFiles, changedPaths)
 	validationErrors = append(validationErrors, tree.Errors...)
 
 	if len(validationErrors) > 0 {

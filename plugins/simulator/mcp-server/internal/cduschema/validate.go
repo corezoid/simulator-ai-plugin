@@ -233,6 +233,23 @@ func validateClientOnlyRules(relPath, itemLabel, class string, item map[string]a
 			))
 		}
 	}
+
+	// An `image` value is never loaded directly: the renderer proxies it through
+	// /api/1.0/image?src=<urlencoded>, and that proxy rejects the data: scheme with
+	// 400 {"statusCode":400,"message":"URL is not allowed"} (cdu-page-protocol.md §4).
+	// The image therefore renders as a broken box, and only the network tab says why.
+	// A templated value ("{{qr_src}}") resolves per request and cannot be judged here.
+	if class == "image" {
+		if str, ok := item["value"].(string); ok && strings.HasPrefix(strings.TrimSpace(str), "data:") {
+			errs = append(errs, fmt.Sprintf(
+				`%s: %s: image "value" must be a URL the SERVER can fetch — a data: URI is `+
+					"rejected by the image proxy (/api/1.0/image?src=) with "+
+					`400 "URL is not allowed". Use an http(s) URL or an actor-attached asset. `+
+					"(A data: URI in Less `url()` is fine — that path is not proxied.)",
+				relPath, itemLabel,
+			))
+		}
+	}
 	return errs
 }
 

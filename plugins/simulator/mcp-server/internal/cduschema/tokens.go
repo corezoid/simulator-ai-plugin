@@ -43,16 +43,45 @@ type TreeFindings struct {
 	Warnings []string
 }
 
+// route files a finding as an error when this push is what breaks it, and as a
+// warning otherwise — softSuffix says why it was downgraded.
+func (f *TreeFindings) route(blocking bool, msg, softSuffix string) {
+	if blocking {
+		f.Errors = append(f.Errors, msg)
+		return
+	}
+	f.Warnings = append(f.Warnings, msg+softSuffix)
+}
+
 // ValidateTree audits an entire Smart Form env tree for cross-file token defects
 // that no single-file check can see. files maps env-relative paths (the same keys
 // pushSmartForm collects: "locale", "viewModel", "pages/<id>/config",
-// "pages/<id>/locale", "definitions/<name>", …) to their source.
-//
-// Pass the WHOLE tree, not just the files being written: deleting a viewModel
-// default breaks an untouched page, and that is exactly the case a changed-files
-// audit would miss.
+// "pages/<id>/locale", "definitions/<name>", …) to their source. Every finding is
+// reported at full severity — see ValidateTreeScoped for the push-time variant.
 func ValidateTree(files map[string]string) TreeFindings {
+	return ValidateTreeScoped(files, nil)
+}
+
+// ValidateTreeScoped is ValidateTree with the severity of a locale miss decided by
+// what the caller is actually writing. changed holds the env-relative paths of the
+// files in this push; nil means "everything is in scope".
+//
+// The audit still reads the WHOLE tree — deleting a viewModel default breaks an
+// untouched page, and a changed-files-only audit would miss exactly that. But a
+// locale miss is only an ERROR when this push is what breaks it: the page config or
+// one of the locale files feeding it is being written. A miss in a page nobody
+// touched is pre-existing debt — it was already live before the push, aborting on it
+// would strand the user with no way to ship an unrelated fix (pushSmartForm has no
+// force flag), so it is reported as a warning instead.
+func ValidateTreeScoped(files map[string]string, changed map[string]bool) TreeFindings {
 	var f TreeFindings
+
+	// inScope reports whether a path is part of this push. A nil set means the
+	// caller did not scope the audit, so everything counts.
+	inScope := func(path string) bool { return changed == nil || changed[path] }
+	// Any locale file being written can be what removed a key, so it puts every
+	// page that resolves against it in scope.
+	localeTouched := inScope("locale")
 
 	appLocale := localeKeys(files["locale"])
 	viewModel := objectKeys(files["viewModel"])
@@ -90,14 +119,17 @@ func ValidateTree(files map[string]string) TreeFindings {
 		page, _ := pagePart(path, "config")
 		scan := scanConfig(files[path])
 
+		blocking := inScope(path) || localeTouched || inScope("pages/"+page+"/locale")
 		for _, k := range sortedKeys(scan.locale) {
 			if appLocale[k] || pageLocales[page][k] {
 				continue
 			}
-			f.Errors = append(f.Errors, fmt.Sprintf(
+			msg := fmt.Sprintf(
 				"%s: locale key [[%s]] is defined in neither `locale` nor `pages/%s/locale` — "+
 					"it will render as the literal text \"[[%s]]\" (locale is resolved from files only; "+
-					"the backend cannot supply it)", path, k, page, k))
+					"the backend cannot supply it)", path, k, page, k)
+			f.route(blocking, msg,
+				" [pre-existing: neither this page nor its locale files are part of this push]")
 		}
 
 		for _, k := range sortedKeys(scan.viewModel) {
@@ -136,13 +168,16 @@ func ValidateTree(files map[string]string) TreeFindings {
 	sort.Strings(defs)
 	for _, path := range defs {
 		scan := scanConfig(files[path])
+		blocking := inScope(path) || localeTouched
 		for _, k := range sortedKeys(scan.locale) {
 			if anyLocale[k] {
 				continue
 			}
-			f.Errors = append(f.Errors, fmt.Sprintf(
+			msg := fmt.Sprintf(
 				"%s: locale key [[%s]] is defined in no locale file — a $ref'd definition renders it "+
-					"as literal text on every page that inlines it", path, k))
+					"as literal text on every page that inlines it", path, k)
+			f.route(blocking, msg,
+				" [pre-existing: neither this definition nor any locale file is part of this push]")
 		}
 		for _, k := range sortedKeys(scan.viewModel) {
 			referenced[k] = true
@@ -231,22 +266,43 @@ func (s *configScan) walk(node any, inLoop bool) {
 			if k == "contentLoop" {
 				continue // already handled
 			}
-			s.walkString(k, child, loopHere)
-			s.walk(child, loopHere)
+			// Only the `content` template is expanded per loop entry. The section's
+			// own fields (`title`, `visibility`, …) are substituted once, from the
+			// viewModel like anywhere else — scoping them to the loop would drop
+			// real keys and then report their defaults as dead.
+			scoped := inLoop
+			if k == "content" {
+				scoped = loopHere
+			}
+			s.walkString(k, child, scoped)
+			s.walk(child, scoped)
 		}
 	case []any:
 		for _, child := range v {
+			// A string element is a leaf walk() itself ignores, so harvest it here.
+			// The field name is lost inside an array; "" opts into every check.
+			s.walkString("", child, inLoop)
 			s.walk(child, inLoop)
 		}
 	}
 }
 
+// literalBracketFields are the fields whose value is a pattern, not prose, so a
+// `[[…]]`/`{{…}}` run inside them is syntax rather than a token. `regexp` is the
+// live case: a character class such as `^[[:alpha:]]+$` matches localeTokenRe
+// exactly, and reporting it would abort the push over a locale key that was never
+// referenced.
+var literalBracketFields = map[string]bool{"regexp": true, "mask": true}
+
 // walkString harvests tokens out of a string leaf. Loop-scoped placeholders are
 // dropped: they are filled per contentLoop entry, so they are not viewModel keys
 // and treating them as such would false-positive on every list page.
-func (s *configScan) walkString(_ string, node any, inLoop bool) {
+func (s *configScan) walkString(field string, node any, inLoop bool) {
 	str, ok := node.(string)
 	if !ok {
+		return
+	}
+	if literalBracketFields[field] {
 		return
 	}
 	for _, m := range localeTokenRe.FindAllStringSubmatch(str, -1) {

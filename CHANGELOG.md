@@ -47,8 +47,13 @@
   warning (the bound process may fill it per request). Also reports a `label`/`image` bound to a
   default of `""` (the renderer rejects an empty value), a default no page references, and — for a
   *literal* `contentLoop` — the exact entries missing a key the template uses. Placeholders inside a
-  *templated* `contentLoop` are backend-filled and never reported, so list pages stay quiet.
-  Warnings are surfaced on a successful push under a new `warnings` field.
+  *templated* `contentLoop` are backend-filled and never reported, so list pages stay quiet; only a
+  section's `content` is loop-scoped, and `regexp`/`mask` are skipped entirely so a character class
+  like `^[[:alpha:]]+$` is not read as a locale token. A locale miss blocks only when the page or one
+  of the locale files feeding it is part of the push — the same miss in an untouched page is
+  pre-existing debt and is reported as a warning, because `pushSmartForm` has no force flag and
+  aborting on it would strand an unrelated fix. Warnings are surfaced on a successful push under a
+  new `warnings` field.
 - **`pushSmartForm` accepted item keys and nested shapes the renderer then rejected.** The swagger
   sets `additionalProperties: false` nowhere, so the save endpoint stores a typo'd `visibilty` or a
   `head[].id` verbatim and the defect surfaces only as a console error in the browser — the item
@@ -58,13 +63,20 @@
   variant declares. The allowlist is the **union** over every schema variant of a class, because the
   swagger splits one class across type variants that each redeclare only part of the surface
   (`value` is on `Edit-int` but not on `Edit-default`) — checking a single variant would reject
-  valid config. `TestProbeDocumentedKeysPresentInUnion` guards that assumption, so a swagger update
-  that drops a real key fails the tests instead of blocking users' pushes; a class with no derived
-  rule is skipped rather than rejected. Also transcribed three renderer-only rules the swagger
-  cannot express (it carries no `minLength` anywhere): a `label`/`image` `value` may not be an empty
-  string, an `image` `value` must be a URL the *server* can fetch (the renderer proxies it through
-  `/api/1.0/image?src=`, which rejects a `data:` URI outright). Documented in
-  `cdu-page-protocol.md` §5.1 / §10.1.
+  valid config. The union is then widened with the fields the
+  renderer accepts but the swagger omits — the §4 base envelope (`value`, `required`, `error`,
+  `errorMsg`, `submitOnChange`, `extra`) plus the §5 rows the swagger under-describes
+  (`mainMenu.options`, `carousel.items`, `comments.title`, `timer.extra.duration`,
+  `file.extra.{downloadUrl,uploadUrl,auth}`, `upload.extra.compression`,
+  `attachment.extra.downloadUrl`) — because the derived union alone was NARROWER than the documented
+  protocol and rejected those shapes outright. `TestProbeDocumentedKeysPresentInUnion` now walks the
+  whole §5 table rather than a hand-picked subset, so a swagger update that drops a real key fails
+  the tests instead of blocking users' pushes; a class the swagger never described (`row`,
+  `draggable`) keeps no rule and is skipped rather than rejected. Also transcribed the renderer-only
+  rules the swagger cannot express (it carries no `minLength` anywhere): a `label`/`image` `value`
+  may not be an empty string, and an `image` `value` may not be a `data:` URI — the renderer proxies
+  it through `/api/1.0/image?src=`, which rejects the scheme with `400 "URL is not allowed"`.
+  Documented in `cdu-page-protocol.md` §5.1 / §10.1.
 - **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
   `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
   call — safe under the current single-threaded stdio transport, but a data race under `go test

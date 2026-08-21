@@ -221,3 +221,109 @@ func TestValidateTreeNoPagesIsSilent(t *testing.T) {
 		t.Errorf("expected no findings for a page-less env, got errors=%v warnings=%v", f.Errors, f.Warnings)
 	}
 }
+
+// A `[[…]]` run inside a pattern field is regex syntax, not a locale token. This
+// one aborted the push over a locale key nobody ever wrote.
+func TestValidateTreeIgnoresBracketsInPatternFields(t *testing.T) {
+	files := map[string]string{
+		"locale":    `{}`,
+		"viewModel": `{}`,
+		"pages/p/config": `{"grid":{"type":"one_column"},"forms":[{"id":"f","sections":[{"id":"s","type":"body",
+		  "content":[{"id":"e","class":"edit","type":"text","value":"","regexp":"^[[:alpha:]]+$","mask":"[[0-9]]"}]}]}]}`,
+	}
+	f := ValidateTree(files)
+	if len(f.Errors) != 0 {
+		t.Errorf("a character class in `regexp`/`mask` must not be read as a locale token: %v", f.Errors)
+	}
+}
+
+// Only a section's `content` is expanded per loop entry. Its own fields are
+// substituted once, from the viewModel — scoping them to the loop dropped the key
+// and then reported its default as dead.
+func TestValidateTreeSectionFieldsAreNotLoopScoped(t *testing.T) {
+	files := map[string]string{
+		"locale":    `{}`,
+		"viewModel": `{"rows":[],"section_title":"T"}`,
+		"pages/p/config": `{"grid":{"type":"one_column"},"forms":[{"id":"f","sections":[{"id":"s","type":"body",
+		  "title":"{{section_title}}","contentLoop":"{{rows}}",
+		  "content":[{"id":"l","class":"label","value":"{{cell}}"}]}]}]}`,
+	}
+	f := ValidateTree(files)
+	if has(f.Warnings, "section_title", "dead default") {
+		t.Errorf("the section title references the key — it is not dead: %v", f.Warnings)
+	}
+	if has(f.Warnings, "{{cell}}", "no default in `viewModel`") {
+		t.Errorf("the loop template var must stay loop-scoped: %v", f.Warnings)
+	}
+}
+
+// A string sitting directly in an array is a leaf too — walk() skipped those, so
+// every token inside one was invisible.
+func TestValidateTreeHarvestsTokensInStringArrays(t *testing.T) {
+	files := map[string]string{
+		"locale":    `{}`,
+		"viewModel": `{}`,
+		"pages/p/config": `{"grid":{"type":"one_column"},"forms":[{"id":"f","sections":[{"id":"s","type":"body",
+		  "content":[{"id":"m","class":"mainMenu","value":"a","structure":["[[missing_loc]]","{{missing_vm}}"]}]}]}]}`,
+	}
+	f := ValidateTree(files)
+	if !has(f.Errors, "[[missing_loc]]") {
+		t.Errorf("expected the locale key inside the array to be reported: %v", f.Errors)
+	}
+	if !has(f.Warnings, "{{missing_vm}}") {
+		t.Errorf("expected the viewModel key inside the array to be reported: %v", f.Warnings)
+	}
+}
+
+// Scoping: a locale miss in a page this push does not write is pre-existing debt.
+// Blocking on it would strand the user — pushSmartForm has no force flag.
+func TestValidateTreeScopedUntouchedPageIsWarning(t *testing.T) {
+	page := `{"grid":{"type":"one_column"},"forms":[{"id":"f","sections":[{"id":"s","type":"body",
+	  "content":[{"id":"l","class":"label","value":"[[nowhere]]"}]}]}]}`
+	files := map[string]string{
+		"locale":            `{}`,
+		"viewModel":         `{}`,
+		"pages/old/config":  page,
+		"pages/new/config":  page,
+		"definitions/stale": `{"class":"button","title":"[[nowhere]]","type":"default"}`,
+	}
+
+	f := ValidateTreeScoped(files, map[string]bool{"pages/new/config": true})
+	if !has(f.Errors, "pages/new/config", "[[nowhere]]") {
+		t.Errorf("the page being written must still block: %v", f.Errors)
+	}
+	if has(f.Errors, "pages/old/config") || has(f.Errors, "definitions/stale") {
+		t.Errorf("untouched files must not block an unrelated push: %v", f.Errors)
+	}
+	if !has(f.Warnings, "pages/old/config", "pre-existing") {
+		t.Errorf("the untouched page should still be reported as a warning: %v", f.Warnings)
+	}
+
+	// Writing a locale file can be exactly what removed the key, so every page
+	// resolving against it goes back in scope.
+	f2 := ValidateTreeScoped(files, map[string]bool{"locale": true})
+	for _, p := range []string{"pages/old/config", "pages/new/config", "definitions/stale"} {
+		if !has(f2.Errors, p, "[[nowhere]]") {
+			t.Errorf("%s must block when the app locale is being written: %v", p, f2.Errors)
+		}
+	}
+
+	// A page locale file scopes its own page back in, and nothing else.
+	f3 := ValidateTreeScoped(files, map[string]bool{"pages/old/locale": true})
+	if !has(f3.Errors, "pages/old/config", "[[nowhere]]") {
+		t.Errorf("the page whose locale is being written must block: %v", f3.Errors)
+	}
+	if has(f3.Errors, "pages/new/config") {
+		t.Errorf("another page must stay a warning: %v", f3.Errors)
+	}
+}
+
+// ValidateTree keeps the unscoped contract: every finding at full severity.
+func TestValidateTreeUnscopedBlocksEverywhere(t *testing.T) {
+	page := `{"grid":{"type":"one_column"},"forms":[{"id":"f","sections":[{"id":"s","type":"body",
+	  "content":[{"id":"l","class":"label","value":"[[nowhere]]"}]}]}]}`
+	f := ValidateTree(map[string]string{"locale": `{}`, "viewModel": `{}`, "pages/a/config": page})
+	if !has(f.Errors, "pages/a/config", "[[nowhere]]") {
+		t.Errorf("unscoped ValidateTree must report an error: %v", f.Errors)
+	}
+}

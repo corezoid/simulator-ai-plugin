@@ -47,6 +47,11 @@ func TestValidatePageConfig_RegressionsFromLiveBuild(t *testing.T) {
 		 "options":[{"value":"1","title":"A"}],"extra":{"direction":"row"}}]}]}]}`,
 		want: "extra.direction is not allowed",
 	}, {
+		name: "image src as a data: URI",
+		cfg: `{"grid":{"type":"one_column"},"forms":[{"id":"f","sections":[{"id":"s","type":"body",
+		 "content":[{"id":"card_qr","class":"image","value":"data:image/gif;base64,R0lGOD","extra":{"alt":"QR"}}]}]}]}`,
+		want: "a data: URI is rejected by the image proxy",
+	}, {
 		name: "stepper option using id instead of value",
 		cfg: `{"grid":{"type":"one_column"},"forms":[{"id":"f","sections":[{"id":"s","type":"body",
 		 "content":[{"id":"reg_stepper","class":"stepper","value":"1",
@@ -77,7 +82,7 @@ func TestValidatePageConfig_NoFalsePositives(t *testing.T) {
 	  {"id":"sel","class":"select","type":"autocomplete","value":"","options":"{{opts}}","submitOnChange":true},
 	  {"id":"ch","class":"radio","title":"C","value":"","options":[{"value":"a","title":"A"}],
 	   "extra":{"direction":"row"}},
-	  {"id":"img","class":"image","value":"data:image/gif;base64,R0lGOD","extra":{"alt":"a"}},
+	  {"id":"img","class":"image","value":"https://cdn.example/placeholder.png","extra":{"alt":"a"}},
 	  {"id":"lbl","class":"label","value":" ","align":"center","styleClass":"hint"},
 	  {"id":"cp","class":"copy","value":"123","title":"Copy"},
 	  {"id":"btn","class":"button","type":"secondary","title":"Go","extra":{"url":"https://x","target":"_blank"}},
@@ -85,5 +90,30 @@ func TestValidatePageConfig_NoFalsePositives(t *testing.T) {
 	]}]}]}`
 	if errs := ValidateFile("pages/p/config", cfg); len(errs) > 0 {
 		t.Fatalf("expected no errors, got:\n%s", strings.Join(errs, "\n"))
+	}
+}
+
+// The swagger under-describes several classes, so the derived union alone rejected
+// shapes `cdu-page-protocol.md` §5 documents as real. Each line below is one of
+// those rows; the union is widened from the same table (schema.go/applySupplements)
+// and TestProbeDocumentedKeysPresentInUnion keeps the two in step.
+func TestValidatePageConfig_DocumentedShapesAccepted(t *testing.T) {
+	cases := map[string]string{
+		"mainMenu.options (§5)":     `{"id":"m","class":"mainMenu","value":"a","options":[{"value":"a","title":"A"}]}`,
+		"carousel.items (§5)":       `{"id":"c","class":"carousel","value":"0","items":[{"id":"a","class":"image","value":"https://x/y.png"}],"extra":{"autoplay":true,"interval":3}}`,
+		"comments.title (§5)":       `{"id":"cm","class":"comments","value":"x","title":"Chat"}`,
+		"timer.extra.duration (§5)": `{"id":"tm","class":"timer","value":"1000","extra":{"duration":10}}`,
+		"file.extra urls (§5)":      `{"id":"fl","class":"file","value":"x","extra":{"downloadUrl":"https://x","uploadUrl":"https://y","auth":"t"}}`,
+		"upload.extra.compression":  `{"id":"up","class":"upload","value":"x","type":"default","extra":{"compression":0.5}}`,
+		"attachment.extra url (§5)": `{"id":"at","class":"attachment","value":"x","extra":{"downloadUrl":"https://x"}}`,
+		"base fields on any class":  `{"id":"l","class":"label","value":"x","required":false,"error":false,"errorMsg":"e","submitOnChange":true}`,
+	}
+	for name, item := range cases {
+		t.Run(name, func(t *testing.T) {
+			cfg := `{"grid":{"type":"one_column"},"forms":[{"id":"f","sections":[{"id":"s","type":"body","content":[` + item + `]}]}]}`
+			if errs := ValidateFile("pages/p/config", cfg); len(errs) > 0 {
+				t.Fatalf("documented shape rejected:\n%s", strings.Join(errs, "\n"))
+			}
+		})
 	}
 }
