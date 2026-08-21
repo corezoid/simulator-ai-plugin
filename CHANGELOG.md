@@ -36,6 +36,19 @@
 - **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
 
 ### Fixed
+- **`pushSmartForm` could not see cross-file token defects, so an unresolved `[[key]]` shipped
+  silently.** `cduschema.ValidateFile` is per-file by signature — it can never tell whether a
+  page's `[[key]]` resolves against the locale files or whether a `{{key}}` has a viewModel default
+  — and the save endpoint stores page source opaquely, so nothing reported it until a literal
+  `[[key]]` appeared in the browser. New `cduschema.ValidateTree` audits the whole env tree (not
+  only the files being written: deleting a viewModel default breaks an untouched page) and
+  `pushSmartForm` runs it alongside the per-file pass. A missing **locale** key is an error (locale
+  resolves from files only; nothing at runtime can supply it); a missing **viewModel** default is a
+  warning (the bound process may fill it per request). Also reports a `label`/`image` bound to a
+  default of `""` (the renderer rejects an empty value), a default no page references, and — for a
+  *literal* `contentLoop` — the exact entries missing a key the template uses. Placeholders inside a
+  *templated* `contentLoop` are backend-filled and never reported, so list pages stay quiet.
+  Warnings are surfaced on a successful push under a new `warnings` field.
 - **`pushSmartForm` accepted item keys and nested shapes the renderer then rejected.** The swagger
   sets `additionalProperties: false` nowhere, so the save endpoint stores a typo'd `visibilty` or a
   `head[].id` verbatim and the defect surfaces only as a console error in the browser — the item

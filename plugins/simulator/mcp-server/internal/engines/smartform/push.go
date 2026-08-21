@@ -161,25 +161,41 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			validationErrors = append(validationErrors, errs...)
 		}
 	}
+	// Cross-file audit. Runs over the WHOLE tree, not just the files being
+	// written: a `[[key]]` in an untouched page breaks the moment its locale entry
+	// is deleted, and a per-file check can never see that. Locale misses are
+	// errors (nothing at runtime can supply a locale key); viewModel misses are
+	// warnings (the Corezoid process may fill them per request).
+	tree := cduschema.ValidateTree(localFiles)
+	validationErrors = append(validationErrors, tree.Errors...)
+
 	if len(validationErrors) > 0 {
-		out, _ := json.Marshal(map[string]interface{}{
+		payload := map[string]interface{}{
 			"actorId":          actorID,
 			"env":              "develop",
 			"validationErrors": validationErrors,
 			"message":          "push aborted: fix the validation errors below and retry",
-		})
+		}
+		if len(tree.Warnings) > 0 {
+			payload["warnings"] = tree.Warnings
+		}
+		out, _ := json.Marshal(payload)
 		return mcp.NewToolResultError(string(out)), nil
 	}
 
 	if len(newFolderPaths) == 0 && len(newFilePaths) == 0 && len(modifiedFilePaths) == 0 {
-		out, _ := json.Marshal(map[string]interface{}{
+		payload := map[string]interface{}{
 			"actorId":   actorID,
 			"env":       "develop",
 			"created":   map[string]int{"folders": 0, "files": 0},
 			"updated":   0,
 			"unchanged": unchanged,
 			"message":   "nothing to push",
-		})
+		}
+		if len(tree.Warnings) > 0 {
+			payload["warnings"] = tree.Warnings
+		}
+		out, _ := json.Marshal(payload)
 		return mcp.NewToolResultText(string(out)), nil
 	}
 
@@ -398,7 +414,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	}
 	sort.Strings(orphanFiles)
 
-	out, _ := json.Marshal(map[string]interface{}{
+	payload := map[string]interface{}{
 		"actorId": actorID,
 		"env":     "develop",
 		"created": map[string]int{
@@ -411,7 +427,14 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		"createdFolderPath": newFolderPaths,
 		"createdFilePath":   newFilePaths,
 		"reconciledFiles":   reconciledFiles,
-	})
+	}
+	// Non-blocking cross-file findings: an undefaulted {{key}}, a default that
+	// resolves to "" on a label/image, a dead default. The push succeeded — these
+	// are the defects that would otherwise only surface in the browser.
+	if len(tree.Warnings) > 0 {
+		payload["warnings"] = tree.Warnings
+	}
+	out, _ := json.Marshal(payload)
 	return mcp.NewToolResultText(string(out)), nil
 }
 
