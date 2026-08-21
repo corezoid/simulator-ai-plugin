@@ -164,6 +164,22 @@
   misses are errors, viewModel misses warnings) and tells the reader to actually read `warnings`,
   since they do not block a push; and §9.3's L3 assertion now covers unresolved `[[` as well as
   `{{`.
+- **App-generator docs: the canonical node table contradicted its own error-cluster rule.** §4.1
+  listed a single Callback GET, a single Callback SEND and one Error final while the paragraph below
+  it required a callback node and error terminals **per branch** — and §7.8 told the brief to
+  instantiate that table verbatim, so following it earned the `SHARED ERROR CLUSTERS` the same PR
+  documents. §4.1 is now a spine plus a GET/SEND branch template instantiated per page and per
+  button; only the logic-free Success final is shared.
+- **App-generator docs: the side-effect heuristic banned every reader from `/get`.** "`api` node
+  with a non-GET method → strong" marks any POST-to-read process `likely`, which §2.2/§5.1a then
+  forbids on a page's `/get` — including the reference `Transactions history`, which the coverage
+  table itself puts there. The method is now an explicitly weak signal; the strong ones are a
+  mutating verb in the URL path or callee name, an `api_copy`, and an outbound reply nothing reads.
+- **App-generator docs: a session token in the `302 query` was only conditionally discouraged.** The
+  query is the page URL — history, `Referer`, proxy logs, and any link the user shares hands over the
+  session. A domain session token is now treated as sensitive by default: park it in a state process
+  or actor and carry an opaque id; a bearer token reaches a URL only when the backend leaves no
+  alternative and the user has been told.
 - **App-generator docs: node-budget guidance counted the wrong nodes, and two size levers were
   undocumented.** The "split above ~60 nodes / 8 pages" threshold gave no hint that error clusters
   scale mechanically with the number of fallible nodes — `layout-process` measures **32%** of both

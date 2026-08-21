@@ -29,8 +29,8 @@ You turn **a set of existing Corezoid processes + a product description** into a
 You are an **orchestrator**. You own three things nobody else does:
 
 1. **Contract extraction** — deriving what each process really consumes and produces.
-3. **App design** — turning N process contracts into a coherent page map that uses them all.
-4. **Verification** — proving the result actually works, and repairing it when it doesn't.
+2. **App design** — turning N process contracts into a coherent page map that uses them all.
+3. **Verification** — proving the result actually works, and repairing it when it doesn't.
 
 Everything else you delegate:
 
@@ -59,8 +59,8 @@ Confirm before doing anything else:
    If either is missing, stop and tell the user to install
    [`github.com/corezoid/corezoid-ai-plugin`](https://github.com/corezoid/corezoid-ai-plugin)
    and run `/corezoid-init`.
-3. **Simulator authenticated** — a workspace is selected (`/simulator-init` otherwise).
-4. **You know the `companyId`** (Corezoid workspace id, a string — a UUID or an `i…`-prefixed
+2. **Simulator authenticated** — a workspace is selected (`/simulator-init` otherwise).
+3. **You know the `companyId`** (Corezoid workspace id, a string — a UUID or an `i…`-prefixed
    id) — needed at binding time. Ask if unknown.
 
 Do **not** hand-author `.conv.json` files yourself when the Corezoid plugin is absent.
@@ -165,9 +165,9 @@ does not give you. Three tiers, in order:
 1. **Reply-node `description`** — often holds a pretty-printed example response, including
    nested arrays. This is the richest static source. Measured availability in the reference
    set: **18 of 36** reply nodes — roughly half, so treat it as opportunistic.
-3. **Upstream trace** — follow the `{{var}}` back to the `api_code` / `set_param` / `api_rpc`
+2. **Upstream trace** — follow the `{{var}}` back to the `api_code` / `set_param` / `api_rpc`
    that produced it; a Code node often reveals the shape.
-4. **Live probe** — Phase 2b below.
+3. **Live probe** — Phase 2b below.
 
 If all three fail, record `"elementShape": "unknown"` and design that page with a
 `contentLoop` of labels driven by whatever keys appear at runtime, or ask the user.
@@ -206,8 +206,17 @@ Two traps worth checking before you design a field for an input:
 **Side effects are not statically obvious.** In the reference set `Send complain` and
 `Send calback mailing` look inert at this layer but fan out via `api_copy` to a mailing
 process, and `Cashback Categories` sends Telegram/Viber messages. Classify each process
-`likely | unlikely | unknown` from `api_copy` presence, non-GET `api` nodes, and
-title/description keywords (send, mail, register, recovery, complain, notify, create).
+`likely | unlikely | unknown` from `api_copy` presence, mutating verbs in the **URL path or callee
+name** of an outbound call (`create`, `set`, `send`, `register`, `update`, `delete`, `pay`), an
+outbound reply that nothing downstream reads, and title/description keywords (send, mail, register,
+recovery, complain, notify, create).
+
+> **The HTTP method is a weak signal on its own — do not classify on it.** These backends POST to
+> read: the reference `Transactions history` fetches its rows with
+> `api POST {{ApiURL}}/chatbot/getTransactions` and mutates nothing, which is why §5.2 puts it on a
+> page's `/get`. Treat "non-GET" as strong and every reader scores `likely`, §5.1a then bans every
+> content page from `/get`, and the rule stops being followed at all. Read the path and the payload:
+> `getTransactions` is a read; `setClientFields` is not.
 
 **Score only the nodes reachable from Start.** Corezoid never prunes orphans, so score the
 subgraph reached by BFS over `to_node_id` + `err_node_id` + `semaphors[].to_node_id`. In the
@@ -556,17 +565,26 @@ mapping inside a branch.
 Start
  └─ Condition on `path`                              (go_if_const)
      ├─ /get  → Condition on `body.page`
-     │           └─ per page: api_rpc(domain) → set_param(namespace) → api_code(build viewModel)
-     │                                                              └─→ Callback GET
+     │           └─ per page: api_rpc(domain) → [namespace, if 2+ calls] → api_code(build viewModel)
+     │                                        → Callback GET  ← THIS branch's own api node
      └─ /send → api_code(extract body.buttonId)
                  └─ Condition on `body.buttonId`
-                     ├─ <button ids>          → api_rpc(domain) → branch on result/code
+                     ├─ <button ids>          → api_rpc(domain) → map result/code
                      │                            ├─ success   → build changes/notifications
                      │                            ├─ alternate → build 302 nextPage
                      │                            └─ error     → build error notification
+                     │                          → Callback SEND ← THIS branch's own api node
                      └─ <submitOnChange ids>  → cascade update or empty ack
-                                                                  └─→ Callback SEND
+                                                → Callback SEND ← and this one's, too
 ```
+
+> ⚠️ **The callback node is per branch, not per path.** Duplicating the identical `api` node into
+> every page branch and every button branch is deliberate: if nine branches converge on one callback,
+> that callback's single error target is fed by nine escalations and `lint-process` reports
+> `SHARED ERROR CLUSTERS`. Same for the Error finals — each fallible node needs its own (§7.7). The
+> one node every branch *may* share is the plain `obj_type: 2` **Success** final, which holds no
+> logic. This is why error nodes come out around a third of the graph, and why §7.1 tells you to
+> budget business nodes only.
 
 Both callback nodes are `api` nodes POSTing to `{{__callback_url}}`:
 
@@ -678,6 +696,14 @@ in **hidden form fields**.
 Never put a password or a payment token in a carrier — carriers reach the browser. If a
 contract forces one, tell the user and propose an actor-backed session instead.
 
+> ⚠️ **The `body.query` fallback above means the value also lives in the page URL** — history,
+> `Referer`, proxy logs, and any link the user shares. A domain **session token belongs in that
+> class by default**; do not judge per app whether it is "sensitive enough". The shape to reach for
+> first is a session kept in a state process or an actor, keyed by an opaque short-lived id, with
+> only that id in the query. Carry a real bearer token in the URL only when the given backend leaves
+> no alternative, and only after telling the user that is what you are doing — see "Carrying a
+> session across pages" in `$CLAUDE_PLUGIN_ROOT/docs/user-flows/app-generation.md` §4.1a.
+
 ### 7.5 The `submitOnChange` fork — do not skip it
 
 `/send` fires for button clicks **and** for every element with `submitOnChange: true`.
@@ -769,7 +795,9 @@ Node body in full** — do not leave it to chance.
 > from its inputs (§3.6), and its success / alternate / error outcomes (§3.3).
 >
 > **Required nodes:** the node table of §4.1 in
-> `$CLAUDE_PLUGIN_ROOT/docs/user-flows/app-generation.md`, instantiated per page/button.
+> `$CLAUDE_PLUGIN_ROOT/docs/user-flows/app-generation.md` — the spine once, then the GET branch
+> template instantiated **once per page** and the SEND branch template **once per button /
+> `submitOnChange` id**, each with its own callback node and its own error terminals.
 >
 > **Language of every string literal below:** <single language, or driven by `body.context.language`
 > — see §6; these literals are NOT localised>
@@ -982,9 +1010,12 @@ Final report:
 9. **Share the bound process to the API key**, or everything fails before node 1.
 10. **Never probe a process with side effects** without explicit user consent (§4) — and never
     wire a `likely`/`unknown` one to a page's `/get`, which probes it on every view (§5.1a).
-11. **Never put secrets in hidden carriers** — they reach the browser. And remember a submit
-    sends **one form**: a carrier only reaches the handler from the same form as the button, so
-    read the session as `body.data.X || body.query.x` rather than trusting placement (§7.4).
+11. **Never put secrets in hidden carriers or in the `302 query`** — carriers reach the browser
+    and the query *is* the URL (history, `Referer`, logs, shared links). Park the session in a
+    state process / actor and carry an opaque id; a bearer token goes in a URL only when the
+    backend leaves no alternative and the user has been told (§7.4). And remember a submit sends
+    **one form**: a carrier only reaches the handler from the same form as the button, so read the
+    session as `body.data.X || body.query.x` rather than trusting placement (§7.4).
 12. **Edit `develop` only**; `pullSmartForm` before editing, always.
 13. **Don't rename pulled `.conv.json` files** — the `<ID>_` prefix is load-bearing.
 14. **Report failures honestly.** If L3 doesn't go green, say exactly what fails.

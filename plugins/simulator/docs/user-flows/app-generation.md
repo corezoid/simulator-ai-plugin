@@ -260,10 +260,20 @@ visible without following the call graph into another folder.
 | Signal | Weight |
 |---|---|
 | `api_copy` to anything | strong — fire-and-forget usually means "go do something" |
-| `api` node with a non-GET method | strong |
+| `api` / `api_rpc` whose **URL path or callee name** carries a mutating verb (`create`, `set`, `send`, `register`, `update`, `delete`, `add`, `pay`, `issue`) | strong |
 | Title/description verbs: send, mail, notify, register, recovery, complain, create, push | strong |
+| An outbound call whose reply is **discarded** — nothing downstream reads its `body` | strong: the process called it *for the effect* |
+| `api` node with a non-GET method **and nothing else** | **weak — do not classify on this alone** |
 | `api_rpc` to an unknown process | unknown — could be either |
 | No outbound calls at all (FAQ, Promo List) | genuinely inert |
+
+> **`POST` is not a side-effect signal in this codebase.** These backends POST to read: the
+> reference `Transactions history` fetches its rows with
+> `api POST {{ApiURL}}/chatbot/getTransactions` and mutates nothing. Weighting "non-GET" as strong
+> marks essentially every reader `likely`, which then collides with §2.2 and bans content pages from
+> `/get` — so the rule gets ignored wholesale, including where it matters. Read the **path and the
+> payload**, not the method: `getTransactions` reading `token`/`cardCode` is a read;
+> `setClientFields` or `sendMail` is not.
 
 Classify `likely | unlikely | unknown` and **always ask before probing**.
 
@@ -352,30 +362,48 @@ the canonical node-id reassignment that happens on push.
 
 ### 4.1 Node table
 
+**Read this as a spine plus a template, not as a node list to copy once.** The spine exists exactly
+once per process; the branch template is instantiated **once per page** (`/get`) and **once per
+button** (`/send`) — callback node and error targets included. Instantiating it once and letting
+every branch converge on a shared callback is the single most common way to earn
+`SHARED ERROR CLUSTERS` from `lint-process`; see the three shapes below.
+
+**Spine — one of each, for the whole process:**
+
 | # | Node | obj_type | logic | Routes to |
 |---|---|---|---|---|
 | 1 | Start | 1 | `go` | 2 |
-| 2 | Dispatch by `path` | 0 | `go_if_const` | `/get`→3, `/send`→10, default→Error |
-| 3 | Dispatch by `body.page` (GET) | 0 | `go_if_const` | one branch per page |
-| 4 | Call domain process | 0 | `api_rpc` | 5, err→err-cluster |
-| 5 | Namespace results | 0 | `set_param` | 6, err→err-cluster |
-| 6 | Branch on `<ns>_result` | 0 | `go_if_const` | success→7, alternate→8, error→9 |
-| 7 | Build viewModel | 0 | `api_code` | 20, err→err-cluster |
-| 8 | Build viewModel (alternate) | 0 | `api_code` | 20 |
-| 9 | Build viewModel (error) | 0 | `api_code` | 20 |
-| 10 | Extract `body.buttonId` | 0 | `api_code` | 11 |
-| 11 | Dispatch by `buttonId` | 0 | `go_if_const` | buttons→12, onChange ids→17 |
-| 12 | Call domain process | 0 | `api_rpc` | 13, err→err-cluster |
-| 13 | Namespace results | 0 | `set_param` | 14 |
-| 14 | Branch on `<ns>_result`/`<ns>_code` | 0 | `go_if_const` | 15 / 16 / 18 |
-| 15 | Build success `responseData` | 0 | `api_code` | 21 |
-| 16 | Build 302 `responseData` | 0 | `api_code` | 21 |
-| 17 | Build onChange ack / cascade | 0 | `api_code` | 21 |
-| 18 | Build error `responseData` | 0 | `api_code` | 21 |
-| 20 | **Callback GET** | 0 | `api` | Success, err→Error |
-| 21 | **Callback SEND** | 0 | `api` | Success, err→Error |
-| 22 | Success | 2 | — | — |
-| 23 | Error | 2 | — | — |
+| 2 | Dispatch by `path` | 0 | `go_if_const` | `/get`→3, `/send`→10, default→ its own Error final |
+| 3 | Dispatch by `body.page` (GET) | 0 | `go_if_const` | one **GET branch** per page |
+| 10 | Extract `body.buttonId` | 0 | `api_code` | 11, err→ its own Error final |
+| 11 | Dispatch by `buttonId` | 0 | `go_if_const` | one **SEND branch** per button / `submitOnChange` id; default→ the nav lookup Code node of §4.1a |
+| S | Success | 2 | — | — |
+
+**GET branch — instantiate once per page.** Every `G*` below is a *fresh* node in each instance:
+
+| # | Node | obj_type | logic | Routes to |
+|---|---|---|---|---|
+| G1 | Call domain process | 0 | `api_rpc` | G2, err→ own target |
+| G2 | Namespace results — **only if this branch calls 2+ domain processes** (§4.2) | 0 | `api_code` | G3, err→ own target |
+| G3 | Branch on `result` / `<ns>_result` | 0 | `go_if_const` | G4 / G5 / G6 |
+| G4 · G5 · G6 | Build viewModel — success · alternate · error | 0 | `api_code` | G7, err→ own target |
+| G7 | **Callback GET** — this branch's own `api` node | 0 | `api` | S, err→ **this branch's own** Error final |
+| GE… | This branch's error targets (escalation and/or Error final, per the shapes below) | 3 / 2 | — | — |
+
+**SEND branch — instantiate once per button.** A `submitOnChange` id or a `nav_*` button skips
+D1–D3 and goes straight to its builder:
+
+| # | Node | obj_type | logic | Routes to |
+|---|---|---|---|---|
+| D1 | Call domain process | 0 | `api_rpc` | D2, err→ own target |
+| D2 | Namespace results — same condition as G2 | 0 | `api_code` | D3, err→ own target |
+| D3 | Map the outcome — one Code node, or a `go_if_const` tree (§4.1a weighs both) | 0 | `api_code` / `go_if_const` | D4 |
+| D4 | Build `responseData` + `respCode` (200 / 205 / 302) | 0 | `api_code` | D5, err→ own target |
+| D5 | **Callback SEND** — this branch's own `api` node, `extra.code` templated as `{{respCode}}` (§4.4) | 0 | `api` | S, err→ **this branch's own** Error final |
+| DE… | This branch's error targets | 3 / 2 | — | — |
+
+The Success final `S` **is** shared by every branch — it is a plain terminal with no logic, and
+nothing lints it. Only *error* terminals must stay per-branch.
 
 Every fallible node gets its **own** error target — never one shared with a neighbour. Two shapes,
 picked by whether the error path does any work:
@@ -498,12 +526,28 @@ opposite directions:
 
 **Carrying a session across pages.** Hidden carrier fields survive a submit but not a
 navigation. A `302` response takes `{nextPage, target?, close?, query?}` — and that `query`
-arrives at the next page's `/get` as `body.query`. So the login handler answers
-`{code: 302, data: {nextPage: "home", query: {token, cardCode}}}`, every page's `/get` reads
-`body.query.*` into its viewModel, and each `nav_*` redirect passes the same query along.
-Weigh it first: the query is visible in the page URL, so keep credentials out of it (a
-password should never leave the login page) and prefer a state-process session store when the
-carried token is sensitive.
+arrives at the next page's `/get` as `body.query`, which is the mechanism that carries state across
+a navigation.
+
+> ⚠️ **The `query` is the page URL. Treat everything you put in it as public.** It lands in browser
+> history, in the `Referer` header of every outbound link and image, in proxy and access logs, and —
+> the one that actually bites — in any link the user copies and shares, which hands the recipient the
+> session. So:
+>
+> - **Never** put a credential in it: a password, a payment token, or anything that authenticates
+>   the bearer on its own.
+> - **A domain session token is in that class by default.** Do not decide per app whether "this
+>   token is sensitive"; assume it is. Keep the session in a state process (or an actor) keyed by an
+>   opaque, short-lived id, and carry only that id — plus non-secret state like `page`, a filter, or
+>   a display-only `cardCode`.
+> - If the backend you were given leaves no alternative — the domain processes take a bearer token
+>   and there is nowhere to park it — **say so to the user and get a decision** before shipping it in
+>   a URL. Do not make that trade silently.
+
+The reference build carried `{token, cardCode}` in the query because its domain processes took a
+bearer token and nothing else; that is the constrained shape, not the recommended one. Where you
+must use it, every page's `/get` reads `body.query.*` into its viewModel and each `nav_*` redirect
+passes the same query along.
 
 **Read the session from `body.data` OR `body.query` — never `body.data` alone.** A submit sends
 exactly one form, so a hidden carrier reaches the handler only when it lives in the *same form* as
