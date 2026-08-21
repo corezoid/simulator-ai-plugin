@@ -36,6 +36,22 @@
 - **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
 
 ### Fixed
+- **`pushSmartForm` accepted item keys and nested shapes the renderer then rejected.** The swagger
+  sets `additionalProperties: false` nowhere, so the save endpoint stores a typo'd `visibilty` or a
+  `head[].id` verbatim and the defect surfaces only as a console error in the browser — the item
+  simply never hides, or the column list renders empty. `cduschema` now derives, from the bundled
+  swagger, the property surface of every item `class` and of the nested spots where the schema *is*
+  precise (`extra`, `options[]`, a table's `head[]` / `body[]`), and `ValidateFile` rejects a key no
+  variant declares. The allowlist is the **union** over every schema variant of a class, because the
+  swagger splits one class across type variants that each redeclare only part of the surface
+  (`value` is on `Edit-int` but not on `Edit-default`) — checking a single variant would reject
+  valid config. `TestProbeDocumentedKeysPresentInUnion` guards that assumption, so a swagger update
+  that drops a real key fails the tests instead of blocking users' pushes; a class with no derived
+  rule is skipped rather than rejected. Also transcribed three renderer-only rules the swagger
+  cannot express (it carries no `minLength` anywhere): a `label`/`image` `value` may not be an empty
+  string, an `image` `value` must be a URL the *server* can fetch (the renderer proxies it through
+  `/api/1.0/image?src=`, which rejects a `data:` URI outright). Documented in
+  `cdu-page-protocol.md` §5.1 / §10.1.
 - **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
   `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
   call — safe under the current single-threaded stdio transport, but a data race under `go test

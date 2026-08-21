@@ -26,6 +26,19 @@ type Rules struct {
 
 	// GridType is the set of valid grid type values (one_column|two_column).
 	GridType map[string]bool
+
+	// ItemProps maps an item `class` to the union of property names every schema
+	// variant of that class declares, plus the shared base-item properties.
+	// The union is deliberate: see propResolver's doc comment — checking against a
+	// single variant reports legal keys as unknown.
+	ItemProps map[string]map[string]bool
+
+	// NestedProps maps "<class>.<field>" to the property names allowed inside that
+	// nested structure — "image.extra", "table.head" and "table.body" items,
+	// "<class>.options" items. These are the spots where the swagger IS precise and
+	// where the client renderer rejects extra keys even though the server accepts
+	// them (no schema sets additionalProperties:false).
+	NestedProps map[string]map[string]bool
 }
 
 var (
@@ -50,7 +63,9 @@ func parseRules(data []byte) *Rules {
 		// Extracted from Form.properties.sections.items.properties.type.enum
 		SectionType: map[string]bool{"body": true, "block": true, "modal": true, "float": true},
 		// Extracted from Page.properties.grid.properties.type.example / Page-grid-* discriminator mapping
-		GridType: map[string]bool{"one_column": true, "two_column": true},
+		GridType:    map[string]bool{"one_column": true, "two_column": true},
+		ItemProps:   make(map[string]map[string]bool),
+		NestedProps: make(map[string]map[string]bool),
 	}
 
 	// Decode only the components.schemas map — avoid holding the full 3 MB in memory.
@@ -138,5 +153,69 @@ func parseRules(data []byte) *Rules {
 	r.Classes["row"] = true
 	r.Classes["draggable"] = true
 
+	collectProps(data, r)
+
 	return r
+}
+
+// collectProps fills r.ItemProps and r.NestedProps by walking every component
+// schema in the swagger. Failure is silent and leaves the maps empty, which makes
+// the dependent checks skip rather than reject — a missing rule must never block a
+// push.
+func collectProps(data []byte, r *Rules) {
+	root := decodeSwagger(data)
+	if root == nil {
+		return
+	}
+	comps, _ := root["components"].(map[string]any)
+	schemas, _ := comps["schemas"].(map[string]any)
+	if schemas == nil {
+		return
+	}
+	p := propResolver{root: root}
+
+	// Every item inherits this base (id, visibility, row, w, styleClass).
+	base := map[string]bool{}
+	if f, ok := schemas["File"]; ok {
+		if allOf, ok := f.(map[string]any)["allOf"].([]any); ok && len(allOf) > 0 {
+			base = p.props(allOf[0], 0)
+		}
+	}
+
+	add := func(m map[string]map[string]bool, key string, names map[string]bool) {
+		if len(names) == 0 {
+			return
+		}
+		if m[key] == nil {
+			m[key] = map[string]bool{}
+		}
+		for n := range names {
+			m[key][n] = true
+		}
+	}
+
+	for _, schema := range schemas {
+		class := p.classOf(schema, 0)
+		if class == "" {
+			continue
+		}
+		add(r.ItemProps, class, p.props(schema, 0))
+		add(r.ItemProps, class, base)
+
+		if extra := p.child(schema, "extra", 0); extra != nil {
+			add(r.NestedProps, class+".extra", p.props(extra, 0))
+		}
+		if options := p.child(schema, "options", 0); options != nil {
+			if items := p.itemsOf(options, 0); items != nil {
+				add(r.NestedProps, class+".options", p.props(items, 0))
+			}
+		}
+		for _, field := range []string{"head", "body"} {
+			if f := p.child(schema, field, 0); f != nil {
+				if items := p.itemsOf(f, 0); items != nil {
+					add(r.NestedProps, class+"."+field, p.props(items, 0))
+				}
+			}
+		}
+	}
 }
