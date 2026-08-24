@@ -44,7 +44,7 @@ files and the [entity docs](../plugins/simulator/docs/entities/README.md).
 │   app/auth          ── OAuth2 PKCE login + .env credential storage    │
 │      │                                                                │
 │      ▼                                                                │
-│   internal/apiclient ── HTTP: base URL · Bearer · accId · timeouts ─▶ │
+│   internal/apiclient ── HTTP: base URL · Auth · accId · timeouts ─▶   │
 └───────────────────────────────────────┬─────────────────────────────┘
                                          │ HTTPS (Authorization, accId path/query)
                                          ▼
@@ -207,13 +207,18 @@ Conventions baked into the registry:
 ### 3.4 Workspace & auth context
 
 Every API call needs an `Authorization` header and a workspace id (`accId`). Both come from
-`.env`: the token is written by `login`; `WORKSPACE_ID` is written by `set-workspace`. The
+`.env`: the token is written by `login`; `WORKSPACE_ID` is written by `set-workspace`. When
+`SIMULATOR_API_SECRET` is set, `auth.Load` short-circuits and returns that key instead (see
+§5) — read live per request, like the token, but never written by the plugin, and `WORKSPACE_ID`
+must be set by hand to the workspace the key was issued for. The
 `apiclient` injects `accId` into path/query params that need it, and guards the live base URL
 and workspace value with an `RWMutex` — `set-environment` mutates the base URL and clears the
 workspace, `set-workspace` mutates the workspace, while tool calls read them. Switching
 environment with `set-environment` clears the token + workspace (workspaces are per-
 environment) and updates both the `apiclient` and engine base URLs in place, so it takes
-effect without a restart and forces a fresh `login`.
+effect without a restart and forces a fresh `login`. In API-key mode `set-environment`
+refuses outright: the key is bound to one gateway, so re-pointing the server would send it
+to a host it was not issued for.
 
 For embedded/SSE deployments, per-request overrides arrive on `ctx` (wired from headers by
 the transport): `WithAuthorization`, `WithBaseURL`, `WithWorkspaceID`, `WithActorID`, and
@@ -299,6 +304,38 @@ handles cascading deletes; its form name→id cache is per-workspace under a `sy
 
 ## 5. Authentication (`app/auth`)
 
+### Auth modes
+
+`auth.Load` resolves the active credential in precedence order, and `Credentials.TokenType`
+— assembled into a header by the single `AuthorizationHeader()` method — selects the scheme:
+
+| Precedence | Source                  | Header               | Written by the plugin? |
+|-----------:|-------------------------|----------------------|------------------------|
+| 1          | `SIMULATOR_API_SECRET`  | `Bearer <key>`       | Never — user-managed   |
+| 2          | `ACCESS_TOKEN`          | `Simulator <jwt>`    | Yes, by `login`        |
+| 3          | (none)                  | —                    | —                      |
+
+Both HTTP stacks are scheme-agnostic: they forward whatever opaque string that method
+returns, so API-key mode needed no change at any of the ~20 header call sites.
+
+API-key credentials carry a **zero `ExpiresAt`** — a key has no client-visible lifetime, so
+`IsExpired` reports false forever and revocation can only surface as a 401. `Load` returns
+before parsing `ACCESS_TOKEN_EXPIRES_AT`, so a stale expiry line from an earlier `login`
+cannot be applied to the key.
+
+In API-key mode the OAuth flow is disabled end to end: `login` returns an explanation instead
+of opening a browser (so the one-time telemetry-email elicitation never fires either), `Save`
+refuses to write a token, and `set-environment` refuses to re-point the gateway. The mode is
+fixed at startup — `.env` is read once — so both the `login` notice and the startup log say a
+restart is required. Stateless/SSE construction rejects the combination outright: a key is
+process-global and cannot serve per-request, multi-tenant auth.
+
+A 401/403 gets an actionable hint naming the three suspects (key, `WORKSPACE_ID`,
+environment) via `Client.AuthHint` in `apiclient` and `ecore.HTTPStatusError` in the engines;
+the hint never carries credential material and is suppressed in stateless mode.
+
+### OAuth2 PKCE flow
+
 ```
 login tool
   │
@@ -315,14 +352,18 @@ login tool
 config) and falls back to the resolved profile's account URL when it is unset.
 
 - **Storage**: plaintext `.env` in the working directory, mode `0600`. Writes are serialised
-  under a mutex and token + expiry are written in a single pass.
+  under a mutex and token + expiry are written in a single pass. `SIMULATOR_API_SECRET` is
+  read-only to the plugin: no writer touches that key, `Delete` matches on the exact
+  `ACCESS_TOKEN=` prefix, and the mode is never logged with any part of the value.
 - **Account URL** is derived per environment by `set-environment` (gateway public config →
   `saUrl`) and saved as `ACCOUNT_URL`; absent that, it comes from the resolved profile
   (`account.corezoid.com` for prod, `account.pre.corezoid.com` for local). The OAuth client id
   is overridable via `SIMULATOR_OAUTH_CLIENT_ID`. Local mirrors production — same PKCE flow,
   different SA.
 - **TLS**: certificate verification is **on by default**; `--insecure` is for self-signed
-  on-prem gateways.
+  on-prem gateways. In API-key mode the plaintext-HTTP warning is escalated to a startup
+  refusal (loopback exempt), because a long-lived key leaked on the wire is a durable
+  compromise rather than a 12h one; `SIMULATOR_ALLOW_INSECURE_API_SECRET=1` overrides.
 
 ---
 

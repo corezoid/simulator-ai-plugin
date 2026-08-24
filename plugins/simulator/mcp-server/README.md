@@ -23,7 +23,7 @@ go run ./cmd/server --profile local   # dev pong-server on :9000, pre SA
 go run ./cmd/server --profile prod    # public gateway (default)
 ```
 
-The server reads `ACCESS_TOKEN`, `WORKSPACE_ID`, etc. from a `.env` file in the **current
+The server reads `SIMULATOR_API_SECRET`, `ACCESS_TOKEN`, `WORKSPACE_ID`, etc. from a `.env` file in the **current
 working directory**. The `login` and `set-workspace` tools write back to it. See the root
 [`README.md`](../../../README.md#configuration) for the full env-var table.
 
@@ -57,7 +57,7 @@ This runs `npx @modelcontextprotocol/inspector go run ./cmd/server --profile $(P
 in this module dir, so the server picks up `.env` from here exactly as the `run-*` targets
 do. The command prints a `http://localhost:6274` URL with a session token — open it, then
 **Connect** → **Tools** / **Resources**. Tool calls hit the real backend, so authenticate
-first (run the `login` tool, or have a valid `ACCESS_TOKEN`/`WORKSPACE_ID` in `.env`).
+first (run the `login` tool, or have a valid `SIMULATOR_API_SECRET` / `ACCESS_TOKEN` plus `WORKSPACE_ID` in `.env`).
 
 For scripted/CI use, the Inspector also has a headless CLI mode — handy for diffing the
 tool surface without the UI:

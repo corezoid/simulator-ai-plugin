@@ -127,7 +127,7 @@ func (s *GraphSyncer) get(ctx context.Context, apiURL string) ([]byte, error) {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("GET %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
+		return nil, ecore.HTTPStatusError("GET", apiURL, resp.StatusCode, data)
 	}
 	return data, nil
 }
@@ -153,7 +153,7 @@ func (s *GraphSyncer) doJSON(ctx context.Context, method, apiURL string, body in
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("%s %s: HTTP %d: %.300s", method, apiURL, resp.StatusCode, data)
+		return nil, ecore.HTTPStatusError(method, apiURL, resp.StatusCode, data)
 	}
 	return data, nil
 }

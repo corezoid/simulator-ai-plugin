@@ -110,6 +110,10 @@ Restart Claude Code / Codex after updating to apply the new version. For AWS Kir
 
 ## Authentication
 
+There are two ways to authenticate. The interactive OAuth2 flow below is the default. If you
+already hold a **workspace API key**, put it in `.env` as `SIMULATOR_API_SECRET` and skip
+straight to [API key](#api-key-non-interactive) — the rest of this section does not apply.
+
 Simulator runs on many environments (cloud, on-prem, local dev), so the first step is to
 **choose one**. The `set-environment` tool takes a cloud preset — `mw.simulator.company`
 (default) or `sim.simulator.company` — or a custom/local URL (host or full URL; `/papi/1.0`
@@ -133,21 +137,60 @@ You can also trigger login manually at any time:
 log in to Simulator
 ```
 
+### API key (non-interactive)
+
+For CI, headless runs and service integrations, authenticate with a pre-issued **workspace
+access key** instead of a browser sign-in. Create one at `account.corezoid.com` → workspace,
+then put it in `.env` alongside the gateway and the workspace it belongs to:
+
+```bash
+SIMULATOR_API_BASE_URL=https://mw.simulator.company/papi/1.0
+SIMULATOR_API_SECRET=your_workspace_key
+WORKSPACE_ID=the_key_s_workspace_accId
+```
+
+Every request is then sent as `Authorization: Bearer <key>`, and the OAuth flow is disabled
+end to end: `login` explains itself instead of opening a browser, no token is written to
+`.env`, and `set-environment` refuses (the key is scoped to **one workspace on one gateway**,
+so switching environments at runtime would send it to a host it was not issued for — change
+`.env` and restart instead).
+
+The plugin only ever *reads* `SIMULATOR_API_SECRET`; it never writes it back to `.env`, logs
+it, or sends it in telemetry. `.env` is read once at startup, so a restart is required after
+editing it. Because the key is long-lived, the server refuses to start if the API base URL
+would send it over plaintext HTTP to a non-local host — override with
+`SIMULATOR_ALLOW_INSECURE_API_SECRET=1` only on a trusted network.
+
+If you get a 401, the error names all three suspects: the key itself, `WORKSPACE_ID`, and
+whether the key belongs to the environment in `SIMULATOR_API_BASE_URL`.
+
 ### Static token (optional)
 
-If you prefer to manage the token yourself, set it in `.env` or export it before starting Claude Code, Codex or Kiro:
+If you prefer to manage the OAuth token yourself, put it in `.env`:
+
+```
+ACCESS_TOKEN=your_token_here
+```
+
+…or export it in your shell before starting Claude Code, Codex or Kiro:
 
 ```bash
 export ACCESS_TOKEN=your_token_here
 ```
 
-The static token takes priority over saved credentials.
+`.env` is not a shell script, so the `export` keyword belongs only in the second form — a
+line like `export ACCESS_TOKEN=…` inside `.env` is not an assignment and is skipped. The
+same applies to `SIMULATOR_API_SECRET`.
+
+Precedence is `SIMULATOR_API_SECRET` > `ACCESS_TOKEN` > saved OAuth credentials. A static
+token is sent as `Simulator <jwt>`; it is ignored entirely when `SIMULATOR_API_SECRET` is set.
 
 ## Configuration
 
 | Environment variable          | Required | Description                                                                 |
 |-------------------------------|----------|-----------------------------------------------------------------------------|
-| `ACCESS_TOKEN`                | No       | Static token — overrides OAuth2 saved credentials                           |
+| `SIMULATOR_API_SECRET`        | No       | Workspace API key. When set, every request uses `Authorization: Bearer <key>`; it overrides `ACCESS_TOKEN` and saved OAuth credentials, and disables `login` / `set-environment`. Never written to `.env` by the plugin |
+| `ACCESS_TOKEN`                | No       | Static OAuth token, sent as `Simulator <jwt>` — overrides saved OAuth credentials; ignored when `SIMULATOR_API_SECRET` is set |
 | `ACCESS_TOKEN_EXPIRES_AT`     | No       | Token expiry timestamp (RFC 3339) — written automatically after OAuth login |
 | `ACCOUNT_URL`                 | No       | OAuth account (SA) URL — set automatically by `set-environment` (derived from the gateway's public config); overrides the default `https://account.corezoid.com` |
 | `WORKSPACE_ID`                | No       | Default workspace ID (`accId`) — set automatically after `set-workspace`    |
@@ -155,11 +198,12 @@ The static token takes priority over saved credentials.
 | `SIMULATOR_API_BASE_URL`      | No       | API base URL — set automatically by `set-environment`; overrides the profile (e.g. `http://localhost:9000/papi/1.0`) |
 | `SIMULATOR_ACCOUNT_URL`       | No       | Override the profile's OAuth account (SA) URL                                |
 | `SIMULATOR_OAUTH_CLIENT_ID`   | No       | OAuth2 client ID — on-prem deployments with a custom authorization server should set this to their own client ID; cloud (account.corezoid.com) users do not need it |
+| `SIMULATOR_ALLOW_INSECURE_API_SECRET` | No | Allow `SIMULATOR_API_SECRET` to be sent over plaintext HTTP to a non-local host. Without it the server refuses to start in that configuration (loopback is always exempt). Parsed as a **boolean** — `1`/`true` opens it, `0`/`false`/anything unparseable keeps the guard closed |
 | `SIMULATOR_ANALYTICS_DISABLED` | No      | Set to any non-empty value to opt out of anonymous tool-call telemetry     |
 | `SIMULATOR_ANALYTICS_ENDPOINT` | No      | Override the telemetry ingest endpoint (built-in default: the Corezoid team's public analytics process) |
 | `SIMULATOR_ANALYTICS_CONV_ID`  | No      | Override the telemetry `conv_id` (default `1852976`)                       |
 
-All values are read from a `.env` file in the current working directory at startup, and the `login` / `set-workspace` tools persist their results back to that file.
+All values are read from a `.env` file in the current working directory at startup, and the `login` / `set-workspace` tools persist their results back to that file — except `SIMULATOR_API_SECRET`, which the plugin only ever reads. Because `.env` is read once at startup, editing it requires a restart.
 
 ## Telemetry
 
@@ -443,7 +487,8 @@ two things for development:
   hidden, so end users are only offered the cloud gateways (`mw` / `sim`) and a custom URL.
 
 `login` / `set-workspace` (and `set-environment`) write `ACCESS_TOKEN` / `WORKSPACE_ID` /
-`SIMULATOR_API_BASE_URL` / `ACCOUNT_URL` back into this same file.
+`SIMULATOR_API_BASE_URL` / `ACCOUNT_URL` back into this same file. `SIMULATOR_API_SECRET` is
+never written — it is yours to manage.
 
 ### 2. Connect it in Claude Code
 
@@ -497,6 +542,10 @@ log in to Simulator          # OAuth in the browser → token saved to .env
 which workspaces do I have?  # getWorkspaces → list by name
 work in <workspace name>     # set-workspace(name=…) → saves WORKSPACE_ID
 ```
+
+Already have a workspace API key? Put `SIMULATOR_API_SECRET=…` in `.env` instead, skip
+`login` entirely, and go straight to `set-workspace` (see
+[API key](#api-key-non-interactive)).
 
 ### 4. Restart after you change the plugin
 

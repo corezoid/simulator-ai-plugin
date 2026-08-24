@@ -50,6 +50,38 @@
 ## [Unreleased]
 
 ### Added
+- **API-key authentication (`SIMULATOR_API_SECRET`).** A second, non-interactive auth mode for CI,
+  headless runs and service integrations: set a workspace access key in `.env` and every request is
+  sent as `Authorization: Bearer <key>` instead of the OAuth `Simulator <jwt>`. The key takes
+  precedence over `ACCESS_TOKEN` and saved OAuth credentials, and the OAuth flow is disabled end to
+  end — `login` returns an explanation instead of opening a browser (so the telemetry-email
+  elicitation never fires), `auth.Save` refuses to write a token, and `set-environment` refuses to
+  re-point the gateway, since a key is scoped to one workspace on one gateway and switching would
+  send it to a host it was not issued for. The plugin only ever reads the key: it is never written
+  back to `.env`, logged, or included in telemetry. Because a key is long-lived, the server refuses
+  to start when the API base URL would send it over plaintext HTTP to a non-local host, and
+  stateless/SSE construction rejects the mode outright as incompatible with per-request multi-tenant
+  auth. That plaintext override (`SIMULATOR_ALLOW_INSECURE_API_SECRET`) is parsed as a **boolean**
+  rather than the repo's usual "set to anything" convention: the natural way to turn a switch off is
+  `=0`, and under a non-empty test that would have DISABLED the guard protecting the one credential
+  that never expires. Implemented as a single branch in `auth.Load` plus the existing per-credential
+  `TokenType`, so no header call site changed; the `app/auth` package gets its first tests. In
+  API-key mode the startup line now also names where each half came from (`.env` vs the process
+  environment) — `loadDotEnv` never overrides a value already in the environment, so a key exported
+  in a developer's shell can outrank the project's `.env` while the base URL still comes from that
+  file, and nothing in the log used to say so. Sources only; never the value.
+- **A `.env` line the loader could read but the writers could not find (pre-existing).**
+  `loadDotEnv` trims a line before splitting it, so it has always read `  KEY=value` and
+  `KEY = value`; `updateEnvFileMulti` / `removeEnvKey` matched a bare `KEY=` prefix and did not. So
+  a rewrite of a key already present in one of those shapes **appended a second line** — and the
+  loader takes the FIRST occurrence, so `login`, `set-workspace` and `set-environment` silently lost
+  their new value on the next start, while `auth.Delete` left the line in place and the "cleared"
+  token came straight back. This predates the API-key work and affected `ACCESS_TOKEN` /
+  `WORKSPACE_ID` on any indented `.env`. Both sides now normalise through one `auth.ParseEnvLine`,
+  matching whole keys and preserving the file's BOM and the author's indentation on rewrite. A
+  cross-package test drives loader and writers against each other so the two cannot drift apart
+  again. `.env` is not a shell script, so `export KEY=value` is deliberately NOT an assignment —
+  both sides skip it alike.
 - **`simulator-app-generator` skill.** Generates a complete multi-page Smart Form app from a set
   of existing Corezoid process ids plus a product description: pulls every process, derives its
   real input/output contract from its `api_rpc_reply` nodes (declared `params` drift and are only
@@ -73,6 +105,18 @@
 - **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
 
 ### Fixed
+- **Actionable 401/403 errors.** A rejected credential used to surface as a bare
+  `API returned 401: …` with no clue whether the key, `WORKSPACE_ID` or the environment was wrong.
+  Both HTTP stacks now append a mode-aware remediation hint (never containing credential material,
+  and suppressed in stateless mode, where the credential came from the caller).
+- **`.env` parser silently mangled hand-written values (pre-existing).** Quoted values became part
+  of the Authorization header (`Bearer "abc"`), and a UTF-8 BOM (Notepad / PowerShell) left the
+  first line's variable unset with no explanation. Machine-written keys never hit these, but a
+  hand-pasted `ACCESS_TOKEN` already could, and `SIMULATOR_API_SECRET` always is. Inline `#` is
+  still treated as part of the value.
+- **`ecore.EnsureAuth` never cleared its cached Authorization header.** It only overwrote the
+  process-global cache on success, so a removed or revoked credential would keep being sent by
+  engine tools while the curated tools reported "not authenticated". The cache is now authoritative.
 - **`serverInfo.version` reported `2.1.0` while every manifest was at `2.7.0` (#89).** The version
   returned in the MCP `initialize` handshake came from two stale Go consts (`cmd/server`'s and
   `mcpserver.defaultVersion`) that `scripts/release.sh` never bumped — it only touched the six
