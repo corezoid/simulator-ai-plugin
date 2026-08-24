@@ -41,8 +41,8 @@ and report the result.
 | Step | Tool(s) |
 |---|---|
 | Discover the app | `filterActors` (over the `scripts` system form) → match intent against each actor's `title` + `description` (tags / `getRelatedActors` to scope); or `getActorByRef` when the user names it |
-| Render a page | **`appGetPage`** (accId, ref, envTitle, page) |
-| Submit a form | **`appSendForm`** (accId, ref, envTitle, page, formId, buttonId, data) |
+| Render a page | **`appGetPage`** (accId, ref, envTitle, page, **query**) |
+| Submit a form | **`appSendForm`** (accId, ref, envTitle, page, formId, buttonId, data, **query**) |
 | Read an attached document | `readAttachment` |
 | Report a result | `buildLink` (deep-link to a created actor/record) |
 
@@ -73,10 +73,39 @@ Smart Form**. Nothing about the app is hard-coded; you interpret what the page r
                 continue on the same page (more fields, or a result).
           205 → re-render: page = appGetPage(... resp.pageId ...) — a fresh (maybe different) page.
           302 → navigate to resp.nextPage (internal page) or report resp.nextPage (external URL).
+                CARRY resp.query FORWARD: page = appGetPage(..., resp.nextPage, query=resp.query)
      g. Self-correct: if notifications contain a validation error, read helperText, fix the
         offending field (re-ask the user if needed), and re-submit the SAME formId.
 4. Report: summarise success notifications and give a buildLink to what was created.
 ```
+
+### Carry the `query` across navigation — otherwise the session is lost
+
+A `302` answers `{nextPage, query}`, and **that `query` is how a Smart Form carries per-session
+state**: the page protocol is stateless, hidden carrier fields survive a submit but not a
+navigation, so a login handler typically returns the session in `query` and every later page reads
+it as `body.query.*`.
+
+So: pass `resp.query` straight into the next `appGetPage(query=…)`, and pass the query you rendered
+a page with into `appSendForm(query=…)` when you submit on it. Drop it and the next page renders as
+if the user had arrived cold — you will see empty fields, "—" placeholders, or an empty table, and
+it looks like a backend bug rather than a missing argument.
+
+```
+resp = appSendForm(..., page="index", buttonId="login_btn", data={…})
+# → {code: 302, data: {nextPage: "home", query: {token: "…", cardCode: "…"}}}
+
+page = appGetPage(..., page="home", query={"token": "…", "cardCode": "…"})   # ✅ logged in
+page = appGetPage(..., page="home")                                          # ❌ renders cold
+```
+
+Both tools put the object in the URL query string (`?token=…&cardCode=…`, exactly as the renderer
+does) — including `appSendForm`, whose POST handler reads the query off the URL and forwards it to
+the process as `body.query`. You pass the same shape either way.
+
+> A session token in the query is visible in the page URL. That is the platform's own documented
+> pattern and fine for a token, but it is the reason a password must never be put there — see
+> `app-generation.md` §4.1a.
 
 **Detecting the end of a flow:** the flow is done when a submit yields a terminal signal — a
 success notification with no further form to fill, a 302 redirect to a result/landing page, or

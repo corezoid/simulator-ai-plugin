@@ -202,6 +202,18 @@
 - **Smart Form visibility placeholders rejected by `pushSmartForm`.** Page configs may use a pure
   `{{viewModelKey}}` placeholder for form, section, and rendered-item `visibility`; validation now
   accepts that server-resolved form while still rejecting malformed or embedded placeholders.
+- **`appGetPage` / `appSendForm` could not carry a page `query`, making the platform's own session
+  pattern untestable.** A Smart Form is stateless: a `302` answers `{nextPage, query}` and the next
+  page reads it as `body.query.*`, which is how apps carry a session token across navigation.
+  Neither runtime tool accepted it, so a logged-in page could not be rendered at all — driving one
+  produced a cold page that looked like a backend bug. Both `appGetPage` and `appSendForm` gain
+  `query`, flattened into the URL query string exactly as the renderer sends it — including on the
+  `appSendForm` POST, whose handler reads the query off the URL and forwards it to the process as
+  `body.query` (a body-borne `query` is overwritten there and never arrives). New `InQueryMap`
+  param kind in `internal/tools/op.go` does
+  the flattening — plain `InQuery` would have sent the whole object as one opaque value, silently
+  dropping the session; it rejects a non-object and skips blank keys / nil values (a nil would
+  otherwise render as the literal `"null"`).
 - **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
   `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
   call — safe under the current single-threaded stdio transport, but a data race under `go test
