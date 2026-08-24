@@ -57,6 +57,47 @@
 - **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
 
 ### Fixed
+- **`pushSmartForm` could not see cross-file token defects, so an unresolved `[[key]]` shipped
+  silently.** `cduschema.ValidateFile` is per-file by signature — it can never tell whether a
+  page's `[[key]]` resolves against the locale files or whether a `{{key}}` has a viewModel default
+  — and the save endpoint stores page source opaquely, so nothing reported it until a literal
+  `[[key]]` appeared in the browser. New `cduschema.ValidateTree` audits the whole env tree (not
+  only the files being written: deleting a viewModel default breaks an untouched page) and
+  `pushSmartForm` runs it alongside the per-file pass. A missing **locale** key is an error (locale
+  resolves from files only; nothing at runtime can supply it); a missing **viewModel** default is a
+  warning (the bound process may fill it per request). Also reports a `label`/`image` bound to a
+  default of `""` (the renderer rejects an empty value), a default no page references, and — for a
+  *literal* `contentLoop` — the exact entries missing a key the template uses. Placeholders inside a
+  *templated* `contentLoop` are backend-filled and never reported, so list pages stay quiet; only a
+  section's `content` is loop-scoped, and `regexp`/`mask` are skipped entirely so a character class
+  like `^[[:alpha:]]+$` is not read as a locale token. A locale miss blocks only when the page or one
+  of the locale files feeding it is part of the push — the same miss in an untouched page is
+  pre-existing debt and is reported as a warning, because `pushSmartForm` has no force flag and
+  aborting on it would strand an unrelated fix. Warnings are surfaced on a successful push under a
+  new `warnings` field.
+- **`pushSmartForm` accepted item keys and nested shapes the renderer then rejected.** The swagger
+  sets `additionalProperties: false` nowhere, so the save endpoint stores a typo'd `visibilty` or a
+  `head[].id` verbatim and the defect surfaces only as a console error in the browser — the item
+  simply never hides, or the column list renders empty. `cduschema` now derives, from the bundled
+  swagger, the property surface of every item `class` and of the nested spots where the schema *is*
+  precise (`extra`, `options[]`, a table's `head[]` / `body[]`), and `ValidateFile` rejects a key no
+  variant declares. The allowlist is the **union** over every schema variant of a class, because the
+  swagger splits one class across type variants that each redeclare only part of the surface
+  (`value` is on `Edit-int` but not on `Edit-default`) — checking a single variant would reject
+  valid config. The union is then widened with the fields the
+  renderer accepts but the swagger omits — the §4 base envelope (`value`, `required`, `error`,
+  `errorMsg`, `submitOnChange`, `extra`) plus the §5 rows the swagger under-describes
+  (`mainMenu.options`, `carousel.items`, `comments.title`, `timer.extra.duration`,
+  `file.extra.{downloadUrl,uploadUrl,auth}`, `upload.extra.compression`,
+  `attachment.extra.downloadUrl`) — because the derived union alone was NARROWER than the documented
+  protocol and rejected those shapes outright. `TestProbeDocumentedKeysPresentInUnion` now walks the
+  whole §5 table rather than a hand-picked subset, so a swagger update that drops a real key fails
+  the tests instead of blocking users' pushes; a class the swagger never described (`row`,
+  `draggable`) keeps no rule and is skipped rather than rejected. Also transcribed the renderer-only
+  rules the swagger cannot express (it carries no `minLength` anywhere): a `label`/`image` `value`
+  may not be an empty string, and an `image` `value` may not be a `data:` URI — the renderer proxies
+  it through `/api/1.0/image?src=`, which rejects the scheme with `400 "URL is not allowed"`.
+  Documented in `cdu-page-protocol.md` §5.1 / §10.1.
 - **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
   `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
   call — safe under the current single-threaded stdio transport, but a data race under `go test
