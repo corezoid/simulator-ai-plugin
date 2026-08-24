@@ -172,36 +172,6 @@ func TestLoadDotEnvReportsItsOwnKeys(t *testing.T) {
 	}
 }
 
-// The override exists for a long-lived key on the wire, so only a true boolean
-// opens it — `=0` and `=false` must keep the guard closed, and anything the flag
-// cannot parse fails safe.
-func TestInsecureAPISecretAllowed(t *testing.T) {
-	cases := []struct {
-		set  string
-		want bool
-	}{
-		{"", false},
-		{"0", false},
-		{"false", false},
-		{"FALSE", false},
-		{"no", false},  // not a bool: fail safe rather than guess
-		{"yes", false}, // ditto
-		{"1", true},
-		{"true", true},
-		{"TRUE", true},
-		{" true ", true}, // a trailing space in .env must not flip the meaning
-	}
-	for _, c := range cases {
-		t.Setenv(allowInsecureAPISecretEnv, c.set)
-		if c.set == "" {
-			os.Unsetenv(allowInsecureAPISecretEnv)
-		}
-		if got := insecureAPISecretAllowed(); got != c.want {
-			t.Errorf("insecureAPISecretAllowed() with %q = %v, want %v", c.set, got, c.want)
-		}
-	}
-}
-
 // countAssignments reports how many lines assign key, as the loader sees them.
 // A rewrite that appends instead of replacing leaves two, and the loader then
 // takes the stale first one.

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -22,6 +23,11 @@ const (
 // API_SECRET is common enough in developer shells that an unrelated third-party
 // secret would silently be sent to the Simulator gateway as a Bearer token.
 const APISecretEnv = "SIMULATOR_API_SECRET" // #nosec G101 — the variable's name, not a credential
+
+// AllowInsecureAPISecretEnv opts out of the refusal to send a long-lived API key
+// over plaintext HTTP to a non-local host. Loopback is already exempt, so this
+// exists only for trusted-network on-prem gateways with no TLS.
+const AllowInsecureAPISecretEnv = "SIMULATOR_ALLOW_INSECURE_API_SECRET"
 
 // Auth mode names, reported by Mode() for startup logging and diagnostics.
 const (
@@ -82,4 +88,18 @@ func HintFor(status int) string {
 	default:
 		return ""
 	}
+}
+
+// InsecureAPISecretAllowed reports whether the plaintext-HTTP refusal is waived.
+//
+// Parsed as a bool rather than "any non-empty value": a guard that
+// SIMULATOR_ALLOW_INSECURE_API_SECRET=0 or =false would switch OFF is a trap, so
+// only a value that actually says yes counts, and anything unparseable is a no.
+func InsecureAPISecretAllowed() bool {
+	v := strings.TrimSpace(os.Getenv(AllowInsecureAPISecretEnv))
+	if v == "" {
+		return false
+	}
+	allowed, err := strconv.ParseBool(v)
+	return err == nil && allowed
 }

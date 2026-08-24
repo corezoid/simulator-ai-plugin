@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -25,12 +24,6 @@ import (
 // the plugin manifests by scripts/release.sh.
 const version = mcpserver.DefaultVersion
 
-// allowInsecureAPISecretEnv opts out of the refusal to send a long-lived API key
-// over plaintext HTTP to a non-local host. Loopback is already exempt, so this
-// exists only for trusted-network on-prem gateways with no TLS.
-const allowInsecureAPISecretEnv = "SIMULATOR_ALLOW_INSECURE_API_SECRET"
-
-// apiBaseURLEnv is named here only to report where its value came from.
 const apiBaseURLEnv = "SIMULATOR_API_BASE_URL"
 
 // insecureAPISecretAllowed reports whether the operator really asked to send a
@@ -42,15 +35,6 @@ const apiBaseURLEnv = "SIMULATOR_API_BASE_URL"
 // exact opposite of the intent, for the one credential that never expires and has
 // no in-product revocation. Anything unparseable is treated as "not allowed", so
 // the failure mode is a refusal to start with an explanatory message.
-func insecureAPISecretAllowed() bool {
-	v := strings.TrimSpace(os.Getenv(allowInsecureAPISecretEnv))
-	if v == "" {
-		return false
-	}
-	allowed, err := strconv.ParseBool(v)
-	return err == nil && allowed
-}
-
 // envSource says where a variable's value came from, for the startup log.
 func envSource(key string, fromDotEnv map[string]bool) string {
 	switch {
@@ -112,17 +96,12 @@ func main() {
 			mcpserver.APISecretEnv, envSource(mcpserver.APISecretEnv, fromDotEnv),
 			apiBaseURLEnv, envSource(apiBaseURLEnv, fromDotEnv))
 	}
+	// mcpserver.New already REFUSED this combination unless it was explicitly
+	// waived, so reaching here in API-key mode means the override is on.
 	if mcpserver.IsInsecureCredentialTransport(info.APIBaseURL) {
-		// A 12h JWT leaked on the wire is a bounded incident; an API key does not
-		// expire and has no in-product revocation, so refuse rather than warn.
-		if apiKeyMode && !insecureAPISecretAllowed() {
-			log.Fatalf("refusing to start: %s is a long-lived credential and %q would send it in cleartext to a non-local host. "+
-				"Use HTTPS, or set %s=1 to override on a trusted network.",
-				mcpserver.APISecretEnv, info.APIBaseURL, allowInsecureAPISecretEnv)
-		}
 		if apiKeyMode {
-			log.Printf("WARNING: %s=%s is set — the long-lived API key will be sent in cleartext to %q. Remove the override once the gateway has TLS.",
-				allowInsecureAPISecretEnv, os.Getenv(allowInsecureAPISecretEnv), info.APIBaseURL)
+			log.Printf("WARNING: %s is set — the long-lived API key will be sent in cleartext to %q. Remove the override once the gateway has TLS.",
+				mcpserver.AllowInsecureAPISecretEnv, info.APIBaseURL)
 		}
 		log.Printf("WARNING: API base URL %q uses plaintext HTTP to a non-local host — the auth token will be sent unencrypted. Use HTTPS.", info.APIBaseURL)
 	}

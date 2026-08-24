@@ -166,11 +166,21 @@ whether the key belongs to the environment in `SIMULATOR_API_BASE_URL`.
 
 ### Static token (optional)
 
-If you prefer to manage the OAuth token yourself, set it in `.env` or export it before starting Claude Code, Codex or Kiro:
+If you prefer to manage the OAuth token yourself, put it in `.env`:
+
+```
+ACCESS_TOKEN=your_token_here
+```
+
+…or export it in your shell before starting Claude Code, Codex or Kiro:
 
 ```bash
 export ACCESS_TOKEN=your_token_here
 ```
+
+`.env` is not a shell script, so the `export` keyword belongs only in the second form — a
+line like `export ACCESS_TOKEN=…` inside `.env` is not an assignment and is skipped. The
+same applies to `SIMULATOR_API_SECRET`.
 
 Precedence is `SIMULATOR_API_SECRET` > `ACCESS_TOKEN` > saved OAuth credentials. A static
 token is sent as `Simulator <jwt>`; it is ignored entirely when `SIMULATOR_API_SECRET` is set.

@@ -80,6 +80,8 @@ const (
 	AuthModeOAuth     = auth.ModeOAuth
 	AuthModeStateless = auth.ModeStateless
 	APISecretEnv      = auth.APISecretEnv
+	// AllowInsecureAPISecretEnv waives the plaintext-HTTP refusal enforced by New.
+	AllowInsecureAPISecretEnv = auth.AllowInsecureAPISecretEnv
 )
 
 // Info reports the resolved environment for logging / diagnostics.
@@ -103,6 +105,8 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 		if err := errAPIKeyInStatelessMode(); err != nil {
 			return nil, Info{}, err
 		}
+	} else if err := errAPIKeyOverInsecureTransport(prof.APIBaseURL); err != nil {
+		return nil, Info{}, err
 	}
 
 	var (
@@ -243,6 +247,30 @@ func errAPIKeyInStatelessMode() error {
 		"%s is set, but this server is stateless: an API key is process-global and cannot be used "+
 			"for per-request, multi-tenant auth — unset %s and pass credentials per request "+
 			"via apiclient.WithAuthorization", auth.APISecretEnv, auth.APISecretEnv)
+}
+
+// errAPIKeyOverInsecureTransport refuses to send a long-lived API key in
+// cleartext to a non-local host.
+//
+// This lives in the library, not in cmd/server, for the same reason the Save and
+// stateless guards do: an embedder calling New directly gets the invariant too.
+// It applies even when the caller supplies its own Options.AuthHeader — the
+// engine tools read credentials through auth.Load on their own (ecore.EnsureAuth),
+// so the key still goes out over this base URL.
+//
+// A 12h JWT leaked on the wire is a bounded incident; an API key does not expire
+// and has no in-product revocation, so this refuses rather than warns.
+func errAPIKeyOverInsecureTransport(baseURL string) error {
+	if !auth.IsAPIKeyMode() || auth.InsecureAPISecretAllowed() {
+		return nil
+	}
+	if !apiclient.IsInsecureCredentialTransport(baseURL) {
+		return nil
+	}
+	return fmt.Errorf(
+		"refusing to start: %s is a long-lived credential and %q would send it in cleartext to a "+
+			"non-local host — use HTTPS, or set %s=1 to override on a trusted network",
+		auth.APISecretEnv, baseURL, auth.AllowInsecureAPISecretEnv)
 }
 
 func defaultAuthHeader() (string, error) {

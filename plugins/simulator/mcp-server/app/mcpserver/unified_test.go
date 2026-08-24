@@ -177,3 +177,53 @@ func TestInfoReportsAuthMode(t *testing.T) {
 		t.Errorf("AuthMode = %q, want %q", info.AuthMode, mcpserver.AuthModeStateless)
 	}
 }
+
+// The plaintext-HTTP refusal must live in the library, not only in cmd/server:
+// an embedder calling New directly would otherwise send a long-lived key in
+// cleartext with no error and no warning, and SECURITY.md promises otherwise.
+func TestNewRefusesAPIKeyOverPlaintextHTTP(t *testing.T) {
+	t.Setenv("SIMULATOR_WORK_DIR", t.TempDir())
+	t.Setenv(mcpserver.APISecretEnv, "wsk_key")
+	t.Setenv("SIMULATOR_API_BASE_URL", "http://remote-host.example/papi/1.0")
+	t.Setenv(mcpserver.AllowInsecureAPISecretEnv, "")
+
+	_, _, err := mcpserver.New(mcpserver.Options{})
+	if err == nil {
+		t.Fatal("New() error = nil, want a refusal for an API key over plaintext HTTP")
+	}
+	if !strings.Contains(err.Error(), mcpserver.AllowInsecureAPISecretEnv) {
+		t.Errorf("New() error = %q, should name the override env var", err)
+	}
+
+	// It must hold even when the embedder supplies its own AuthHeader: the engine
+	// tools read credentials through auth.Load themselves, so the key still goes out.
+	_, _, err = mcpserver.New(mcpserver.Options{
+		AuthHeader: func() (string, error) { return "Simulator other", nil },
+	})
+	if err == nil {
+		t.Error("New() with a custom AuthHeader error = nil, want the same refusal")
+	}
+}
+
+func TestNewAllowsPlaintextWhenWaivedOrLoopbackOrOAuth(t *testing.T) {
+	cases := []struct {
+		name, secret, baseURL, waiver string
+	}{
+		{"explicitly waived", "wsk_key", "http://remote-host.example/papi/1.0", "1"},
+		{"loopback is exempt", "wsk_key", "http://127.0.0.1:9000/papi/1.0", ""},
+		{"https", "wsk_key", "https://mw.simulator.company/papi/1.0", ""},
+		{"oauth mode is only warned about", "", "http://remote-host.example/papi/1.0", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("SIMULATOR_WORK_DIR", t.TempDir())
+			t.Setenv(mcpserver.APISecretEnv, c.secret)
+			t.Setenv("SIMULATOR_API_BASE_URL", c.baseURL)
+			t.Setenv(mcpserver.AllowInsecureAPISecretEnv, c.waiver)
+
+			if _, _, err := mcpserver.New(mcpserver.Options{}); err != nil {
+				t.Errorf("New() error = %v, want nil", err)
+			}
+		})
+	}
+}
