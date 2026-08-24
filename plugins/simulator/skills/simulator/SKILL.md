@@ -379,6 +379,7 @@ For domain-specific workflows use the specialized skills:
 - `/simulator-actors` — actor instances (records) of a form: the `data` value protocol, create/update/search/filter
 - `/simulator-finance` — accounts, transactions, transfers, currencies, counters (Scylla tallies)
 - `/simulator-charts` — dashboard charts and time-series visualisation on layers
+- `/simulator-app-generator` — **generate a whole app** from a set of existing Corezoid processes: pull and analyse each process's real input/output contract (from its `api_rpc_reply` nodes), design a page map that uses them all, build the Smart Form plus the bridging Corezoid middleware, then verify it end-to-end. Use this when the user has a working backend and wants a web app out of it; use the skills below to edit one that already exists
 - `/simulator-smart-forms` — Smart Forms (CDU / Script applications): pages, layout, releases
 - `/simulator-styles` — Smart Form **styling**: the `style` / `styles/` (Less/CSS) layer — themes, component re-skinning, design systems (consumes the `styleClass` hooks from `/simulator-smart-forms`)
 - `/simulator-reactions` — comments / events / approvals / ratings on actors (threaded)

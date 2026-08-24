@@ -160,7 +160,8 @@ follow-up reaction continues the same flow. Finish with a clear result + `buildL
 ## Key rules
 
 - **You run apps; you don't edit them.** For building/editing pages, switch to
-  `simulator-smart-forms`.
+  `simulator-smart-forms`. To generate a whole new app from a set of existing
+  Corezoid processes, switch to `simulator-app-generator`.
 - **Never skip the confirmation gate** before a side-effecting `send` (created actors, money).
   Show a summary; get an explicit yes.
 - **Prefer `production`** unless the user is testing `develop`.

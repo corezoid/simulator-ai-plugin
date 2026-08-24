@@ -22,6 +22,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator-graph`    | "create actor", "link nodes", "add to layer"             | Actors, links, layers, graph traversal, bulk push/pull  |
 | `simulator-forms`    | "create form", "design template", "Account Template"     | Form templates (Account Templates), field classes, system forms |
 | `simulator-actors`   | "create a record", "fill in a template", "update actor data" | Actor instances of a form, the `data` value protocol, search & filter |
+| `simulator-app-generator` | "build an app from these processes", "generate a site from process ids", "turn this API into a smart form" | Whole-app generation: analyse existing Corezoid processes, design the page map, build the Smart Form + bridging middleware, verify end-to-end |
 | `simulator-smart-forms` | "smart form", "CDU", "edit page config", "push smart form" | Smart Form lifecycle, pages, CDU protocol, releases  |
 | `simulator-smart-forms-logic` | "add logic to smart form", "wire corezoid to smart form", "/get /send process" | Brief generator for the Corezoid process(es) bound to a Smart Form; delegates to `corezoid-create` / `corezoid-edit`; `procId` binding |
 | `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies, counters |

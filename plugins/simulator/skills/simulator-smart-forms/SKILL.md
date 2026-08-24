@@ -651,3 +651,4 @@ resulting bound process to the Smart Form env via `corezoidCredentials` / `procI
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` | Complete component catalogue, templating, change protocol, server-side save validation |
 | `$CLAUDE_PLUGIN_ROOT/skills/simulator-styles/SKILL.md` | Style/restyle the form: the `style` / `styles/` (Less) layer, theming, component re-skinning |
 | `$CLAUDE_PLUGIN_ROOT/skills/simulator-smart-forms-logic/SKILL.md` | Author + bind the Corezoid backend processes for this Smart Form |
+| `$CLAUDE_PLUGIN_ROOT/skills/simulator-app-generator/SKILL.md` | Generate a WHOLE app (many pages + middleware) from a set of existing Corezoid processes, instead of authoring pages one at a time |
