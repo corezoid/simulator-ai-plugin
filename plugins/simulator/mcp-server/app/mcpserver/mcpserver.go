@@ -25,8 +25,12 @@ import (
 )
 
 const (
-	defaultName    = "simulator"
-	defaultVersion = "2.1.0"
+	defaultName = "simulator"
+	// DefaultVersion is the single source of truth for the version reported in the
+	// MCP initialize handshake (serverInfo.version). cmd/server passes it as
+	// Options.Version; scripts/release.sh bumps it in lockstep with the plugin
+	// manifests, and TestDefaultVersionMatchesManifest guards that they agree.
+	DefaultVersion = "2.7.0"
 )
 
 // Options configures the embedded MCP server.
@@ -116,7 +120,7 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 	}
 	version := opts.Version
 	if version == "" {
-		version = defaultVersion
+		version = DefaultVersion
 	}
 
 	// In stateless mode the same server serves both full-workspace and per-actor

@@ -40,7 +40,7 @@ func NewActorServer(actorID string, opts Options) (*server.MCPServer, Info, erro
 	}
 	version := opts.Version
 	if version == "" {
-		version = defaultVersion
+		version = DefaultVersion
 	}
 
 	s := server.NewMCPServer(name, version)
