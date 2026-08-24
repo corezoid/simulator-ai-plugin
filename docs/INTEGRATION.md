@@ -318,7 +318,14 @@ replaces the 3k-line `server.go`: simple CRUD is generated from the curated spec
 Both profiles use the **same OAuth2-PKCE flow**; only `accountUrl` (SA) and `apiBaseUrl`
 differ. Local prerequisite: the local `pong-server` must trust the same SA the plugin logs
 into (`account.pre.corezoid.com`) — i.e. its `auth.saSecretKey` / registered OAuth `control`
-client point at that SA. No static-token path is required for normal use.
+client point at that SA. For normal interactive use the PKCE path is enough.
+
+A non-interactive path also exists: set `SIMULATOR_API_SECRET` and the plugin sends
+`Authorization: Bearer <key>` on every request, skipping OAuth entirely. That is the
+`ApiToken` scheme the dumped spec already declares
+(`internal/tools/testdata/papi-openapi.json` → `components.securitySchemes`), and it relies on
+`checkPublicApiAuth.js` accepting both schemes (§1). The key is workspace-scoped, so
+`WORKSPACE_ID` must name the workspace it was issued for.
 
 ## 9. pong-server changes — operationId at source
 

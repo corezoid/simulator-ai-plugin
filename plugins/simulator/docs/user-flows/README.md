@@ -44,13 +44,15 @@ For detailed information about the entities used in these user flows, please ref
 
 ## Authentication
 
-All API requests require a Bearer token:
+All API requests carry an `Authorization` header. Which scheme depends on the credential:
 
 ```
-Authorization: Simulator <your_token>
+Authorization: Simulator <jwt>    # OAuth2 login — token in ACCESS_TOKEN
+Authorization: Bearer <key>       # workspace API key — in SIMULATOR_API_SECRET
 ```
 
-The token is set via the `ACCESS_TOKEN` environment variable and passed automatically by the MCP server.
+Both are set from environment variables and applied automatically by the MCP server; you never
+build this header yourself. `SIMULATOR_API_SECRET` takes precedence over `ACCESS_TOKEN`.
 
 ## API Documentation
 

@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"errors"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/auth"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/config"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
@@ -25,6 +26,11 @@ import (
 func NewActorServer(actorID string, opts Options) (*server.MCPServer, Info, error) {
 	prof, err := config.Resolve(opts.Profile)
 	if err != nil {
+		return nil, Info{}, err
+	}
+	// This constructor is always stateless and always multi-tenant, so it takes
+	// the same API-key refusal as New(Options{Stateless: true}).
+	if err := errAPIKeyInStatelessMode(); err != nil {
 		return nil, Info{}, err
 	}
 	// Stateless: auth/workspace/baseURL come from request ctx. A non-nil authHeader
@@ -50,5 +56,6 @@ func NewActorServer(actorID string, opts Options) (*server.MCPServer, Info, erro
 		Profile:    prof.Name,
 		APIBaseURL: prof.APIBaseURL,
 		AccountURL: prof.AccountURL,
+		AuthMode:   auth.ModeStateless,
 	}, nil
 }

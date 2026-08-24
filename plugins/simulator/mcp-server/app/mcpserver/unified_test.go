@@ -3,9 +3,11 @@ package mcpserver_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	mcpserver "github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -126,3 +128,52 @@ func toolMap(list []mcp.Tool) map[string]mcp.Tool {
 	return out
 }
 
+// An API key is process-global; stateless mode is per-request and multi-tenant.
+// Constructing that combination must fail loudly rather than let one process's
+// key be attached to every tenant's request.
+func TestStatelessRefusesAPIKeyMode(t *testing.T) {
+	t.Setenv(mcpserver.APISecretEnv, "wsk_key")
+
+	_, _, err := mcpserver.New(mcpserver.Options{
+		Stateless:  true,
+		AuthHeader: func() (string, error) { return "", errors.New("not used") },
+	})
+	if err == nil {
+		t.Fatal("New() error = nil, want a refusal for stateless + API key")
+	}
+	if !strings.Contains(err.Error(), mcpserver.APISecretEnv) {
+		t.Errorf("New() error = %q, should name %s", err, mcpserver.APISecretEnv)
+	}
+}
+
+// The stateful path reports which credential is in play, so cmd/server can log
+// it without importing app/auth.
+func TestInfoReportsAuthMode(t *testing.T) {
+	t.Setenv("SIMULATOR_WORK_DIR", t.TempDir())
+	// New(Stateless:true) below sets ecore's process-global stateless flag; restore
+	// it so the rest of the binary isn't silently switched into stateless mode.
+	t.Cleanup(func() { ecore.SetStateless(false) })
+
+	t.Setenv(mcpserver.APISecretEnv, "wsk_key")
+	if _, info, err := mcpserver.New(mcpserver.Options{}); err != nil {
+		t.Fatalf("New: %v", err)
+	} else if info.AuthMode != mcpserver.AuthModeAPIKey {
+		t.Errorf("AuthMode = %q, want %q", info.AuthMode, mcpserver.AuthModeAPIKey)
+	}
+
+	t.Setenv(mcpserver.APISecretEnv, "")
+	if _, info, err := mcpserver.New(mcpserver.Options{}); err != nil {
+		t.Fatalf("New: %v", err)
+	} else if info.AuthMode != mcpserver.AuthModeOAuth {
+		t.Errorf("AuthMode = %q, want %q", info.AuthMode, mcpserver.AuthModeOAuth)
+	}
+
+	if _, info, err := mcpserver.New(mcpserver.Options{
+		Stateless:  true,
+		AuthHeader: func() (string, error) { return "", errors.New("not used") },
+	}); err != nil {
+		t.Fatalf("New: %v", err)
+	} else if info.AuthMode != mcpserver.AuthModeStateless {
+		t.Errorf("AuthMode = %q, want %q", info.AuthMode, mcpserver.AuthModeStateless)
+	}
+}

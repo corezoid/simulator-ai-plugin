@@ -107,31 +107,57 @@ func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode boo
 // Count reports how many curated API tools are registered (auth helpers excluded).
 func Count() int { return len(allOps()) }
 
+// apiKeyLoginNotice is what `login` returns when an API key is configured. It is
+// a success result, not an error: nothing is broken — OAuth simply is not the
+// active auth mode — and the model needs to stop and explain that, not retry.
+const apiKeyLoginNotice = "OAuth login is disabled: this server is running in API-key mode " +
+	"(" + auth.APISecretEnv + " is set in your .env or environment). Every request is authenticated " +
+	"with `Authorization: Bearer <key>`; there is no browser sign-in, no token is written to .env, " +
+	"and ACCESS_TOKEN is ignored.\n\n" +
+	"If the key is wrong you will see 401s — fix it and restart the MCP server, because .env is read " +
+	"once at startup.\n" +
+	"To use OAuth instead: remove " + auth.APISecretEnv + " from .env, restart, then run `login`.\n\n" +
+	"Note: a Simulator API key is scoped to ONE workspace. Make sure WORKSPACE_ID names that same " +
+	"workspace — try getWorkspaces + set-workspace; if the key is not allowed to list workspaces, " +
+	"copy the workspace id from account.corezoid.com and put WORKSPACE_ID in .env by hand."
+
+// loginHandler runs the OAuth2 PKCE flow, unless an API key is configured — in
+// which case it explains why it is doing nothing. Split out of registerAuth so
+// tests can drive it directly.
+func loginHandler(s *server.MCPServer, prof config.Profile) server.ToolHandlerFunc {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		if auth.IsAPIKeyMode() {
+			return mcp.NewToolResultText(apiKeyLoginNotice), nil
+		}
+		// Prefer the account URL derived by set-environment (saved as ACCOUNT_URL)
+		// over the startup profile default, so login follows the chosen environment.
+		accountURL := firstNonEmpty(os.Getenv("ACCOUNT_URL"), prof.AccountURL)
+		creds, err := auth.PKCEFlow(accountURL, prof.OAuthClientID, nil)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("[Error] OAuth2 login failed: %v", err)), nil
+		}
+		if err := auth.Save(creds); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to save token: %v", err)), nil
+		}
+		// One-time opt-in: ask for email to include in telemetry. Only
+		// shown once per installation, and only if the client supports
+		// elicitation; skipping is always valid.
+		telemetry.AskForEmailOnce(ctx, s)
+		return mcp.NewToolResultText("Authenticated. Token saved to .env. Next: call getWorkspaces to list your workspaces, show them to the user to pick one, then call set-workspace (by accId or name)."), nil
+	}
+}
+
 func registerAuth(s *server.MCPServer, c *apiclient.Client, prof config.Profile, insecure bool) {
 	registerSetEnvironment(s, c, prof, insecure)
 
-	s.AddTool(
-		mcp.NewTool("login",
-			mcp.WithDescription("Authenticate to Simulator via OAuth2 PKCE (opens a browser). Saves the token to .env. Run set-environment first if you haven't chosen an environment. After login, call set-workspace to choose a workspace."),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			// Prefer the account URL derived by set-environment (saved as ACCOUNT_URL)
-			// over the startup profile default, so login follows the chosen environment.
-			accountURL := firstNonEmpty(os.Getenv("ACCOUNT_URL"), prof.AccountURL)
-			creds, err := auth.PKCEFlow(accountURL, prof.OAuthClientID, nil)
-			if err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("[Error] OAuth2 login failed: %v", err)), nil
-			}
-			if err := auth.Save(creds); err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("[Error] failed to save token: %v", err)), nil
-			}
-			// One-time opt-in: ask for email to include in telemetry. Only
-			// shown once per installation, and only if the client supports
-			// elicitation; skipping is always valid.
-			telemetry.AskForEmailOnce(ctx, s)
-			return mcp.NewToolResultText("Authenticated. Token saved to .env. Next: call getWorkspaces to list your workspaces, show them to the user to pick one, then call set-workspace (by accId or name)."), nil
-		},
-	)
+	loginDesc := "Authenticate to Simulator via OAuth2 PKCE (opens a browser). Saves the token to .env. " +
+		"Run set-environment first if you haven't chosen an environment. After login, call set-workspace to choose a workspace."
+	if auth.IsAPIKeyMode() {
+		loginDesc = "DISABLED — this server runs in API-key mode (" + auth.APISecretEnv + " is set), so OAuth login " +
+			"is not used and calling this tool only explains that. Requests are already authenticated. " +
+			"The next step is set-workspace, not login."
+	}
+	s.AddTool(mcp.NewTool("login", mcp.WithDescription(loginDesc)), loginHandler(s, prof))
 
 	s.AddTool(
 		mcp.NewTool("set-workspace",
@@ -177,13 +203,38 @@ func registerSetEnvironment(s *server.MCPServer, c *apiclient.Client, prof confi
 	}
 	names := presetNames(presets)
 
+	setEnvDesc := "Choose the Simulator environment to work with BEFORE login. Pass `preset` for a listed gateway (" +
+		strings.TrimRight(presetLines.String(), "; ") + ") or `url` for a custom / on-prem / local server (host or full URL; " +
+		"/papi/1.0 is added if omitted). It fetches the gateway's public config to derive the correct OAuth account URL, " +
+		"saves the choice to .env, and clears any existing token + workspace — so you must run login (then set-workspace) " +
+		"afterwards. Use it again at any time to switch environments."
+	// Description only: the handler re-checks the mode, so the refusal holds
+	// regardless of what was baked in at registration time.
+	if auth.IsAPIKeyMode() {
+		setEnvDesc = "DISABLED — this server runs in API-key mode (" + auth.APISecretEnv + " is set). The key is scoped to " +
+			"one workspace on one gateway, so the environment cannot be switched at runtime; change it in .env and restart. " +
+			"Calling this tool returns that explanation."
+	}
+
 	s.AddTool(
 		mcp.NewTool("set-environment",
-			mcp.WithDescription("Choose the Simulator environment to work with BEFORE login. Pass `preset` for a listed gateway ("+strings.TrimRight(presetLines.String(), "; ")+") or `url` for a custom / on-prem / local server (host or full URL; /papi/1.0 is added if omitted). It fetches the gateway's public config to derive the correct OAuth account URL, saves the choice to .env, and clears any existing token + workspace — so you must run login (then set-workspace) afterwards. Use it again at any time to switch environments."),
+			mcp.WithDescription(setEnvDesc),
 			mcp.WithString("preset", mcp.Description("Environment selector. One of: "+names+". Provide preset or url.")),
 			mcp.WithString("url", mcp.Description("Custom/local server URL or host (e.g. http://localhost:9000 or my-onprem.example.com). Provide preset or url.")),
 		),
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			// Refuse before doing anything. Re-pointing the gateway would send a
+			// long-lived key — which this process holds but does not own — to a
+			// host chosen at call time, and `url` accepts any host. It would also
+			// clear WORKSPACE_ID, which a workspace-scoped key may not be able to
+			// re-discover via getWorkspaces, stranding the session.
+			if auth.IsAPIKeyMode() {
+				return mcp.NewToolResultError("[Error] set-environment is disabled in API-key mode: a Simulator API key " +
+					"is scoped to one workspace on one gateway, so pointing this server at a different environment would " +
+					"send your key to a host it was not issued for. To switch environments, edit " + auth.APISecretEnv +
+					" and SIMULATOR_API_BASE_URL in .env (plus WORKSPACE_ID for the new workspace) and restart the MCP server."), nil
+			}
+
 			args := req.GetArguments()
 			preset, _ := args["preset"].(string)
 			rawURL, _ := args["url"].(string)

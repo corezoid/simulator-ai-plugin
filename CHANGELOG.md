@@ -43,6 +43,20 @@
 ## [Unreleased]
 
 ### Added
+- **API-key authentication (`SIMULATOR_API_SECRET`).** A second, non-interactive auth mode for CI,
+  headless runs and service integrations: set a workspace access key in `.env` and every request is
+  sent as `Authorization: Bearer <key>` instead of the OAuth `Simulator <jwt>`. The key takes
+  precedence over `ACCESS_TOKEN` and saved OAuth credentials, and the OAuth flow is disabled end to
+  end — `login` returns an explanation instead of opening a browser (so the telemetry-email
+  elicitation never fires), `auth.Save` refuses to write a token, and `set-environment` refuses to
+  re-point the gateway, since a key is scoped to one workspace on one gateway and switching would
+  send it to a host it was not issued for. The plugin only ever reads the key: it is never written
+  back to `.env`, logged, or included in telemetry. Because a key is long-lived, the server refuses
+  to start when the API base URL would send it over plaintext HTTP to a non-local host
+  (`SIMULATOR_ALLOW_INSECURE_API_SECRET=1` overrides), and stateless/SSE construction rejects the
+  mode outright as incompatible with per-request multi-tenant auth. Implemented as a single branch
+  in `auth.Load` plus the existing per-credential `TokenType`, so no header call site changed; the
+  `app/auth` package gets its first tests.
 - **`simulator-app-generator` skill.** Generates a complete multi-page Smart Form app from a set
   of existing Corezoid process ids plus a product description: pulls every process, derives its
   real input/output contract from its `api_rpc_reply` nodes (declared `params` drift and are only
@@ -66,6 +80,17 @@
 - **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
 
 ### Fixed
+- **Actionable 401/403 errors.** A rejected credential used to surface as a bare
+  `API returned 401: …` with no clue whether the key, `WORKSPACE_ID` or the environment was wrong.
+  Both HTTP stacks now append a mode-aware remediation hint (never containing credential material,
+  and suppressed in stateless mode, where the credential came from the caller).
+- **`.env` parser silently mangled hand-written values.** Quoted values became part of the
+  Authorization header (`Bearer "abc"`), while an `export ` prefix or a UTF-8 BOM (Notepad /
+  PowerShell) left the variable unset with no explanation. Machine-written keys never hit these,
+  but `SIMULATOR_API_SECRET` is pasted by hand. Inline `#` is still treated as part of the value.
+- **`ecore.EnsureAuth` never cleared its cached Authorization header.** It only overwrote the
+  process-global cache on success, so a removed or revoked credential would keep being sent by
+  engine tools while the curated tools reported "not authenticated". The cache is now authoritative.
 - **`serverInfo.version` reported `2.1.0` while every manifest was at `2.7.0` (#89).** The version
   returned in the MCP `initialize` handshake came from two stale Go consts (`cmd/server`'s and
   `mcpserver.defaultVersion`) that `scripts/release.sh` never bumped — it only touched the six

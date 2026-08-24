@@ -179,5 +179,8 @@ For a multi-call/computational tool, add it under `internal/engines/` and regist
 
 ## Security
 
-This repo touches OAuth tokens (stored in `.env`, mode `0600`). Never log token values,
-never commit a `.env`, and keep TLS verification on by default.
+This repo touches OAuth tokens (stored in `.env`, mode `0600`) and user-supplied API keys
+(`SIMULATOR_API_SECRET`, read-only to the plugin). Never log token or key values, never write
+`SIMULATOR_API_SECRET` to `.env`, never commit a `.env`, and keep TLS verification on by
+default. Auth-mode logging reports the mode name only — never a value, length, prefix or
+fingerprint.
