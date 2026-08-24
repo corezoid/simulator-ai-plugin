@@ -66,6 +66,26 @@
 - **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
 
 ### Fixed
+- **`serverInfo.version` reported `2.1.0` while every manifest was at `2.7.0` (#89).** The version
+  returned in the MCP `initialize` handshake came from two stale Go consts (`cmd/server`'s and
+  `mcpserver.defaultVersion`) that `scripts/release.sh` never bumped — it only touched the six
+  manifests. Collapsed them into one exported source of truth, `mcpserver.DefaultVersion`, which
+  `cmd/server` now reads; `release.sh` bumps it in lockstep with the manifests, and a new
+  `TestDefaultVersionMatchesManifest` fails CI if it ever drifts again. Also bumped
+  `.kiro-plugin/plugin.json`, which had fallen a release behind (`2.5.0`).
+- **`loadSysForms` cached transient failures and could serve valid data alongside a stale error
+  (#87).** The success path never cleared `sysFormsErr`, and both failure paths cached the error
+  with `sysFormsLoaded=true`; in the stateless (SSE) server, a failing and a succeeding request
+  racing on the same workspace could leave the cache permanently `{validForms, staleErr}`, after
+  which every caller (`if sysErr != nil …`) silently stopped resolving form-name→id until restart.
+  Now only successful loads are cached (a failure is retried, never poisoned), the success write
+  runs under a double-check so a concurrent winner is reused rather than clobbered, and the unused
+  `sysFormsErr` field is removed.
+- **`createEdgeLink` ignored the per-item `error` flag from `mass_links` (#88).** The response's
+  `error bool` was parsed but never checked, so an `{error:true, data:{id:…}}` item would be read
+  as a created edge and recorded as a live link — a silent ghost. The success branch is now guarded
+  on `!resp.Data[0].Error`. Defensive: the current backend strips the id from a failed item, so
+  there is no active data loss today, but the contract is now enforced.
 - **`pushSmartForm` could not see cross-file token defects, so an unresolved `[[key]]` shipped
   silently.** `cduschema.ValidateFile` is per-file by signature — it can never tell whether a
   page's `[[key]]` resolves against the locale files or whether a `{{key}}` has a viewModel default

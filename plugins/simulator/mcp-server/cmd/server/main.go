@@ -19,7 +19,9 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-const version = "2.1.0"
+// version is the single source of truth in mcpserver; kept in lockstep with
+// the plugin manifests by scripts/release.sh.
+const version = mcpserver.DefaultVersion
 
 // installShutdownFlush flushes buffered telemetry events before the process
 // exits on SIGINT/SIGTERM (e.g. the MCP client terminating the server). Go's

@@ -45,7 +45,6 @@ type workspaceCache struct {
 	mu sync.RWMutex
 
 	sysFormsLoaded bool
-	sysFormsErr    error
 	sysForms       []SysFormItem
 	formNameToID   map[string]int
 	formIDToName   map[int]string
@@ -420,20 +419,20 @@ func (s *GraphSyncer) resolveActorFormID(ctx context.Context, actorID string) in
 func (s *GraphSyncer) loadSysForms(ctx context.Context) ([]SysFormItem, error) {
 	s.cache.mu.RLock()
 	loaded := s.cache.sysFormsLoaded
-	forms, cacheErr := s.cache.sysForms, s.cache.sysFormsErr
+	forms := s.cache.sysForms
 	s.cache.mu.RUnlock()
 	if loaded {
-		return forms, cacheErr
+		// Only successful loads are cached (see the write block below), so a cache
+		// hit is always valid data — never a stale error left by a failed sibling.
+		return forms, nil
 	}
 
 	u := fmt.Sprintf("%s/forms/templates/system/%s?formTypes=system", s.baseURL, ecore.Seg(s.workspaceID))
 	data, err := s.get(ctx, u)
 	if err != nil {
-		s.cache.mu.Lock()
-		s.cache.sysFormsErr = fmt.Errorf("getSystemForms: %w", err)
-		s.cache.sysFormsLoaded = true
-		s.cache.mu.Unlock()
-		return nil, s.cache.sysFormsErr
+		// Do not cache a transient failure: leaving sysFormsLoaded false lets the
+		// next call retry, instead of poisoning the workspace until process restart.
+		return nil, fmt.Errorf("getSystemForms: %w", err)
 	}
 
 	var apiResult struct {
@@ -445,11 +444,7 @@ func (s *GraphSyncer) loadSysForms(ctx context.Context) ([]SysFormItem, error) {
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(data, &apiResult); err != nil {
-		s.cache.mu.Lock()
-		s.cache.sysFormsErr = fmt.Errorf("parse system forms: %w", err)
-		s.cache.sysFormsLoaded = true
-		s.cache.mu.Unlock()
-		return nil, s.cache.sysFormsErr
+		return nil, fmt.Errorf("parse system forms: %w", err)
 	}
 
 	allowedRootTitles := map[string]bool{
@@ -474,9 +469,15 @@ func (s *GraphSyncer) loadSysForms(ctx context.Context) ([]SysFormItem, error) {
 	}
 
 	s.cache.mu.Lock()
-	s.cache.sysForms = roots
-	s.cache.sysFormsLoaded = true
-	s.buildFormNameIDCache(roots) // runs inside the write lock
+	if s.cache.sysFormsLoaded {
+		// A concurrent goroutine populated the cache first; reuse its result
+		// rather than overwriting it (and re-running buildFormNameIDCache).
+		roots = s.cache.sysForms
+	} else {
+		s.cache.sysForms = roots
+		s.cache.sysFormsLoaded = true
+		s.buildFormNameIDCache(roots) // runs inside the write lock
+	}
 	s.cache.mu.Unlock()
 	return roots, nil
 }
@@ -862,7 +863,9 @@ func (s *GraphSyncer) createEdgeLink(ctx context.Context, srcUUID, tgtUUID strin
 			} `json:"data"`
 		} `json:"data"`
 	}
-	if jsonErr := json.Unmarshal(respBytes, &resp); jsonErr == nil && len(resp.Data) > 0 && resp.Data[0].Data.ID != "" {
+	// Guard on !Error: a per-item failure must not be read as a created edge even
+	// if the backend echoes back an ID, or the graph would record a ghost link.
+	if jsonErr := json.Unmarshal(respBytes, &resp); jsonErr == nil && len(resp.Data) > 0 && !resp.Data[0].Error && resp.Data[0].Data.ID != "" {
 		return resp.Data[0].Data.ID, nil
 	}
 	return "", fmt.Errorf("massLink: no link ID in response")
