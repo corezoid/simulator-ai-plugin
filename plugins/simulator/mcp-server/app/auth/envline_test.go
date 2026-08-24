@@ -3,8 +3,12 @@ package auth
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+// bom is the UTF-8 byte order mark a Notepad / PowerShell .env starts with.
+var bom = string([]byte{0xEF, 0xBB, 0xBF})
 
 func TestParseEnvLine(t *testing.T) {
 	cases := []struct {
@@ -13,8 +17,9 @@ func TestParseEnvLine(t *testing.T) {
 		ok       bool
 	}{
 		{`ACCESS_TOKEN=abc`, "ACCESS_TOKEN", "abc", true},
-		{`export ACCESS_TOKEN=abc`, "ACCESS_TOKEN", "abc", true},
-		{"export\tACCESS_TOKEN=abc", "ACCESS_TOKEN", "abc", true},
+		// .env is not a shell script — `export` makes the key "export ACCESS_TOKEN".
+		{`export ACCESS_TOKEN=abc`, "", "", false},
+		{"export\tACCESS_TOKEN=abc", "", "", false},
 		{`   ACCESS_TOKEN = abc `, "ACCESS_TOKEN", "abc", true},
 		{`ACCESS_TOKEN="abc"`, "ACCESS_TOKEN", "abc", true},
 		{`ACCESS_TOKEN='abc'`, "ACCESS_TOKEN", "abc", true},
@@ -44,13 +49,14 @@ func TestParseEnvLine(t *testing.T) {
 
 // A rewrite must land on the line that is already there, whatever shape it was
 // written in — appending a second assignment leaves the loader reading the stale
-// first one. And `export` is preserved: the user may be sourcing the file.
+// first one. The file's BOM and the author's indentation survive the rewrite.
 func TestEnvWritersMatchEveryReadableShape(t *testing.T) {
 	for _, shape := range []string{
-		"export ACCESS_TOKEN=old",
 		"  ACCESS_TOKEN=old",
+		"\tACCESS_TOKEN=old",
+		"ACCESS_TOKEN = old",
 		`ACCESS_TOKEN="old"`,
-		"export\tACCESS_TOKEN=old",
+		bom + "ACCESS_TOKEN=old",
 	} {
 		t.Run(shape, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), ".env")
@@ -67,9 +73,9 @@ func TestEnvWritersMatchEveryReadableShape(t *testing.T) {
 			if _, val, _ := ParseEnvLine(firstAssignment(string(body), "ACCESS_TOKEN")); val != "new" {
 				t.Errorf("value not updated in place:\n%s", body)
 			}
-			if wantExport := shape[:len("export")] == "export"; wantExport {
-				if line := firstAssignment(string(body), "ACCESS_TOKEN"); line[:len("export")] != "export" {
-					t.Errorf("the `export` keyword must survive a rewrite, got %q", line)
+			if strings.HasPrefix(shape, bom) {
+				if line := firstAssignment(string(body), "ACCESS_TOKEN"); !strings.HasPrefix(line, bom) {
+					t.Errorf("the file's BOM must survive a rewrite, got %q", line)
 				}
 			}
 

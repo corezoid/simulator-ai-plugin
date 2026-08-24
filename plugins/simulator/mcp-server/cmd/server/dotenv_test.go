@@ -23,8 +23,6 @@ func TestLoadDotEnvParsesHandWrittenValues(t *testing.T) {
 		{"plain", `SIMULATOR_API_SECRET=wsk_abc`, "SIMULATOR_API_SECRET", "wsk_abc"},
 		{"double quoted", `SIMULATOR_API_SECRET="wsk_abc"`, "SIMULATOR_API_SECRET", "wsk_abc"},
 		{"single quoted", `SIMULATOR_API_SECRET='wsk_abc'`, "SIMULATOR_API_SECRET", "wsk_abc"},
-		{"export prefix", `export SIMULATOR_API_SECRET=wsk_abc`, "SIMULATOR_API_SECRET", "wsk_abc"},
-		{"export and quotes", `export SIMULATOR_API_SECRET="wsk_abc"`, "SIMULATOR_API_SECRET", "wsk_abc"},
 		{"crlf", "SIMULATOR_API_SECRET=wsk_abc\r", "SIMULATOR_API_SECRET", "wsk_abc"},
 		{"equals inside value", `SIMULATOR_API_SECRET=eyJhbGc=`, "SIMULATOR_API_SECRET", "eyJhbGc="},
 		{"hash is part of the secret", `SIMULATOR_API_SECRET=wsk#abc`, "SIMULATOR_API_SECRET", "wsk#abc"},
@@ -91,15 +89,13 @@ func writeAndLoad(t *testing.T, content string) {
 }
 
 // The loader and the .env writers must read a line the same way. They did not:
-// the loader accepted `export KEY=…`, the writers matched a bare `KEY=` prefix, so
+// the loader trimmed a line before splitting it, the writers matched a bare `KEY=` prefix, so
 // a rewrite appended a duplicate — and the loader takes the FIRST occurrence, so
 // the value the user just changed lost to the stale one on the next start.
 func TestLoadDotEnvAgreesWithTheEnvWriters(t *testing.T) {
 	for _, shape := range []string{
-		"export ACCESS_TOKEN=old",
 		"  ACCESS_TOKEN=old",
 		`ACCESS_TOKEN="old"`,
-		"export\tACCESS_TOKEN=old",
 		// A Notepad / PowerShell .env: the BOM sits on the first line, which is
 		// exactly the line the writers have to match.
 		"\uFEFFACCESS_TOKEN=old",

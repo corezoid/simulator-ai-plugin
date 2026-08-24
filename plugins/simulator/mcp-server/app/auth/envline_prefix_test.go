@@ -3,8 +3,7 @@ package auth
 import "testing"
 
 // envLineAssigns returns the verbatim text before the key so a rewrite can
-// preserve it. Getting that offset from the first substring match in the raw
-// line renames the variable when the key also occurs inside the prefix.
+// preserve the file's BOM and the author's indentation.
 func TestEnvLineAssignsPrefix(t *testing.T) {
 	bom := string([]byte{0xEF, 0xBB, 0xBF})
 	cases := []struct {
@@ -12,15 +11,16 @@ func TestEnvLineAssignsPrefix(t *testing.T) {
 		wantOK                      bool
 	}{
 		{"bare", "ACCESS_TOKEN=old", "ACCESS_TOKEN", "", true},
-		{"export", "export ACCESS_TOKEN=old", "ACCESS_TOKEN", "export ", true},
-		{"export tab", "export\tACCESS_TOKEN=old", "ACCESS_TOKEN", "export\t", true},
-		{"indented export", "  export ACCESS_TOKEN=old", "ACCESS_TOKEN", "  export ", true},
+		{"indented", "  ACCESS_TOKEN=old", "ACCESS_TOKEN", "  ", true},
+		{"tab indented", "\tACCESS_TOKEN=old", "ACCESS_TOKEN", "\t", true},
 		{"spaced equals", "ACCESS_TOKEN = old", "ACCESS_TOKEN", "", true},
 		{"bom keeps the mark", bom + "ACCESS_TOKEN=old", "ACCESS_TOKEN", bom, true},
-		// The key occurs inside the "export" keyword itself. Taking the first
-		// substring hit yielded prefix "ex", rewriting the line as "export=2".
-		{"key is a substring of the prefix", "export port=1", "port", "export ", true},
-		{"value looks like the key", "export FOO=FOO", "FOO", "export ", true},
+		{"bom and indent", bom + "  ACCESS_TOKEN=old", "ACCESS_TOKEN", bom + "  ", true},
+		{"value looks like the key", "FOO=FOO", "FOO", "", true},
+		// .env is not a shell script: `export KEY=v` parses as the key
+		// "export KEY", which has whitespace, so neither side treats it as an
+		// assignment to KEY.
+		{"export is not supported", "export ACCESS_TOKEN=old", "ACCESS_TOKEN", "", false},
 		{"different key", "WORKSPACE_ID=w1", "ACCESS_TOKEN", "", false},
 		{"comment", "# ACCESS_TOKEN=old", "ACCESS_TOKEN", "", false},
 	}

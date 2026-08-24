@@ -63,15 +63,18 @@
   environment) — `loadDotEnv` never overrides a value already in the environment, so a key exported
   in a developer's shell can outrank the project's `.env` while the base URL still comes from that
   file, and nothing in the log used to say so. Sources only; never the value.
-- **A `.env` line the loader could read but the writers could not find.** `loadDotEnv` accepts
-  `export KEY=value` and indented lines; `updateEnvFileMulti` / `removeEnvKey` matched a bare `KEY=`
-  prefix. So a rewrite of a key already present in one of those shapes **appended a second line** —
-  and the loader takes the FIRST occurrence, so `login`, `set-workspace` and `set-environment`
-  silently lost their new value on the next start, while `auth.Delete` left an `export ACCESS_TOKEN=`
-  line in place and the "cleared" token came straight back. Both sides now normalise through one
-  `auth.ParseEnvLine`, matching whole keys and preserving an existing `export` keyword on rewrite
-  (the user may be sourcing the file). A cross-package test drives loader and writers against each
-  other so the two cannot drift apart again.
+- **A `.env` line the loader could read but the writers could not find (pre-existing).**
+  `loadDotEnv` trims a line before splitting it, so it has always read `  KEY=value` and
+  `KEY = value`; `updateEnvFileMulti` / `removeEnvKey` matched a bare `KEY=` prefix and did not. So
+  a rewrite of a key already present in one of those shapes **appended a second line** — and the
+  loader takes the FIRST occurrence, so `login`, `set-workspace` and `set-environment` silently lost
+  their new value on the next start, while `auth.Delete` left the line in place and the "cleared"
+  token came straight back. This predates the API-key work and affected `ACCESS_TOKEN` /
+  `WORKSPACE_ID` on any indented `.env`. Both sides now normalise through one `auth.ParseEnvLine`,
+  matching whole keys and preserving the file's BOM and the author's indentation on rewrite. A
+  cross-package test drives loader and writers against each other so the two cannot drift apart
+  again. `.env` is not a shell script, so `export KEY=value` is deliberately NOT an assignment —
+  both sides skip it alike.
 - **`simulator-app-generator` skill.** Generates a complete multi-page Smart Form app from a set
   of existing Corezoid process ids plus a product description: pulls every process, derives its
   real input/output contract from its `api_rpc_reply` nodes (declared `params` drift and are only
@@ -99,10 +102,11 @@
   `API returned 401: …` with no clue whether the key, `WORKSPACE_ID` or the environment was wrong.
   Both HTTP stacks now append a mode-aware remediation hint (never containing credential material,
   and suppressed in stateless mode, where the credential came from the caller).
-- **`.env` parser silently mangled hand-written values.** Quoted values became part of the
-  Authorization header (`Bearer "abc"`), while an `export ` prefix or a UTF-8 BOM (Notepad /
-  PowerShell) left the variable unset with no explanation. Machine-written keys never hit these,
-  but `SIMULATOR_API_SECRET` is pasted by hand. Inline `#` is still treated as part of the value.
+- **`.env` parser silently mangled hand-written values (pre-existing).** Quoted values became part
+  of the Authorization header (`Bearer "abc"`), and a UTF-8 BOM (Notepad / PowerShell) left the
+  first line's variable unset with no explanation. Machine-written keys never hit these, but a
+  hand-pasted `ACCESS_TOKEN` already could, and `SIMULATOR_API_SECRET` always is. Inline `#` is
+  still treated as part of the value.
 - **`ecore.EnsureAuth` never cleared its cached Authorization header.** It only overwrote the
   process-global cache on success, so a removed or revoked credential would keep being sent by
   engine tools while the curated tools reported "not authenticated". The cache is now authoritative.

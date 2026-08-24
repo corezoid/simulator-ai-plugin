@@ -57,10 +57,11 @@ func updateEnvFileMulti(path string, kv [][2]string) error {
 	for _, pair := range kv {
 		found := false
 		for i, line := range lines {
-			// Match on the parsed key, not a "KEY=" prefix: the loader also reads
-			// `export KEY=…` and indented lines, and matching only the bare shape
-			// appended a duplicate the loader then ignored in favour of the stale
-			// first occurrence. The line's own prefix is preserved on rewrite.
+			// Match on the parsed key, not a "KEY=" prefix: the loader trims a line
+			// before splitting it, so it reads `  KEY=…`, `KEY = …` and a BOM'd
+			// first line that the bare-prefix match missed — and a miss appended a
+			// duplicate the loader then ignored in favour of the stale first
+			// occurrence. The line's own prefix is preserved on rewrite.
 			linePrefix, ok := envLineAssigns(line, pair[0])
 			if !ok {
 				continue
@@ -94,8 +95,8 @@ func removeEnvKey(path, key string) error {
 
 	var kept []string
 	for _, line := range strings.Split(string(data), "\n") {
-		// Same normalisation as the loader — an `export ACCESS_TOKEN=…` line used
-		// to survive a logout, and the token came back on the next start.
+		// Same normalisation as the loader — an indented or BOM'd ACCESS_TOKEN
+		// line used to survive a logout, and the token came back on the next start.
 		if _, assigns := envLineAssigns(line, key); !assigns {
 			kept = append(kept, line)
 		}

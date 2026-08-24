@@ -10,17 +10,21 @@ const bomPrefix = "\uFEFF"
 //
 // It is the single source of truth for what a line MEANS, because the loader
 // (cmd/server.loadDotEnv) and the writers in this file have to agree on it. When
-// they did not, the damage was silent and one-directional: the loader accepted
-// `export ACCESS_TOKEN=…` and a leading-indented `  WORKSPACE_ID=…`, while the
-// writers matched a bare `KEY=` prefix, so a rewrite appended a SECOND line for a
-// key that was already there — and the loader takes the FIRST occurrence, so the
-// stale value won again on the next start. `Delete` had the same blind spot:
-// an `export ACCESS_TOKEN=` line survived a logout.
+// they did not, the damage was silent and one-directional: the loader trimmed a
+// line before splitting it, so it read `  WORKSPACE_ID=…` and `KEY = value`,
+// while the writers matched a bare `KEY=` prefix and did not. A rewrite then
+// appended a SECOND line for a key that was already there — and the loader takes
+// the FIRST occurrence, so the stale value won again on the next start. `Delete`
+// had the same blind spot and left the line in place.
 //
 // Accepted shapes (all of them arrive from a human editing .env by hand):
 //
-//	KEY=value            export KEY=value          KEY = value
-//	KEY="value"          KEY='value'               "  KEY=value" (indented)
+//	KEY=value            KEY = value               "  KEY=value" (indented)
+//	KEY="value"          KEY='value'               a leading UTF-8 BOM
+//
+// `.env` is not a shell script, so `export KEY=value` is NOT an assignment here:
+// the key comes out as "export KEY", which contains whitespace, and the line is
+// skipped by both sides alike.
 //
 // ok is false for a blank line, a `#` comment, a line with no `=`, and a key
 // containing whitespace (`foo bar=baz` is not a shell assignment either).
@@ -43,24 +47,11 @@ func ParseEnvLine(line string) (key, value string, ok bool) {
 	if !found {
 		return "", "", false
 	}
-	key = strings.TrimSpace(trimExportPrefix(strings.TrimSpace(rawKey)))
+	key = strings.TrimSpace(rawKey)
 	if key == "" || strings.ContainsAny(key, " \t") {
 		return "", "", false
 	}
 	return key, trimMatchingQuotes(strings.TrimSpace(rawVal)), true
-}
-
-// trimExportPrefix drops a leading `export` keyword. Only a real keyword counts —
-// `exportKEY=1` is a variable named exportKEY.
-func trimExportPrefix(key string) string {
-	const kw = "export"
-	if !strings.HasPrefix(key, kw) || len(key) == len(kw) {
-		return key
-	}
-	if c := key[len(kw)]; c != ' ' && c != '\t' {
-		return key
-	}
-	return strings.TrimSpace(key[len(kw):])
 }
 
 // trimMatchingQuotes removes one matching pair of surrounding single or double
@@ -79,25 +70,16 @@ func trimMatchingQuotes(val string) string {
 
 // envLineAssigns reports whether line is an assignment to key, whatever shape it
 // was written in, and returns the verbatim text before the key so a rewrite can
-// preserve it — a user who wrote `export FOO=…` may be sourcing the file, and
-// silently dropping the keyword would stop it exporting.
+// preserve it — the BOM belongs to the file and an indent is the author's.
+//
+// The prefix is computed structurally rather than by searching for the key: a
+// substring search finds the first match anywhere in the line, which is not
+// necessarily where the key starts.
 func envLineAssigns(line, key string) (prefix string, ok bool) {
 	lineKey, _, parsed := ParseEnvLine(line)
 	if !parsed || lineKey != key {
 		return "", false
 	}
-	// Search only the assignment's left-hand side, and take the LAST hit: the key
-	// is the final token before "=". strings.Index over the whole raw line finds
-	// the first substring match instead, so `export port=1` keyed on "port" hit
-	// the "port" inside "export" and rewrote the line as `export=2` — renaming
-	// the variable. No current key can trigger that (all are UPPER_SNAKE), but
-	// this helper reads as general-purpose, so it should be.
-	eq := strings.Index(line, "=")
-	if eq < 0 {
-		return "", true // unreachable: ParseEnvLine already required an "="
-	}
-	if i := strings.LastIndex(line[:eq], key); i >= 0 {
-		return line[:i], true
-	}
-	return "", true
+	body := strings.TrimLeft(strings.TrimPrefix(line, bomPrefix), " \t")
+	return line[:len(line)-len(body)], true
 }

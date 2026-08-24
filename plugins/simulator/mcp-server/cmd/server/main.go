@@ -147,12 +147,12 @@ func main() {
 // Returns the set of keys it actually set, so the startup log can say whether a
 // credential came from the file or from the process environment.
 //
-// The line shapes a *hand-written* secret arrives in — quoted values, an `export `
-// prefix, surrounding spaces — are handled by auth.ParseEnvLine, which the .env
-// WRITERS in that package match against too. Keeping one parser is the point: when
-// the reader accepted a shape the writer did not, a rewrite appended a duplicate
-// line and the stale first occurrence kept winning. The UTF-8 BOM that Notepad and
-// PowerShell redirection prepend is stripped here, before the first line is parsed.
+// The line shapes a *hand-written* secret arrives in — quoted values, an indent,
+// spaces around the `=`, and the UTF-8 BOM that Notepad and PowerShell
+// redirection prepend — are all handled by auth.ParseEnvLine, which the .env
+// WRITERS in that package match against too. Keeping one parser is the point:
+// when the reader accepted a shape the writer did not, a rewrite appended a
+// duplicate line and the stale first occurrence kept winning.
 func loadDotEnv(path string) map[string]bool {
 	fromFile := map[string]bool{}
 	data, err := os.ReadFile(path)
