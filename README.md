@@ -188,7 +188,7 @@ token is sent as `Simulator <jwt>`; it is ignored entirely when `SIMULATOR_API_S
 | `SIMULATOR_API_BASE_URL`      | No       | API base URL — set automatically by `set-environment`; overrides the profile (e.g. `http://localhost:9000/papi/1.0`) |
 | `SIMULATOR_ACCOUNT_URL`       | No       | Override the profile's OAuth account (SA) URL                                |
 | `SIMULATOR_OAUTH_CLIENT_ID`   | No       | OAuth2 client ID — on-prem deployments with a custom authorization server should set this to their own client ID; cloud (account.corezoid.com) users do not need it |
-| `SIMULATOR_ALLOW_INSECURE_API_SECRET` | No | Allow `SIMULATOR_API_SECRET` to be sent over plaintext HTTP to a non-local host. Without it the server refuses to start in that configuration (loopback is always exempt) |
+| `SIMULATOR_ALLOW_INSECURE_API_SECRET` | No | Allow `SIMULATOR_API_SECRET` to be sent over plaintext HTTP to a non-local host. Without it the server refuses to start in that configuration (loopback is always exempt). Parsed as a **boolean** — `1`/`true` opens it, `0`/`false`/anything unparseable keeps the guard closed |
 | `SIMULATOR_ANALYTICS_DISABLED` | No      | Set to any non-empty value to opt out of anonymous tool-call telemetry     |
 | `SIMULATOR_ANALYTICS_ENDPOINT` | No      | Override the telemetry ingest endpoint (built-in default: the Corezoid team's public analytics process) |
 | `SIMULATOR_ANALYTICS_CONV_ID`  | No      | Override the telemetry `conv_id` (default `1852976`)                       |

@@ -11,9 +11,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/auth"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/telemetry"
 	"github.com/mark3labs/mcp-go/server"
@@ -27,6 +29,39 @@ const version = mcpserver.DefaultVersion
 // over plaintext HTTP to a non-local host. Loopback is already exempt, so this
 // exists only for trusted-network on-prem gateways with no TLS.
 const allowInsecureAPISecretEnv = "SIMULATOR_ALLOW_INSECURE_API_SECRET"
+
+// apiBaseURLEnv is named here only to report where its value came from.
+const apiBaseURLEnv = "SIMULATOR_API_BASE_URL"
+
+// insecureAPISecretAllowed reports whether the operator really asked to send a
+// long-lived API key over plaintext HTTP.
+//
+// This is parsed as a boolean rather than the repo's usual "set to anything"
+// convention (SIMULATOR_ANALYTICS_DISABLED): the natural way to turn a switch off
+// is `=0` or `=false`, and under a non-empty test that DISABLES the guard — the
+// exact opposite of the intent, for the one credential that never expires and has
+// no in-product revocation. Anything unparseable is treated as "not allowed", so
+// the failure mode is a refusal to start with an explanatory message.
+func insecureAPISecretAllowed() bool {
+	v := strings.TrimSpace(os.Getenv(allowInsecureAPISecretEnv))
+	if v == "" {
+		return false
+	}
+	allowed, err := strconv.ParseBool(v)
+	return err == nil && allowed
+}
+
+// envSource says where a variable's value came from, for the startup log.
+func envSource(key string, fromDotEnv map[string]bool) string {
+	switch {
+	case fromDotEnv[key]:
+		return ".env"
+	case os.Getenv(key) != "":
+		return "the process environment"
+	default:
+		return "the profile default"
+	}
+}
 
 // installShutdownFlush flushes buffered telemetry events before the process
 // exits on SIGINT/SIGTERM (e.g. the MCP client terminating the server). Go's
@@ -48,11 +83,11 @@ func main() {
 	insecure := flag.Bool("insecure", false, "Skip TLS verification (self-signed on-prem gateways only)")
 	flag.Parse()
 
+	dotEnvPath := ".env"
 	if workDir := os.Getenv("SIMULATOR_WORK_DIR"); workDir != "" {
-		loadDotEnv(filepath.Join(workDir, ".env"))
-	} else {
-		loadDotEnv(".env")
+		dotEnvPath = filepath.Join(workDir, ".env")
 	}
+	fromDotEnv := loadDotEnv(dotEnvPath)
 
 	s, info, err := mcpserver.New(mcpserver.Options{
 		Profile:  *profileFlag,
@@ -68,16 +103,26 @@ func main() {
 	if apiKeyMode {
 		// Mode only — never the key, its length, its prefix or a fingerprint.
 		// This line lands in the host's MCP log pane, which the user may share.
-		log.Printf("auth: %s is set — OAuth login is disabled and ACCESS_TOKEN is ignored; requests use Authorization: Bearer <key>",
-			mcpserver.APISecretEnv)
+		// Naming the SOURCE of each half matters: loadDotEnv never overrides a
+		// value already in the environment, so a key exported in the developer's
+		// shell silently outranks the project's .env while the base URL still comes
+		// from that .env — the key then travels to a gateway it was not issued for,
+		// and nothing in the log used to say so. Sources only; never the value.
+		log.Printf("auth: %s is set — OAuth login is disabled and ACCESS_TOKEN is ignored; requests use Authorization: Bearer <key> (key from %s, %s from %s)",
+			mcpserver.APISecretEnv, envSource(mcpserver.APISecretEnv, fromDotEnv),
+			apiBaseURLEnv, envSource(apiBaseURLEnv, fromDotEnv))
 	}
 	if mcpserver.IsInsecureCredentialTransport(info.APIBaseURL) {
 		// A 12h JWT leaked on the wire is a bounded incident; an API key does not
 		// expire and has no in-product revocation, so refuse rather than warn.
-		if apiKeyMode && os.Getenv(allowInsecureAPISecretEnv) == "" {
+		if apiKeyMode && !insecureAPISecretAllowed() {
 			log.Fatalf("refusing to start: %s is a long-lived credential and %q would send it in cleartext to a non-local host. "+
 				"Use HTTPS, or set %s=1 to override on a trusted network.",
 				mcpserver.APISecretEnv, info.APIBaseURL, allowInsecureAPISecretEnv)
+		}
+		if apiKeyMode {
+			log.Printf("WARNING: %s=%s is set — the long-lived API key will be sent in cleartext to %q. Remove the override once the gateway has TLS.",
+				allowInsecureAPISecretEnv, os.Getenv(allowInsecureAPISecretEnv), info.APIBaseURL)
 		}
 		log.Printf("WARNING: API base URL %q uses plaintext HTTP to a non-local host — the auth token will be sent unencrypted. Use HTTPS.", info.APIBaseURL)
 	}
@@ -99,53 +144,31 @@ func main() {
 // loadDotEnv loads KEY=VALUE lines from path into the process environment,
 // without overriding values already set. Best-effort: a missing file is fine.
 //
-// The parser stays deliberately small, but it handles the shapes a *hand-written*
-// secret arrives in — quoted values, an `export ` prefix, and a UTF-8 BOM from
-// Notepad / PowerShell redirection. Machine-written keys (ACCESS_TOKEN and
-// friends) never hit those, but SIMULATOR_API_SECRET is pasted by a human and
-// each of them otherwise fails silently: a quoted key becomes part of the
-// Authorization header, while an `export ` prefix or a BOM makes the variable
-// simply not exist and drops the user back to OAuth with no explanation.
+// Returns the set of keys it actually set, so the startup log can say whether a
+// credential came from the file or from the process environment.
 //
-// Inline comments are NOT stripped: `#` is legal inside a secret, and treating
-// it as a delimiter would corrupt the value.
-func loadDotEnv(path string) {
+// The line shapes a *hand-written* secret arrives in — quoted values, an `export `
+// prefix, surrounding spaces — are handled by auth.ParseEnvLine, which the .env
+// WRITERS in that package match against too. Keeping one parser is the point: when
+// the reader accepted a shape the writer did not, a rewrite appended a duplicate
+// line and the stale first occurrence kept winning. The UTF-8 BOM that Notepad and
+// PowerShell redirection prepend is stripped here, before the first line is parsed.
+func loadDotEnv(path string) map[string]bool {
+	fromFile := map[string]bool{}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return
+		return fromFile
 	}
 	content := strings.TrimPrefix(string(data), "\uFEFF")
 	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		key, val, ok := strings.Cut(line, "=")
+		key, val, ok := auth.ParseEnvLine(line)
 		if !ok {
 			continue
 		}
-		key, val = strings.TrimSpace(key), strings.TrimSpace(val)
-		key = strings.TrimSpace(strings.TrimPrefix(key, "export "))
-		if key == "" || strings.ContainsAny(key, " \t") {
-			continue
-		}
-		val = trimMatchingQuotes(val)
 		if _, exists := os.LookupEnv(key); !exists {
 			_ = os.Setenv(key, val)
+			fromFile[key] = true
 		}
 	}
-}
-
-// trimMatchingQuotes removes one matching pair of surrounding single or double
-// quotes. A value that is quoted on one side only is left alone — that is more
-// likely to be part of the secret than a typo we should silently repair.
-func trimMatchingQuotes(val string) string {
-	if len(val) < 2 {
-		return val
-	}
-	first, last := val[0], val[len(val)-1]
-	if first == last && (first == '"' || first == '\'') {
-		return val[1 : len(val)-1]
-	}
-	return val
+	return fromFile
 }

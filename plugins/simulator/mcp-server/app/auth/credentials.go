@@ -55,17 +55,22 @@ func updateEnvFileMulti(path string, kv [][2]string) error {
 		}
 	}
 	for _, pair := range kv {
-		prefix := pair[0] + "="
 		found := false
 		for i, line := range lines {
-			if strings.HasPrefix(line, prefix) {
-				lines[i] = prefix + pair[1]
-				found = true
-				break
+			// Match on the parsed key, not a "KEY=" prefix: the loader also reads
+			// `export KEY=…` and indented lines, and matching only the bare shape
+			// appended a duplicate the loader then ignored in favour of the stale
+			// first occurrence. The line's own prefix is preserved on rewrite.
+			linePrefix, ok := envLineAssigns(line, pair[0])
+			if !ok {
+				continue
 			}
+			lines[i] = linePrefix + pair[0] + "=" + pair[1]
+			found = true
+			break
 		}
 		if !found {
-			lines = append(lines, prefix+pair[1])
+			lines = append(lines, pair[0]+"="+pair[1])
 		}
 	}
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600)
@@ -87,10 +92,11 @@ func removeEnvKey(path, key string) error {
 		return err
 	}
 
-	prefix := key + "="
 	var kept []string
 	for _, line := range strings.Split(string(data), "\n") {
-		if !strings.HasPrefix(line, prefix) {
+		// Same normalisation as the loader — an `export ACCESS_TOKEN=…` line used
+		// to survive a logout, and the token came back on the next start.
+		if _, assigns := envLineAssigns(line, key); !assigns {
 			kept = append(kept, line)
 		}
 	}
@@ -178,7 +184,7 @@ func Save(creds *Credentials) error {
 // from the .env file and from the in-process environment.
 //
 // SIMULATOR_API_SECRET is never touched: it is user-managed, and removeEnvKey
-// matches on the exact "ACCESS_TOKEN=" prefix. Clearing a leftover OAuth token
+// matches whole keys, so only ACCESS_TOKEN lines go. Clearing a leftover OAuth token
 // is still correct hygiene in API-key mode, so this is not gated on the mode.
 func Delete() error {
 	envMu.Lock()

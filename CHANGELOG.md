@@ -52,11 +52,26 @@
   re-point the gateway, since a key is scoped to one workspace on one gateway and switching would
   send it to a host it was not issued for. The plugin only ever reads the key: it is never written
   back to `.env`, logged, or included in telemetry. Because a key is long-lived, the server refuses
-  to start when the API base URL would send it over plaintext HTTP to a non-local host
-  (`SIMULATOR_ALLOW_INSECURE_API_SECRET=1` overrides), and stateless/SSE construction rejects the
-  mode outright as incompatible with per-request multi-tenant auth. Implemented as a single branch
-  in `auth.Load` plus the existing per-credential `TokenType`, so no header call site changed; the
-  `app/auth` package gets its first tests.
+  to start when the API base URL would send it over plaintext HTTP to a non-local host, and
+  stateless/SSE construction rejects the mode outright as incompatible with per-request multi-tenant
+  auth. That plaintext override (`SIMULATOR_ALLOW_INSECURE_API_SECRET`) is parsed as a **boolean**
+  rather than the repo's usual "set to anything" convention: the natural way to turn a switch off is
+  `=0`, and under a non-empty test that would have DISABLED the guard protecting the one credential
+  that never expires. Implemented as a single branch in `auth.Load` plus the existing per-credential
+  `TokenType`, so no header call site changed; the `app/auth` package gets its first tests. In
+  API-key mode the startup line now also names where each half came from (`.env` vs the process
+  environment) — `loadDotEnv` never overrides a value already in the environment, so a key exported
+  in a developer's shell can outrank the project's `.env` while the base URL still comes from that
+  file, and nothing in the log used to say so. Sources only; never the value.
+- **A `.env` line the loader could read but the writers could not find.** `loadDotEnv` accepts
+  `export KEY=value` and indented lines; `updateEnvFileMulti` / `removeEnvKey` matched a bare `KEY=`
+  prefix. So a rewrite of a key already present in one of those shapes **appended a second line** —
+  and the loader takes the FIRST occurrence, so `login`, `set-workspace` and `set-environment`
+  silently lost their new value on the next start, while `auth.Delete` left an `export ACCESS_TOKEN=`
+  line in place and the "cleared" token came straight back. Both sides now normalise through one
+  `auth.ParseEnvLine`, matching whole keys and preserving an existing `export` keyword on rewrite
+  (the user may be sourcing the file). A cross-package test drives loader and writers against each
+  other so the two cannot drift apart again.
 - **`simulator-app-generator` skill.** Generates a complete multi-page Smart Form app from a set
   of existing Corezoid process ids plus a product description: pulls every process, derives its
   real input/output contract from its `api_rpc_reply` nodes (declared `params` drift and are only
