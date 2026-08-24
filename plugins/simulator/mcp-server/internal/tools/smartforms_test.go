@@ -181,7 +181,10 @@ func TestSmartFormRuntimeOps(t *testing.T) {
 		}
 	})
 
-	t.Run("appSendForm carries query in the body", func(t *testing.T) {
+	// /send takes the query on the URL, not in the body: the handler builds
+	// `{ ...body, query, context }` with `query` = req.query, so a body-borne
+	// `query` is clobbered by the (empty) URL query and the session is dropped.
+	t.Run("appSendForm carries query in the URL, not the body", func(t *testing.T) {
 		c, rec := setup(t)
 		res := call(t, c, opByName(t, "appSendForm"), map[string]any{
 			"ref":       "chudo-market",
@@ -196,21 +199,24 @@ func TestSmartFormRuntimeOps(t *testing.T) {
 		if res.IsError {
 			t.Fatalf("appSendForm: unexpected error result: %+v", res.Content)
 		}
-		// /send takes query in the BODY (the handler reads body.query.*), unlike
-		// /get where it is the URL query string.
-		if rec.query != "" {
-			t.Errorf("appSendForm should not put query in the URL, got %q", rec.query)
+		q, err := url.ParseQuery(rec.query)
+		if err != nil {
+			t.Fatalf("parse query %q: %v", rec.query, err)
+		}
+		if got := q.Get("token"); got != "tok" {
+			t.Errorf("query[token] = %q, want %q (raw: %q)", got, "tok", rec.query)
+		}
+		if q.Get("query") != "" {
+			t.Errorf("query object leaked as a single %q key: %q", "query", rec.query)
 		}
 		body, ok := rec.body.(map[string]any)
 		if !ok {
 			t.Fatalf("expected object body, got %T", rec.body)
 		}
-		qb, ok := body["query"].(map[string]any)
-		if !ok {
-			t.Fatalf("body[query] should be an object, got %T", body["query"])
-		}
-		if qb["token"] != "tok" {
-			t.Errorf("body[query][token] = %v, want %q", qb["token"], "tok")
+		// A body-borne `query` would be silently overwritten by req.query, so it
+		// must NOT be sent there — a stale/duplicate key would only mislead.
+		if _, present := body["query"]; present {
+			t.Errorf("body must not carry `query` (the handler overwrites it with req.query): %v", body)
 		}
 	})
 

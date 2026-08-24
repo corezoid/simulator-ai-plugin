@@ -33,7 +33,10 @@ const (
 	// InQuery would wrongly send the whole object as a single value. The Smart Form
 	// page routes need it: the renderer calls
 	// `GET /pages/{acc}/{ref}/{env}/{page}?<query>` with whatever the previous
-	// step's `302 {nextPage, query}` handed it, so the keys are app-defined.
+	// step's `302 {nextPage, query}` handed it, so the keys are app-defined. The
+	// matching POST (/send) takes it on the URL too — its handler forwards
+	// `req.query` to the process as `body.query`, overwriting anything a caller
+	// put in the JSON body — so both use InQueryMap, not InBody.
 	InQueryMap ParamIn = "query_map"
 	// InPathBody sends one value to BOTH the path segment AND a body field — for
 	// backends that take the same value in both slots (e.g. the pages /send route

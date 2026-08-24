@@ -62,8 +62,14 @@ var smartFormOps = []Operation{
 				"Also the id of a `submitOnChange` FIELD when the submit was triggered by a value change rather than a click — the backend dispatches on this either way."},
 			{Name: "buttonData", In: InBody, Type: "object", Desc: "Optional extra payload carried by the button (e.g. a menu choice or auto-submit counter). " +
 				"Only `select` populates it on a submitOnChange event; `radio`/`check`/`toggle`/`edit` send `{}` exactly like a button click, so the changed value is read from `data`, not here."},
-			{Name: "query", In: InBody, Type: "object", Desc: "Query parameters currently on the page, as {key: value} — pass back the `query` you rendered the page with (see appGetPage). " +
-				"The handler receives it as `body.query.*` and many apps read per-session state (a token, a record id) from there as a fallback when a form carries none."},
+			// The /send route takes `query` on the URL, NOT in the body: the
+			// handler does `body: { ...body, query, context }` with `query` =
+			// req.query, so a body-borne `query` is overwritten by the (empty)
+			// URL query. Same transport as appGetPage; the Corezoid process
+			// still receives it as `body.query.*`.
+			{Name: "query", In: InQueryMap, Type: "object", Desc: "Query parameters currently on the page, as {key: value} — pass back the `query` you rendered the page with (see appGetPage). " +
+				"Flattened into the URL exactly as the renderer sends it; the handler forwards it to the process as `body.query.*`, and many apps read per-session state " +
+				"(a token, a record id) from there as a fallback when a form carries none."},
 		},
 	},
 }

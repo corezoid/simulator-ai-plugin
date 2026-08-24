@@ -99,9 +99,9 @@ page = appGetPage(..., page="home", query={"token": "…", "cardCode": "…"})  
 page = appGetPage(..., page="home")                                          # ❌ renders cold
 ```
 
-`appGetPage` puts the object in the URL query string (`?token=…&cardCode=…`, exactly as the
-renderer does); `appSendForm` puts it in the request body, because the `/send` handler reads
-`body.query`. You pass the same shape either way.
+Both tools put the object in the URL query string (`?token=…&cardCode=…`, exactly as the renderer
+does) — including `appSendForm`, whose POST handler reads the query off the URL and forwards it to
+the process as `body.query`. You pass the same shape either way.
 
 > A session token in the query is visible in the page URL. That is the platform's own documented
 > pattern and fine for a token, but it is the reason a password must never be put there — see
