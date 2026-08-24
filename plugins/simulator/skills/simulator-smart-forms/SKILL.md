@@ -367,18 +367,19 @@ All substitution is **server-side** — the renderer receives concrete values.
 | `contentLoop` | section array expansion | one template → N rows |
 | BBCode | `label`/`button`/`edit`/`check` titles | `[b] [i] [u] [color=#f00] [size=N] [br]`, and `[url=https://…]text[/url]` → clickable `<a target="_blank">` (inline link; `[iurl=…]` opens same-tab; renderer supports more, e.g. `[bg]`). Raw `<a>` HTML is escaped — use `[url]`. |
 
-> ⚠️ **Not every field can be templated.** `visibility` is validated against the literal
-> enum `visible|disabled|hidden` at **push** time, so `"visibility": "{{show_it}}"` is
-> rejected and **a page cannot vary visibility on `/get` at all** — only `changes[]` on
-> `/send` can. `styleClass` *can* be templated, which makes the two look symmetric when they
-> are not. To show an empty state on `/get`, drive a `label`'s **value** from the viewModel.
+> ⚠️ **Visibility may be a view-model placeholder — but nothing else about it is reactive.**
+> Form, section, and rendered-item `visibility` (in `header`, `modalHeader`, and `content`) may be
+> a **pure** view-model placeholder such as `"{{graphPreviewVisibility}}"`; the server resolves it
+> to `visible|disabled|hidden` before the page reaches the client. Malformed or embedded forms
+> (`"state-{{x}}"`, `"{{ x }}"`, a bare enum typo) are rejected at **push**, and `footer` is not
+> server-rendered so a placeholder there is rejected too. This is initial/server-render binding, not
+> a client-side expression: to reveal one field after another changes, use `submitOnChange` plus a
+> 200 `changes` response.
 >
-> ⚠️ And a `label` value may **never** be the empty string (nor an `image` an empty src) —
-> the renderer rejects both. Use a non-breaking space for a blank-looking label. For an image
-> use a **fetchable** `http(s)` placeholder URL (or an actor-attached asset): `image.value` is
-> loaded through the `/api/1.0/image?src=` proxy, which rejects a `data:` URI with
-> `400 "URL is not allowed"`. Together these rules decide how you
-> build every empty state: control the **text**, not the visibility.
+> ⚠️ A `label` value may **never** be the empty string (nor an `image` an empty src) — the renderer
+> rejects both. Use a non-breaking space for a blank-looking label. For an image use a **fetchable**
+> `http(s)` placeholder URL (or an actor-attached asset): `image.value` is loaded through the
+> `/api/1.0/image?src=` proxy, which rejects a `data:` URI with `400 "URL is not allowed"`.
 
 ### locale file format
 

@@ -199,6 +199,9 @@
   partials have no `.less` extension, `lessc` cannot read a `<(…)` process-substitution path
   (`EBADF`), and the npm package is `less` — a package literally named `lessc` exists and is not the
   compiler.
+- **Smart Form visibility placeholders rejected by `pushSmartForm`.** Page configs may use a pure
+  `{{viewModelKey}}` placeholder for form, section, and rendered-item `visibility`; validation now
+  accepts that server-resolved form while still rejecting malformed or embedded placeholders.
 - **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
   `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
   call — safe under the current single-threaded stdio transport, but a data race under `go test

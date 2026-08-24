@@ -18,7 +18,7 @@ type Rules struct {
 	// plus `row` and `draggable` (renderer-side layout wrappers absent from the swagger).
 	Classes map[string]bool
 
-	// Visibility is the set of valid visibility values (visible|disabled|hidden).
+	// Visibility is the set of valid resolved visibility values (visible|disabled|hidden).
 	Visibility map[string]bool
 
 	// SectionType is the set of valid section type values (body|block|modal|float).
