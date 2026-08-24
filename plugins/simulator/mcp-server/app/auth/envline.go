@@ -2,6 +2,10 @@ package auth
 
 import "strings"
 
+// bomPrefix is the UTF-8 byte order mark that Notepad and PowerShell's
+// output redirection put at the start of a file.
+const bomPrefix = "\uFEFF"
+
 // ParseEnvLine normalises one .env line into the key/value pair a reader sees.
 //
 // It is the single source of truth for what a line MEANS, because the loader
@@ -24,6 +28,13 @@ import "strings"
 // Inline comments are NOT stripped: `#` is legal inside a secret, and treating it
 // as a delimiter would corrupt the value.
 func ParseEnvLine(line string) (key, value string, ok bool) {
+	// The BOM belongs here rather than in the file readers: it is part of what a
+	// line MEANS, and leaving it to the loader alone put the readers and the
+	// writers back out of step on exactly the first line of a Notepad /
+	// PowerShell .env — the writers saw a key of "\uFEFFACCESS_TOKEN", missed the
+	// existing assignment, and appended a duplicate the loader then lost to.
+	// TrimSpace does not cover it: U+FEFF is not in unicode.IsSpace.
+	line = strings.TrimPrefix(line, bomPrefix)
 	line = strings.TrimSpace(line) // also drops a CRLF \r
 	if line == "" || strings.HasPrefix(line, "#") {
 		return "", "", false
@@ -75,7 +86,17 @@ func envLineAssigns(line, key string) (prefix string, ok bool) {
 	if !parsed || lineKey != key {
 		return "", false
 	}
-	if i := strings.Index(line, key); i >= 0 {
+	// Search only the assignment's left-hand side, and take the LAST hit: the key
+	// is the final token before "=". strings.Index over the whole raw line finds
+	// the first substring match instead, so `export port=1` keyed on "port" hit
+	// the "port" inside "export" and rewrote the line as `export=2` — renaming
+	// the variable. No current key can trigger that (all are UPPER_SNAKE), but
+	// this helper reads as general-purpose, so it should be.
+	eq := strings.Index(line, "=")
+	if eq < 0 {
+		return "", true // unreachable: ParseEnvLine already required an "="
+	}
+	if i := strings.LastIndex(line[:eq], key); i >= 0 {
 		return line[:i], true
 	}
 	return "", true

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/auth"
@@ -99,6 +100,9 @@ func TestLoadDotEnvAgreesWithTheEnvWriters(t *testing.T) {
 		"  ACCESS_TOKEN=old",
 		`ACCESS_TOKEN="old"`,
 		"export\tACCESS_TOKEN=old",
+		// A Notepad / PowerShell .env: the BOM sits on the first line, which is
+		// exactly the line the writers have to match.
+		"\uFEFFACCESS_TOKEN=old",
 	} {
 		t.Run(shape, func(t *testing.T) {
 			dir := t.TempDir()
@@ -106,6 +110,16 @@ func TestLoadDotEnvAgreesWithTheEnvWriters(t *testing.T) {
 			path := filepath.Join(dir, ".env")
 			if err := os.WriteFile(path, []byte(shape+"\n"), 0o600); err != nil {
 				t.Fatalf("write .env: %v", err)
+			}
+
+			// Read it first. Asserting only the post-Save value is not enough: if
+			// the loader and the writers are BOTH blind to a shape they stay
+			// consistent with each other while silently never loading the key at
+			// all, and the round-trip below still passes.
+			os.Unsetenv("ACCESS_TOKEN")
+			loadDotEnv(path)
+			if got := os.Getenv("ACCESS_TOKEN"); got != "old" {
+				t.Fatalf("loader did not read this shape: ACCESS_TOKEN = %q, want %q", got, "old")
 			}
 
 			if err := auth.Save(&auth.Credentials{AccessToken: "new"}); err != nil {
@@ -116,6 +130,10 @@ func TestLoadDotEnvAgreesWithTheEnvWriters(t *testing.T) {
 			if got := os.Getenv("ACCESS_TOKEN"); got != "new" {
 				body, _ := os.ReadFile(path)
 				t.Errorf("after Save, ACCESS_TOKEN = %q, want %q; .env is:\n%s", got, "new", body)
+			}
+			if n := countAssignments(t, path, "ACCESS_TOKEN"); n != 1 {
+				body, _ := os.ReadFile(path)
+				t.Errorf("after Save, .env holds %d ACCESS_TOKEN assignments, want 1 (a rewrite must not append); .env is:\n%s", n, body)
 			}
 
 			if err := auth.Delete(); err != nil {
@@ -186,4 +204,22 @@ func TestInsecureAPISecretAllowed(t *testing.T) {
 			t.Errorf("insecureAPISecretAllowed() with %q = %v, want %v", c.set, got, c.want)
 		}
 	}
+}
+
+// countAssignments reports how many lines assign key, as the loader sees them.
+// A rewrite that appends instead of replacing leaves two, and the loader then
+// takes the stale first one.
+func countAssignments(t *testing.T, path, key string) int {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read .env: %v", err)
+	}
+	n := 0
+	for _, line := range strings.Split(string(data), "\n") {
+		if k, _, ok := auth.ParseEnvLine(line); ok && k == key {
+			n++
+		}
+	}
+	return n
 }

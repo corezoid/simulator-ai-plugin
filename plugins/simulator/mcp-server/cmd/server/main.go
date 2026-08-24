@@ -159,8 +159,9 @@ func loadDotEnv(path string) map[string]bool {
 	if err != nil {
 		return fromFile
 	}
-	content := strings.TrimPrefix(string(data), "\uFEFF")
-	for _, line := range strings.Split(content, "\n") {
+	// No BOM strip here: auth.ParseEnvLine does it, so the loader and the .env
+	// writers cannot drift apart on the first line of the file.
+	for _, line := range strings.Split(string(data), "\n") {
 		key, val, ok := auth.ParseEnvLine(line)
 		if !ok {
 			continue
