@@ -62,6 +62,7 @@
   call — safe under the current single-threaded stdio transport, but a data race under `go test
   -race` if a concurrent transport (HTTP/SSE) were ever added. Now uses `atomic.Pointer[string]`,
   matching the `atomic.Bool` discipline already used for the telemetry `enabled` flag.
+- **Codex MCP startup no longer depends on `CLAUDE_PLUGIN_ROOT`.** The launcher now preserves the user's workspace in `SIMULATOR_WORK_DIR` while resolving the installed plugin root separately, so Codex can complete the MCP initialize handshake after a marketplace install.
 
 ## [2.5.0] - 2026-07-14
 
