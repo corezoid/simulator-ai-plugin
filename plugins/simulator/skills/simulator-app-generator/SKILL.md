@@ -75,9 +75,17 @@ Do **not** hand-author `.conv.json` files yourself when the Corezoid plugin is a
 | Folder id | one Corezoid folder id — pull it and use every process inside |
 | Local paths | already-pulled `<ID>_<Title>.conv.json` files |
 | **Product description** (required) | free text: who the users are, what the app is for |
+| **Design intent** (recommended) | brand palette / logo / a reference site or app, and the device mix |
 
 If the description is missing or vague, ask **once** for: who uses the app, what they should
 be able to do, and whether it needs a login. Do not start designing without it.
+
+**Ask for the design intent in the same breath** — brand colours or a logo, a reference app or
+site to aim at, and whether the audience is phone-first. One extra question here is the whole
+difference between an app that looks *designed* and one that looks *generated*; §5.3a turns the
+answer into a design brief. If the user has no preference, **state the defaults you will use**
+rather than leaving them implicit — an unstated default is how a design decision gets made by
+accident.
 
 ---
 
@@ -356,10 +364,34 @@ Naming conventions that keep the layers in sync:
 - Buttons: `<verb>_btn` (`login_btn`, `submit_complaint_btn`).
 - Hidden session carriers: `__`-prefixed (`__token`, `__cardCode`).
 
+### 5.3a The design brief — the look is decided here, not in Phase 8
+
+Phase 8 (§10) makes the app *branded*. It cannot make it *designed*: archetype, density,
+hierarchy and which states exist are all fixed by the page configs you author in Phase 4, and by
+then a stylesheet can only recolour what the JSON already committed to. So `app-plan.md` carries
+a short design brief next to the page map, and it goes through the same gate.
+
+One screen is enough, but every row has to have an answer:
+
+| Decision | Concretely |
+|---|---|
+| **Archetype per page** | auth card (`pg-auth`, ~428px) / content list / table / wizard step / form — this fixes the `styleClass` set of §6.1 |
+| **Tokens** | brand, ink, surface, line, one colour per status, and the font. They land in `styles/colors_fonts` in **Phase 4**, provisional values included |
+| **Spacing scale** | one scale (e.g. 4-8-12-16-20-32) for the whole app. Ad-hoc per-page padding is the single biggest reason a generated app reads as assembled rather than designed |
+| **Type scale** | 3–4 sizes with roles (page title / card title / body / meta). Past four, the hierarchy stops being one |
+| **Density & device** | phone-first or desktop-first, and which breakpoints you honour — `simulator-styles` uses **375 / 820 / 1180** |
+| **Every state of every data page** | loading, empty, error, no-session. §7.7 puts a **30 s floor** on the `api_rpc` semaphor, so the bad case is a real half-minute wait, not a flicker — and per §6 you express these as **text**, never as visibility |
+| **Component inventory** | the ≤6 components the whole app is built from (button, input, card, table row, chip, toast). One look each, reused everywhere |
+
+The brief is also what keeps Phase 8 from turning into a rewrite: tokens and `styleClass` hooks
+that arrive after nine page configs exist mean editing all nine again — the same argument §6.1
+makes for `styleClass`.
+
 ### 5.4 Approval gate
 
-Show the page map, the coverage table, and a navigation diagram. Get an explicit **yes**
-before building anything. This is the last cheap moment to change the design.
+Show the page map, the coverage table, the navigation diagram **and the design brief**. Get an
+explicit **yes** before building anything. This is the last cheap moment to change the design —
+visual included: after Phase 4 a layout change is nine config edits, not one.
 
 ---
 
@@ -464,6 +496,11 @@ an app rather than a broken form:
 .visually_hidden { position:absolute; width:1px; height:1px; margin:-1px; padding:0;
   border:0; white-space:nowrap; clip-path:inset(100%); clip:rect(0 0 0 0); overflow:hidden; }
 ```
+
+Put the design brief's tokens into `colors_fonts` **now**, provisional values and all. Everything
+downstream inherits them (`init_styles` and every `pages/<id>/style`, with no `@import`), so a
+placeholder palette here is one file to edit in Phase 8, while a missing one is a sweep through
+every sheet you wrote in between.
 
 Give **every page's `grid` a `styleClass`** (`"pg pg-<pageId>"`) while authoring the config — it is
 the only hook that lets the stylesheet treat auth screens differently from app screens, and adding
@@ -843,7 +880,9 @@ updateSmartFormEnv(actorId="…", env="production", apiLogin=…, apiSecret=…,
 
 ## 9. Phase 7 — Test end-to-end, and repair
 
-Three layers. Run them in order; each is cheap relative to the next.
+Three machine layers. Run them in order; each is cheap relative to the next. The **human visual
+pass is a fourth layer and it lives in §10.2**, after the theme lands — there is nothing worth
+reviewing against the design brief while the app is still unbranded.
 
 ### 9.1 L1 — Static
 
@@ -977,6 +1016,54 @@ in the imported partials.
 
 Re-run L1 afterwards — styles don't change page config, but the push must stay clean.
 
+### 10.1 The quality bar — what "designed" has to mean here
+
+Hand these to `simulator-styles` as acceptance criteria, not as taste. Every one is checkable, and
+every one is something a generated app gets wrong unless it was asked not to:
+
+- **One hierarchy per page.** Page title → card titles → body → meta, using the type scale from
+  §5.3a. If two things carry the same size and weight, the user reads neither of them first.
+- **The spacing and type scales, everywhere.** No one-off `padding: 13px` because a card looked
+  tight.
+- **Four states on every interactive component** — rest, hover, `:focus-visible`, disabled/loading.
+  A re-skin that sets only `background` and `border` drops the browser's default focus outline and
+  the app becomes keyboard-unusable; re-state it explicitly
+  (`outline: 2px solid @brand; outline-offset: 2px`).
+- **Contrast ≥ 4.5:1** for body text, ≥ 3:1 for large text and for control borders — computed from
+  the tokens, not eyeballed. Grey placeholder text on white is the usual casualty.
+- **Tap targets ≥ 44px.** The starter-kit button in `simulator-styles` (`padding: 14px 20px`,
+  `font-size: 15px`, `line-height: 1`) computes to ≈43px, so set `min-height: 44px` instead of
+  trusting the padding to get you there.
+- **Tables become cards under the mobile breakpoint** (`thead {display:none}` +
+  `tbody {display:flex; flex-direction:column}` — the recipe is in `simulator-styles` → Pattern
+  catalogue). Otherwise a phone user gets a horizontally scrolling grid.
+- **Every image has a chosen placeholder.** §6 rejects an empty `src` *and* `data:` URIs, so the
+  empty state of an image is a real fetchable URL you picked — not whatever the backend omitted.
+- **Transitions stay in the 150–300 ms band** the starter kit uses, and only on hover/press. No
+  on-load animation: on a page whose first paint can legitimately be 30 s away (§7.7) it reads as
+  jank, not polish.
+- **Nothing user-visible hardcoded past the locale layer** (§6). A page with a branded card sitting
+  above a Code-node string in the wrong language is not a designed page.
+
+### 10.2 L4 — one human visual pass
+
+**No automated layer in this pipeline has seen the app.** `pushSmartForm` validates JSON,
+`appGetPage` returns server-resolved config, and neither compiles Less nor expands BBCode (§9.3).
+So before you call the app done, open the `develop` environment in a browser — the user's, or
+drive it yourself if a browser tool is available — and check the render against the brief:
+
+- **every page at the phone width first**, then the other two breakpoints of §5.3a;
+- the four states of §10.1 on one button and one input — tab to them: is the focus ring visible?
+- the **empty and error states**, not just the happy path — they are what the app shows on the day
+  the backend is down;
+- the **DevTools console**: an unknown config key is stored, served clean and only rejected in the
+  browser (§9.3), so this is the only place it surfaces;
+- that the stylesheet applied at all — a `/* Less Error … */` comment renders the page unstyled and
+  nothing else reports it.
+
+Fix in the owning layer (§9.4), then re-run L1. **Report what you could not check** — "I never
+rendered this in a browser" is a finding, not a footnote.
+
 ---
 
 ## 11. Phase 9 — Deploy and report
@@ -989,7 +1076,10 @@ Final report:
 - Middleware process id (and any sub-process aliases).
 - The **coverage table** — every input process and where it ended up.
 - Test results per layer, including anything that is expected-to-fail (§9.2).
-- Known gaps: unknown array shapes, unprobed processes, anything the user chose to drop.
+- The **visual pass** (§10.2): which pages were rendered, at which widths, by whom — and which were
+  not looked at by anyone.
+- Known gaps: unknown array shapes, unprobed processes, anything the user chose to drop, and any
+  quality-bar item (§10.1) you knowingly left unmet.
 
 ---
 
@@ -1019,6 +1109,12 @@ Final report:
 12. **Edit `develop` only**; `pullSmartForm` before editing, always.
 13. **Don't rename pulled `.conv.json` files** — the `<ID>_` prefix is load-bearing.
 14. **Report failures honestly.** If L3 doesn't go green, say exactly what fails.
+15. **Decide the look before Phase 4.** Archetypes, tokens, the spacing/type scales and the state
+    inventory belong in `app-plan.md` and go through the gate (§5.3a). Phase 8 can rebrand a page;
+    it cannot re-lay-out one, because the layout is in the config you already pushed.
+16. **Something human has to look at it.** No layer here compiles CSS, so a clean push plus a green
+    L3 is fully compatible with an unstyled, unusable page. One browser pass at the phone
+    breakpoint is part of *done* (§10.2), and whatever nobody looked at goes in the report.
 
 ---
 

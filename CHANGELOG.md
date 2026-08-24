@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- simulator-app-generator: design quality is now an explicit deliverable — a gated design brief
+  in Phase 3 (§5.3a), tokens seeded in Phase 4, an acceptance-criteria quality bar (§10.1) and a
+  mandatory human visual pass (§10.2)
+
 ## [2.7.0]
 
 ### Changed
