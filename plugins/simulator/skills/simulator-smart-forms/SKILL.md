@@ -124,15 +124,38 @@ pullSmartForm(actorId="<uuid>")
 3.  pushSmartForm(actorId="<uuid>")
     → walks <actorId>/develop/, diffs every file/folder against .manifest.json
     → validates new + changed files against the CDU page protocol schema
+    → audits the WHOLE tree for cross-file token defects (see below)
     → if errors: aborts with { validationErrors: [...] } — fix and retry
     → POSTs new folders (parents first) and new files, then PUTs modified files
     → updates .manifest.json with returned ids + content hashes
-    → returns { created: { folders, files }, updated, unchanged, orphanFiles }
+    → returns { created: { folders, files }, updated, unchanged, orphanFiles, warnings? }
 
 4.  Deploy (when ready to publish):
     deploySmartForm(actorId="<uuid>")
     → deploys develop → production; returns { releaseId, releaseNumber, status }
 ```
+
+### The cross-file token audit (`validationErrors` vs `warnings`)
+
+Per-file schema validation cannot see whether a `[[key]]` resolves or a `{{key}}` has a default —
+those need the locale and viewModel files alongside the page. `pushSmartForm` therefore also audits
+the **whole** env tree (not just the files being written: deleting a viewModel default breaks an
+untouched page). The split follows what the runtime can still rescue:
+
+| Finding | Where | Why |
+|---|---|---|
+| `[[key]]` in neither app `locale` nor that page's `locale`, **and** that page or one of its locale files is in this push | **`validationErrors`** — push aborts | locale resolves from files only; nothing at runtime can supply it, so it always reaches the browser as the literal text `[[key]]` |
+| the same miss in a page **nobody touched** in this push | `warnings` (tagged `pre-existing`) | it was already live before the push; blocking would strand an unrelated fix, since `pushSmartForm` has no force flag |
+| `{{key}}` with no `viewModel` default | `warnings` | the bound Corezoid process returns a per-request viewModel merged over the defaults, so it may be filled at runtime — it renders literally only when the backend call fails |
+| a `label`/`image` whose whole value is `{{key}}` and whose default is `""` | `warnings` | the renderer rejects an empty value outright; use a non-breaking space (label) or a **fetchable** placeholder URL (image — a `data:` URI is rejected by the image proxy) |
+| a `viewModel` default no page or definition references | `warnings` | dead key, usually left behind by a removed component |
+| a section with **literal** `contentLoop` entries missing a key its template uses | `warnings` | those rows render the literal `{{key}}` — checked per entry, and named |
+
+A **templated** `contentLoop` (`"contentLoop": "{{promos_loop}}"`) is backend-filled, so the
+placeholders inside its `content` template are not viewModel keys and are never reported. Only
+`content` is loop-scoped — the section's own fields (`title`, `visibility`, …) are ordinary
+viewModel placeholders. `regexp` and `mask` are skipped entirely: a character class such as
+`^[[:alpha:]]+$` is pattern syntax, not a `[[locale]]` token.
 
 ---
 
@@ -290,11 +313,16 @@ Every item has `class` + base fields (`id`, `value`, `visibility`, `required`, `
 
 ### Data & navigation components
 
+> **`value`, never `id`, is the key in an option or column list** — `table.head[]`,
+> `tab.options[]`, `stepper.options[]`. Cells of a table row live in `body[].options[]`, not as
+> direct row properties. The wrong shape passes the server and fails only in the browser
+> (`"head[0].id" is not allowed`); see `cdu-page-protocol.md` §5.1 and §10.1.
+
 | `class` | Notes |
 |---|---|
-| `table` | `head: [{id,title}]`, `body: [{<id>: value}]`; `type`: `default` `radio` `check`; `submitOnChange`, `submitOnScroll` |
-| `tab` | `options: [{id,title}]`; `value` = selected id; `submitOnChange` |
-| `stepper` | `options: [{id,title}]`; `value` = step; `extra.direction` |
+| `table` | `head: [{value,title}]` — the column key is **`value`**; `body: [{value: <rowId>, options: [{value: <columnKey>, title: <cellText>}]}]`; `type`: `default` `radio` `check`; `submitOnChange`, `submitOnScroll` |
+| `tab` | `options: [{value,title}]`; `value` = selected option's `value`; `submitOnChange` |
+| `stepper` | `options: [{value,title,completed}]`; `value` = current option's `value`; `extra.mobileVisible` only |
 | `mainMenu` | Nested navigation; `options` tree |
 
 ### File components
@@ -338,6 +366,20 @@ All substitution is **server-side** — the renderer receives concrete values.
 | `"$ref": "#/button"` | `definitions/button` file | inlined at serve time |
 | `contentLoop` | section array expansion | one template → N rows |
 | BBCode | `label`/`button`/`edit`/`check` titles | `[b] [i] [u] [color=#f00] [size=N] [br]`, and `[url=https://…]text[/url]` → clickable `<a target="_blank">` (inline link; `[iurl=…]` opens same-tab; renderer supports more, e.g. `[bg]`). Raw `<a>` HTML is escaped — use `[url]`. |
+
+> ⚠️ **Visibility may be a view-model placeholder — but nothing else about it is reactive.**
+> Form, section, and rendered-item `visibility` (in `header`, `modalHeader`, and `content`) may be
+> a **pure** view-model placeholder such as `"{{graphPreviewVisibility}}"`; the server resolves it
+> to `visible|disabled|hidden` before the page reaches the client. Malformed or embedded forms
+> (`"state-{{x}}"`, `"{{ x }}"`, a bare enum typo) are rejected at **push**, and `footer` is not
+> server-rendered so a placeholder there is rejected too. This is initial/server-render binding, not
+> a client-side expression: to reveal one field after another changes, use `submitOnChange` plus a
+> 200 `changes` response.
+>
+> ⚠️ A `label` value may **never** be the empty string (nor an `image` an empty src) — the renderer
+> rejects both. Use a non-breaking space for a blank-looking label. For an image use a **fetchable**
+> `http(s)` placeholder URL (or an actor-attached asset): `image.value` is loaded through the
+> `/api/1.0/image?src=` proxy, which rejects a `data:` URI with `400 "URL is not allowed"`.
 
 ### locale file format
 
@@ -610,3 +652,4 @@ resulting bound process to the Smart Form env via `corezoidCredentials` / `procI
 | `$CLAUDE_PLUGIN_ROOT/docs/user-flows/cdu-page-protocol.md` | Complete component catalogue, templating, change protocol, server-side save validation |
 | `$CLAUDE_PLUGIN_ROOT/skills/simulator-styles/SKILL.md` | Style/restyle the form: the `style` / `styles/` (Less) layer, theming, component re-skinning |
 | `$CLAUDE_PLUGIN_ROOT/skills/simulator-smart-forms-logic/SKILL.md` | Author + bind the Corezoid backend processes for this Smart Form |
+| `$CLAUDE_PLUGIN_ROOT/skills/simulator-app-generator/SKILL.md` | Generate a WHOLE app (many pages + middleware) from a set of existing Corezoid processes, instead of authoring pages one at a time |

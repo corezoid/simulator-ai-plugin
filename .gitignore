@@ -22,3 +22,6 @@ dump.rdb
 # Kiro
 .env
 .kiro
+
+# macOS
+.DS_Store

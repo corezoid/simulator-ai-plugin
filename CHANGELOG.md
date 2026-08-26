@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- simulator-app-generator: design quality is now an explicit deliverable — a gated design brief
+  in Phase 3 (§5.3a), tokens seeded in Phase 4, an acceptance-criteria quality bar (§10.1) and a
+  mandatory human visual pass (§10.2)
+
 ## [2.7.0]
 
 ### Changed
@@ -43,6 +50,47 @@
 ## [Unreleased]
 
 ### Added
+- **API-key authentication (`SIMULATOR_API_SECRET`).** A second, non-interactive auth mode for CI,
+  headless runs and service integrations: set a workspace access key in `.env` and every request is
+  sent as `Authorization: Bearer <key>` instead of the OAuth `Simulator <jwt>`. The key takes
+  precedence over `ACCESS_TOKEN` and saved OAuth credentials, and the OAuth flow is disabled end to
+  end — `login` returns an explanation instead of opening a browser (so the telemetry-email
+  elicitation never fires), `auth.Save` refuses to write a token, and `set-environment` refuses to
+  re-point the gateway, since a key is scoped to one workspace on one gateway and switching would
+  send it to a host it was not issued for. The plugin only ever reads the key: it is never written
+  back to `.env`, logged, or included in telemetry. Because a key is long-lived, the server refuses
+  to start when the API base URL would send it over plaintext HTTP to a non-local host, and
+  stateless/SSE construction rejects the mode outright as incompatible with per-request multi-tenant
+  auth. That plaintext override (`SIMULATOR_ALLOW_INSECURE_API_SECRET`) is parsed as a **boolean**
+  rather than the repo's usual "set to anything" convention: the natural way to turn a switch off is
+  `=0`, and under a non-empty test that would have DISABLED the guard protecting the one credential
+  that never expires. Implemented as a single branch in `auth.Load` plus the existing per-credential
+  `TokenType`, so no header call site changed; the `app/auth` package gets its first tests. In
+  API-key mode the startup line now also names where each half came from (`.env` vs the process
+  environment) — `loadDotEnv` never overrides a value already in the environment, so a key exported
+  in a developer's shell can outrank the project's `.env` while the base URL still comes from that
+  file, and nothing in the log used to say so. Sources only; never the value.
+- **A `.env` line the loader could read but the writers could not find (pre-existing).**
+  `loadDotEnv` trims a line before splitting it, so it has always read `  KEY=value` and
+  `KEY = value`; `updateEnvFileMulti` / `removeEnvKey` matched a bare `KEY=` prefix and did not. So
+  a rewrite of a key already present in one of those shapes **appended a second line** — and the
+  loader takes the FIRST occurrence, so `login`, `set-workspace` and `set-environment` silently lost
+  their new value on the next start, while `auth.Delete` left the line in place and the "cleared"
+  token came straight back. This predates the API-key work and affected `ACCESS_TOKEN` /
+  `WORKSPACE_ID` on any indented `.env`. Both sides now normalise through one `auth.ParseEnvLine`,
+  matching whole keys and preserving the file's BOM and the author's indentation on rewrite. A
+  cross-package test drives loader and writers against each other so the two cannot drift apart
+  again. `.env` is not a shell script, so `export KEY=value` is deliberately NOT an assignment —
+  both sides skip it alike.
+- **`simulator-app-generator` skill.** Generates a complete multi-page Smart Form app from a set
+  of existing Corezoid process ids plus a product description: pulls every process, derives its
+  real input/output contract from its `api_rpc_reply` nodes (declared `params` drift and are only
+  a cross-check), designs a page map that covers all of them, builds the Smart Form and the
+  bridging Corezoid middleware process that calls them via `api_rpc`, binds both envs, then
+  verifies end-to-end (`lint-process` + `pushSmartForm`, synthetic `run-task` payloads, and a
+  live `appGetPage`/`appSendForm` drive) with a self-repair loop. Adds
+  `docs/user-flows/app-generation.md` with the extraction algorithm, middleware skeleton, and
+  test-payload catalogue.
 - **Anonymous tool-call telemetry + opt-in email.** The MCP server now sends anonymous usage
   events (tool name, duration, error type, API hostname, transport, server version, a
   per-installation UUID, and MCP client name/version) to the same Corezoid ingest process
@@ -57,6 +105,186 @@
 - **Graph import/export tools — `exportGraph`, `importGraph`, `uploadGraphFile`, `getTaskStatus`.** Wraps the pong-server async task API so a workspace graph (actors, edges, forms, and optionally attachments / transactions / processes / users / balances) can be exported to a `.graph` archive or re-imported, mirroring the UI's Export/Import buttons — distinct from the existing `pullGraphFile`/`pushGraphFile` developer sync tools, which edit a single layer's YAML and never touch `.graph` archives. `exportGraph` requires at least one of `actors`/`forms`/`allWorkspace`; `uploadGraphFile` accepts a `.graph` file as base64 or a public URL (capped at 100 MiB either way) and returns a storage `fileName` for `importGraph`; `getTaskStatus` polls a task by id and, for a completed export, returns a ready-to-share `downloadUrl` alongside the raw `details.file.fileName`.
 
 ### Fixed
+- **Actionable 401/403 errors.** A rejected credential used to surface as a bare
+  `API returned 401: …` with no clue whether the key, `WORKSPACE_ID` or the environment was wrong.
+  Both HTTP stacks now append a mode-aware remediation hint (never containing credential material,
+  and suppressed in stateless mode, where the credential came from the caller).
+- **`.env` parser silently mangled hand-written values (pre-existing).** Quoted values became part
+  of the Authorization header (`Bearer "abc"`), and a UTF-8 BOM (Notepad / PowerShell) left the
+  first line's variable unset with no explanation. Machine-written keys never hit these, but a
+  hand-pasted `ACCESS_TOKEN` already could, and `SIMULATOR_API_SECRET` always is. Inline `#` is
+  still treated as part of the value.
+- **`ecore.EnsureAuth` never cleared its cached Authorization header.** It only overwrote the
+  process-global cache on success, so a removed or revoked credential would keep being sent by
+  engine tools while the curated tools reported "not authenticated". The cache is now authoritative.
+- **`serverInfo.version` reported `2.1.0` while every manifest was at `2.7.0` (#89).** The version
+  returned in the MCP `initialize` handshake came from two stale Go consts (`cmd/server`'s and
+  `mcpserver.defaultVersion`) that `scripts/release.sh` never bumped — it only touched the six
+  manifests. Collapsed them into one exported source of truth, `mcpserver.DefaultVersion`, which
+  `cmd/server` now reads; `release.sh` bumps it in lockstep with the manifests, and a new
+  `TestDefaultVersionMatchesManifest` fails CI if it ever drifts again. Also bumped
+  `.kiro-plugin/plugin.json`, which had fallen a release behind (`2.5.0`).
+- **`loadSysForms` cached transient failures and could serve valid data alongside a stale error
+  (#87).** The success path never cleared `sysFormsErr`, and both failure paths cached the error
+  with `sysFormsLoaded=true`; in the stateless (SSE) server, a failing and a succeeding request
+  racing on the same workspace could leave the cache permanently `{validForms, staleErr}`, after
+  which every caller (`if sysErr != nil …`) silently stopped resolving form-name→id until restart.
+  Now only successful loads are cached (a failure is retried, never poisoned), the success write
+  runs under a double-check so a concurrent winner is reused rather than clobbered, and the unused
+  `sysFormsErr` field is removed.
+- **`createEdgeLink` ignored the per-item `error` flag from `mass_links` (#88).** The response's
+  `error bool` was parsed but never checked, so an `{error:true, data:{id:…}}` item would be read
+  as a created edge and recorded as a live link — a silent ghost. The success branch is now guarded
+  on `!resp.Data[0].Error`. Defensive: the current backend strips the id from a failed item, so
+  there is no active data loss today, but the contract is now enforced.
+- **`pushSmartForm` could not see cross-file token defects, so an unresolved `[[key]]` shipped
+  silently.** `cduschema.ValidateFile` is per-file by signature — it can never tell whether a
+  page's `[[key]]` resolves against the locale files or whether a `{{key}}` has a viewModel default
+  — and the save endpoint stores page source opaquely, so nothing reported it until a literal
+  `[[key]]` appeared in the browser. New `cduschema.ValidateTree` audits the whole env tree (not
+  only the files being written: deleting a viewModel default breaks an untouched page) and
+  `pushSmartForm` runs it alongside the per-file pass. A missing **locale** key is an error (locale
+  resolves from files only; nothing at runtime can supply it); a missing **viewModel** default is a
+  warning (the bound process may fill it per request). Also reports a `label`/`image` bound to a
+  default of `""` (the renderer rejects an empty value), a default no page references, and — for a
+  *literal* `contentLoop` — the exact entries missing a key the template uses. Placeholders inside a
+  *templated* `contentLoop` are backend-filled and never reported, so list pages stay quiet; only a
+  section's `content` is loop-scoped, and `regexp`/`mask` are skipped entirely so a character class
+  like `^[[:alpha:]]+$` is not read as a locale token. A locale miss blocks only when the page or one
+  of the locale files feeding it is part of the push — the same miss in an untouched page is
+  pre-existing debt and is reported as a warning, because `pushSmartForm` has no force flag and
+  aborting on it would strand an unrelated fix. Warnings are surfaced on a successful push under a
+  new `warnings` field.
+- **`pushSmartForm` accepted item keys and nested shapes the renderer then rejected.** The swagger
+  sets `additionalProperties: false` nowhere, so the save endpoint stores a typo'd `visibilty` or a
+  `head[].id` verbatim and the defect surfaces only as a console error in the browser — the item
+  simply never hides, or the column list renders empty. `cduschema` now derives, from the bundled
+  swagger, the property surface of every item `class` and of the nested spots where the schema *is*
+  precise (`extra`, `options[]`, a table's `head[]` / `body[]`), and `ValidateFile` rejects a key no
+  variant declares. The allowlist is the **union** over every schema variant of a class, because the
+  swagger splits one class across type variants that each redeclare only part of the surface
+  (`value` is on `Edit-int` but not on `Edit-default`) — checking a single variant would reject
+  valid config. The union is then widened with the fields the
+  renderer accepts but the swagger omits — the §4 base envelope (`value`, `required`, `error`,
+  `errorMsg`, `submitOnChange`, `extra`) plus the §5 rows the swagger under-describes
+  (`mainMenu.options`, `carousel.items`, `comments.title`, `timer.extra.duration`,
+  `file.extra.{downloadUrl,uploadUrl,auth}`, `upload.extra.compression`,
+  `attachment.extra.downloadUrl`) — because the derived union alone was NARROWER than the documented
+  protocol and rejected those shapes outright. `TestProbeDocumentedKeysPresentInUnion` now walks the
+  whole §5 table rather than a hand-picked subset, so a swagger update that drops a real key fails
+  the tests instead of blocking users' pushes; a class the swagger never described (`row`,
+  `draggable`) keeps no rule and is skipped rather than rejected. Also transcribed the renderer-only
+  rules the swagger cannot express (it carries no `minLength` anywhere): a `label`/`image` `value`
+  may not be an empty string, and an `image` `value` may not be a `data:` URI — the renderer proxies
+  it through `/api/1.0/image?src=`, which rejects the scheme with `400 "URL is not allowed"`.
+  Documented in `cdu-page-protocol.md` §5.1 / §10.1.
+- **App-generator docs: the callback `api` node snippet was incomplete and failed `lint-process`.**
+  All three copies of it (`simulator-smart-forms-logic` §2.7/§2.8, `simulator-app-generator` §7.2,
+  `app-generation.md` §4.4) omitted `format`, `send_sys`, `debug_info`, `cert_pem` and
+  `max_threads`. Following them verbatim produced a process that fails the JSON-schema gate
+  (`missing property 'max_threads'`) and the `UNDERSPECIFIED API CALL NODES` check — whose
+  real-world symptom is a server commit that hangs ~15–20 s then reports `no response from server`.
+  All three snippets are now complete, with the cost of trimming them spelled out. Also documents
+  that `extra.code` may be templated (`"{{respCode}}"` with `extra_type.code:"number"`), so one
+  callback node can serve 200/205/302 instead of one node per code.
+- **App-generator docs: the `err_node_id` invariant drove authors into a lint-flagged
+  anti-pattern.** §7.7 required an `obj_type: 3` escalation for *every* fallible node; for an error
+  path with no work to do that produces a passthrough escalation (`lint-process` flags it), and
+  padding it with a throwaway `set_param` earns `UNUSED SET_PARAM` **plus** `SHARED ERROR CLUSTERS`.
+  Now states both shapes — straight to an `obj_type: 2` final when there is no logic, escalation
+  only when there is — plus the two facts that make "every branch still answers the runtime"
+  reachable: an escalation's `go` may rejoin the happy path, and each branch needs its own callback
+  node so nine branches don't share one error terminal.
+- **App-generator docs: generated apps looked broken by default.** The two platform defaults that
+  wreck an unstyled app — `.section__content` shipping its own grey background plus
+  `padding: 20px 16px 0`, and `[data-class="grid-one-column"]` being capped and centred — were
+  documented only in `simulator-styles`, which the app-generator reached for in Phase 8, long after
+  the pages were authored. New §6.1 makes the resets, the app shell and the per-page
+  `grid.styleClass` hook part of Phase 4; Phase 8 is now explicitly about branding rather than
+  rescue.
+- **Contract extraction missed real inputs in two node shapes.** `api_copy` carries its payload in
+  `data`/`data_type` (it has no `extra` field at all) and an `api` node with `format: "raw"` carries
+  it in `raw_body`; neither was mentioned anywhere in the plugin, and `raw_body` had zero
+  occurrences. A scan reading only `extra` reports such processes as input-free — and, in a real
+  run, reported a non-existent "sends an empty email" defect in a correct process. §1.7 /
+  `simulator-app-generator` §3.6 now table all three carriers, and §3.9 asks for the field you read
+  to be named before any defect is reported about someone else's backend.
+- **Side-effect classification scored unreachable nodes.** Corezoid never prunes orphans, so a
+  repurposed process keeps every sender it ever had: the reference `Cashback Categories` has 126
+  nodes of which **6** are reachable, and scoring the whole bag marks a safe read-only process as
+  `likely` and excludes it from probing. New §2.1 requires a BFS from Start (over `to_node_id` +
+  `err_node_id` + `semaphors[].to_node_id`) before scoring, notes that unreachable reply nodes
+  otherwise invent outcome branches, and adds a `nodes: "<reachable> of <total>"` manifest field.
+- **A declared input can be dead.** The mirror of the documented output-side `params` drift: a
+  process may declare an `input` no node ever reads, because the value actually comes from a
+  state-diagram read (`{{conv[<id>].ref[SessionData].Session}}` — one workspace-wide session, not a
+  per-user token). New §1.7a plus a `deadDeclaredInputs` manifest field.
+- **Two verified backend facts the extraction docs were missing.** §1.3: a reply value may be a
+  literal JSON *string* rather than a `{{var}}` — such a process is a constant source, so
+  `run-task` returns empty task data and the schema must be read off the literal. And Corezoid
+  translation refs inside that literal resolve to the **empty string**, not to themselves, so a
+  regex hunting `t'([A-Za-z]+)` in the value can never match and a label map keyed on the ref is
+  dead code — recover from a surviving sibling field instead (the reference FAQ used `url`). §1.8:
+  `create-alias` accepts only `a-z`, `0-9` and `-`, so an underscored sub-process name
+  (`chudo_get`) is rejected outright; pick the dashed form up front.
+- **App-generator docs: "seed every `{{key}}`" was unqualified and produced false positives.**
+  Placeholders inside a `contentLoop` section's `content` are **loop-scoped** — substituted from the
+  entries the backend returns — so they are not viewModel keys and must not be seeded or reported as
+  undefaulted (only the array binding itself, e.g. `{{promos_loop}}`, needs a default). Phase 4 now
+  states the exclusion. Also aligns §9.1 with `pushSmartForm`'s new cross-file token audit (locale
+  misses are errors, viewModel misses warnings) and tells the reader to actually read `warnings`,
+  since they do not block a push; and §9.3's L3 assertion now covers unresolved `[[` as well as
+  `{{`.
+- **App-generator docs: the canonical node table contradicted its own error-cluster rule.** §4.1
+  listed a single Callback GET, a single Callback SEND and one Error final while the paragraph below
+  it required a callback node and error terminals **per branch** — and §7.8 told the brief to
+  instantiate that table verbatim, so following it earned the `SHARED ERROR CLUSTERS` the same PR
+  documents. §4.1 is now a spine plus a GET/SEND branch template instantiated per page and per
+  button; only the logic-free Success final is shared.
+- **App-generator docs: the side-effect heuristic banned every reader from `/get`.** "`api` node
+  with a non-GET method → strong" marks any POST-to-read process `likely`, which §2.2/§5.1a then
+  forbids on a page's `/get` — including the reference `Transactions history`, which the coverage
+  table itself puts there. The method is now an explicitly weak signal; the strong ones are a
+  mutating verb in the URL path or callee name, an `api_copy`, and an outbound reply nothing reads.
+- **App-generator docs: a session token in the `302 query` was only conditionally discouraged.** The
+  query is the page URL — history, `Referer`, proxy logs, and any link the user shares hands over the
+  session. A domain session token is now treated as sensitive by default: park it in a state process
+  or actor and carry an opaque id; a bearer token reaches a URL only when the backend leaves no
+  alternative and the user has been told.
+- **App-generator docs: node-budget guidance counted the wrong nodes, and two size levers were
+  undocumented.** The "split above ~60 nodes / 8 pages" threshold gave no hint that error clusters
+  scale mechanically with the number of fallible nodes — `layout-process` measures **32%** of both
+  reference handlers as error nodes (77 → ~52 business, 74 → ~50) — so following it splits graphs
+  that are comfortably inside it. §7.1 / §4.1a now say to budget business nodes only. §4.1a also
+  gains a fourth pattern, **mapping an outcome in one Code node instead of a `go_if_const` tree**
+  (7 mappers instead of 7 conditions plus ~20 builders and their clusters on the reference `/send`
+  handler), stated with both sides of the trade: it removes the unbracketed-nested-`param` silent
+  fallthrough entirely, but hides that branching from the Corezoid canvas — so the `path` / `page` /
+  `buttonId` dispatches stay real condition nodes. §7.5 adds the two structural defences that stop
+  `submitOnChange` correctness depending on a hand-maintained id list: prefer zero such fields when
+  the page has no cascade, and make the dispatch default a no-op ack rather than a submit.
+- **`simulator-styles`: silent Less compile failures had no documented check.** A Less error is
+  emitted as a `/* Less Error … */` comment at serve time and the page renders unstyled;
+  `pushSmartForm` does not compile CSS and `appGetPage` never returns it, so nothing reported it.
+  Adds a verified local recipe, including the three traps that break the obvious command: Smart Form
+  partials have no `.less` extension, `lessc` cannot read a `<(…)` process-substitution path
+  (`EBADF`), and the npm package is `less` — a package literally named `lessc` exists and is not the
+  compiler.
+- **Smart Form visibility placeholders rejected by `pushSmartForm`.** Page configs may use a pure
+  `{{viewModelKey}}` placeholder for form, section, and rendered-item `visibility`; validation now
+  accepts that server-resolved form while still rejecting malformed or embedded placeholders.
+- **`appGetPage` / `appSendForm` could not carry a page `query`, making the platform's own session
+  pattern untestable.** A Smart Form is stateless: a `302` answers `{nextPage, query}` and the next
+  page reads it as `body.query.*`, which is how apps carry a session token across navigation.
+  Neither runtime tool accepted it, so a logged-in page could not be rendered at all — driving one
+  produced a cold page that looked like a backend bug. Both `appGetPage` and `appSendForm` gain
+  `query`, flattened into the URL query string exactly as the renderer sends it — including on the
+  `appSendForm` POST, whose handler reads the query off the URL and forwards it to the process as
+  `body.query` (a body-borne `query` is overwritten there and never arrives). New `InQueryMap`
+  param kind in `internal/tools/op.go` does
+  the flattening — plain `InQuery` would have sent the whole object as one opaque value, silently
+  dropping the session; it rejects a non-object and skips blank keys / nil values (a nil would
+  otherwise render as the literal `"null"`).
 - **Telemetry: unsynchronized `telemetryEmail` read/write.** The opt-in email was stored in a plain
   `var string`, written by `AskForEmailOnce` (after `login`) and read by `Middleware` on every tool
   call — safe under the current single-threaded stdio transport, but a data race under `go test

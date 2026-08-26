@@ -233,7 +233,7 @@ Every entry in a section's `header`/`content` is an **Item**, dispatched by its 
 | `id` | string | item id; key under which its `value` is submitted |
 | `class` | enum (see §5) | which component to render |
 | `value` | string \| object \| array | current value (type depends on component) |
-| `visibility` | `visible`\|`disabled`\|`hidden` | render state |
+| `visibility` | `visible`\|`disabled`\|`hidden` or a pure `{{viewModelKey}}` placeholder | render state after server-side resolution |
 | `required` | boolean | required for submit (drives auto-disable of submit buttons) |
 | `error` | boolean | error state (server- or client-set) |
 | `errorMsg` | string | message shown when `error` |
@@ -244,6 +244,21 @@ Every entry in a section's `header`/`content` is an **Item**, dispatched by its 
 
 `visibility`, `required`, `error`, `value`, and `options` are the fields most commonly mutated
 by a 200-response `change` (§7).
+
+> ⚠️ **A `label` value may never be an empty string, and an `image` value may never be an
+> empty src** — the client rejects both with `"value" is not allowed to be empty`. This
+> collides with the rule above: the obvious way to say "nothing here" is `""`, and that is
+> exactly what fails. Use a non-breaking space for a blank-looking label; for an image, point at
+> a placeholder the server can **fetch**. Neither rule is in the swagger (it carries
+> no `minLength` anywhere), so only the renderer enforces them.
+>
+> ⚠️ **An `image` value must be a fetchable URL — a `data:` URI does not work.** The renderer
+> never loads `image.value` directly; it proxies it through `/api/1.0/image?src=<urlencoded>`,
+> and that proxy rejects the scheme: `400 {"statusCode":400,"message":"URL is not allowed"}`.
+> An unreachable host fails the same way with `"Failed to fetch image"`, so a placeholder has
+> to be an `http(s)` URL the *server* can reach, or an actor-attached asset (those are internal
+> and not proxied). This applies to component values only — `url()` in your Less is rewritten
+> for `https://` sources only, so a `data:` URI there is untouched and works.
 
 ---
 
@@ -277,16 +292,16 @@ All component `class` values (renderer `ComponentClasses`). Most are content/inp
 | `otp` | input | `value` (object `otp-0…otp-N`), `type`, `extra.length` (2–20) | one-time-code boxes; `type`: `text`\|`int` |
 | `label` | display | `value` (string), `align`, `tooltip` | static text; BBCode-rendered; `align`: `left`\|`center`\|`right` |
 | `divider` | display | — | separator |
-| `image` | display | `value` (src), `extra.{alt,height,width}` | static image |
+| `image` | display | `value` (src, **never empty**), `extra.alt` | static image. `extra` accepts **only** `alt` — `height`/`width` are rejected by the renderer; size it with CSS via `styleClass`. |
 | `copy` | action | `value` (text), `title` | copy-to-clipboard |
 | `file` | file | `value` (FileProps), `extra.{downloadUrl,uploadUrl,auth}` | preview/download |
 | `upload` | file | `value` (FileProps), `type`, `extra.{accept,minSize,maxSize,compression}` | `type`: `default`\|`webcam` |
 | `attachment` | file | `value` (FileProps[]), `extra.downloadUrl` | multi-file viewer |
 | `signature` | file | `value` (FileProps), `extra.{strokeStyle,saveButtonTitle}` | canvas signature → base64 |
 | `carousel` | display | `items[]`, `value` (index), `extra.{autoplay,interval}` | slideshow |
-| `table` | data | `head[]`, `body[]`, `value`, `type`, `submitOnChange`, `submitOnScroll` | `type`: `default` `radio` `check`; row groups; cell buttons/checkboxes/copy |
-| `tab` | nav | `options[]`, `value` (selected), `submitOnChange` | tab switcher with per-tab error |
-| `stepper` | nav | `options[]`, `value` (step), `extra.direction` | step indicator (wizard) |
+| `table` | data | `head[]`, `body[]`, `value`, `type`, `submitOnChange`, `submitOnScroll` | `type`: `default` `radio` `check`. **Column key is `value`, not `id`**, and row cells live in `body[].options[]` — see §5.1. Row groups; cell buttons/checkboxes/copy |
+| `tab` | nav | `options[]` (`{value,title}`), `value` (selected option's `value`), `submitOnChange` | tab switcher with per-tab error |
+| `stepper` | nav | `options[]` (`{value,title,completed}`), `value` (current option's `value`), `extra.mobileVisible` | step indicator (wizard); advance it with a `changes[]` patch on `value`. `extra` holds **only** `mobileVisible` — there is no `extra.direction`, and `steps`/`active` belong to the **page header** (`grid.header.class` = `steps`, §3.1), which is a different component. |
 | `mainMenu` | nav | `options[]`, `value` | nested menu |
 | `comments` | display | `value`, `title` | comment thread widget |
 | `timer` | display | `value` (remaining ms), `extra.duration` | countdown |
@@ -298,6 +313,38 @@ All component `class` values (renderer `ComponentClasses`). Most are content/inp
 > `Edit-int` vs `Edit-date`, `Table-group`, `Widget-onfido`) are enumerated in the canonical
 > swagger ("Simulator.Company Scripts", `components.schemas`). Treat that spec as the source of
 > truth for individual component options.
+
+### 5.1 `table` — the exact `head` / `body` shape
+
+Getting this wrong is the most common table bug, because the server accepts the wrong shape
+and only the client rejects it (see the asymmetry note in §10):
+
+```jsonc
+{
+  "id": "history_tx", "class": "table", "type": "default",
+  "head": [                                 // column key is `value`, NOT `id`
+    { "value": "date",   "title": "Date" },
+    { "value": "amount", "title": "Amount" }
+  ],
+  "body": [                                 // in practice "{{a_viewModel_key}}"
+    { "value": "row_0",                     // the ROW's own id
+      "options": [                          // the row's CELLS
+        { "value": "date",   "title": "23.06.2026 18:27" },
+        { "value": "amount", "title": "429.00" }
+      ] }
+  ]
+}
+```
+
+- `head[]` items allow `value`, `title`, `visibility`, `styleClass`, `isSticky`.
+- `body[]` items allow `value`, `options`, `groupValue`, `styleClass`, `clickable`.
+- A cell is `{value: <column key>, title: <displayed text>}`, or carries a `button`,
+  `check`, `copy` or `file` sub-object instead of `title`.
+- **Column keys as direct row properties (`{"value":"row_0","date":"..."}`) do not work.**
+
+`value` — not `id` — is the key in **three** places that look like they should use `id`:
+`table.head[]`, `tab.options[]` and `stepper.options[]`. Assume `value` for any option or
+column list you meet on a new component.
 
 > **`mainMenu` inline-vs-popover depth** — `mainMenu.extra.maxInlineDepth` (default **1**) sets how
 > deep branches expand **inline** (accordion, via native `<details>`); levels below it open as a
@@ -315,7 +362,10 @@ shape the page **before** it reaches the renderer. All are resolved server-side
 
 - **`viewModel`** — a key/value bag. The app-wide `viewModel` file is merged with the
   per-request `viewModel` returned by the Corezoid process; values fill `{{token}}`
-  placeholders in the config.
+  placeholders in the config. A form, section, or rendered item in `header`, `modalHeader`, or
+  `content` may use a pure placeholder such as `"visibility": "{{graphPreviewVisibility}}"`;
+  its resolved value must be `visible`, `disabled`, or `hidden`. This also applies to nested
+  items and items expanded from `contentLoop`.
 - **`locale`** — i18n strings keyed by language. The app `locale` and the page `locale` are
   merged and resolved for the active `language`; values fill `[[token]]` placeholders.
   (`createPageData` merges `{ ...appLocale, ...pageLocale }` and `{ ...appViewModel,
@@ -327,6 +377,30 @@ shape the page **before** it reaches the renderer. All are resolved server-side
 - **`contentLoop`** — a section can declare a `contentLoop` that the server expands into
   repeated `content` items (one per data row), so a single template renders a list. On submit
   responses, `replaceContentLoopWithContent` re-expands the loop for the affected form.
+
+  **The binding, which is easy to miss:** `contentLoop` is an *array of plain variable bags*,
+  and the section's `content` is the **template** re-substituted once per entry. Each entry's
+  keys fill `{{...}}` placeholders inside that template — they are not component fields.
+
+  ```jsonc
+  {
+    "id": "promo_list", "type": "body",
+    "contentLoop": [                                  // one entry per rendered row
+      { "img": "https://…/1.jpg", "text": "Offer 1", "url": "https://…" },
+      { "img": "https://…/2.jpg", "text": "Offer 2", "url": "https://…" }
+    ],
+    "content": [                                      // rendered once per entry
+      { "id": "promo_img",  "class": "image",  "value": "{{img}}",  "extra": {"alt": "{{text}}"} },
+      { "id": "promo_text", "class": "label",  "value": "{{text}}" },
+      { "id": "promo_btn",  "class": "button", "title": "Open", "extra": {"url": "{{url}}"} }
+    ]
+  }
+  ```
+
+  Item `id`s inside the template repeat across iterations, so address a specific row through
+  the loop, not through `changes[]` on a bare id. To feed the loop from the backend, bind the
+  whole array — `"contentLoop": "{{promos_loop}}"` — the same way a `table` binds
+  `"body": "{{rows}}"`; verify once against a live render before relying on it.
 - **`bbcode`** — `label`/`button`/`edit`/`check` titles support BBCode, rendered to HTML by the
   client (`Utils.bbCodeToHtml`). Supported tags (verified live): `[b]` `[i]` `[u]` `[color=#rgb]`
   `[size=N]` `[br]`, and **`[url=https://…]text[/url]`** which renders a **clickable
@@ -372,6 +446,13 @@ re-render (renderer `handleResponseChanges`, applied at form / section / item gr
   `concat` (append), `unshift` (prepend), `delete`, `replace`, `merge`.
 - **`skipSubmitOnChange`** prevents a feedback loop when a change updates a value on a
   `submitOnChange` component.
+
+> ⚠️ **A change cannot patch `extra`.** The patchable surface is the list above —
+> `value`, `visibility`, `error`, `required`, `options`, `styleClass`, `body`. Anything
+> configured through `extra` (a button's `url`, a timer's `duration`, a table's `page`) is
+> fixed for the life of the rendered page. When you need a component to change at runtime,
+> check that the property you intend to drive is patchable *before* you design the flow
+> around it; otherwise pick a component whose state lives in `value`.
 
 `ctrl[]` entries in a 200 response are forwarded as `postMessage` to the parent frame
 (host-app integration hook).
@@ -457,6 +538,36 @@ gaps in `renderPage`. **The contract is enforced by convention and by the render
 save endpoint** — so authoring tooling should validate page JSON against the canonical swagger
 schemas *before* saving.
 
+### 10.1 The validation asymmetry — why a page can pass the server and fail the browser
+
+Schema-validating against the swagger is necessary but **not sufficient**, and the gap has a
+specific cause worth knowing:
+
+> **No component schema in the swagger sets `additionalProperties: false`, while the client
+> renderer's validator is strict.** So an unknown key — `head[].id`, `image.extra.height`,
+> a typo'd `visibilty` — passes every server-side check, is stored, is served, and then fails
+> in `control-cdu` as a console error such as `"head[0].id" is not allowed`.
+
+Two consequences for anyone driving this protocol from a tool:
+
+1. **A clean `appGetPage` response proves very little.** It returns the *server-resolved* config,
+   so it confirms templating resolved and the backend answered — but it neither compiles CSS nor
+   runs the client validator. A page can render as valid JSON with every placeholder substituted
+   and still be rejected component-by-component in the browser.
+2. **Check unknown keys explicitly**, against the swagger's declared property sets. Two details
+   make this practical rather than noisy:
+   - The same class is split across type variants (`Edit-default`, `Edit-text`, `Edit-date`, …),
+     each redeclaring only part of the surface, so the allowlist for a class must be the
+     **union over every variant that claims it**. Checking one variant reports legal keys as
+     unknown (`value` is declared on `Edit-int`, not on `Edit-default`).
+   - A handful of rules are **client-only and absent from the swagger** — the non-empty `value`
+     on `label`/`image` above is the notable pair, and the swagger carries no `minLength` at
+     all, so these cannot be derived and must be listed by hand.
+
+`pushSmartForm` performs these checks (`mcp-server/internal/cduschema`): unknown item keys,
+unknown keys inside `extra` / `options[]` / a table's `head[]` and `body[]`, the client-only
+non-empty rules, and a specific message when `visibility` is templated.
+
 Smart-form **install/import** (`smartForms.js`) likewise validates only the request envelope
 (`fileUrl`, `ref`, `title` required; `ref` uniqueness) — the imported package's page content is
 not schema-checked at the API layer.
@@ -513,11 +624,13 @@ wrapper.
 > generated row wrapper. So `row:"1 my_row"` puts `.my_row` on the wrapper — the one stable hook you
 > can style a whole row by (and reuse across rows: `row:"1 my_row"` + `row:"2 my_row"` share `.my_row`).
 
-### 12.3 No client-side conditional visibility — reveal = `submitOnChange` + 200 `changes`
-`visibility` is a static enum (`visible|disabled|hidden`); there is no expression/binding language,
-so a field cannot show/hide reactively from another field's value on the client. The only way to
-"reveal B when A changes" is a server round-trip: set `submitOnChange:true` on A; the `/send` handler
-returns **200** with `changes:[{id:"B", visibility:"visible|hidden"}]` (see §7). A `submitOnChange`
+### 12.3 No client-side reactive visibility — reveal = `submitOnChange` + 200 `changes`
+The raw config may set form, section, and rendered-item `visibility` to a pure
+`{{viewModelKey}}` placeholder, but the server resolves it to `visible|disabled|hidden` before the
+page reaches the client. It is initial/server-render binding, not a client-side expression: changing
+another field does not re-evaluate the placeholder locally. To "reveal B when A changes", use a
+server round-trip: set `submitOnChange:true` on A; the `/send` handler returns **200** with
+`changes:[{id:"B", visibility:"visible|hidden"}]` (see §7). A `submitOnChange`
 event posts with `buttonId = <element id>` (not a button). **Read the new value from
 `body.data.<fieldId>`** — that is the reliable source across components. `body.buttonData.value` is
 populated **only by `select`** (and a few components); `radio`, `edit`, `check`, `toggle`, etc. send no
@@ -561,6 +674,12 @@ So an `edit` with `visibility:"visible"` but a `styleClass` that hides it in CSS
 (`position:absolute; width:1px; clip:rect(0 0 0 0)`) is invisible yet **still submitted** — the
 idiomatic carrier for a value set by `changes[]` (e.g. the selection behind button-cards). A field
 with `visibility:"hidden"` is NOT submitted.
+
+⚠️ **Scope: a submit collects one form, not the page.** The carrier only reaches the handler when it
+sits in the *same* form as the button that fired. A page whose nav buttons live in their own
+header/appbar form and whose carriers live in the content form submits `data: {}` on every nav
+click — the carrier is on the page but not in the form. Either repeat the carrier in each form that
+has a button, or have the handler fall back to `body.query`, which is sent on `/send` as well.
 
 ### 12.7 `table type:"group"` hides ungrouped rows; its pager sits outside the rows
 Numbered table pagination requires **`type:"group"`** (a `default` table has no page controls) with

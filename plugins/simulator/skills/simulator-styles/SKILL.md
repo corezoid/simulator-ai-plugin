@@ -36,6 +36,7 @@ below are taken from live Less, not invented.
 | Form template (data fields / Account Template) | `simulator-forms` |
 | Page layout JSON (`pages/<id>/config`: grid/forms/sections/items), viewModel, locale | `simulator-smart-forms` |
 | Backend logic (Corezoid `/get` `/send`, dynamic viewModel, `changes[]`) | `simulator-smart-forms-logic` |
+| Generating a whole app (pages + middleware) from existing Corezoid processes | `simulator-app-generator` |
 
 You **reuse** the Smart Form engine tools (`pullSmartForm`, `pushSmartForm`, `deploySmartForm`,
 file-history/rollback) — you do not introduce new platform behaviour. When the user needs a *new
@@ -322,6 +323,43 @@ Rules: **edit `develop` only** (`production` is readonly); **`pullSmartForm` fir
 expanded) — it does **not** run CSS compilation or `bbCodeToHtml`, so you **cannot** confirm a visual
 result or whether BBCode expanded from it. Visual/BBCode results are verified in the live UI by the
 user.
+
+**But you CAN and SHOULD confirm the Less compiles — locally, before pushing.** This is the one
+styling failure that is otherwise completely silent: a compile error is not raised at serve time, it
+is emitted as a `/* Less Error … */` comment and the page renders **unstyled**. `pushSmartForm` does
+not compile CSS and `appGetPage` never returns it, so nothing in the toolchain reports it.
+
+Two details make the naive command fail, so use this recipe as-is (verified against a real 6-file
+app):
+
+- Smart Form partials are stored **without a `.less` extension**, and Less resolves
+  `@import "colors_fonts"` as `colors_fonts.less` — so copy them to `*.less` first.
+- `lessc` cannot read a process-substitution path (`<(…)` → `EBADF: bad file descriptor`), so write
+  a real temp file.
+- The npm package is **`less`** (the binary is `lessc`); a package literally named `lessc` also
+  exists on npm and is *not* the compiler — always pass `--package=less`.
+
+```bash
+cd <actorId>/develop
+rm -rf .lesscheck && mkdir .lesscheck
+for f in styles/*; do cp "$f" ".lesscheck/$(basename "$f").less"; done
+
+# the main sheet, wrapped exactly as the server wraps it (this is what makes `&` the page root)
+{ echo '.cdu-page {'; sed 's/@import "\(.*\)";/@import "\1.less";/' styles/index; echo '}'; } \
+  > .lesscheck/main.less
+npx --yes --package=less lessc .lesscheck/main.less /dev/null && echo "OK styles/index"
+
+# each page sheet, with the tokens prepended so its variables resolve
+for p in pages/*/style; do
+  { echo '.cdu-page {'; echo '@import "colors_fonts.less";'; echo '@import "init_styles.less";';
+    cat "$p"; echo '}'; } > .lesscheck/page.less
+  npx --yes --package=less lessc .lesscheck/page.less /dev/null && echo "OK $p"
+done
+rm -rf .lesscheck
+```
+
+Verified while doing this: `@font-face` and `@media` blocks correctly bubble **out** of the
+`.cdu-page { … }` wrapper, so keeping them in an imported partial is safe.
 
 **When to ask for the rendered HTML.** First fix from the DOM map below; if it doesn't land, correct
 once more. **If after the second correction the user still doesn't get the expected result, stop
