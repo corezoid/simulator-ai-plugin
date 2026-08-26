@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.8.0]
+
+### Added
+- authenticate with a workspace API key via SIMULATOR_API_SECRET (#103)
+- simulator-app-generator (#100)
+
+### Changed
+- make design quality an explicit deliverable (#104)
+- bump mcp-go from 0.57.0 to 0.58.0 (#96)
+
+### Fixed
+- address bug-finder issues #87, #88, #89 (#102)
+- recognize bare top-level style file as text/css in pushSmartForm (#97)
+- carry the page query through appGetPage / appSendForm (#98)
+- allow visibility placeholders (#95)
+- catch on push what only the browser caught before (#99)
+
 ## [Unreleased]
 
 ### Changed
