@@ -209,6 +209,44 @@ The page `config` is the layout template. Structure: **Page → Grid → Form �
 }
 ```
 
+### Page (root of `config`)
+
+```jsonc
+{
+  "title": "My orders",        // browser tab title; see below
+  "grid":  { /* layout */ },
+  "forms": [ /* content */ ],
+  "language": "uk",            // base locale for [[…]] and date formatting
+  "styleClass": "orders-page",
+  "query": { "ref": "{{ref}}" },
+  "notifications": [ /* shown when the page opens */ ]
+}
+```
+
+`title` names the browser tab. Omit it and the tab is named by the host
+application — `<page> - <script ref>`, or the script ref alone on the `index`
+page. A Smart Form embedded into another screen (a modal, a section header)
+never renames the browser tab, whether a title is set or not.
+
+**A whole value may be a placeholder.** `query`, `notifications` and `extra` are
+resolved server-side, so any of them can be written as a single `{{viewModel}}`
+or `[[locale]]` token and arrive as an object or an array:
+
+```jsonc
+"query":         "{{query}}",      // → object
+"notifications": "{{messages}}",   // → array
+"extra":         "{{pageExtra}}"   // → object
+```
+
+The token has to be the entire string — with text around it the result is
+always a string. The same holds inside `grid.header`, where every nested key is
+resolved (`"extra": { "steps": "{{steps}}" }`).
+
+Not everything is resolved, and a placeholder written in the wrong place is
+silently left as literal text: `grid.type`, `grid.styleClass`, `grid.sideBar`,
+`grid.header.class` and the keys **inside** a page-level `extra` are all taken
+as written.
+
 ### Grid
 
 ```jsonc

@@ -85,6 +85,7 @@ Corezoid with `path: '/get'` or `'/send'` plus `{ page, query, context }` and `s
 {
   "code": 200,
   "data": {
+    "title": "My orders",       // optional; browser tab title of the page
     "grid":  { /* Grid — layout */ },
     "forms": [ /* Form[] — content */ ],
     "query": { /* echoed/updated query */ },
@@ -141,6 +142,7 @@ The render tree is **Page → Grid → Form → Section → Item**:
 
 ```
 Page
+ ├─ title?          browser tab title; falls back to a host-composed name
  ├─ grid            layout: column model, header, sidebar, region→form mapping
  └─ forms[]         one or more Form
        ├─ (grid?)   a form may carry its own nested grid
