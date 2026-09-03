@@ -21,7 +21,7 @@ var smartFormOps = []Operation{
 	{
 		Name: "appGetPage", Method: "GET", Path: "/pages/{accId}/{ref}/{envTitle}/{page}",
 		Summary: "Render one page of a Smart Form (CDU / Script application) — the runtime equivalent of opening " +
-			"the app's page in the UI. Returns a Page `{ grid, forms[], notifications[], query, language }` " +
+			"the app's page in the UI. Returns a Page `{ title, grid, forms[], notifications[], query, language }` " +
 			"(code 200); the env's Corezoid process supplies the dynamic viewModel/data. Read `forms[].sections[].content[]` " +
 			"to see the components (items) to fill, and `notifications[]` for messages from the process. Then submit with " +
 			"appSendForm. Start a flow at page `index`. Smart Forms are addressed by (accId, ref, envTitle); use the " +

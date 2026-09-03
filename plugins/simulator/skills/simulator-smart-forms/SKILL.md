@@ -209,6 +209,25 @@ The page `config` is the layout template. Structure: **Page → Grid → Form �
 }
 ```
 
+### Page (root of `config`)
+
+```jsonc
+{
+  "title": "My orders",        // browser tab title; see below
+  "grid":  { /* layout */ },
+  "forms": [ /* content */ ],
+  "language": "uk",            // base locale for [[…]] and date formatting
+  "styleClass": "orders-page",
+  "query": { "ref": "{{ref}}" },
+  "notifications": [ /* shown when the page opens */ ]
+}
+```
+
+`title` names the browser tab. Omit it and the tab is named by the host
+application — `<page> - <script ref>`, or the script ref alone on the `index`
+page. A Smart Form embedded into another screen (a modal, a section header)
+never renames the browser tab, whether a title is set or not.
+
 ### Grid
 
 ```jsonc
