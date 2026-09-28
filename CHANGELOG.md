@@ -16,6 +16,7 @@
   completes the MCP initialize handshake after a marketplace install.
 
 ### Changed
+- bump github.com/mark3labs/mcp-go from 0.58.0 to 1.1.0 (replaces #108, which was based on `main`)
 - simulator-app-generator: design quality is now an explicit deliverable — a gated design brief
   in Phase 3 (§5.3a), tokens seeded in Phase 4, an acceptance-criteria quality bar (§10.1) and a
   mandatory human visual pass (§10.2)
