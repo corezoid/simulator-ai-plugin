@@ -1,5 +1,57 @@
 package tools
 
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
+)
+
+// formPreservedFields are the form attributes PUT /forms/{formId} resets to null
+// when absent from the body. updateForm carries them over from the current form.
+var formPreservedFields = []string{"parentId", "ref", "color", "picture", "description", "settings", "tags"}
+
+// preserveFormFields makes updateForm a read-merge-write: PUT /forms/{formId}
+// replaces the whole form, so a call that sends only title/sections would wipe
+// the parent link (UAT inheritance), ref, color, etc. Any preserved field the
+// caller did not pass is copied from the current form; explicit args win.
+func preserveFormFields(ctx context.Context, args map[string]any, c *apiclient.Client) error {
+	missing := false
+	for _, k := range formPreservedFields {
+		if _, ok := args[k]; !ok {
+			missing = true
+			break
+		}
+	}
+	if !missing {
+		return nil
+	}
+	id, ok := args["formId"]
+	if !ok {
+		return nil // the path check reports the missing formId
+	}
+	resp, err := c.Do(ctx, "GET", "/forms/"+toString(id), nil, nil)
+	if err != nil {
+		return fmt.Errorf("read current form to preserve its fields: %w", err)
+	}
+	var out struct {
+		Data map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(resp, &out); err != nil {
+		return fmt.Errorf("parse current form: %w", err)
+	}
+	for _, k := range formPreservedFields {
+		if _, ok := args[k]; ok {
+			continue
+		}
+		if v, ok := out.Data[k]; ok && v != nil {
+			args[k] = v
+		}
+	}
+	return nil
+}
+
 // sectionsDesc documents the form `sections` payload for create/updateForm so the
 // model emits a valid template. Forms are also surfaced to end users as "Account
 // Templates" (Шаблон рахунків). See docs/entities/forms.md for the full catalogue.
@@ -66,14 +118,22 @@ var formOps = []Operation{
 	},
 	{
 		Name: "updateForm", Method: "PUT", Path: "/forms/{formId}",
-		Summary: "Update a form template (replaces title/sections).",
+		Summary: "Update a form template (replaces title/sections). The backend PUT is a full replace, so any of " +
+			"parentId / ref / color / picture / description / settings / tags you omit are carried over from the " +
+			"current form — omitting them does NOT clear them (a UAT child keeps its parent).",
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Required: true, Desc: "Form id."},
 			{Name: "title", In: InBody, Type: "string", Required: true, Desc: "Form name."},
 			{Name: "sections", In: InBody, Type: "array", Required: true, Desc: sectionsDesc},
-			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},
-			{Name: "color", In: InBody, Type: "string", Desc: "Hex color."},
+			{Name: "description", In: InBody, Type: "string", Desc: "Optional description. Omit to keep the current one."},
+			{Name: "color", In: InBody, Type: "string", Desc: "Hex color. Omit to keep the current one."},
+			{Name: "picture", In: InBody, Type: "string", Desc: "Storage path / URL of the form icon. Omit to keep the current one."},
+			{Name: "ref", In: InBody, Type: "string", Desc: "External reference id. Omit to keep the current one."},
+			{Name: "settings", In: InBody, Type: "object", Desc: "Form settings object. Omit to keep the current one."},
+			{Name: "tags", In: InBody, Type: "array", Desc: "List of tags. Omit to keep the current ones."},
+			{Name: "parentId", In: InBody, Type: "number", Desc: "Parent form id (form tree / UAT inheritance). Omit to keep the current parent."},
 		},
+		Resolve: preserveFormFields,
 	},
 	{
 		Name: "deleteForm", Method: "DELETE", Path: "/forms/{formId}",
