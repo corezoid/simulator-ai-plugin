@@ -27,7 +27,7 @@ In scope:
 - the Go MCP server (`plugins/simulator/mcp-server/`) — auth handling, the API client, and the
   engine tools that touch the filesystem (`pullGraphFile`/`pushGraphFile`,
   `uploadActorPicture(Bulk)`),
-- handling of credentials, tokens, and `.env` material.
+- handling of credentials, tokens, API keys (`SIMULATOR_API_SECRET`), and `.env` material.
 
 Out of scope:
 
@@ -38,9 +38,13 @@ Out of scope:
 ## Handling of secrets
 
 - TLS verification is on by default; the server warns when it would send a token over plaintext
-  HTTP to a non-local host.
+  HTTP to a non-local host, and **refuses to start** when that credential is a long-lived
+  `SIMULATOR_API_SECRET` (loopback exempt; `SIMULATOR_ALLOW_INSECURE_API_SECRET=1` overrides).
 - Tokens and `.env` are never logged or committed. If you find a path where they leak, that is
   in scope — please report it.
+- `SIMULATOR_API_SECRET` is read-only to the plugin: it is never written back to `.env`, never
+  logged (only the *fact* that API-key mode is active), and never included in telemetry — the
+  one-time email opt-in runs from `login`, which is disabled in that mode.
 
 ## Telemetry
 

@@ -21,8 +21,15 @@ import (
 
 // Client performs authenticated requests against one API base URL.
 type Client struct {
-	AuthHeader func() (string, error) // returns the full Authorization value, e.g. "Simulator <jwt>"
+	AuthHeader func() (string, error) // returns the full Authorization value, e.g. "Simulator <jwt>" or "Bearer <key>"
 	HTTP       *http.Client
+
+	// AuthHint, when set, is consulted on a rejected reply to append a short,
+	// actionable remediation to the returned *APIError. The advice differs by
+	// status and by auth mode ("check your API key" vs "run `login` again"), and
+	// this package deliberately knows nothing about modes — it just asks. It
+	// must never return credential material; "" means no advice. Nil disables it.
+	AuthHint func(status int) string
 
 	mu          sync.RWMutex // guards baseURL + workspaceID (set-environment / set-workspace mutate them at runtime)
 	baseURL     string       // e.g. http://localhost:9000/papi/1.0
@@ -232,9 +239,13 @@ func IsInsecureCredentialTransport(baseURL string) bool {
 type APIError struct {
 	Status int
 	Body   string
+	Hint   string // optional remediation supplied by the Client's AuthHint; "" when it had no advice
 }
 
 func (e *APIError) Error() string {
+	if e.Hint != "" {
+		return fmt.Sprintf("API returned %d: %s — %s", e.Status, e.Body, e.Hint)
+	}
 	return fmt.Sprintf("API returned %d: %s", e.Status, e.Body)
 }
 
@@ -258,7 +269,7 @@ func (c *Client) Do(ctx context.Context, method, path string, query url.Values, 
 		return nil, fmt.Errorf("read response from %s %s: %w", method, path, err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, &APIError{Status: resp.StatusCode, Body: string(respBody)}
+		return nil, c.apiError(resp.StatusCode, string(respBody))
 	}
 	return respBody, nil
 }
@@ -302,7 +313,7 @@ func (c *Client) DoRaw(ctx context.Context, method, path string, query url.Value
 		truncated = true
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return RawResponse{}, &APIError{Status: resp.StatusCode, Body: string(data)}
+		return RawResponse{}, c.apiError(resp.StatusCode, string(data))
 	}
 	return RawResponse{
 		Body:        data,
@@ -352,4 +363,16 @@ func (c *Client) buildRequest(ctx context.Context, method, path string, query ur
 		}
 	}
 	return req, nil
+}
+
+// apiError builds the *APIError for a non-2xx reply, letting AuthHint decide
+// whether this status warrants advice. Without it a bad key surfaces as a bare
+// "API returned 401", which tells the user nothing about which of the key, the
+// workspace or the environment is wrong.
+func (c *Client) apiError(status int, body string) *APIError {
+	e := &APIError{Status: status, Body: body}
+	if c.AuthHint != nil {
+		e.Hint = c.AuthHint(status)
+	}
+	return e
 }

@@ -3,9 +3,11 @@ package graph
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -380,5 +382,105 @@ func TestFetchLayerActorsPagination(t *testing.T) {
 	}
 	if actors[len(actors)-1].Title != "Last" {
 		t.Errorf("last actor title = %q, want Last", actors[len(actors)-1].Title)
+	}
+}
+
+// TestEdgePlacementHasNoPosition: the server reads {x:0,y:0} on an edge
+// placement as a grid cell and rejects every edge after the first with
+// "Occupied cells: (A, 1)". Edge items must not carry a position; node items must.
+func TestEdgePlacementHasNoPosition(t *testing.T) {
+	var edge manageLayerItem
+	edge.Action = "create"
+	edge.Data.ID = "e1"
+	edge.Data.Type = "edge"
+	edge.Data.LaIDSrc, edge.Data.LaIDTgt = 1, 2
+	b, _ := json.Marshal(edge)
+	if strings.Contains(string(b), "position") {
+		t.Fatalf("edge placement must not have a position: %s", b)
+	}
+	var node manageLayerItem
+	node.Action = "create"
+	node.Data.ID = "n1"
+	node.Data.Type = "node"
+	node.Data.Position = &layerPosition{X: 0, Y: 0}
+	b, _ = json.Marshal(node)
+	if !strings.Contains(string(b), `"position":{"x":0,"y":0}`) {
+		t.Fatalf("node placement must keep its position, even at the origin: %s", b)
+	}
+}
+
+// TestPushGraphCreatesEdgesWithoutPosition drives pushGraph end to end with two
+// new actors and one edge and checks the manage-layer request for the edge.
+func TestPushGraphCreatesEdgesWithoutPosition(t *testing.T) {
+	const layer = "33333333-3333-3333-3333-333333333333"
+	var manageBodies, createBodies []string
+	created := 0
+	placed := map[string]int{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		switch {
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/graph_layers/paginated/"):
+			if r.URL.Query().Get("type") == "edges" {
+				_, _ = w.Write([]byte(`{"data":[]}`))
+				return
+			}
+			var rows []string
+			for id, la := range placed {
+				rows = append(rows, `{"id":"`+id+`","laId":`+strconv.Itoa(la)+`}`)
+			}
+			_, _ = w.Write([]byte(`{"data":[` + strings.Join(rows, ",") + `]}`))
+		case r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/actors/actor/"):
+			createBodies = append(createBodies, string(b))
+			created++
+			id := fmt.Sprintf("aaaaaaaa-aaaa-aaaa-aaaa-%012d", created)
+			_, _ = w.Write([]byte(`{"data":{"id":"` + id + `","formId":5}}`))
+		case r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/graph_layers/actors/"):
+			manageBodies = append(manageBodies, string(b))
+			var items []manageLayerItem
+			_ = json.Unmarshal(b, &items)
+			for _, it := range items {
+				if it.Data.Type == "node" {
+					placed[it.Data.ID] = len(placed) + 10
+				}
+			}
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		case r.Method == http.MethodGet && strings.Contains(r.URL.Path, "/forms/"):
+			_, _ = w.Write([]byte(`{"data":{"form":{"sections":[]}}}`))
+		case strings.Contains(r.URL.Path, "/edge_types/"):
+			_, _ = w.Write([]byte(`{"data":[{"id":612,"name":"hierarchy"}]}`))
+		case r.Method == http.MethodPost && strings.Contains(r.URL.Path, "/actors/mass_links/"):
+			_, _ = w.Write([]byte(`{"data":[{"error":false,"data":{"id":"bbbbbbbb-bbbb-bbbb-bbbb-000000000001"}}]}`))
+		default:
+			_, _ = w.Write([]byte(`{"data":[]}`))
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	g := GraphFile{LayerID: layer, Actors: []GraphActor{{ID: "a", Title: "A", FormID: 5}, {ID: "b", Title: "B", FormID: 5}},
+		Edges: []GraphEdge{{Source: "a", Target: "b"}}}
+	s := newGraphSyncer(srv.URL, "t", "ws-push-edges-test")
+	if _, err := s.pushGraph(context.Background(), g, layer); err != nil {
+		t.Fatalf("pushGraph: %v", err)
+	}
+	for _, cb := range createBodies {
+		if !strings.Contains(cb, `"data"`) {
+			t.Errorf("createActor body without data (server rejects it): %s", cb)
+		}
+	}
+	sawEdge := false
+	for _, mb := range manageBodies {
+		var items []manageLayerItem
+		_ = json.Unmarshal([]byte(mb), &items)
+		for _, it := range items {
+			if it.Data.Type == "edge" {
+				sawEdge = true
+				if it.Data.Position != nil {
+					t.Errorf("edge placed with a position: %s", mb)
+				}
+			}
+		}
+	}
+	if !sawEdge {
+		t.Errorf("no edge placement sent; bodies: %v", manageBodies)
 	}
 }

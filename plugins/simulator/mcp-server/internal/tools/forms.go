@@ -29,7 +29,7 @@ var formOps = []Operation{
 		Summary: "Create a form template (a.k.a. Account Template / Шаблон рахунків). Defines the field structure (sections) actors of this form will have. Set isTemplate=true for a reusable template.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
-			{Name: "isTemplate", In: InPath, Type: "boolean", Required: true, Desc: "Whether the form is a reusable template."},
+			{Name: "isTemplate", In: InPath, Type: "boolean", Required: true, Desc: "true for a normal (reusable) form — the usual choice. false creates a private/draft form that getForms and searchForms do NOT return; it is reachable only by its id (getForm), so keep the id from the response."},
 			{Name: "title", In: InBody, Type: "string", Required: true, Desc: "Form name."},
 			{Name: "sections", In: InBody, Type: "array", Required: true, Desc: sectionsDesc},
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},
@@ -53,7 +53,7 @@ var formOps = []Operation{
 	},
 	{
 		Name: "getForms", Method: "GET", Path: "/forms/templates/{accId}",
-		Summary: "List form templates in a workspace.",
+		Summary: "List form templates in a workspace. Only forms created with isTemplate=true are listed; private/draft forms (isTemplate=false) are not returned — read those by id with getForm.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "limit", In: InQuery, Type: "number", Desc: "Page size (default 20)."},
@@ -92,7 +92,7 @@ var formOps = []Operation{
 	},
 	{
 		Name: "searchForms", Method: "GET", Path: "/forms/search/{accId}/{q}",
-		Summary: "Search form templates by name/text in a workspace. Use before createForm to check whether a form already exists.",
+		Summary: "Search form templates by name/text in a workspace. Use before createForm to check whether a form already exists. Like getForms, it does not return private/draft forms (isTemplate=false).",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "q", In: InPath, Type: "string", Required: true, Desc: "Search query (form name or fragment)."},

@@ -260,6 +260,15 @@ or several.
 A second `go_if_const` does the same for `/send`; the trailing `go` falls
 through to a default branch.
 
+> ⚠️ **A top-level key is bare; a nested path must be bracketed.** `path` lives at the root of
+> the task, so `"param": "path"` works. Anything nested — `body.page`, `body.buttonId`,
+> `body.data.phone` — must be written as a template: `"param": "{{body.buttonId}}"`.
+>
+> This fails **silently**, which is what makes it expensive: an unbracketed nested path never
+> matches, the condition quietly falls through to its default branch, and you get a task that
+> completed "successfully" having skipped the domain call entirely. No error, no warning. If a
+> dispatch branch never fires, check the brackets first.
+
 ### 2.2 Condition on `body.page` (dispatch per-page)
 
 For a multi-page form, branch on `body.page` after dispatching by `path`:
@@ -269,7 +278,7 @@ For a multi-page form, branch on `body.page` after dispatching by `path`:
   "type": "go_if_const",
   "to_node_id": "<indexBranchNodeId>",
   "conditions": [
-    { "param": "body.page", "const": "index", "fun": "eq", "cast": "string" }
+    { "param": "{{body.page}}", "const": "index", "fun": "eq", "cast": "string" }
   ]
 }
 ```
@@ -284,7 +293,7 @@ and `submitOnChange` field changes. Use `go_if_const` on it to route each case:
   "type": "go_if_const",
   "to_node_id": "<submitBranchNodeId>",
   "conditions": [
-    { "param": "body.buttonId", "const": "submit_btn", "fun": "eq", "cast": "string" }
+    { "param": "{{body.buttonId}}", "const": "submit_btn", "fun": "eq", "cast": "string" }
   ]
 }
 ```
@@ -301,7 +310,7 @@ id**, so match it against the ids of the fields you set `submitOnChange:true`:
   "type": "go_if_const",
   "to_node_id": "<fieldChangeBranchNodeId>",
   "conditions": [
-    { "param": "body.buttonId", "const": "project_name", "fun": "eq", "cast": "string" }
+    { "param": "{{body.buttonId}}", "const": "project_name", "fun": "eq", "cast": "string" }
   ]
 }
 ```
@@ -320,8 +329,8 @@ For a `select` you can match id **and** action together:
   "type": "go_if_const",
   "to_node_id": "<projectFilteredNodeId>",
   "conditions": [
-    { "param": "body.buttonId",          "const": "project", "fun": "eq", "cast": "string" },
-    { "param": "body.buttonData.action", "const": "filter",  "fun": "eq", "cast": "string" }
+    { "param": "{{body.buttonId}}",          "const": "project", "fun": "eq", "cast": "string" },
+    { "param": "{{body.buttonData.action}}", "const": "filter",  "fun": "eq", "cast": "string" }
   ]
 }
 ```
@@ -408,11 +417,27 @@ data.responseData = { changes: data.changes, notifications: data.notifications }
   "extra":      { "code": "200", "viewModel": "{{viewModel}}" },
   "extra_type": { "code": "number", "viewModel": "object" },
   "extra_headers": { "content-type": "application/json; charset=utf-8" },
+  "response":      { "header": "{{header}}", "body": "{{body}}" },
+  "response_type": { "header": "object",     "body": "object" },
   "customize_response": false,
+  "format": "",
+  "send_sys": true,
+  "debug_info": false,
+  "cert_pem": "",
+  "max_threads": 5,
+  "is_migrate": true,
   "err_node_id": "<errorNodeId>",
   "version": 2
 }
 ```
+
+> ⚠️ **Copy the whole block — the last six fields are not optional.** `lint-process` rejects an
+> `api` logic that omits `format`, `send_sys`, `debug_info`, `cert_pem` or `max_threads`:
+> `UNDERSPECIFIED API CALL NODES … the server commit hangs ~15–20 s then fails with "no response
+> from server" instead of a descriptive error`. `max_threads` is additionally a **JSON-schema
+> required** property, so the file fails schema validation before the advisory check even runs.
+> `response` / `response_type` are ignored while `customize_response` is `false`, but the
+> canonical shape carries them.
 
 ### 2.8 Final callback API node (`/send`)
 
@@ -428,11 +453,25 @@ Identical shape, with `data` in place of `viewModel`:
   "extra":      { "code": "200", "data": "{{responseData}}" },
   "extra_type": { "code": "number", "data": "object" },
   "extra_headers": { "content-type": "application/json; charset=utf-8" },
+  "response":      { "header": "{{header}}", "body": "{{body}}" },
+  "response_type": { "header": "object",     "body": "object" },
   "customize_response": false,
+  "format": "",
+  "send_sys": true,
+  "debug_info": false,
+  "cert_pem": "",
+  "max_threads": 5,
+  "is_migrate": true,
   "err_node_id": "<errorNodeId>",
   "version": 2
 }
 ```
+
+> **One callback node can serve every response code.** `extra.code` may be a placeholder —
+> `{"code": "{{respCode}}", "data": "{{responseData}}"}` with `extra_type.code: "number"` casts
+> a `"302"` string to `302` correctly (verified live). So each `/send` branch just sets
+> `data.respCode` (`200` / `205` / `302`) alongside `data.responseData`, and they all converge on
+> a single callback node — instead of one callback per response code.
 
 ### 2.9 Complete process skeleton (bound, single-process topology)
 
@@ -963,6 +1002,7 @@ does **not** require re-sharing or re-binding.
 | Build / edit page layout, locale, viewModel            | `simulator-smart-forms`              |
 | Style / restyle / theme the form (CSS/Less, `styles/`) | `simulator-styles`                   |
 | Add interactivity or modify backend logic              | **this skill** → delegates to corezoid-create / corezoid-edit |
+| Generate a whole app from a set of existing processes   | `simulator-app-generator`            |
 | Generic Corezoid process authoring (no Smart Form)     | `corezoid-create` directly           |
 | Modify any Corezoid process file directly              | `corezoid-edit` directly             |
 | Manage aliases (rename, list, link)                    | `corezoid-alias-manager`             |

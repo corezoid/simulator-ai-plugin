@@ -161,25 +161,51 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 			validationErrors = append(validationErrors, errs...)
 		}
 	}
+	// Cross-file audit. Reads the WHOLE tree, not just the files being written: a
+	// `[[key]]` in an untouched page breaks the moment its locale entry is deleted,
+	// and a per-file check can never see that. Severity is scoped to this push,
+	// though — a locale miss blocks only when the page or one of its locale files is
+	// what we are writing. A miss in a part of the tree nobody touched was already
+	// live before this push, and blocking on it would strand the user: there is no
+	// force flag to get an unrelated fix out. viewModel misses stay warnings either
+	// way (the Corezoid process may fill them per request).
+	changedPaths := make(map[string]bool, len(newFilePaths)+len(modifiedFilePaths))
+	for _, p := range newFilePaths {
+		changedPaths[p] = true
+	}
+	for _, p := range modifiedFilePaths {
+		changedPaths[p] = true
+	}
+	tree := cduschema.ValidateTreeScoped(localFiles, changedPaths)
+	validationErrors = append(validationErrors, tree.Errors...)
+
 	if len(validationErrors) > 0 {
-		out, _ := json.Marshal(map[string]interface{}{
+		payload := map[string]interface{}{
 			"actorId":          actorID,
 			"env":              "develop",
 			"validationErrors": validationErrors,
 			"message":          "push aborted: fix the validation errors below and retry",
-		})
+		}
+		if len(tree.Warnings) > 0 {
+			payload["warnings"] = tree.Warnings
+		}
+		out, _ := json.Marshal(payload)
 		return mcp.NewToolResultError(string(out)), nil
 	}
 
 	if len(newFolderPaths) == 0 && len(newFilePaths) == 0 && len(modifiedFilePaths) == 0 {
-		out, _ := json.Marshal(map[string]interface{}{
+		payload := map[string]interface{}{
 			"actorId":   actorID,
 			"env":       "develop",
 			"created":   map[string]int{"folders": 0, "files": 0},
 			"updated":   0,
 			"unchanged": unchanged,
 			"message":   "nothing to push",
-		})
+		}
+		if len(tree.Warnings) > 0 {
+			payload["warnings"] = tree.Warnings
+		}
+		out, _ := json.Marshal(payload)
 		return mcp.NewToolResultText(string(out)), nil
 	}
 
@@ -398,7 +424,7 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 	}
 	sort.Strings(orphanFiles)
 
-	out, _ := json.Marshal(map[string]interface{}{
+	payload := map[string]interface{}{
 		"actorId": actorID,
 		"env":     "develop",
 		"created": map[string]int{
@@ -411,7 +437,14 @@ func handlePushSmartForm(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 		"createdFolderPath": newFolderPaths,
 		"createdFilePath":   newFilePaths,
 		"reconciledFiles":   reconciledFiles,
-	})
+	}
+	// Non-blocking cross-file findings: an undefaulted {{key}}, a default that
+	// resolves to "" on a label/image, a dead default. The push succeeded — these
+	// are the defects that would otherwise only surface in the browser.
+	if len(tree.Warnings) > 0 {
+		payload["warnings"] = tree.Warnings
+	}
+	out, _ := json.Marshal(payload)
 	return mcp.NewToolResultText(string(out)), nil
 }
 
@@ -501,16 +534,30 @@ func parseCreatedObjs(respBytes []byte) ([]createdObj, error) {
 // repaired) file based on its env-relative path.
 //
 // CSS detection rules (evaluated in order):
-//  1. Top-level styles/ directory — Less/CSS source files.
-//  2. pages/<page>/style — per-page stylesheet. The platform always names this
+//  1. Top-level styles/ directory — Less/CSS source files (modular layout).
+//  2. The bare top-level "style" file — the legacy single-stylesheet layout
+//     (see simulator-styles skill: "Legacy single file — a root `style` file
+//     holds everything"). It sits directly under the env root, named "style"
+//     with no extension, same convention as the per-page file in rule 3. A
+//     prior version of this function only recognized the styles/ and
+//     pages/<page>/style cases, so pushing this file (even with unchanged
+//     content) re-typed it as application/json on the server and broke the
+//     compiled stylesheet.
+//  3. pages/<page>/style — per-page stylesheet. The platform always names this
 //     file exactly "style" (no extension); the UI enforces this convention and
 //     the backend stores it as text/css. Key off the base name within the
 //     pages/ tree so any page depth is covered, regardless of extension.
-//  3. Explicit .css extension — explicit fallback for any other CSS file.
+//  4. Explicit .css extension — explicit fallback for any other CSS file.
 //
 // Everything else defaults to application/json (config, viewModel, locale …).
 func defaultMimeType(relPath string) string {
 	if relPath == "styles" || strings.HasPrefix(relPath, "styles/") {
+		return "text/css"
+	}
+	// Bare top-level "style" — the legacy single-stylesheet layout. Must be an
+	// exact match (env root only); "definitions/style" or other nested files
+	// named "style" are not CSS.
+	if relPath == "style" {
 		return "text/css"
 	}
 	// pages/<page>/style — the file is named "style" (no extension) but

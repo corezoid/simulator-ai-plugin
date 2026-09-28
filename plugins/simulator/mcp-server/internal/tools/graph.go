@@ -94,7 +94,11 @@ var graphOps = []Operation{
 	{
 		Name: "createLink", Method: "POST", Path: "/actors/link/{accId}",
 		Summary: "Create a directed link (edge) between two actors. Defaults to the " +
-			"workspace's hierarchy link type — omit edgeTypeId for normal actor links.",
+			"workspace's hierarchy link type — omit edgeTypeId for normal actor links. " +
+			"An existing link between the two actors is returned instead of duplicated. If a " +
+			"placeholder \"hole\" link is what exists there, a plain call (no hole, no linkedActorId) " +
+			"REPLACES it — the hole row is deleted and a real link created, giving up that hole's " +
+			"revert_edge_hole history; pass hole:true to address the placeholder instead.",
 		Resolve: resolveHierarchyEdgeType,
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
@@ -104,9 +108,9 @@ var graphOps = []Operation{
 			{Name: "name", In: InBody, Type: "string", Desc: "Optional edge label."},
 			{Name: "weight", In: InBody, Type: "number", Desc: "Optional edge weight."},
 			{Name: "curveStyle", In: InBody, Type: "string", Desc: "Optional curve style."},
-			{Name: "linkedActorId", In: InBody, Type: "string", Desc: "Optional actor UUID this edge is associated with (e.g. a reaction/widget actor on the link)."},
+			{Name: "linkedActorId", In: InBody, Type: "string", Desc: "Optional actor UUID this edge is associated with (e.g. a reaction/widget actor on the link). Cannot be combined with hole:true — a placeholder link has no linked actor (400)."},
 			{Name: "pinned", In: InBody, Type: "boolean", Desc: "Pin the edge (excluded from auto-prune)."},
-			{Name: "hole", In: InBody, Type: "boolean", Desc: "Create the edge as a placeholder \"hole\" link. A hierarchy hole between two actors is materialised into a real link (hole=false) when a transfer runs between them; revert_edge_hole re-opens it."},
+			{Name: "hole", In: InBody, Type: "boolean", Desc: "Create the edge as a placeholder \"hole\" link, or address an existing one. A hierarchy hole between two actors gets a real closer link when a transfer runs between them, and the hole itself survives that close so revert_edge_hole can re-open it. Pass hole:true to keep an existing placeholder intact — a plain call replaces it with a real link."},
 			{Name: "forceDirection", In: InQuery, Type: "boolean", Desc: "Force the edge direction (skip the hierarchy invert-dedup)."},
 		},
 	},
@@ -134,7 +138,7 @@ var graphOps = []Operation{
 		Params: []Param{
 			{Name: "edgeId", In: InPath, Type: "string", Required: true, Desc: "Edge UUID."},
 			{Name: "name", In: InBody, Type: "string", Desc: "Edge label."},
-			{Name: "linkedActorId", In: InBody, Type: "string", Desc: "Associated actor UUID (null/empty to clear)."},
+			{Name: "linkedActorId", In: InBody, Type: "string", Desc: "Associated actor UUID (null/empty to clear). Ignored on a placeholder \"hole\" link, which keeps its reserved storage value."},
 			{Name: "curveStyle", In: InBody, Type: "string", Desc: "Curve style."},
 			{Name: "pinned", In: InBody, Type: "boolean", Desc: "Pin/unpin the edge."},
 		},

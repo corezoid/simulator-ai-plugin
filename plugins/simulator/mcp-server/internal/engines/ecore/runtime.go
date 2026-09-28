@@ -171,12 +171,23 @@ func EnsureAuth(ctx context.Context) *mcp.CallToolResult {
 		}
 		return nil
 	}
+	// Authoritative: the cache mirrors whatever Load reports right now, including
+	// "nothing usable". Only overwriting on success would leave a revoked or
+	// removed credential cached forever — the guard below would not fire, engine
+	// tools would keep sending the stale header, and the curated tools (which
+	// re-read credentials per request) would disagree about whether the user is
+	// authenticated at all.
+	header := ""
 	if creds, _ := auth.Load(); creds != nil && !auth.IsExpired(creds) {
-		cfgMu.Lock()
-		Cfg.Authorization = creds.AuthorizationHeader()
-		cfgMu.Unlock()
+		header = creds.AuthorizationHeader()
 	}
-	if AuthHeader() == "" {
+	cfgMu.Lock()
+	Cfg.Authorization = header
+	cfgMu.Unlock()
+
+	// Only reachable in OAuth mode: an API key always yields a non-empty header
+	// (a non-blank secret, and a zero ExpiresAt that IsExpired reports as valid).
+	if header == "" {
 		return mcp.NewToolResultError("[Error] not authenticated — run the `login` tool first")
 	}
 	return nil

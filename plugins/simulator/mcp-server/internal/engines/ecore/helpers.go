@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/auth"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -59,6 +60,23 @@ func RequireUUID(name, v string) *mcp.CallToolResult {
 // such an ID contains "/", "?" or "#".
 func Seg(s string) string { return url.PathEscape(s) }
 
+// HTTPStatusError renders a non-2xx engine reply as an error, appending an
+// actionable hint when the status is credential-related, so a rejected request
+// says which of the key, the workspace or the environment to check. Engine
+// sub-packages share it so that remediation text lives in one place.
+//
+// The hint is suppressed in stateless mode, mirroring AuthHeaderForContext:
+// there the credential arrived from the caller's header, so this process has no
+// advice to give about it.
+func HTTPStatusError(method, apiURL string, status int, body []byte) error {
+	if !IsStateless() {
+		if hint := auth.HintFor(status); hint != "" {
+			return fmt.Errorf("%s %s: HTTP %d: %.300s — %s", method, apiURL, status, body, hint)
+		}
+	}
+	return fmt.Errorf("%s %s: HTTP %d: %.300s", method, apiURL, status, body)
+}
+
 // PapiGET sends an authenticated GET and returns the response body.
 // The ctx supplies the per-request Authorization in stateless mode.
 func PapiGET(ctx context.Context, apiURL string) ([]byte, error) {
@@ -80,7 +98,7 @@ func PapiGET(ctx context.Context, apiURL string) ([]byte, error) {
 	// {"data":[...]} payload; without this guard the caller would silently parse
 	// it as an empty result (e.g. an empty layer export). Matches GraphSyncer.get.
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("GET %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
+		return nil, HTTPStatusError("GET", apiURL, resp.StatusCode, data)
 	}
 	return data, nil
 }
@@ -103,7 +121,7 @@ func PapiPOST(ctx context.Context, apiURL string, body []byte) ([]byte, error) {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("POST %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
+		return nil, HTTPStatusError("POST", apiURL, resp.StatusCode, data)
 	}
 	return data, nil
 }
@@ -126,7 +144,7 @@ func PapiPUT(ctx context.Context, apiURL string, body []byte) ([]byte, error) {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("PUT %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
+		return nil, HTTPStatusError("PUT", apiURL, resp.StatusCode, data)
 	}
 	return data, nil
 }

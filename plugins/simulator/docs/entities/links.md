@@ -70,7 +70,7 @@ The link (edge) lifecycle is fully covered by curated MCP tools:
 
 | Operation | Tool | Notes |
 |---|---|---|
-| Create one | `createLink(accId, source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?, hole?, forceDirection?)` | directed edge between two actors; `hole:true` creates a placeholder link |
+| Create one | `createLink(accId, source, target, edgeTypeId, name?, weight?, curveStyle?, linkedActorId?, pinned?, hole?, forceDirection?)` | directed edge between two actors; `hole:true` creates a placeholder link (and cannot be combined with `linkedActorId`) |
 | Create many | `massLink(accId, links[], forceDirection?)` | up to 50 edge objects in one call |
 | Read one | `getEdge(edgeId, linkedActor?)` | a single edge by UUID, with source/target + privileges |
 | Update | `updateEdge(edgeId, name?, linkedActorId?, curveStyle?, pinned?)` | partial — only provided fields change |
@@ -89,7 +89,7 @@ An edge can be a **hole** — a placeholder link (`hole: true` on `createLink`, 
 `actors_edges.hole`). It renders as a dashed placeholder on a layer. Closing a hole is a
 **layer-level placement swap** (the exact edge analogue of closing an actor hole): the hole edge's
 `layer_to_edges` placement is replaced by a real "closer" edge's placement on that layer, recorded
-in `closed_edge_holes`. The hole edge itself is **never modified or deleted** (its `hole` flag stays
+in `closed_edge_holes`. **Closing** never modifies or deletes the hole edge (its `hole` flag stays
 `true`) — both edges persist, only the layer view changes. A hole is closed either:
 
 - **automatically** when a financial **transfer** runs between the two actors a hole connects — the
@@ -106,8 +106,23 @@ merge/revert routes have no operationId and are not curated MCP tools — same a
 Closing an **actor** hole (`merge_hole`) never changes the KIND of its links: the closer inherits the
 hole's connections as links of the same kind — a hole link stays a hole link (`hole: true`), an
 ordinary link stays ordinary. Revert moves them back the same way. An already-existing closer link to
-that neighbor is reused as-is and keeps its own kind (only one row per
-`source`/`target`/`edgeTypeId` may exist).
+that neighbor is reused as-is and keeps its own kind.
+
+A hole and an ordinary link on the same `(edgeTypeId, source, target)` are **two different rows**: the
+hole takes a reserved storage-only value in `linked_actor_id` (the API always reports a hole's
+`linkedActorId` as `null`), which is what lets it coexist with an unlinked closer under the
+four-column unique index. That pair is exactly what a transfer leaves behind, so a lookup by endpoints
+alone (`existLink`, `deleteEdgesByNodes`) may hit either row — prefer `getEdge` on an id you already
+hold when you need a specific one. `hole: true` together with a `linkedActorId` is rejected with a
+400: a placeholder has no linked actor.
+
+**Replacing a hole with a real link is a different operation from closing it.** A plain `createLink`
+over a pair already joined by a hole edge — no `hole`, no `linkedActorId` — means "this placeholder is
+a real link now": the hole row is **deleted** and a fresh ordinary edge is created in the requested
+direction. `hole` is insert-only, so it cannot be flipped in place; that delete also drops the hole's
+`closed_edge_holes` rows, i.e. it gives up the ability to `revert_edge_hole` that hole. Pass
+`hole: true` (to address the placeholder) or a `linkedActorId` (to add a distinct linked edge alongside
+it) when that is not what you want. Tree-type edges are exempt — their holes are never replaced.
 
 ## Database Structure
 

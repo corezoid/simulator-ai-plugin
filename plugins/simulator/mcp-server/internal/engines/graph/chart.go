@@ -131,7 +131,7 @@ func chartHTTPGet(ctx context.Context, apiURL, auth string) ([]byte, error) {
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("GET %s: HTTP %d: %.300s", apiURL, resp.StatusCode, data)
+		return nil, ecore.HTTPStatusError("GET", apiURL, resp.StatusCode, data)
 	}
 	return data, nil
 }
@@ -154,7 +154,7 @@ func chartHTTPJSON(ctx context.Context, method, apiURL, auth string, body interf
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("%s %s: HTTP %d: %.300s", method, apiURL, resp.StatusCode, data)
+		return nil, ecore.HTTPStatusError(method, apiURL, resp.StatusCode, data)
 	}
 	return data, nil
 }

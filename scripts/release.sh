@@ -120,6 +120,15 @@ for f in $VERSION_FILES; do
   echo "  bumped $f"
 done
 
+# 2b) The Go server reports the same version in the MCP initialize handshake via
+#     the mcpserver.DefaultVersion const (cmd/server passes it through). Keep it in
+#     lockstep with the manifests; TestDefaultVersionMatchesManifest enforces it.
+GO_VERSION_FILE="plugins/simulator/mcp-server/app/mcpserver/mcpserver.go"
+tmp="$(mktemp)"
+sed "s/DefaultVersion = \"${CURRENT_RE}\"/DefaultVersion = \"${VERSION}\"/" "$GO_VERSION_FILE" > "$tmp"
+mv "$tmp" "$GO_VERSION_FILE"
+echo "  bumped $GO_VERSION_FILE"
+
 cat <<EOF
 
 Done. Version files and CHANGELOG are at $VERSION.

@@ -17,7 +17,7 @@ func Register(s *server.MCPServer) {
 
 	s.AddTool(
 		mcp.NewTool("pushGraphFile",
-			mcp.WithDescription("Read <layerId>.yaml from the current working directory and sync it with the server layer: creates missing actors/edges, updates changed ones, removes extras. Updates the file in place with server-assigned UUIDs."),
+			mcp.WithDescription("Read <layerId>.yaml from the current working directory and sync it with the server layer: creates missing actors/edges, updates changed ones, removes extras. Updates the file in place with server-assigned UUIDs. An actor id that is a UUID refers to that existing actor: it is placed on the layer (and its title/data updated), not copied — use a local id (e.g. `order1`) to create a new actor."),
 			mcp.WithString("layerId", mcp.Description("Layer actor UUID — file <layerId>.yaml must exist in the current working directory."), mcp.Required()),
 		),
 		handlePushGraphFile,

@@ -88,7 +88,7 @@ actor data is keyed by field **`id`**, never by the field `title` or its seconda
 | Type | `isTemplate` | Description |
 |------|-------------|-------------|
 | Regular form | `true` | User-created reusable templates for domain actors |
-| Private/draft | `false` | Non-template form |
+| Private/draft | `false` | Non-template form. Not returned by `getForms`/`searchForms` — keep its id from the `createForm` response and read it with `getForm` |
 | System form | built-in | Platform-provided: Graph, Layer, Event, Script, Account, Currency, Transaction, Transfer, Reaction, Stream |
 
 ### Top-level form shape
@@ -357,7 +357,7 @@ Load with the `Read` tool when you need more detail:
 
 ## Tips
 
-- `isTemplate=true` makes a reusable template visible to all users; `false` is a private/draft form.
+- `isTemplate=true` makes a reusable template visible to all users; `false` is a private/draft form that `getForms`/`searchForms` do not list. Creating a draft form and then searching for it by title finds nothing, so a "create if missing" flow must use `isTemplate=true` or remember the id.
 - Form `ref` must be unique per workspace.
 - System forms cannot be modified — use them as-is by their ids.
 - Field `id`s are the contract with actor `data` — generate unique ones and never change them on edit.

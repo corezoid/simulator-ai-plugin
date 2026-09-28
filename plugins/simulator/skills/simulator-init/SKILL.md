@@ -43,7 +43,14 @@ token + workspace**, so you must `login` again afterwards.
 
 ## Step 1 — Authenticate
 
-Call MCP tool **`login`** with no arguments:
+**If `SIMULATOR_API_SECRET` is set in `.env`, skip this step entirely.** The server is in
+API-key mode: requests are already authenticated with `Authorization: Bearer <key>`, `login`
+is disabled, and Step 0 is unavailable too (the key is bound to one gateway). Go straight to
+Step 2 — the workspace still matters, because a Simulator API key is scoped to ONE workspace
+and `WORKSPACE_ID` must name that same one. If you are unsure which mode is active, calling
+`login` is harmless: in API-key mode it returns an explanation instead of opening a browser.
+
+Otherwise, call MCP tool **`login`** with no arguments:
 
 ```
 login()
@@ -99,3 +106,4 @@ and `set-workspace` afterwards.
 | `ACCESS_TOKEN` | Step 1 — OAuth2 authentication |
 | `ACCESS_TOKEN_EXPIRES_AT` | Step 1 — Token expiry |
 | `WORKSPACE_ID` | Step 2 — Workspace selection |
+| `SIMULATOR_API_SECRET` | Set by the **user**, never by these tools — enables API-key mode |

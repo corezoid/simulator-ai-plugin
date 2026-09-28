@@ -14,18 +14,19 @@ import (
 // several mutations); the exported functions below acquire it.
 var envMu sync.Mutex
 
-// Credentials holds the Simulator JWT token.
+// Credentials holds the active Simulator credential — either an OAuth JWT or a
+// user-supplied workspace API key. TokenType selects the header scheme.
 type Credentials struct {
 	AccessToken string    `json:"access_token"`
 	ExpiresAt   time.Time `json:"expires_at"`
-	TokenType   string    `json:"token_type"` // always "Simulator"
+	TokenType   string    `json:"token_type"` // TokenTypeSimulator (OAuth) or TokenTypeBearer (API key)
 }
 
 // AuthorizationHeader returns the value to use for the Authorization header.
 func (c *Credentials) AuthorizationHeader() string {
 	tokenType := c.TokenType
 	if tokenType == "" {
-		tokenType = "Simulator"
+		tokenType = TokenTypeSimulator
 	}
 	return tokenType + " " + c.AccessToken
 }
@@ -54,17 +55,23 @@ func updateEnvFileMulti(path string, kv [][2]string) error {
 		}
 	}
 	for _, pair := range kv {
-		prefix := pair[0] + "="
 		found := false
 		for i, line := range lines {
-			if strings.HasPrefix(line, prefix) {
-				lines[i] = prefix + pair[1]
-				found = true
-				break
+			// Match on the parsed key, not a "KEY=" prefix: the loader trims a line
+			// before splitting it, so it reads `  KEY=…`, `KEY = …` and a BOM'd
+			// first line that the bare-prefix match missed — and a miss appended a
+			// duplicate the loader then ignored in favour of the stale first
+			// occurrence. The line's own prefix is preserved on rewrite.
+			linePrefix, ok := envLineAssigns(line, pair[0])
+			if !ok {
+				continue
 			}
+			lines[i] = linePrefix + pair[0] + "=" + pair[1]
+			found = true
+			break
 		}
 		if !found {
-			lines = append(lines, prefix+pair[1])
+			lines = append(lines, pair[0]+"="+pair[1])
 		}
 	}
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600)
@@ -86,10 +93,11 @@ func removeEnvKey(path, key string) error {
 		return err
 	}
 
-	prefix := key + "="
 	var kept []string
 	for _, line := range strings.Split(string(data), "\n") {
-		if !strings.HasPrefix(line, prefix) {
+		// Same normalisation as the loader — an indented or BOM'd ACCESS_TOKEN
+		// line used to survive a logout, and the token came back on the next start.
+		if _, assigns := envLineAssigns(line, key); !assigns {
 			kept = append(kept, line)
 		}
 	}
@@ -105,17 +113,33 @@ func removeEnvKey(path, key string) error {
 	return os.WriteFile(path, []byte(content), 0600)
 }
 
-// Load reads credentials from environment variables.
-// The env vars are populated from .env by FindAndLoadDotEnv() at startup.
-// Returns nil, nil if ACCESS_TOKEN is not set.
+// Load returns the active credentials, in precedence order:
+//
+//  1. SIMULATOR_API_SECRET — a user-managed workspace API key, sent as
+//     "Bearer <key>". It wins over everything and disables the OAuth flow.
+//  2. ACCESS_TOKEN — a Simulator JWT (written by `login`, or set by hand),
+//     sent as "Simulator <jwt>".
+//
+// Returns nil, nil when neither is set. The env vars are populated from .env by
+// cmd/server's loadDotEnv at startup, so an external edit needs a restart.
+// Never returns a non-nil error; the signature is kept for callers.
 func Load() (*Credentials, error) {
+	if secret := APISecret(); secret != "" {
+		// ExpiresAt is deliberately left zero: an API key has no client-visible
+		// lifetime, so IsExpired reports false forever and EnsureAuth never
+		// treats it as stale. The backend is the only authority on revocation,
+		// and it surfaces that as a 401. Returning here (rather than falling
+		// through) also keeps a stale ACCESS_TOKEN_EXPIRES_AT line left over
+		// from a previous `login` from being applied to the key.
+		return &Credentials{AccessToken: secret, TokenType: TokenTypeBearer}, nil
+	}
 	token := os.Getenv("ACCESS_TOKEN")
 	if token == "" {
 		return nil, nil
 	}
 	creds := &Credentials{
 		AccessToken: token,
-		TokenType:   "Simulator",
+		TokenType:   TokenTypeSimulator,
 	}
 	if expiryStr := os.Getenv("ACCESS_TOKEN_EXPIRES_AT"); expiryStr != "" {
 		if t, err := time.Parse(time.RFC3339, expiryStr); err == nil {
@@ -127,7 +151,17 @@ func Load() (*Credentials, error) {
 
 // Save writes ACCESS_TOKEN (and optionally ACCESS_TOKEN_EXPIRES_AT)
 // to the .env file in the current working directory, and updates the in-process env vars.
+//
+// It refuses in API-key mode: an OAuth token saved there would be dead weight
+// on disk (Load never reaches it) while telling the user they are authenticated
+// by a credential that is not in use. The guard lives here, rather than only in
+// the `login` tool, so the invariant holds for any caller.
 func Save(creds *Credentials) error {
+	if IsAPIKeyMode() {
+		return fmt.Errorf("%s is set — refusing to write ACCESS_TOKEN to .env (unset %s to use OAuth login)",
+			APISecretEnv, APISecretEnv)
+	}
+
 	envMu.Lock()
 	defer envMu.Unlock()
 
@@ -149,6 +183,10 @@ func Save(creds *Credentials) error {
 
 // Delete removes ACCESS_TOKEN and ACCESS_TOKEN_EXPIRES_AT
 // from the .env file and from the in-process environment.
+//
+// SIMULATOR_API_SECRET is never touched: it is user-managed, and removeEnvKey
+// matches whole keys, so only ACCESS_TOKEN lines go. Clearing a leftover OAuth token
+// is still correct hygiene in API-key mode, so this is not gated on the mode.
 func Delete() error {
 	envMu.Lock()
 	defer envMu.Unlock()
@@ -220,6 +258,10 @@ func SaveWorkspaceID(accID string) error {
 }
 
 // IsExpired reports whether the credentials are expired.
+//
+// A zero ExpiresAt means "no known expiry" and reports false. API-key
+// credentials always land in that branch: the key has no client-visible
+// lifetime, so revocation can only surface as a 401 from the backend.
 func IsExpired(creds *Credentials) bool {
 	if creds == nil || creds.AccessToken == "" {
 		return true

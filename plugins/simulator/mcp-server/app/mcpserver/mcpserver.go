@@ -12,6 +12,7 @@ package mcpserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/auth"
@@ -25,8 +26,12 @@ import (
 )
 
 const (
-	defaultName    = "simulator"
-	defaultVersion = "2.1.0"
+	defaultName = "simulator"
+	// DefaultVersion is the single source of truth for the version reported in the
+	// MCP initialize handshake (serverInfo.version). cmd/server passes it as
+	// Options.Version; scripts/release.sh bumps it in lockstep with the plugin
+	// manifests, and TestDefaultVersionMatchesManifest guards that they agree.
+	DefaultVersion = "2.7.0"
 )
 
 // Options configures the embedded MCP server.
@@ -68,11 +73,23 @@ type Options struct {
 	Stateless bool
 }
 
+// Auth-mode names and the API-key env var, re-exported so embedders and
+// cmd/server can report the mode without importing app/auth.
+const (
+	AuthModeAPIKey    = auth.ModeAPIKey
+	AuthModeOAuth     = auth.ModeOAuth
+	AuthModeStateless = auth.ModeStateless
+	APISecretEnv      = auth.APISecretEnv
+	// AllowInsecureAPISecretEnv waives the plaintext-HTTP refusal enforced by New.
+	AllowInsecureAPISecretEnv = auth.AllowInsecureAPISecretEnv
+)
+
 // Info reports the resolved environment for logging / diagnostics.
 type Info struct {
 	Profile    string // profile name (e.g. "prod", "local")
 	APIBaseURL string // public API root (incl. /papi/1.0)
 	AccountURL string // OAuth2 / SA base URL
+	AuthMode   string // auth.ModeAPIKey / auth.ModeOAuth, or auth.ModeStateless
 }
 
 // New builds and returns an MCP server with every simulator tool and engine
@@ -84,10 +101,19 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 		return nil, Info{}, err
 	}
 
+	if opts.Stateless {
+		if err := errAPIKeyInStatelessMode(); err != nil {
+			return nil, Info{}, err
+		}
+	} else if err := errAPIKeyOverInsecureTransport(prof.APIBaseURL); err != nil {
+		return nil, Info{}, err
+	}
+
 	var (
 		authHeader  func() (string, error)
 		workspaceID string
 	)
+	authMode := auth.ModeStateless
 	if opts.Stateless {
 		// In stateless mode, the default Client values are never used: auth and
 		// workspace are read from request ctx on every call (set by
@@ -106,9 +132,16 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 		if workspaceID == "" {
 			workspaceID = os.Getenv("WORKSPACE_ID")
 		}
+		authMode = auth.Mode()
 	}
 
 	client := apiclient.New(prof.APIBaseURL, workspaceID, authHeader, opts.Insecure)
+	if !opts.Stateless {
+		// Consulted on every rejected reply; it returns "" for statuses that are
+		// not credential-related. Left nil in stateless mode: the credential came
+		// from the caller's header, so this process has no advice to give.
+		client.AuthHint = auth.HintFor
+	}
 
 	name := opts.Name
 	if name == "" {
@@ -116,7 +149,7 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 	}
 	version := opts.Version
 	if version == "" {
-		version = defaultVersion
+		version = DefaultVersion
 	}
 
 	// In stateless mode the same server serves both full-workspace and per-actor
@@ -146,6 +179,7 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 		Profile:    prof.Name,
 		APIBaseURL: prof.APIBaseURL,
 		AccountURL: prof.AccountURL,
+		AuthMode:   authMode,
 	}, nil
 }
 
@@ -195,6 +229,48 @@ func WithActorID(ctx context.Context, value string) context.Context {
 // to WithAuthorization / WithWorkspaceID. A blank or undecodable value is a no-op.
 func WithUIContext(ctx context.Context, headerValue string) context.Context {
 	return apiclient.WithUIContext(ctx, apiclient.ParseUIContext(headerValue))
+}
+
+// errAPIKeyInStatelessMode rejects an API key in any stateless constructor.
+//
+// An API key is process-global, but stateless mode is per-request and
+// multi-tenant. `ecore`'s stateless flag is itself a process global that a later
+// New / NewActorServer call can flip, after which engine tools would read the
+// process-global auth cache — this process's key — and attach it to every
+// tenant's request. Both stateless constructors call this rather than rely on
+// that flag staying correct.
+func errAPIKeyInStatelessMode() error {
+	if !auth.IsAPIKeyMode() {
+		return nil
+	}
+	return fmt.Errorf(
+		"%s is set, but this server is stateless: an API key is process-global and cannot be used "+
+			"for per-request, multi-tenant auth — unset %s and pass credentials per request "+
+			"via apiclient.WithAuthorization", auth.APISecretEnv, auth.APISecretEnv)
+}
+
+// errAPIKeyOverInsecureTransport refuses to send a long-lived API key in
+// cleartext to a non-local host.
+//
+// This lives in the library, not in cmd/server, for the same reason the Save and
+// stateless guards do: an embedder calling New directly gets the invariant too.
+// It applies even when the caller supplies its own Options.AuthHeader — the
+// engine tools read credentials through auth.Load on their own (ecore.EnsureAuth),
+// so the key still goes out over this base URL.
+//
+// A 12h JWT leaked on the wire is a bounded incident; an API key does not expire
+// and has no in-product revocation, so this refuses rather than warns.
+func errAPIKeyOverInsecureTransport(baseURL string) error {
+	if !auth.IsAPIKeyMode() || auth.InsecureAPISecretAllowed() {
+		return nil
+	}
+	if !apiclient.IsInsecureCredentialTransport(baseURL) {
+		return nil
+	}
+	return fmt.Errorf(
+		"refusing to start: %s is a long-lived credential and %q would send it in cleartext to a "+
+			"non-local host — use HTTPS, or set %s=1 to override on a trusted network",
+		auth.APISecretEnv, baseURL, auth.AllowInsecureAPISecretEnv)
 }
 
 func defaultAuthHeader() (string, error) {

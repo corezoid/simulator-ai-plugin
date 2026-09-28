@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	mcpserver "github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -105,4 +106,34 @@ func schemaContains(t *testing.T, tool mcp.Tool, needle string) bool {
 		t.Fatalf("marshal %s schema: %v", tool.Name, err)
 	}
 	return strings.Contains(string(raw), needle)
+}
+
+// NewActorServer is always stateless and always multi-tenant, so it must take
+// the same API-key refusal as New(Options{Stateless: true}) — otherwise a host
+// process holding a key could attach it to every tenant's request.
+func TestNewActorServerRefusesAPIKeyMode(t *testing.T) {
+	t.Setenv(mcpserver.APISecretEnv, "wsk_key")
+
+	_, _, err := mcpserver.NewActorServer("11111111-1111-4111-8111-111111111111", mcpserver.Options{})
+	if err == nil {
+		t.Fatal("NewActorServer() error = nil, want a refusal in API-key mode")
+	}
+	if !strings.Contains(err.Error(), mcpserver.APISecretEnv) {
+		t.Errorf("NewActorServer() error = %q, should name %s", err, mcpserver.APISecretEnv)
+	}
+}
+
+// Info.AuthMode is documented as always carrying one of the three mode names;
+// an embedder logging auth=%s must not get an empty string here.
+func TestNewActorServerReportsStatelessAuthMode(t *testing.T) {
+	t.Setenv(mcpserver.APISecretEnv, "")
+	t.Cleanup(func() { ecore.SetStateless(false) })
+
+	_, info, err := mcpserver.NewActorServer("11111111-1111-4111-8111-111111111111", mcpserver.Options{})
+	if err != nil {
+		t.Fatalf("NewActorServer: %v", err)
+	}
+	if info.AuthMode != mcpserver.AuthModeStateless {
+		t.Errorf("AuthMode = %q, want %q", info.AuthMode, mcpserver.AuthModeStateless)
+	}
 }
