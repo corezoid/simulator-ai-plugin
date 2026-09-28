@@ -11,6 +11,9 @@
 - createForm / getForms / searchForms descriptions and the simulator-forms skill now say that
   private/draft forms (`isTemplate=false`) are not listed by getForms/searchForms; pushGraphFile's
   description says that a UUID id places the existing actor instead of copying it.
+- Codex MCP startup no longer depends on `CLAUDE_PLUGIN_ROOT`: the launcher keeps the user's
+  workspace in `SIMULATOR_WORK_DIR` and resolves the installed plugin root separately, so Codex
+  completes the MCP initialize handshake after a marketplace install.
 
 ### Changed
 - simulator-app-generator: design quality is now an explicit deliverable — a gated design brief
@@ -300,7 +303,6 @@
   call — safe under the current single-threaded stdio transport, but a data race under `go test
   -race` if a concurrent transport (HTTP/SSE) were ever added. Now uses `atomic.Pointer[string]`,
   matching the `atomic.Bool` discipline already used for the telemetry `enabled` flag.
-- **Codex MCP startup no longer depends on `CLAUDE_PLUGIN_ROOT`.** The launcher now preserves the user's workspace in `SIMULATOR_WORK_DIR` while resolving the installed plugin root separately, so Codex can complete the MCP initialize handshake after a marketplace install.
 
 ## [2.5.0] - 2026-07-14
 
