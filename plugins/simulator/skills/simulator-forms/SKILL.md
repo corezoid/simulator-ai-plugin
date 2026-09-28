@@ -215,6 +215,10 @@ Returns `{"id": 42, "title": "Car", "ref": "car-form", …}`.
 full array back. Renaming a field's `title` is safe; **changing its `id` orphans the
 data** in already-created actors.
 
+The backend PUT is a full replace, but the tool carries over every attribute you omit —
+`parentId` (UAT inheritance), `ref`, `color`, `picture`, `description`, `settings`, `tags` —
+from the current form. Pass one only to change it.
+
 > Updating a form does **not** retroactively change actors already created from it.
 
 ---
