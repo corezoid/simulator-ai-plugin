@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- updateForm no longer wipes a form's `parentId` (UAT inheritance), `ref`, `color`, `picture`,
+  `description`, `settings` or `tags`: omitted fields are carried over from the current form
+  (read-merge-write over the full-replace PUT); these fields are now also updateForm params
+
 ### Changed
 - simulator-app-generator: design quality is now an explicit deliverable — a gated design brief
   in Phase 3 (§5.3a), tokens seeded in Phase 4, an acceptance-criteria quality bar (§10.1) and a
