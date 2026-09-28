@@ -219,7 +219,8 @@ The page `config` is the layout template. Structure: **Page → Grid → Form �
   "language": "uk",            // base locale for [[…]] and date formatting
   "styleClass": "orders-page",
   "query": { "ref": "{{ref}}" },
-  "notifications": [ /* shown when the page opens */ ]
+  "notifications": [ /* shown when the page opens */ ],
+  "extra": { "showScrollToTop": true, "focusVisible": true }
 }
 ```
 
@@ -227,6 +228,9 @@ The page `config` is the layout template. Structure: **Page → Grid → Form �
 application — `<page> - <script ref>`, or the script ref alone on the `index`
 page. A Smart Form embedded into another screen (a modal, a section header)
 never renames the browser tab, whether a title is set or not.
+
+`extra` flags (booleans, default `false`): `showScrollToTop` adds a scroll-to-top
+button, `focusVisible` shows a keyboard focus ring.
 
 **A whole value may be a placeholder.** `query`, `notifications` and `extra` are
 resolved server-side, so any of them can be written as a single `{{viewModel}}`
