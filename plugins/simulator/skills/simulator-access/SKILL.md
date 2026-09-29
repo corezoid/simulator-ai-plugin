@@ -33,7 +33,10 @@ return a **`taskId`**.
 - **data** — identifies the grantee by **exactly one** of `userId` | `saId` | `groupId`, plus:
   - **privs** — `{view, modify, remove (required booleans), sign?, ds?, execute?}`. `view` is
     implied when any other privilege is set.
-  - **reactionOrders?** — `{sign, ds, execute}` positive integers ordering those reactions.
+  - **reactionOrders?** — `{sign, ds, execute}` positive integers ordering those reactions
+    (same number = parallel, higher waits for lower). **Optional** — pass it only to set a
+    sequence. A user holding `sign`/`ds`/`execute` without an order still counts toward task
+    completion and acts after the ordered users of that stage.
 - **recursive** (default **true**) — cascade to child objects. Set **false** to apply to this object only.
 - **notify** (default **true**) — send access-change notifications. Set **false** to apply quietly.
 
@@ -142,6 +145,7 @@ requestAccess(objType="actor", objId="<actor UUID>", modify=true)   # request vi
 - A save returns a **`taskId`** (applied async); the change may take a moment to fully propagate.
 - Identify the grantee by **exactly one** of `userId` / `saId` / `groupId`.
 - `privs.view/modify/remove` are required; `sign`/`ds`/`execute` optional. Setting any privilege implies `view`.
+- `reactionOrders` is optional — a single executor needs only `execute:true`.
 - `recursive=false` ⇒ this object only; `notify=false` ⇒ no notifications (both honoured).
 - **Blocked by access?** Use `requestAccess(objType, objId)` — it asks the owner (doesn't grant); approval is needed before retrying. It's the one access tool callable without `view`.
 - Use `action:"delete"` (grantee id only) to revoke; `create`/`update` to grant or change.

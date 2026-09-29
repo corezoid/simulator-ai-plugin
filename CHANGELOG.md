@@ -28,6 +28,7 @@
   of the layer. Pages are now read until an empty one.
 
 ### Changed
+- access rules / tasks: `reactionOrders` is documented as optional — an executor or signer without an order still counts toward task completion — and the completion rule is spelled out
 - bump github.com/mark3labs/mcp-go from 0.58.0 to 1.1.0 (replaces #108, which was based on `main`)
 - simulator-app-generator: design quality is now an explicit deliverable — a gated design brief
   in Phase 3 (§5.3a), tokens seeded in Phase 4, an acceptance-criteria quality bar (§10.1) and a
