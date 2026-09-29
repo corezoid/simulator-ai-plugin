@@ -37,8 +37,9 @@ return a **`taskId`**.
     (same number = parallel, higher waits for lower). **Optional** — pass it only to set a
     sequence. A user holding `sign`/`ds`/`execute` without an order still counts toward task
     completion; once anyone on the object has an order, such a user acts after the ordered users
-    of that stage. On `update`, resend `reactionOrders` to keep the sequence — omitting it clears
-    the stored order.
+    of that stage. On `update` of an actor's own access, resend `reactionOrders` to keep the
+    sequence — omitting it clears the stored order. A graph/layer cascade never touches
+    `sign`/`ds`/`execute` or their orders on the actors inside.
 - **recursive** (default **true**) — cascade to child objects. Set **false** to apply to this object only.
 - **notify** (default **true**) — send access-change notifications. Set **false** to apply quietly.
 
