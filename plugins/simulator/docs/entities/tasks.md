@@ -33,7 +33,8 @@ The people on a task are expressed as **access rules** (`saveAccessRules`,
   applies to `ds` for sequential legal signing. Same number = parallel.
 - `reactionOrders` is **optional**. A single executor needs only `execute:true` —
   whether the user is new to the task or already had access (e.g. via workspace
-  sharing).
+  sharing). On `update`, resend `reactionOrders` to keep a sequence — omitting it
+  clears the stored order.
 - One person can hold several roles in **one** rule (`{execute:true, sign:true}`);
   different people get **separate** rules.
 - The **creator is the owner implicitly** — never add a self access-rule.

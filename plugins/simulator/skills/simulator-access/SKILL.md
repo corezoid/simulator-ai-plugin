@@ -36,7 +36,9 @@ return a **`taskId`**.
   - **reactionOrders?** — `{sign, ds, execute}` positive integers ordering those reactions
     (same number = parallel, higher waits for lower). **Optional** — pass it only to set a
     sequence. A user holding `sign`/`ds`/`execute` without an order still counts toward task
-    completion and acts after the ordered users of that stage.
+    completion; once anyone on the object has an order, such a user acts after the ordered users
+    of that stage. On `update`, resend `reactionOrders` to keep the sequence — omitting it clears
+    the stored order.
 - **recursive** (default **true**) — cascade to child objects. Set **false** to apply to this object only.
 - **notify** (default **true**) — send access-change notifications. Set **false** to apply quietly.
 

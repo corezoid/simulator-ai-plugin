@@ -14,7 +14,9 @@ const ruleDesc = "Array of rule operations. Each item = " +
 	"plus `privs` (" + privsDesc + ") and optional " +
 	"`reactionOrders`:{sign,ds,execute} (positive integers ordering signature/DS/execute reactions; " +
 	"same number = parallel, higher waits for lower). reactionOrders is optional: pass it only to set a sequence. " +
-	"A user holding sign/ds/execute without an order is still required for completion and acts after the ordered ones. " +
+	"A user holding sign/ds/execute without an order is still required for completion; once anyone on the object " +
+	"has an order, such a user acts after the ordered ones. On update, resend reactionOrders to keep the sequence — " +
+	"omitting it clears the stored order. " +
 	"For action=\"delete\", `data` needs only the grantee id."
 
 // accessObjTypes are the ACCESS_OBJ_TYPE values accepted by the generic routes.
