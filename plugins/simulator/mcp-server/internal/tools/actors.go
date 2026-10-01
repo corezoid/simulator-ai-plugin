@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
@@ -24,7 +25,13 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 	if accID == "" {
 		return fmt.Errorf("resolving formName needs a workspace — run set-workspace or pass formId")
 	}
-	resp, err := c.Do(ctx, "GET", "/forms/templates/"+accID, nil, nil)
+	// formTypes=all: without it the endpoint lists only custom templates (so a
+	// system form such as "Layers" is never found) and only its first 20.
+	q := url.Values{}
+	q.Set("formTypes", "all")
+	q.Set("withDefault", "false")
+	q.Set("limit", "1000")
+	resp, err := c.Do(ctx, "GET", "/forms/templates/"+accID, q, nil)
 	if err != nil {
 		return fmt.Errorf("list forms to resolve %q: %w", name, err)
 	}

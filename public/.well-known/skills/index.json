@@ -44,7 +44,7 @@
       "name": "simulator-attachments"
     },
     {
-      "description": "Simulator.Company chart and dashboard specialist. Use when the user wants to create, configure, or query charts (line, bar, area), dashboards, or financial time-series visualisations on a graph layer.",
+      "description": "Simulator.Company chart and dashboard specialist. Use when the user wants to create, configure, or query charts (line, bar, stackedBar, pie, …), dashboards, or financial time-series visualisations on a graph layer.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-charts/SKILL.md"
       ],

@@ -2,7 +2,7 @@
 name: simulator-charts
 description: >
   Simulator.Company chart and dashboard specialist. Use when the user wants to
-  create, configure, or query charts (line, bar, area), dashboards, or financial
+  create, configure, or query charts (line, bar, stackedBar, pie, …), dashboards, or financial
   time-series visualisations on a graph layer.
 
   Trigger on any of these intents:
@@ -10,7 +10,8 @@ description: >
     "build visualisation", "chart на графе", "график с данными", "дашборд",
     "show metrics on graph", "visualise account data", "plot actor balances".
   — Configuring: "change chart type", "switch to bar chart", "update chart range",
-    "use last day", "show turnover", "change time range", "filter chart actors".
+    "use last week", "show transaction count", "sort descending", "change time range",
+    "filter chart actors".
   — Querying: "get chart data", "show dashboard", "what charts are on this layer",
     "fetch chart metrics", "dashboard data".
 ---
@@ -41,11 +42,36 @@ graph layers using the `simulator` MCP server.
 One call creates the full chart pipeline:
 1. Creates an `ActorFilters` actor (or reuses an existing one).
 2. Creates a `Dashboards` actor with the chart config.
-3. Places the dashboard on the layer at the given position.
+3. Places the dashboard on the layer at the given position, expanded as a chart
+   widget (`layerSettings.expandType=chart` is sent with the placement).
 4. Sets account inheritance so the chart can read financial data.
-5. Sets `expandType=chart` so the node renders as a chart widget.
 
-Returns: `{ dashboardActorId, filterActorId, laId }`
+Returns: `{ dashboardActorId, filterActorId, laId, warnings? }` — `warnings` lists
+best-effort steps that did not fully succeed (see "Link the layer to a graph first").
+
+Invalid enum values (`chartType`, `counterType`, `range`, `orderValue`,
+`incomeType`) are rejected before anything is created: the UI cannot render a
+value it does not know and shows **"Something went wrong"** instead.
+
+### Link the layer to a graph first
+
+Account inheritance parents are resolved **once, at creation**: `[graph, layer]`
+if the layer is already linked to a `Graphs` actor (hierarchy edge graph → layer),
+otherwise `[layer]` only. Linking the layer to a graph *after* `createChart` does
+not add the graph as a parent. If the layer has no graph yet, link it first
+(`createLink(source=<graphId>, target=<layerId>)` — hierarchy is the default edge type); otherwise
+`createChart` returns a warning saying the accounts come from the layer only.
+
+### What the chart shows — `counterType` × `incomeType`
+
+| `counterType` | `incomeType` (per series) | Each interval shows                        |
+|---------------|---------------------------|--------------------------------------------|
+| `amount`      | `total` (default)         | credit − debit (net account amount)        |
+| `amount`      | `credit` / `debit`        | incoming / outgoing amount                 |
+| `count`       | `credit`                  | number of incoming transactions            |
+
+`counterType` maps to the UI's "Show values as": `amount` = Account amount,
+`count` = Transaction count. There is no `turnover` value.
 
 ---
 
@@ -59,14 +85,15 @@ createChart(
   layerId       = "<layerUUID>",        // required
   title         = "MCP API Calls",      // required
   description   = "Requests per tool",  // optional
-  chartType     = "line",               // "line" | "bar" | "area" (default "line")
-  counterType   = "amount",             // "amount" | "turnover" (default "amount")
-  range         = "lastHour",           // "lastHour" | "lastDay" | "lastWeek" | "lastMonth"
+  chartType     = "line",               // see Parameter Reference (default "line")
+  counterType   = "amount",             // "amount" | "count" (default "amount")
+  range         = "lastHour",           // see Parameter Reference (default "lastHour")
+  orderValue    = "default",            // "default" | "desc" | "asc" — ignored for line/stackedBar
   sourceFormId  = 580365,               // numeric formId of the source actors
   accountNameId = "b37efbf5-...",       // UUID of the account name
   currencyId    = 68933782,             // numeric currency ID
   top           = 20,                   // number of top actors to show (default 20)
-  positionX     = -100,                 // x on layer (default -100)
+  positionX     = -100,                 // x on layer (default 0)
   positionY     = 0                     // y on layer (default 0)
 )
 ```
@@ -95,6 +122,7 @@ createChart(
   layerId     = "<layerUUID>",
   title       = "Key Actors",
   chartType   = "bar",
+  orderValue  = "desc",                 // biggest first
   accounts    = [
     { actorId: "<uuid1>", currencyId: 68933782, nameId: "<nameUUID>", color: "#499894", incomeType: "total" },
     { actorId: "<uuid2>", currencyId: 68933782, nameId: "<nameUUID>", color: "#59A14F" },
@@ -103,8 +131,8 @@ createChart(
 )
 ```
 
-`color` and `incomeType` are optional per item; defaults are auto-assigned from
-the Tableau palette and `"total"` respectively.
+`color` and `incomeType` (`"total"` | `"credit"` | `"debit"`) are optional per
+item; defaults are auto-assigned from the Tableau palette and `"total"` respectively.
 
 ---
 
@@ -113,7 +141,8 @@ the Tableau palette and `"total"` respectively.
 ### actorFilter mode prerequisites
 
 1. **`layerId`** — the layer where the chart will appear. Use an existing layer
-   or create one with `createActor(formName="Layers")`.
+   or create one with `createActor(formName="Layers")`, then link it to its graph
+   (see "Link the layer to a graph first").
 
 2. **`sourceFormId`** — the numeric formId of the actors you want to chart.
    Find it via `getForms()` or `getForm(formId=...)`.
@@ -186,10 +215,11 @@ The chart appears immediately on the layer as a widget node.
 | `layerId`       | ✓        | —            | Layer actor UUID                                             |
 | `title`         | ✓        | —            | Chart title                                                  |
 | `description`   |          | `""`         | Chart description                                            |
-| `chartType`     |          | `"line"`     | `"line"` \| `"bar"` \| `"area"`                              |
-| `counterType`   |          | `"amount"`   | `"amount"` \| `"turnover"`                                   |
-| `range`         |          | `"lastHour"` | `"lastHour"` \| `"lastDay"` \| `"lastWeek"` \| `"lastMonth"` |
-| `positionX`     |          | `-100`       | X position on canvas                                         |
+| `chartType`     |          | `"line"`     | `line` \| `bar` \| `stackedBar` \| `pie` \| `doughnut` \| `funnel` \| `table` \| `polarArea` \| `radar` |
+| `counterType`   |          | `"amount"`   | `amount` (account amount) \| `count` (transaction count)     |
+| `range`         |          | `"lastHour"` | `allTime` \| `lastMinute` \| `last10Minutes` \| `lastHour` \| `today` \| `yesterday` \| `lastWeek` \| `lastWeekExcludeToday` \| `last14Days` \| `last14DaysExcludeToday` \| `lastMonth` \| `lastMonthExcludeToday` \| `previousMonth` \| `lastYear` \| `lastYearExcludeToday` \| `realTime` \| `lineRealTime` |
+| `orderValue`    |          | `"default"`  | `default` \| `desc` \| `asc`; forced to `default` for `line` / `stackedBar` (the UI ignores sorting there) |
+| `positionX`     |          | `0`          | X position on canvas                                         |
 | `positionY`     |          | `0`          | Y position on canvas                                         |
 | `filterActorId` |          | —            | Reuse existing ActorFilters actor                            |
 | `filterTitle`   |          | = `title`    | Title for the new ActorFilters actor                         |
@@ -197,7 +227,7 @@ The chart appears immediately on the layer as a widget node.
 | `accountNameId` | *        | —            | UUID of the account name (*same)                             |
 | `currencyId`    | *        | —            | Numeric currency ID (*same)                                  |
 | `top`           |          | `20`         | Top-N actors to show (actorFilter mode)                      |
-| `accounts`      |          | —            | Explicit series array (direct accounts mode)                 |
+| `accounts`      |          | —            | Explicit series array (direct accounts mode); per item `incomeType` = `total` \| `credit` \| `debit` |
 
 ---
 
@@ -207,5 +237,7 @@ The chart appears immediately on the layer as a widget node.
 - **actorFilter mode** is the default when `accounts` is not provided. Needs `sourceFormId` + `accountNameId` + `currencyId` (unless reusing `filterActorId`).
 - **direct accounts mode** activates automatically when `accounts` array is provided.
 - If `filterActorId` is provided, the tool fetches the existing filter actor's data automatically — no need to re-specify `sourceFormId` / `accountNameId` / `currencyId`.
-- Chart nodes appear as expanded widgets on the layer (`expandType=chart`).
+- Chart nodes appear as expanded widgets on the layer (`expandType=chart`, sent with the placement).
+- Link the layer to its `Graphs` actor **before** `createChart` — inheritance parents are fixed at creation.
+- Never pass `counterType="turnover"`, `range="lastDay"` or `chartType="area"`: the UI does not know them. Use `count`, `today`/`yesterday`, and `line`/`bar` instead.
 - Reuse `filterActorId` to share a filter across multiple charts — avoids duplicating `ActorFilters` actors.

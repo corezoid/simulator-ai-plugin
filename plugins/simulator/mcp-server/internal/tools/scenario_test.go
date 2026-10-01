@@ -295,11 +295,14 @@ func TestConcurrentWorkspaceAccess(t *testing.T) {
 }
 
 // TestCreateActorResolvesFormName verifies createActor accepts a friendly form
-// name, looks it up, and POSTs to the resolved numeric formId.
+// name, looks it up, and POSTs to the resolved numeric formId. The lookup must
+// ask for formTypes=all, or system forms such as "Layers" are never listed
+// (issue #109).
 func TestCreateActorResolvesFormName(t *testing.T) {
-	var actorPath string
+	var actorPath, formTypes string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/forms/templates/") {
+			formTypes = r.URL.Query().Get("formTypes")
 			_, _ = w.Write([]byte(`{"data":[{"id":5,"title":"Task"},{"id":334704,"title":"Car"}]}`))
 			return
 		}
@@ -316,6 +319,9 @@ func TestCreateActorResolvesFormName(t *testing.T) {
 	}
 	if actorPath != "/actors/actor/334704" {
 		t.Errorf("actor POST path = %q, want /actors/actor/334704 (formName resolved)", actorPath)
+	}
+	if formTypes != "all" {
+		t.Errorf("form lookup formTypes = %q, want all (system forms included)", formTypes)
 	}
 }
 
