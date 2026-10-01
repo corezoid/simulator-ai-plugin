@@ -92,7 +92,7 @@ func Register(s *server.MCPServer) {
 			mcp.WithString("description", mcp.Description("Optional description for the chart.")),
 			mcp.WithString("chartType", mcp.Enum(chartTypes...), mcp.Description("Chart visual type. Default line.")),
 			mcp.WithString("counterType", mcp.Enum(chartCounterTypes...), mcp.Description("\"Show values as\": amount (default) = account amount per interval; count = number of transactions per interval. Per series, incomeType picks the side: count + credit = incoming transactions per interval; amount + total = credit − debit per interval.")),
-			mcp.WithString("range", mcp.Enum(chartRanges...), mcp.Description("Time range. Default lastHour.")),
+			mcp.WithString("range", mcp.Enum(chartRanges...), mcp.Description("Time range. Default lastHour. line/stackedBar cannot use allTime; realTime and lineRealTime are swapped to match the chartType.")),
 			mcp.WithString("orderValue", mcp.Enum(chartOrderValues...), mcp.Description("Sort values: default (as returned), desc, asc. Ignored for line and stackedBar — the UI always stores default for them.")),
 			mcp.WithNumber("positionX", mcp.Description("X position on the layer canvas. Default 0.")),
 			mcp.WithNumber("positionY", mcp.Description("Y position on the layer canvas. Default 0.")),

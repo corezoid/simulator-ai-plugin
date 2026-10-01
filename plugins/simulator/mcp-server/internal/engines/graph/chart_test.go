@@ -25,10 +25,12 @@ func TestNormalizeChartConfigRejectsValuesTheUICannotRender(t *testing.T) {
 		{"lastDay", ChartConfig{Range: "lastDay"}, "range"},
 		{"orderValue", ChartConfig{OrderValue: "DESC"}, "orderValue"},
 		{"incomeType", ChartConfig{Accounts: []ChartAccountEntry{{IncomeType: "in"}}}, "accounts[0].incomeType"},
+		// The UI hides allTime for multi-series charts and resets it to null.
+		{"allTime on line", ChartConfig{Range: "allTime"}, "allTime"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := normalizeChartConfig(&tc.cfg)
+			_, err := normalizeChartConfig(&tc.cfg)
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("err = %v, want a %s error", err, tc.want)
 			}
@@ -36,30 +38,55 @@ func TestNormalizeChartConfigRejectsValuesTheUICannotRender(t *testing.T) {
 	}
 }
 
-func TestNormalizeChartConfigDefaultsAndOrder(t *testing.T) {
-	cfg := ChartConfig{Accounts: []ChartAccountEntry{{}}}
-	if err := normalizeChartConfig(&cfg); err != nil {
+func TestNormalizeChartConfigDefaults(t *testing.T) {
+	accounts := []ChartAccountEntry{{}}
+	cfg := ChartConfig{Accounts: accounts}
+	warnings, err := normalizeChartConfig(&cfg)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.ChartType != "line" || cfg.CounterType != "amount" || cfg.Range != "lastHour" ||
 		cfg.OrderValue != "default" || cfg.Top != 20 || cfg.Accounts[0].IncomeType != "total" {
 		t.Errorf("unexpected defaults: %+v", cfg)
 	}
+	if len(warnings) != 0 {
+		t.Errorf("defaults produced warnings: %v", warnings)
+	}
+	if accounts[0].IncomeType != "" {
+		t.Errorf("caller's Accounts slice was mutated: %+v", accounts[0])
+	}
+}
 
-	// The UI ignores sorting for multi-series charts and always stores "default".
-	line := ChartConfig{ChartType: "line", OrderValue: "desc"}
-	bar := ChartConfig{ChartType: "bar", OrderValue: "desc"}
-	if err := normalizeChartConfig(&line); err != nil {
-		t.Fatal(err)
+// TestNormalizeChartConfigPerTypeRules mirrors the UI's per-chartType rewrites
+// (rangeUtils.adjustRangeForChartType, buildPayload orderValue) and checks each
+// rewrite is reported rather than silent.
+func TestNormalizeChartConfigPerTypeRules(t *testing.T) {
+	cases := []struct {
+		name               string
+		cfg                ChartConfig
+		wantRange, wantOrd string
+		wantWarn           string
+	}{
+		{"line ignores sorting", ChartConfig{ChartType: "line", OrderValue: "desc"}, "lastHour", "default", "orderValue desc ignored"},
+		{"bar keeps sorting", ChartConfig{ChartType: "bar", OrderValue: "desc"}, "lastHour", "desc", ""},
+		{"line realTime", ChartConfig{ChartType: "line", Range: "realTime"}, "lineRealTime", "default", "stored as lineRealTime"},
+		{"bar lineRealTime", ChartConfig{ChartType: "bar", Range: "lineRealTime"}, "realTime", "default", "stored as realTime"},
+		{"bar allTime", ChartConfig{ChartType: "bar", Range: "allTime"}, "allTime", "default", ""},
 	}
-	if err := normalizeChartConfig(&bar); err != nil {
-		t.Fatal(err)
-	}
-	if line.OrderValue != "default" {
-		t.Errorf("line orderValue = %q, want default", line.OrderValue)
-	}
-	if bar.OrderValue != "desc" {
-		t.Errorf("bar orderValue = %q, want desc", bar.OrderValue)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			warnings, err := normalizeChartConfig(&tc.cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.cfg.Range != tc.wantRange || tc.cfg.OrderValue != tc.wantOrd {
+				t.Errorf("range=%q orderValue=%q, want %q %q", tc.cfg.Range, tc.cfg.OrderValue, tc.wantRange, tc.wantOrd)
+			}
+			got := strings.Join(warnings, "; ")
+			if (tc.wantWarn == "") != (got == "") || !strings.Contains(got, tc.wantWarn) {
+				t.Errorf("warnings = %q, want %q", got, tc.wantWarn)
+			}
+		})
 	}
 }
 
@@ -68,9 +95,18 @@ type chartRequest struct {
 	Body         []byte
 }
 
+// linkedActors* are GET /graph/linked_actors/{layer} bodies in the real
+// {data: {nodes, edges}} shape; nodes include the layer itself.
+const (
+	chartTestLayerID      = "11111111-1111-1111-1111-111111111111"
+	linkedActorsNoGraph   = `{"data":{"nodes":[{"id":"` + chartTestLayerID + `","formTitle":"Layers"}],"edges":[]}}`
+	linkedActorsWithGraph = `{"data":{"nodes":[{"id":"` + chartTestLayerID + `","formTitle":"Layers"},` +
+		`{"id":"graph-1","formTitle":"Graphs"}],"edges":[{"source":"graph-1","target":"` + chartTestLayerID + `"}]}}`
+)
+
 // chartStub serves every endpoint CreateChart touches and records the calls.
-// The layer has no linked Graphs actor.
-func chartStub(t *testing.T) (*httptest.Server, func() []chartRequest) {
+// linkedActors is the linked_actors body; "" makes that endpoint fail with 500.
+func chartStub(t *testing.T, linkedActors string) (*httptest.Server, func() []chartRequest) {
 	t.Helper()
 	var mu sync.Mutex
 	var calls []chartRequest
@@ -87,7 +123,11 @@ func chartStub(t *testing.T) (*httptest.Server, func() []chartRequest) {
 		case strings.HasPrefix(r.URL.Path, "/graph_layers/actors/"):
 			_, _ = w.Write([]byte(`{"data":{"nodesMap":[{"laId":77}]}}`))
 		case strings.HasPrefix(r.URL.Path, "/graph/linked_actors/"):
-			_, _ = w.Write([]byte(`{"data":[]}`))
+			if linkedActors == "" {
+				http.Error(w, "boom", http.StatusInternalServerError)
+				return
+			}
+			_, _ = w.Write([]byte(linkedActors))
 		case strings.HasPrefix(r.URL.Path, "/accounts/inherit/"):
 			_, _ = w.Write([]byte(`{"data":{}}`))
 		default:
@@ -103,9 +143,9 @@ func chartStub(t *testing.T) (*httptest.Server, func() []chartRequest) {
 }
 
 func TestCreateChartWritesUIValuesAndExpandsOnPlacement(t *testing.T) {
-	srv, calls := chartStub(t)
+	srv, calls := chartStub(t, linkedActorsNoGraph)
 	cfg := ChartConfig{
-		LayerID:     "11111111-1111-1111-1111-111111111111",
+		LayerID:     chartTestLayerID,
 		Title:       "Incoming per day",
 		ChartType:   "bar",
 		CounterType: "count",
@@ -168,8 +208,56 @@ func TestCreateChartWritesUIValuesAndExpandsOnPlacement(t *testing.T) {
 	}
 }
 
+// inheritParents returns the parents sent to POST /accounts/inherit.
+func inheritParents(t *testing.T, calls []chartRequest) []string {
+	t.Helper()
+	for _, c := range calls {
+		if strings.HasPrefix(c.Path, "/accounts/inherit/") {
+			var body struct {
+				Parents []string `json:"parents"`
+			}
+			if err := json.Unmarshal(c.Body, &body); err != nil {
+				t.Fatal(err)
+			}
+			return body.Parents
+		}
+	}
+	t.Fatal("no /accounts/inherit call")
+	return nil
+}
+
+func TestCreateChartInheritsFromLinkedGraph(t *testing.T) {
+	srv, calls := chartStub(t, linkedActorsWithGraph)
+	res, err := CreateChart(context.Background(), ChartConfig{LayerID: chartTestLayerID, Title: "t",
+		Accounts: []ChartAccountEntry{{ActorID: "a1", CurrencyID: 1, NameID: "n1"}}}, "ws", "t", srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := inheritParents(t, calls()); strings.Join(got, ",") != "graph-1,"+chartTestLayerID {
+		t.Errorf("inherit parents = %v, want [graph-1 layer]", got)
+	}
+	if len(res.Warnings) != 0 {
+		t.Errorf("warnings = %v, want none", res.Warnings)
+	}
+}
+
+func TestCreateChartReportsGraphLookupFailure(t *testing.T) {
+	srv, calls := chartStub(t, "")
+	res, err := CreateChart(context.Background(), ChartConfig{LayerID: chartTestLayerID, Title: "t",
+		Accounts: []ChartAccountEntry{{ActorID: "a1", CurrencyID: 1, NameID: "n1"}}}, "ws", "t", srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := inheritParents(t, calls()); strings.Join(got, ",") != chartTestLayerID {
+		t.Errorf("inherit parents = %v, want [layer]", got)
+	}
+	if len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0], "could not look up the layer's graph") {
+		t.Errorf("warnings = %v, want the lookup-failure warning (not \"not linked\")", res.Warnings)
+	}
+}
+
 func TestCreateChartRejectsBeforeAnyRequest(t *testing.T) {
-	srv, calls := chartStub(t)
+	srv, calls := chartStub(t, linkedActorsNoGraph)
 	_, err := CreateChart(context.Background(), ChartConfig{CounterType: "turnover"}, "ws", "t", srv.URL)
 	if err == nil {
 		t.Fatal("expected an error for counterType turnover")

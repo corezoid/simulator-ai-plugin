@@ -70,7 +70,7 @@ var (
 	chartOrderValues = []string{"default", "desc", "asc"}
 	chartIncomeTypes = []string{"total", "credit", "debit"}
 	// MULTI_SERIES_CHART_TYPES — the UI ignores sorting for these and always
-	// saves orderValue "default".
+	// saves orderValue "default"; their ranges differ too (see normalizeChartConfig).
 	multiSeriesChartTypes = []string{"line", "stackedBar"}
 )
 
@@ -82,8 +82,10 @@ func checkChartEnum(param, value string, allowed []string) error {
 }
 
 // normalizeChartConfig applies defaults and validates every enum the UI reads
-// back from data.source.
-func normalizeChartConfig(cfg *ChartConfig) error {
+// back from data.source. Values the UI would rewrite for the chosen chartType
+// are rewritten here the same way and reported in the returned warnings.
+func normalizeChartConfig(cfg *ChartConfig) ([]string, error) {
+	var warnings []string
 	if cfg.ChartType == "" {
 		cfg.ChartType = "line"
 	}
@@ -99,39 +101,77 @@ func normalizeChartConfig(cfg *ChartConfig) error {
 	if cfg.Top <= 0 {
 		cfg.Top = 20
 	}
-	if err := checkChartEnum("chartType", cfg.ChartType, chartTypes); err != nil {
-		return err
+	for _, c := range []struct {
+		param, value string
+		allowed      []string
+	}{
+		{"chartType", cfg.ChartType, chartTypes},
+		{"counterType", cfg.CounterType, chartCounterTypes},
+		{"range", cfg.Range, chartRanges},
+		{"orderValue", cfg.OrderValue, chartOrderValues},
+	} {
+		if err := checkChartEnum(c.param, c.value, c.allowed); err != nil {
+			return nil, err
+		}
 	}
-	if err := checkChartEnum("counterType", cfg.CounterType, chartCounterTypes); err != nil {
-		return err
-	}
-	if err := checkChartEnum("range", cfg.Range, chartRanges); err != nil {
-		return err
-	}
-	if err := checkChartEnum("orderValue", cfg.OrderValue, chartOrderValues); err != nil {
-		return err
-	}
+
+	// Per-type rules of the UI (DashboardWizard rangeUtils / buildPayload).
 	if slices.Contains(multiSeriesChartTypes, cfg.ChartType) {
-		cfg.OrderValue = "default"
+		switch cfg.Range {
+		case "allTime":
+			return nil, fmt.Errorf("range \"allTime\" is not supported for chartType %q — pick a bounded range such as lastMonth or lastYear", cfg.ChartType)
+		case "realTime":
+			cfg.Range = "lineRealTime"
+			warnings = append(warnings, fmt.Sprintf("range realTime is stored as lineRealTime for chartType %s", cfg.ChartType))
+		}
+		if cfg.OrderValue != "default" {
+			warnings = append(warnings, fmt.Sprintf("orderValue %s ignored: chartType %s is not sortable, stored as default", cfg.OrderValue, cfg.ChartType))
+			cfg.OrderValue = "default"
+		}
+	} else if cfg.Range == "lineRealTime" {
+		cfg.Range = "realTime"
+		warnings = append(warnings, fmt.Sprintf("range lineRealTime is stored as realTime for chartType %s", cfg.ChartType))
 	}
+
+	// Copy before defaulting: cfg is a value but Accounts shares the caller's array.
+	cfg.Accounts = slices.Clone(cfg.Accounts)
 	for i := range cfg.Accounts {
 		if cfg.Accounts[i].IncomeType == "" {
 			cfg.Accounts[i].IncomeType = "total"
 		}
 		if err := checkChartEnum(fmt.Sprintf("accounts[%d].incomeType", i), cfg.Accounts[i].IncomeType, chartIncomeTypes); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return warnings, nil
 }
 
-// chartLayerSettings expands the dashboard as a chart on the layer. It is sent
-// with the placement itself: /papi has no PUT /graph_layers/actor_settings
-// route (issue #109), while POST /graph_layers/actors stores data.layerSettings.
-var chartLayerSettings = map[string]interface{}{
-	"expandType": "chart",
-	"expand":     true,
-	"offset":     map[string]int{"left": 300, "right": 300, "top": 200, "bottom": 200},
+// chartLayerSettings is the layer_to_actors.layer_settings written for a chart
+// placement — the subset of keys the UI reads to draw the node as an expanded
+// chart. It is sent with the placement itself: /papi has no PUT
+// /graph_layers/actor_settings route (issue #109), while POST
+// /graph_layers/actors stores data.layerSettings.
+type chartLayerSettings struct {
+	ExpandType string            `json:"expandType"` // "chart"
+	Expand     bool              `json:"expand"`
+	Offset     chartLayerOffsets `json:"offset"`
+}
+
+// chartLayerOffsets is the {left,right,top,bottom} offset every layerSettings
+// writer uses (not sim-api's {x,y} typing — see the workspace CLAUDE.md).
+type chartLayerOffsets struct {
+	Left   int `json:"left"`
+	Right  int `json:"right"`
+	Top    int `json:"top"`
+	Bottom int `json:"bottom"`
+}
+
+func newChartLayerSettings() chartLayerSettings {
+	return chartLayerSettings{
+		ExpandType: "chart",
+		Expand:     true,
+		Offset:     chartLayerOffsets{Left: 300, Right: 300, Top: 200, Bottom: 200},
+	}
 }
 
 // CreateChartResult is returned by CreateChart.
@@ -260,29 +300,34 @@ func chartJSONString(v interface{}) string {
 
 // ---- Graph parent lookup ----
 
-// findGraphActorForLayer returns the ID of the Graphs actor that owns the given layer.
-// Returns "" if not found — the caller must handle the absence gracefully.
-func findGraphActorForLayer(ctx context.Context, layerID, auth, baseURL string) string {
+// findGraphActorForLayer returns the ID of the Graphs actor linked to the given
+// layer, or "" when there is none. An error means the lookup itself failed.
+//
+// GET /graph/linked_actors/{id} answers {data: {nodes: [...], edges: [...]}};
+// nodes include the layer itself, each carrying its formTitle.
+func findGraphActorForLayer(ctx context.Context, layerID, auth, baseURL string) (string, error) {
 	url := fmt.Sprintf("%s/graph/linked_actors/%s", baseURL, layerID)
 	data, err := chartHTTPGet(ctx, url, auth)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	var resp struct {
-		Data []struct {
-			ID        string `json:"id"`
-			FormTitle string `json:"formTitle"`
+		Data struct {
+			Nodes []struct {
+				ID        string `json:"id"`
+				FormTitle string `json:"formTitle"`
+			} `json:"nodes"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return ""
+		return "", fmt.Errorf("parse linked actors of layer %s: %w", layerID, err)
 	}
-	for _, a := range resp.Data {
-		if a.FormTitle == "Graphs" {
-			return a.ID
+	for _, a := range resp.Data.Nodes {
+		if a.FormTitle == "Graphs" && a.ID != layerID {
+			return a.ID, nil
 		}
 	}
-	return ""
+	return "", nil
 }
 
 // ---- Core logic ----
@@ -295,9 +340,11 @@ func findGraphActorForLayer(ctx context.Context, layerID, auth, baseURL string) 
 func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseURL string) (CreateChartResult, error) {
 	var result CreateChartResult
 
-	if err := normalizeChartConfig(&cfg); err != nil {
+	warnings, err := normalizeChartConfig(&cfg)
+	if err != nil {
 		return result, err
 	}
+	result.Warnings = warnings
 
 	isActorFilterMode := len(cfg.Accounts) == 0
 
@@ -508,7 +555,7 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 				"id":            dashboardActorID,
 				"type":          "node",
 				"position":      map[string]int{"x": cfg.PositionX, "y": cfg.PositionY},
-				"layerSettings": chartLayerSettings,
+				"layerSettings": newChartLayerSettings(),
 			},
 		},
 	}
@@ -538,9 +585,13 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 	// Parents are resolved once, now: a graph linked to the layer later does not
 	// retroactively become a parent.
 	parents := []string{cfg.LayerID}
-	if graphID := findGraphActorForLayer(ctx, cfg.LayerID, auth, baseURL); graphID != "" {
+	switch graphID, lookupErr := findGraphActorForLayer(ctx, cfg.LayerID, auth, baseURL); {
+	case lookupErr != nil:
+		result.Warnings = append(result.Warnings, fmt.Sprintf(
+			"could not look up the layer's graph (%v) — accounts are inherited from the layer only", lookupErr))
+	case graphID != "":
 		parents = []string{graphID, cfg.LayerID}
-	} else {
+	default:
 		result.Warnings = append(result.Warnings,
 			"layer is not linked to a Graphs actor — accounts are inherited from the layer only; "+
 				"link the layer to its graph (hierarchy edge graph → layer) before createChart to inherit the graph's accounts too")

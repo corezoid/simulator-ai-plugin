@@ -6,9 +6,23 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"sync"
+	"time"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
 )
+
+// formTitleCacheTTL bounds how long a workspace's title→id map is trusted; a
+// miss always refetches, so a form created mid-session resolves immediately.
+const formTitleCacheTTL = 5 * time.Minute
+
+type formTitleIDs struct {
+	ids     map[string]int
+	fetched time.Time
+}
+
+// formTitleCache memoizes title→formId per API base URL + workspace.
+var formTitleCache sync.Map // string → formTitleIDs
 
 // resolveActorFormID lets createActor accept a friendly `formName` instead of a
 // numeric `formId`: if formId is absent but formName is given, it looks the form
@@ -25,11 +39,22 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 	if accID == "" {
 		return fmt.Errorf("resolving formName needs a workspace — run set-workspace or pass formId")
 	}
+	key := c.BaseURL() + "|" + accID
+	if v, ok := formTitleCache.Load(key); ok {
+		cached := v.(formTitleIDs)
+		if id, ok := cached.ids[name]; ok && time.Since(cached.fetched) < formTitleCacheTTL {
+			args["formId"] = float64(id) // JSON-number arg type, like the model would send
+			return nil
+		}
+	}
+
 	// formTypes=all: without it the endpoint lists only custom templates (so a
 	// system form such as "Layers" is never found) and only its first 20.
+	// Custom forms sort first, so a custom form wins over a same-titled system one.
 	q := url.Values{}
 	q.Set("formTypes", "all")
 	q.Set("withDefault", "false")
+	q.Set("filter", "id,title")
 	q.Set("limit", "1000")
 	resp, err := c.Do(ctx, "GET", "/forms/templates/"+accID, q, nil)
 	if err != nil {
@@ -44,11 +69,16 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 	if err := json.Unmarshal(resp, &out); err != nil {
 		return fmt.Errorf("parse forms list: %w", err)
 	}
+	ids := make(map[string]int, len(out.Data))
 	for _, f := range out.Data {
-		if f.Title == name {
-			args["formId"] = float64(f.ID) // JSON-number arg type, like the model would send
-			return nil
+		if _, dup := ids[f.Title]; !dup {
+			ids[f.Title] = f.ID
 		}
+	}
+	formTitleCache.Store(key, formTitleIDs{ids: ids, fetched: time.Now()})
+	if id, ok := ids[name]; ok {
+		args["formId"] = float64(id) // JSON-number arg type, like the model would send
+		return nil
 	}
 	return fmt.Errorf("form %q not found in the active workspace", name)
 }

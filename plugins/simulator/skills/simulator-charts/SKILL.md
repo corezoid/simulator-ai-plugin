@@ -217,8 +217,8 @@ The chart appears immediately on the layer as a widget node.
 | `description`   |          | `""`         | Chart description                                            |
 | `chartType`     |          | `"line"`     | `line` \| `bar` \| `stackedBar` \| `pie` \| `doughnut` \| `funnel` \| `table` \| `polarArea` \| `radar` |
 | `counterType`   |          | `"amount"`   | `amount` (account amount) \| `count` (transaction count)     |
-| `range`         |          | `"lastHour"` | `allTime` \| `lastMinute` \| `last10Minutes` \| `lastHour` \| `today` \| `yesterday` \| `lastWeek` \| `lastWeekExcludeToday` \| `last14Days` \| `last14DaysExcludeToday` \| `lastMonth` \| `lastMonthExcludeToday` \| `previousMonth` \| `lastYear` \| `lastYearExcludeToday` \| `realTime` \| `lineRealTime` |
-| `orderValue`    |          | `"default"`  | `default` \| `desc` \| `asc`; forced to `default` for `line` / `stackedBar` (the UI ignores sorting there) |
+| `range`         |          | `"lastHour"` | `allTime` \| `lastMinute` \| `last10Minutes` \| `lastHour` \| `today` \| `yesterday` \| `lastWeek` \| `lastWeekExcludeToday` \| `last14Days` \| `last14DaysExcludeToday` \| `lastMonth` \| `lastMonthExcludeToday` \| `previousMonth` \| `lastYear` \| `lastYearExcludeToday` \| `realTime` \| `lineRealTime`. For `line` / `stackedBar`: no `allTime` (rejected), `realTime` is stored as `lineRealTime`; for other types `lineRealTime` is stored as `realTime` (reported in `warnings`) |
+| `orderValue`    |          | `"default"`  | `default` \| `desc` \| `asc`; forced to `default` for `line` / `stackedBar` (the UI ignores sorting there) — reported in `warnings` |
 | `positionX`     |          | `0`          | X position on canvas                                         |
 | `positionY`     |          | `0`          | Y position on canvas                                         |
 | `filterActorId` |          | —            | Reuse existing ActorFilters actor                            |
