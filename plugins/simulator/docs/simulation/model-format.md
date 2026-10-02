@@ -170,7 +170,7 @@ Scenarios: `{name, params, set: [{actor, fields}], horizon, seed}`. `set` change
 
 - Metrics are evaluated after the run, with `self` = the first actor of the graph and `now` = the horizon. A failed run has no metrics.
 - A goal is a boolean expression whose names are metric names.
-- Many-run mode runs a scenario N times with seeds `<seed>#i`. Failed runs are counted and excluded from statistics. For each numeric metric: `n`, `mean`, `min`, `max` and nearest-rank percentiles `p10`, `p50`, `p90` (`k = ceil(p × n / 100)`, 1-based). For each goal: `[held, evaluated]`.
+- Many-run mode runs a scenario N times with seeds `<seed>#i`. Only completed runs reached the horizon, so only they feed statistics: failed and stopped (`stopped_by_limit`, `stopped_by_time`) runs are counted separately and excluded. For each numeric metric: `n`, `mean`, `min`, `max` and nearest-rank percentiles `p10`, `p50`, `p90` (`k = ceil(p × n / 100)`, 1-based). For each goal: `[held, evaluated]`.
 
 ## 10. Conformance
 

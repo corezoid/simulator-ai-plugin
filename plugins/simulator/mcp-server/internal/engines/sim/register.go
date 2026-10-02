@@ -391,16 +391,23 @@ func SummaryTable(summaries []*Summary) string {
 		}
 		return out
 	})
-	head := append([]string{"scenario", "runs ok/total"}, metrics...)
+	head := append([]string{"scenario", "runs completed/total"}, metrics...)
 	for _, g := range goals {
 		head = append(head, "goal: "+g)
 	}
 	var b strings.Builder
 	b.WriteString("| " + strings.Join(head, " | ") + " |\n|" + strings.Repeat("---|", len(head)) + "\n")
 	for _, s := range summaries {
-		ok := fmt.Sprintf("%d/%d", s.Completed+s.Stopped, s.Runs)
+		ok := fmt.Sprintf("%d/%d", s.Completed, s.Runs)
+		var notOK []string
+		if s.Stopped > 0 {
+			notOK = append(notOK, fmt.Sprintf("%d stopped", s.Stopped))
+		}
 		if s.Failed > 0 {
-			ok += fmt.Sprintf(" (%d failed)", s.Failed)
+			notOK = append(notOK, fmt.Sprintf("%d failed", s.Failed))
+		}
+		if len(notOK) > 0 {
+			ok += " (" + strings.Join(notOK, ", ") + ")"
 		}
 		cells := []string{s.Scenario, ok}
 		for _, m := range metrics {
@@ -420,7 +427,7 @@ func SummaryTable(summaries []*Summary) string {
 		}
 		b.WriteString("| " + strings.Join(cells, " | ") + " |\n")
 	}
-	b.WriteString("\nNumbers: median (10th–90th percentile) over successful runs. Goal: share of successful runs where it holds; failed runs are not counted as success.\n")
+	b.WriteString("\nNumbers: median (10th–90th percentile) over completed runs. Goal: share of completed runs where it holds; failed runs and runs stopped before the horizon are not counted.\n")
 	for _, s := range summaries {
 		for i, e := range s.Errors {
 			if i == 3 {

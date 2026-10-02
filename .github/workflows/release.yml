@@ -6,8 +6,32 @@ on:
       - "v*"
 
 jobs:
+  # A tag is published only from a green commit: the same build / vet / test as the CI gate.
+  # The tag push does not wait for the branch CI run, so the release checks it itself.
+  test:
+    name: Test before release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: plugins/simulator/mcp-server/go.mod
+          cache: true
+          cache-dependency-path: plugins/simulator/mcp-server/go.sum
+
+      - name: Build
+        run: make build
+
+      - name: Vet
+        run: make vet
+
+      - name: Test
+        run: make test
+
   build-binaries:
     name: Build MCP server binaries
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
