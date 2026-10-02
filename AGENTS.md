@@ -176,6 +176,9 @@ For a multi-call/computational tool, add it under `internal/engines/` and regist
   (`make discovery` then `git diff --exit-code -- public/` — a PR that edited `SKILL.md`
   frontmatter but forgot `make discovery` fails here) → `make lint` (advisory,
   `continue-on-error`).
+- **`Release`** (`.github/workflows/release.yml`, on a `v*` tag): a `test` job runs `make build` →
+  `vet` → `test` on the tagged commit, and the binaries are built and published only if it
+  passes — the tag push does not wait for the branch CI run.
 - **`behavioural-eval`** (opt-in, `workflow_dispatch` only — it spends Anthropic credits):
   `make eval` with `ANTHROPIC_API_KEY` from repo secrets.
 

@@ -46,7 +46,8 @@ func Register(s *server.MCPServer) {
 		mcp.WithDescription("Simulate a Simulator graph: run behaviour rules in model time for each scenario and "+
 			"compare metrics. Fast mode, in memory: nothing is written to Simulator. The model is checked first; a "+
 			"model with errors does not run. With `runs` > 1 each scenario runs in that many random worlds and the "+
-			"result is the median with the 10–90 % range, plus the share of runs meeting each goal. "+
+			"result is the median with the 10–90 % range, plus the share of runs meeting each goal, over completed runs "+
+			"only: runs that failed or stopped before the horizon are counted apart and must be reported. "+
 			"Report a single run only when the model has no randomness. "+inputsDesc),
 		mcp.WithString("scenario", mcp.Description("Comma-separated scenario names to run (default: all).")),
 		mcp.WithNumber("runs", mcp.Description("Runs per scenario with different random seeds (default 1, max 1000).")),
@@ -224,7 +225,8 @@ func handleRun(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResul
 	if res != nil {
 		return res, nil
 	}
-	if rep := Check(in.modelSrc, in.graph, in.rawScen); !rep.OK() {
+	rep := Check(in.modelSrc, in.graph, in.rawScen)
+	if !rep.OK() {
 		return jsonText(map[string]any{"ok": false, "message": "model check failed: fix the errors, nothing was run",
 			"errors": rep.Errors, "warnings": rep.Warnings}), nil
 	}
@@ -272,6 +274,9 @@ func handleRun(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResul
 	runCtx, cancel := context.WithTimeoutCause(ctx, limit, fmt.Errorf("time limit %s reached", limit))
 	defer cancel()
 	out := map[string]any{"ok": true, "graph": in.graph.summary(), "source": toJSON(in.graph.Source)}
+	if len(rep.Warnings) > 0 {
+		out["warnings"] = rep.Warnings
+	}
 	if runs > 1 {
 		var summaries []*Summary
 		for _, sc := range selected {

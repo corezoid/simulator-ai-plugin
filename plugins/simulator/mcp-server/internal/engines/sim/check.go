@@ -493,6 +493,10 @@ func Check(modelSrc []byte, graph *Graph, scenarios []*OMap) *CheckReport {
 	if model.Horizon == 0 {
 		r.warnf("horizon", "horizon is 0: only events at time 0 run")
 	}
+	if textNumberSnapshot(graph) {
+		r.warnf("graph", "this snapshot was written by v2.9.0, which saved the numbers in actor data as text: "+
+			"sums concatenate and numeric filters match nothing. Re-take it with simulationSnapshot (overwrite: true)")
+	}
 	behaviors := getMap(d, "behaviors")
 	for _, t := range behaviors.Keys() {
 		events, ok := behaviors.m[t].(*OMap)
@@ -624,4 +628,15 @@ func keysOf(m map[string][]string) map[string]bool {
 		out[k] = true
 	}
 	return out
+}
+
+// textNumberSnapshot reports a simulationSnapshot file written by v2.9.0. That version wrote
+// every number as a YAML string, sim.source.taken_at included; later ones write a number.
+func textNumberSnapshot(g *Graph) bool {
+	if g == nil || getString(g.Source, "kind") != "simulator" {
+		return false
+	}
+	t, _ := g.Source.Get("taken_at")
+	_, isText := t.(string)
+	return isText
 }

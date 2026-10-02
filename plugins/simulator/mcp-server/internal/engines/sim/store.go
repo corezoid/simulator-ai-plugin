@@ -3,6 +3,7 @@ package sim
 import (
 	"fmt"
 	"math/big"
+	"strings"
 )
 
 type StoreError struct{ msg string }
@@ -50,45 +51,32 @@ func (s *store) begin() error {
 	return nil
 }
 
-// sameTotals compares conserved totals; a type with no account counts as zero, so the
-// first account of a type opened at 0 does not change the total.
-func sameTotals(a, b map[string]*big.Rat) bool {
-	for _, m := range []map[string]*big.Rat{a, b} {
+// totalsDiff lists the conserved types whose total changed, in name order; empty when none
+// did. A type with no account totals 0, so opening its first account at 0 changes nothing.
+func totalsDiff(before, after map[string]*big.Rat) string {
+	keys := map[string]bool{}
+	for _, m := range []map[string]*big.Rat{before, after} {
 		for k := range m {
-			if totalOf(a, k).Cmp(totalOf(b, k)) != 0 {
-				return false
-			}
+			keys[k] = true
 		}
 	}
-	return true
-}
-
-func totalOf(m map[string]*big.Rat, k string) *big.Rat {
-	if v := m[k]; v != nil {
-		return v
+	total := func(m map[string]*big.Rat, k string) *big.Rat {
+		if v := m[k]; v != nil {
+			return v
+		}
+		return ratZero
 	}
-	return ratZero
-}
-
-func unionKeys(a, b map[string]*big.Rat) map[string]bool {
-	out := map[string]bool{}
-	for _, m := range []map[string]*big.Rat{a, b} {
-		for k := range m {
-			out[k] = true
+	var diff strings.Builder
+	for _, k := range sortedKeys(keys) {
+		if d := new(big.Rat).Sub(total(after, k), total(before, k)); d.Sign() != 0 {
+			fmt.Fprintf(&diff, " %s: %s", k, numString(d))
 		}
 	}
-	return out
+	return diff.String()
 }
 
 func (s *store) commit() error {
-	after := s.conservedTotals()
-	if !sameTotals(after, s.before) {
-		diff := ""
-		for _, k := range sortedKeys(unionKeys(after, s.before)) {
-			if d := new(big.Rat).Sub(totalOf(after, k), totalOf(s.before, k)); d.Sign() != 0 {
-				diff += fmt.Sprintf(" %s: %s", k, numString(d))
-			}
-		}
+	if diff := totalsDiff(s.before, s.conservedTotals()); diff != "" {
 		return &BoundsError{"conserved totals changed within step:" + diff}
 	}
 	s.inStep, s.undo = false, nil
