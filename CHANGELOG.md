@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.9.1]
 
 ### Fixed
 - simulationSnapshot wrote numbers in actor `data` (and `formId`, positions, `sim.source`) to the graph
@@ -53,7 +53,7 @@
 - allow visibility placeholders (#95)
 - catch on push what only the browser caught before (#99)
 
-## [Unreleased]
+## [2.9.1]
 
 ### Added
 - Behaviour simulation engine (`internal/engines/sim`) with the `simulationCheck`, `simulationRun` and
@@ -127,7 +127,7 @@
      Do NOT bump the version or add a dated section — that is minted at release
      time by `make release VERSION=x.y.z`. See AGENTS.md → Versioning & releases. -->
 
-## [Unreleased]
+## [2.9.1]
 
 ### Added
 - **API-key authentication (`SIMULATOR_API_SECRET`).** A second, non-interactive auth mode for CI,

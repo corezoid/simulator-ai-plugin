@@ -31,7 +31,7 @@ const (
 	// MCP initialize handshake (serverInfo.version). cmd/server passes it as
 	// Options.Version; scripts/release.sh bumps it in lockstep with the plugin
 	// manifests, and TestDefaultVersionMatchesManifest guards that they agree.
-	DefaultVersion = "2.9.0"
+	DefaultVersion = "2.9.1"
 )
 
 // Options configures the embedded MCP server.
