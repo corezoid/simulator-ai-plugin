@@ -70,6 +70,12 @@ nobody handles, a param typo) usually mean the model does not do what the user t
 - The model has randomness (`rand()`, `pick`, `chance`, a `decide` without a `rule`): never
   report a single run. Use `runs: 100` and report the median, the 10–90 % range and the share
   of runs meeting each goal.
+- These numbers cover completed runs only (`runs completed/total` in the table). When runs
+  failed or stopped before the horizon (`stopped_by_time`, `stopped_by_limit`), say how many
+  and why (the lines under the table): a scenario that stops early is not cheaper or faster,
+  it is unfinished. Raise `timeLimit` or shorten the horizon rather than compare it.
+- A warning that the snapshot was written by v2.9.0 means its numbers are text: re-take it
+  with `simulationSnapshot(layerId, overwrite: true)` before trusting any result.
 - No randomness: one run is exact; say so.
 - `logEvents: 30` returns the first processed events — use it to explain why a result
   happened.

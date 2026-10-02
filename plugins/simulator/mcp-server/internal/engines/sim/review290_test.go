@@ -1,7 +1,6 @@
 package sim
 
 import (
-	"context"
 	"encoding/json"
 	"math/big"
 	"strings"
@@ -42,42 +41,66 @@ func TestGraphFileKeepsNumbersInData(t *testing.T) {
 
 func isRat(v any) bool { _, ok := v.(*big.Rat); return ok }
 
-// errAfter reports no error for the first n calls to Err, then context.Canceled.
-type errAfter struct {
-	context.Context
-	n int
-}
-
-func (c *errAfter) Err() error {
-	if c.n--; c.n >= 0 {
-		return nil
-	}
-	return context.Canceled
-}
-
 // Review of v2.9.0: a run stopped before the horizon fed metrics and goals and showed as a
 // successful run (1/1, goal 100%) although no run completed.
 func TestStoppedRunsAreNotStatistics(t *testing.T) {
-	g := tickGraph(t)
-	m, err := LoadModel([]byte(strings.Replace(tickModel, "self_acc_placeholder", `"actor(refs.clock).acc('ticks')"`, 1) +
-		"refs: {clock: {title: Clock}}\ngoals: {few: ticks < 5}\n"))
+	goals := NewOMap()
+	goals.Set("few", "ticks < 5")
+	s := newSummary("base", 3, goals)
+	s.record(&RunResult{Status: "stopped_by_time", Error: "stopped at step 7: time limit 1s reached", Metrics: map[string]any{"ticks": ratInt(1)}})
+	s.record(&RunResult{Status: "stopped_by_limit", Error: "max_steps 10 reached", Metrics: map[string]any{"ticks": ratInt(2)}})
+	s.record(&RunResult{Status: "completed", Metrics: map[string]any{"ticks": ratInt(9)}})
+	if s.Completed != 1 || s.Stopped != 2 || s.Failed != 0 {
+		t.Fatalf("completed %d stopped %d failed %d", s.Completed, s.Stopped, s.Failed)
+	}
+	if v := s.values["ticks"]; len(v) != 1 || Canon(v[0]) != "9" {
+		t.Errorf("ticks values %v, want only the completed run", v)
+	}
+	if s.Goals["few"] != [2]int{0, 1} {
+		t.Errorf("goal few = %v, want [0 1]", s.Goals["few"])
+	}
+	if len(s.Errors) != 2 || !strings.Contains(s.Errors[0], "time limit") {
+		t.Errorf("errors %v, want why the runs stopped", s.Errors)
+	}
+	if table := SummaryTable([]*Summary{s}); !strings.Contains(table, "| 1/3 (2 stopped) |") {
+		t.Errorf("table:\n%s", table)
+	}
+}
+
+// A goal that no run could evaluate shows as "no data", not as a missing column.
+func TestGoalWithoutCompletedRunShowsNoData(t *testing.T) {
+	goals := NewOMap()
+	goals.Set("few", "ticks < 5")
+	s := newSummary("base", 1, goals)
+	s.record(&RunResult{Status: "stopped_by_time", Error: "stopped at step 0", Metrics: map[string]any{}})
+	if table := SummaryTable([]*Summary{s}); !strings.Contains(table, "goal: few") || !strings.Contains(table, "| 0/1 (1 stopped) | no data |") {
+		t.Errorf("table:\n%s", table)
+	}
+}
+
+// A snapshot written by v2.9.0 holds its numbers as text; check says so instead of
+// letting the run concatenate them.
+func TestCheckWarnsAboutTextNumberSnapshot(t *testing.T) {
+	model := []byte("horizon: 1\nmetrics: {n: count()}\n")
+	old, err := LoadGraph([]byte("layerId: L\nactors:\n  - {id: a, title: A, data: {price: \"10\"}, sim: {type: t}}\nedges: []\n" +
+		"sim: {format: sim-morrow/1, source: {kind: simulator, layer: L, taken_at: \"1790000000\"}}\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// RunMany's check passes, the engine stops at step 0, the next RunMany check ends the loop
-	s := RunMany(&errAfter{context.Background(), 1}, g, m, ScenarioFrom(NewOMap()), 5, nil, NewOMap())
-	if s.Runs != 1 || s.Completed != 0 || s.Stopped != 1 || s.Failed != 0 {
-		t.Fatalf("runs %d completed %d stopped %d failed %d", s.Runs, s.Completed, s.Stopped, s.Failed)
+	if w := strings.Join(Check(model, old, nil).Warnings, "\n"); !strings.Contains(w, "written by v2.9.0") {
+		t.Errorf("no warning for a v2.9.0 snapshot: %s", w)
 	}
-	if len(s.Metrics) != 0 || s.Goals["few"] != [2]int{} {
-		t.Errorf("stopped run counted: metrics %v goals %v", s.Metrics, s.Goals)
+	g := layerGraph("L", []layerNode{{ID: "a", Title: "A", FormTitle: "t", Data: map[string]any{"price": json.Number("10")}}}, nil)
+	b, err := GraphFile(g, "")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(s.Errors) == 0 || !strings.Contains(s.Errors[0], "stopped at step 0") {
-		t.Errorf("errors %v, want why the run stopped", s.Errors)
+	fresh, err := LoadGraph(b)
+	if err != nil {
+		t.Fatal(err)
 	}
-	table := SummaryTable([]*Summary{s})
-	if !strings.Contains(table, "| 0/1 (1 stopped) |") {
-		t.Errorf("table:\n%s", table)
+	if w := strings.Join(Check(model, fresh, nil).Warnings, "\n"); strings.Contains(w, "v2.9.0") {
+		t.Errorf("warning for a current snapshot: %s", w)
 	}
 }
 
@@ -108,12 +131,15 @@ metrics: {wallets: count(type='wallet')}
 	}
 }
 
-func TestSameTotalsTreatsMissingTypeAsZero(t *testing.T) {
+func TestTotalsDiffTreatsMissingTypeAsZero(t *testing.T) {
 	none, zero, one := map[string]*big.Rat{}, map[string]*big.Rat{"USD": new(big.Rat)}, map[string]*big.Rat{"USD": ratOne}
-	if !sameTotals(none, zero) || !sameTotals(zero, none) {
+	if totalsDiff(none, zero) != "" || totalsDiff(zero, none) != "" {
 		t.Error("missing type and 0 must be the same total")
 	}
-	if sameTotals(none, one) || sameTotals(one, none) || sameTotals(zero, one) {
+	if d := totalsDiff(one, none); d != " USD: -1" {
+		t.Errorf("an account removed with its value: diff %q, want \" USD: -1\"", d)
+	}
+	if totalsDiff(none, one) == "" || totalsDiff(zero, one) == "" {
 		t.Error("a changed total must be caught")
 	}
 }
