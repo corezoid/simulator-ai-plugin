@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- simulationSnapshot wrote numbers in actor `data` (and `formId`, positions, `sim.source`) to the graph
+  file as YAML strings, so a run from the saved file read them as text: `self.price + self.cost` gave
+  `"1020"` instead of `30` and `count(price=10)` found nothing, with status `completed`. Numbers are
+  now written as YAML numbers; strings such as `"10"` stay strings.
+- simulationRun many-run mode counted runs stopped before the horizon (`stopped_by_time`,
+  `stopped_by_limit`) as successful: their partial metrics fed the statistics and goal shares, and the
+  table showed them as ok. Metrics and goals are now over completed runs only; the table shows
+  `completed/total (N stopped, M failed)` and the reason a run stopped is listed under the table.
+- Opening the first account of a conserved type at 0 (e.g. `create … accounts: [{name: cash,
+  value_type: USD}]` when the graph has no USD account) failed the step with `conserved totals changed
+  within step:`. A type with no account now counts as total 0.
+- The Release workflow published a tag without running the tests (only the binaries build was
+  required); it now runs build / vet / test first and publishes only if they pass.
+
 ## [2.9.0]
 
 ### Added

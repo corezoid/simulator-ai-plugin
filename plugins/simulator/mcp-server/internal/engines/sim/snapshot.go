@@ -280,7 +280,7 @@ func GraphFile(g *Graph, layerID string) ([]byte, error) {
 	for _, a := range g.actors {
 		public, internal := map[string]any{}, map[string]any{}
 		for _, k := range a.Data.Keys() {
-			v := toJSON(a.Data.m[k])
+			v := toYAML(a.Data.m[k])
 			if len(k) > 0 && k[0] == '_' {
 				internal[k] = v
 			} else {
@@ -290,7 +290,7 @@ func GraphFile(g *Graph, layerID string) ([]byte, error) {
 		entry := map[string]any{"id": a.ID, "title": a.Title, "formName": a.Type,
 			"sim": map[string]any{"type": a.Type, "origin_id": nilIfEmpty(a.OriginID), "created_by": nilIfEmpty(a.CreatedBy), "state": internal}}
 		if f, ok := a.Data.Get("_form_id"); ok && f != nil {
-			entry["formId"] = toJSON(f)
+			entry["formId"] = toYAML(f)
 		}
 		if len(public) > 0 {
 			entry["data"] = public
@@ -299,7 +299,7 @@ func GraphFile(g *Graph, layerID string) ([]byte, error) {
 		if pm, ok := a.Data.m["_position"].(*OMap); ok {
 			x, _ := pm.Get("x")
 			y, _ := pm.Get("y")
-			p = pos{toJSON(x), toJSON(y)}
+			p = pos{toYAML(x), toYAML(y)}
 		}
 		entry["position"] = p
 		actors = append(actors, entry)
@@ -332,7 +332,7 @@ func GraphFile(g *Graph, layerID string) ([]byte, error) {
 		layerID = getString(g.Source, "layer")
 	}
 	return yaml.Marshal(map[string]any{"layerId": layerID, "actors": actors, "edges": edges,
-		"sim": map[string]any{"format": "sim-morrow/1", "source": toJSON(g.Source), "valueTypes": vts, "accounts": accounts}})
+		"sim": map[string]any{"format": "sim-morrow/1", "source": toYAML(g.Source), "valueTypes": vts, "accounts": accounts}})
 }
 
 func nilIfEmpty(s string) any {

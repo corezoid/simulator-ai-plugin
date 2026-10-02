@@ -18,7 +18,7 @@ type Summary struct {
 	Runs      int
 	Completed int
 	Failed    int
-	Stopped   int
+	Stopped   int // stopped_by_time / stopped_by_limit: the horizon was not reached
 	Metrics   map[string]*Stats
 	Goals     map[string][2]int // held, evaluated
 	Errors    []string
@@ -49,7 +49,8 @@ func statsOf(vals []*big.Rat) *Stats {
 		P10: percentile(v, 10), P50: percentile(v, 50), P90: percentile(v, 90), Min: v[0], Max: v[len(v)-1]}
 }
 
-// RunMany runs a scenario n times with seeds "<seed>#i"; failed runs are counted, not averaged.
+// RunMany runs a scenario n times with seeds "<seed>#i". Only completed runs reached the
+// horizon, so only they feed metrics and goals; failed and stopped runs are counted, not averaged.
 // A cancelled ctx stops after the current run; the summary covers the runs made.
 func RunMany(ctx context.Context, g *Graph, model *Model, sc Scenario, n int, decider Decider, extraGoals *OMap) *Summary {
 	goals := NewOMap()
@@ -69,18 +70,18 @@ func RunMany(ctx context.Context, g *Graph, model *Model, sc Scenario, n int, de
 		run := sc
 		run.Seed = fmt.Sprintf("%s#%d", sc.Seed, i)
 		r := RunScenario(g, model, run, decider, RunOptions{Ctx: ctx})
-		if r.Status == "failed" {
-			s.Failed++
+		if r.Status != "completed" {
+			if r.Status == "failed" {
+				s.Failed++
+			} else {
+				s.Stopped++
+			}
 			if r.Error != "" && !contains(s.Errors, r.Error) {
 				s.Errors = append(s.Errors, r.Error)
 			}
 			continue
 		}
-		if r.Status == "completed" {
-			s.Completed++
-		} else {
-			s.Stopped++
-		}
+		s.Completed++
 		names := map[string]any{}
 		for k, v := range r.Metrics {
 			if num, err := toNum(v); err == nil {

@@ -208,6 +208,42 @@ func toJSON(v any) any {
 	return v
 }
 
+// yamlNum is a number in a graph file: a plain YAML int or float, so LoadGraph reads it
+// back as a number. toJSON would write a string and change what the value means.
+type yamlNum struct{ r *big.Rat }
+
+func (n yamlNum) MarshalYAML() (any, error) {
+	tag := "!!float"
+	if n.r.IsInt() {
+		tag = "!!int"
+	}
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: numString(n.r)}, nil
+}
+
+// toYAML is toJSON for graph files: numbers stay numbers.
+func toYAML(v any) any {
+	switch x := v.(type) {
+	case *big.Rat:
+		return yamlNum{x}
+	case *OMap:
+		if x == nil {
+			return nil
+		}
+		m := make(map[string]any, len(x.keys))
+		for _, k := range x.keys {
+			m[k] = toYAML(x.m[k])
+		}
+		return m
+	case []any:
+		out := make([]any, len(x))
+		for i, e := range x {
+			out[i] = toYAML(e)
+		}
+		return out
+	}
+	return toJSON(v)
+}
+
 // fromJSON converts decoded JSON (UseNumber) into engine values.
 func fromJSON(v any) any {
 	switch x := v.(type) {
