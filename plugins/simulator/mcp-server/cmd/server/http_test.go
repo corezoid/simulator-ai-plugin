@@ -2,144 +2,124 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/hosted"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
 )
 
-func TestHTTPContextFunc(t *testing.T) {
-	r := httptest.NewRequest(http.MethodPost, mcpEndpointPath, nil)
-	r.Header.Set("Authorization", "Simulator test-jwt")
-	r.Header.Set("X-Simulator-Workspace-Id", "ws-123")
-	r.Header.Set("X-Simulator-Actor-Id", "actor-456")
+var prodInfo = mcpserver.Info{
+	Profile:    "prod",
+	APIBaseURL: "https://mw.simulator.company/papi/1.0",
+	AccountURL: "https://account.corezoid.com",
+}
 
-	ctx := httpContextFunc(context.Background(), r)
-
-	if got := apiclient.AuthorizationFromContext(ctx); got != "Simulator test-jwt" {
-		t.Errorf("Authorization: got %q, want it forwarded verbatim", got)
+func TestHostedConfigDefaults(t *testing.T) {
+	for _, k := range []string{"SIMULATOR_RESOURCE_URL", "SIMULATOR_AUTH_SERVER_URL", "SIMULATOR_RESOLVER_ACCOUNT_URL", "SIMULATOR_RESOLVER_ALLOWED_ORIGINS"} {
+		t.Setenv(k, "")
 	}
-	if got := apiclient.WorkspaceIDFromContext(ctx); got != "ws-123" {
-		t.Errorf("workspace id: got %q, want %q", got, "ws-123")
+	cfg := hostedConfig(prodInfo, false)
+	if cfg.ResourceURL != "" {
+		t.Errorf("ResourceURL defaulted to %q; discovery must be opted into", cfg.ResourceURL)
 	}
-	if got := apiclient.ActorIDFromContext(ctx); got != "actor-456" {
-		t.Errorf("actor id: got %q, want %q", got, "actor-456")
+	if cfg.AuthServerURL != prodInfo.AccountURL || cfg.AccountURL != prodInfo.AccountURL {
+		t.Errorf("auth/account defaults = %q / %q, want the profile account URL", cfg.AuthServerURL, cfg.AccountURL)
+	}
+	if cfg.FallbackURL != prodInfo.APIBaseURL {
+		t.Errorf("FallbackURL = %q, want the profile API URL", cfg.FallbackURL)
+	}
+	if len(cfg.ResolverAllowedOrigins) != 0 {
+		t.Errorf("ResolverAllowedOrigins = %v, want none", cfg.ResolverAllowedOrigins)
 	}
 }
 
-func TestHTTPContextFuncMissingHeaders(t *testing.T) {
-	r := httptest.NewRequest(http.MethodPost, mcpEndpointPath, nil)
-	ctx := httpContextFunc(context.Background(), r)
-
-	if got := apiclient.AuthorizationFromContext(ctx); got != "" {
-		t.Errorf("Authorization: got %q, want empty (auth failure must surface in the API client, not here)", got)
+func TestHostedConfigFromEnv(t *testing.T) {
+	t.Setenv("SIMULATOR_RESOURCE_URL", "https://mcp.simulator.company")
+	t.Setenv("SIMULATOR_AUTH_SERVER_URL", "")
+	t.Setenv("SIMULATOR_RESOLVER_ACCOUNT_URL", "off")
+	t.Setenv("SIMULATOR_RESOLVER_ALLOWED_ORIGINS", " https://sim.customer.com , ,https://*.customer.com")
+	cfg := hostedConfig(prodInfo, false)
+	if cfg.ResourceURL != "https://mcp.simulator.company" {
+		t.Errorf("ResourceURL = %q", cfg.ResourceURL)
 	}
-	if got := apiclient.WorkspaceIDFromContext(ctx); got != "" {
-		t.Errorf("workspace id: got %q, want empty", got)
+	if cfg.AccountURL != "" {
+		t.Errorf(`"off" must disable the resolver, got %q`, cfg.AccountURL)
 	}
-}
-
-func TestHealthz(t *testing.T) {
-	h := newHTTPHandler(server.NewMCPServer("test", "0.0.0"))
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, healthzPath, nil))
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("healthz: got %d, want 200", rec.Code)
-	}
-	if body := rec.Body.String(); body != "ok" {
-		t.Errorf("healthz body: got %q, want %q", body, "ok")
+	if strings.Join(cfg.ResolverAllowedOrigins, ",") != "https://sim.customer.com,https://*.customer.com" {
+		t.Errorf("ResolverAllowedOrigins = %v", cfg.ResolverAllowedOrigins)
 	}
 }
 
-// postMCP sends one JSON-RPC request to the streamable endpoint and returns the
-// decoded response. Headers are applied to the HTTP request, mimicking a remote
-// client (e.g. an OpenAI connector) attaching credentials per request.
-func postMCP(t *testing.T, ts *httptest.Server, headers map[string]string, body string) map[string]any {
-	t.Helper()
-	req, err := http.NewRequest(http.MethodPost, ts.URL+mcpEndpointPath, bytes.NewBufferString(body))
+// TestHostedServerEndToEnd wires the real stateless simulator server exactly
+// as runHTTPMode does and lists its tools over HTTP without a session.
+// Nothing reaches the Simulator API: initialize and tools/list are local.
+func TestHostedServerEndToEnd(t *testing.T) {
+	t.Setenv(mcpserver.APISecretEnv, "")
+	s, info, err := mcpserver.New(mcpserver.Options{Profile: "prod", Version: version, Stateless: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json, text/event-stream")
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	resp, err := ts.Client().Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		t.Fatalf("POST %s: status %d", mcpEndpointPath, resp.StatusCode)
-	}
-
-	// Stateless streamable responses arrive either as plain JSON or as a single
-	// SSE event; accept both shapes.
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(resp.Body); err != nil {
-		t.Fatal(err)
-	}
-	raw := buf.String()
-	if i := strings.Index(raw, "data: "); i >= 0 {
-		raw = raw[i+len("data: "):]
-		if j := strings.Index(raw, "\n"); j >= 0 {
-			raw = raw[:j]
-		}
-	}
-	var out map[string]any
-	if raw != "" {
-		if err := json.Unmarshal([]byte(raw), &out); err != nil {
-			t.Fatalf("decode %q: %v", raw, err)
-		}
-	}
-	return out
-}
-
-// TestMCPOverHTTPEndToEnd drives the real handler stack: initialize, then a
-// tools/call whose handler echoes the per-request ctx values — proving the
-// HTTP headers reach tool handlers through WithHTTPContextFunc, and that two
-// bare requests work without any session state (stateless mode).
-func TestMCPOverHTTPEndToEnd(t *testing.T) {
-	s := server.NewMCPServer("test", "0.0.0", server.WithToolCapabilities(false))
-	s.AddTool(
-		mcp.NewTool("echo-ctx", mcp.WithDescription("echo per-request ctx values")),
-		func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			return mcp.NewToolResultText(fmt.Sprintf("auth=%s ws=%s",
-				apiclient.AuthorizationFromContext(ctx),
-				apiclient.WorkspaceIDFromContext(ctx))), nil
-		},
-	)
-	ts := httptest.NewServer(newHTTPHandler(s))
+	cfg := hosted.Config{ResourceURL: "https://mcp.example.test", AuthServerURL: info.AccountURL, FallbackURL: info.APIBaseURL}
+	ts := httptest.NewServer(http.MaxBytesHandler(hosted.NewHandler(s, cfg), maxRequestBytes))
 	defer ts.Close()
 
-	headers := map[string]string{
-		"Authorization":            "Simulator jwt-abc",
-		"X-Simulator-Workspace-Id": "ws-777",
+	call := func(auth, body string) (int, string) {
+		req, _ := http.NewRequest(http.MethodPost, ts.URL+"/mcp", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		if auth != "" {
+			req.Header.Set("Authorization", auth)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		raw := string(b)
+		if !strings.HasPrefix(strings.TrimSpace(raw), "{") {
+			if i := strings.Index(raw, "data: "); i >= 0 {
+				raw = strings.SplitN(raw[i+6:], "\n", 2)[0]
+			}
+		}
+		return resp.StatusCode, raw
 	}
 
-	initResp := postMCP(t, ts, headers,
-		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}`)
-	if initResp["error"] != nil {
-		t.Fatalf("initialize error: %v", initResp["error"])
+	if code, _ := call("", `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`); code != http.StatusUnauthorized {
+		t.Fatalf("anonymous: status %d, want 401", code)
+	}
+	if code, body := call("Bearer t", `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}`); code != http.StatusOK {
+		t.Fatalf("initialize: %d %.200s", code, body)
+	}
+	code, body := call("Bearer t", `{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}`)
+	if code != http.StatusOK {
+		t.Fatalf("tools/list without session: %d %.200s", code, body)
+	}
+	var out struct {
+		Result struct {
+			Tools []struct{ Name string } `json:"tools"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(body), &out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(out.Result.Tools) < 100 {
+		t.Errorf("%d tools, want the full curated set", len(out.Result.Tools))
+	}
+	for _, tool := range out.Result.Tools {
+		switch tool.Name {
+		case "login", "set-workspace", "set-environment":
+			t.Errorf("stateful helper %q exposed on the hosted server", tool.Name)
+		}
 	}
 
-	// No Mcp-Session-Id is carried over — stateless mode must accept this.
-	callResp := postMCP(t, ts, headers,
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo-ctx","arguments":{}}}`)
-	if callResp["error"] != nil {
-		t.Fatalf("tools/call error: %v", callResp["error"])
-	}
-	b, _ := json.Marshal(callResp)
-	if want := "auth=Simulator jwt-abc ws=ws-777"; !strings.Contains(string(b), want) {
-		t.Errorf("tool did not see per-request headers: response %s, want substring %q", b, want)
+	big := bytes.Repeat([]byte("x"), maxRequestBytes+1)
+	if code, _ := call("Bearer t", string(big)); code < 400 {
+		t.Errorf("oversized body: status %d, want a 4xx", code)
 	}
 }

@@ -4,14 +4,17 @@
 
 ### Added
 - Hosted (remote) serving mode: `--http <addr>` (or `SIMULATOR_HTTP_ADDR`) serves MCP over
-  streamable HTTP at `/mcp`, with `/healthz` for load-balancer checks. The hosted server is
-  stateless and multi-tenant: no `.env` is read or written, the `.env`-mutating helper tools
-  (`login` / `set-workspace` / `set-environment`) are not registered, and credentials arrive
-  per request via headers — `Authorization` (forwarded verbatim: `Simulator <jwt>` or
-  `Bearer <api key>`), `X-Simulator-Workspace-Id`, optional `X-Simulator-Actor-Id`
-  (actor-scoped mode) and `control-events-context`. The API base URL is pinned by `--profile`
-  and deliberately not overridable per request. Without the flag/env the server starts in
-  stdio mode exactly as before.
+  streamable HTTP for deployments such as `mcp.simulator.company`. Routes match the existing
+  hosted server: `/mcp`, `/mcp/workspaces/{id}`, `/mcp/workspaces/{id}/actors/{id}`, plus
+  `/healthz`. The server is stateless and multi-tenant: no sessions, no `.env`, and no
+  `login` / `set-workspace` / `set-environment`. Every request carries the caller's own token
+  (`Bearer`, `Simulator` or bare, normalised to `Simulator <token>`); requests without one get
+  401, with an RFC 9728 challenge pointing at `account.corezoid.com` when
+  `SIMULATOR_RESOURCE_URL` is set. Workspace and actor come from the path; the API base URL comes
+  from `--profile` or a per-workspace Account lookup that is cached per caller and accepted only
+  for https origins on an allowlist (the profile host, its sibling subdomains, and
+  `SIMULATOR_RESOLVER_ALLOWED_ORIGINS`). Request bodies are capped at 32 MiB. The reusable
+  handler is `app/hosted`. Without the flag/env the server starts in stdio mode exactly as before.
 
 ## [2.9.1]
 
