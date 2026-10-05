@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Hosted (remote) serving mode: `--http <addr>` (or `SIMULATOR_HTTP_ADDR`) serves MCP over
+  streamable HTTP at `/mcp`, with `/healthz` for load-balancer checks. The hosted server is
+  stateless and multi-tenant: no `.env` is read or written, the `.env`-mutating helper tools
+  (`login` / `set-workspace` / `set-environment`) are not registered, and credentials arrive
+  per request via headers — `Authorization` (forwarded verbatim: `Simulator <jwt>` or
+  `Bearer <api key>`), `X-Simulator-Workspace-Id`, optional `X-Simulator-Actor-Id`
+  (actor-scoped mode) and `control-events-context`. The API base URL is pinned by `--profile`
+  and deliberately not overridable per request. Without the flag/env the server starts in
+  stdio mode exactly as before.
+
 ## [2.9.1]
 
 ### Fixed
