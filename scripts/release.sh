@@ -35,8 +35,9 @@ cd "$ROOT"
 
 CHANGELOG="CHANGELOG.md"
 
-# The six files that carry the plugin version, in lockstep.
+# The seven files that carry the plugin version, in lockstep.
 VERSION_FILES="
+plugin.json
 plugins/simulator/.claude-plugin/plugin.json
 plugins/simulator/.codex-plugin/plugin.json
 plugins/simulator/.kiro-plugin/plugin.json
@@ -56,7 +57,7 @@ if [ "$CURRENT" = "$VERSION" ]; then
   exit 1
 fi
 
-# Fail fast if the six files are not already in lockstep — a drifted file would
+# Fail fast if the seven files are not already in lockstep — a drifted file would
 # be silently missed by the exact-string bump below.
 drift=0
 for f in $VERSION_FILES; do

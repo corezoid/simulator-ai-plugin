@@ -26,6 +26,9 @@
     "longDescription": "Manage actors, graph-based business processes, form templates, financial accounts, transactions and transfers via the Simulator.Company REST API.",
     "developerName": "Simulator.Company",
     "category": "Productivity",
+    "supportURL": "https://github.com/corezoid/simulator-ai-plugin/issues",
+    "privacyPolicyURL": "https://simulator.company/privacy-policy/",
+    "termsOfServiceURL": "https://simulator.company/terms/",
     "capabilities": [
       "Graph-based business process management",
       "Actor and form template management",

@@ -19,25 +19,5 @@
     "mcp"
   ],
   "skills": "./skills/",
-  "mcpServers": "./.mcp.json",
-  "interface": {
-    "displayName": "Simulator.Company",
-    "shortDescription": "BPM and financial tracking via Simulator.Company API",
-    "longDescription": "Manage actors, graph-based business processes, form templates, financial accounts, transactions and transfers via the Simulator.Company REST API.",
-    "developerName": "Simulator.Company",
-    "category": "Productivity",
-    "capabilities": [
-      "Graph-based business process management",
-      "Actor and form template management",
-      "Financial accounts and transaction tracking",
-      "Multi-layer visual graph organization",
-      "Dashboard charts and time-series visualisation on graph layers"
-    ],
-    "websiteURL": "https://simulator.company",
-    "defaultPrompt": [
-      "Create a business process graph for customer onboarding",
-      "Show me all actors in my workspace",
-      "Create a financial account to track expenses"
-    ]
-  }
+  "mcpServers": "./.mcp.json"
 }

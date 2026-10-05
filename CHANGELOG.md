@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Directory-readiness for the public plugin catalogs: root `plugin.json` in the
+  Agent Plugins 1.0.0 format (required by Kiro's Powers registry and accepted by
+  OpenAI's plugin portal), `supportURL`/`privacyPolicyURL`/`termsOfServiceURL`
+  in the Codex interface block, brand icons under `plugins/simulator/assets/`,
+  and a README "Support & Legal" section. The root manifest joins the version
+  lockstep (now seven files; `scripts/release.sh` bumps it automatically).
+
+### Fixed
+- `claude plugin validate --strict` passes again: the non-standard `interface`
+  block moved out of `.claude-plugin/plugin.json` (it lives in the Codex
+  manifest, which is the host that reads it).
+
 ## [2.9.1]
 
 ### Fixed
