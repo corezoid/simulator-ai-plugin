@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Security
+- Hosted (stateless) mode hardening. URLs taken from tool arguments (`uploadActorPicture` /
+  `uploadActorPictureBulk` `imageUrl`, `uploadGraphFile` `fileUrl`) must be https and may only
+  reach public internet addresses: the dialer resolves the host itself, refuses loopback,
+  private, link-local, CGNAT and other special-purpose ranges (including IPv4 embedded in
+  IPv6), connects to the vetted address, and re-checks redirects. `localPath` and simulation
+  file paths are refused, and the tools that read or write the server's working directory
+  (`pullGraphFile`, `pushGraphFile`, `pullSmartForm`, `pushSmartForm`, `simulationSnapshot`)
+  are not offered by a hosted server. The local (stdio) server is unchanged.
+
 ### Added
 - Hosted (remote) serving mode: `--http <addr>` (or `SIMULATOR_HTTP_ADDR`) serves MCP over
   streamable HTTP for deployments such as `mcp.simulator.company`. Routes match the existing

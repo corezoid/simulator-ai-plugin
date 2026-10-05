@@ -3,10 +3,22 @@ package graph
 import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 )
 
 // Register adds all graph engine tools to the MCP server.
 func Register(s *server.MCPServer) {
+	// The file tools read and write the server's working directory. On a
+	// hosted (stateless) server that disk is shared by every caller, so they
+	// are not offered there at all.
+	if !ecore.IsStateless() {
+		registerFileTools(s)
+	}
+	registerAPITools(s)
+}
+
+func registerFileTools(s *server.MCPServer) {
 	s.AddTool(
 		mcp.NewTool("pullGraphFile",
 			mcp.WithDescription("Fetch all actors and edges from a layer and write them to <layerId>.yaml in the current working directory."),
@@ -22,7 +34,9 @@ func Register(s *server.MCPServer) {
 		),
 		handlePushGraphFile,
 	)
+}
 
+func registerAPITools(s *server.MCPServer) {
 	s.AddTool(
 		mcp.NewTool("getAllLayerPlacements",
 			mcp.WithDescription("Return every placement (actorId, laId, formId, title, position) on a layer in one call. Walks the paginated /graph_layers/paginated/{layerId}?type=nodes endpoint internally, so the caller does not need to enumerate formIds."),

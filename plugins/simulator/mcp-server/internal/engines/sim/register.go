@@ -58,6 +58,11 @@ func Register(s *server.MCPServer) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)...), handleRun)
 
+	// Snapshot writes a file to the server's working directory, which a
+	// hosted (stateless) server shares between callers: not offered there.
+	if ecore.IsStateless() {
+		return
+	}
 	s.AddTool(mcp.NewTool("simulationSnapshot",
 		mcp.WithDescription("Read a layer with its actors, links and account values and write it to "+
 			"<layerId>.sim.yaml in the working directory (plugin layer YAML plus sim: sections for accounts and "+
@@ -72,6 +77,9 @@ func Register(s *server.MCPServer) {
 
 // localPath resolves a user-given relative path inside the working directory.
 func localPath(p string) (string, error) {
+	if ecore.IsStateless() {
+		return "", fmt.Errorf("file paths are not available on the hosted server; pass the YAML as text or use layerId")
+	}
 	if p == "" || filepath.IsAbs(p) {
 		return "", fmt.Errorf("path must be relative to the working directory: %q", p)
 	}

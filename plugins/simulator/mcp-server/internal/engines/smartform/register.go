@@ -3,10 +3,18 @@ package smartform
 import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 )
 
 // Register adds all Smart Form engine tools to the MCP server.
 func Register(s *server.MCPServer) {
+	// pull/push sync a local file tree in the server's working directory. On a
+	// hosted (stateless) server that disk is shared by every caller, so they
+	// are not offered there at all.
+	if !ecore.IsStateless() {
+		registerFileTools(s)
+	}
 	s.AddTool(
 		mcp.NewTool("createSmartForm",
 			mcp.WithDescription("Create a new Smart Form (CDU / Script application) actor with develop + production environments. Corezoid credentials are optional — omit them for static/design-only forms and configure the binding later. After creation, run pullSmartForm to download the initial file tree. Requires actors.management scope."),
@@ -22,23 +30,6 @@ func Register(s *server.MCPServer) {
 			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier applied to both envs (optional). String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
 		),
 		handleCreateSmartForm,
-	)
-
-	s.AddTool(
-		mcp.NewTool("pullSmartForm",
-			mcp.WithDescription("Fetch all environment file trees (pages, locale, viewModel, styles, definitions, widgets) of a smart form (CDU / Script application) and write them to <actorId>/<envTitle>/... in the current working directory. Also writes a .manifest.json in each env folder with file IDs and content hashes for use by pushSmartForm. Conflict detection: if a prior manifest exists and any local file differs from its last-pulled hash, the pull is refused — push your changes first or pass force=true to discard local edits. Requires actors.management scope."),
-			mcp.WithString("actorId", mcp.Description("Smart form actor UUID."), mcp.Required()),
-			mcp.WithBoolean("force", mcp.Description("Overwrite local files even when they have unsaved edits (local hash differs from the last-pulled manifest hash). Default false — the pull aborts and lists the conflicting files so you can decide what to do.")),
-		),
-		handlePullSmartForm,
-	)
-
-	s.AddTool(
-		mcp.NewTool("pushSmartForm",
-			mcp.WithDescription("Reconcile the local develop tree with the server: POST any new folders (parents first) and new files, PUT any modified files (including MIME-only drift), and update .manifest.json. MIME rules: text/css for the bare top-level `style` file, styles/, pages/<page>/style, and *.css; application/json for everything else. Duplicate guard: before creating a new file, the server tree is checked — if a file already occupies that (folder, title) slot the push aborts with guidance to re-run pullSmartForm. PUT always re-derives the correct MIME type so a previously wrong Content-Type is self-healed without manual delete/recreate. Files in the manifest but missing locally are reported as orphanFiles. Only develop is writable; run pullSmartForm first. Requires actors.management scope."),
-			mcp.WithString("actorId", mcp.Description("Smart form actor UUID — directory <actorId>/develop/ must exist with a .manifest.json."), mcp.Required()),
-		),
-		handlePushSmartForm,
 	)
 
 	s.AddTool(
@@ -140,4 +131,24 @@ func Register(s *server.MCPServer) {
 		),
 		handleRestoreFromTrash,
 	)
+}
+
+func registerFileTools(s *server.MCPServer) {
+	s.AddTool(
+		mcp.NewTool("pullSmartForm",
+			mcp.WithDescription("Fetch all environment file trees (pages, locale, viewModel, styles, definitions, widgets) of a smart form (CDU / Script application) and write them to <actorId>/<envTitle>/... in the current working directory. Also writes a .manifest.json in each env folder with file IDs and content hashes for use by pushSmartForm. Conflict detection: if a prior manifest exists and any local file differs from its last-pulled hash, the pull is refused — push your changes first or pass force=true to discard local edits. Requires actors.management scope."),
+			mcp.WithString("actorId", mcp.Description("Smart form actor UUID."), mcp.Required()),
+			mcp.WithBoolean("force", mcp.Description("Overwrite local files even when they have unsaved edits (local hash differs from the last-pulled manifest hash). Default false — the pull aborts and lists the conflicting files so you can decide what to do.")),
+		),
+		handlePullSmartForm,
+	)
+
+	s.AddTool(
+		mcp.NewTool("pushSmartForm",
+			mcp.WithDescription("Reconcile the local develop tree with the server: POST any new folders (parents first) and new files, PUT any modified files (including MIME-only drift), and update .manifest.json. MIME rules: text/css for the bare top-level `style` file, styles/, pages/<page>/style, and *.css; application/json for everything else. Duplicate guard: before creating a new file, the server tree is checked — if a file already occupies that (folder, title) slot the push aborts with guidance to re-run pullSmartForm. PUT always re-derives the correct MIME type so a previously wrong Content-Type is self-healed without manual delete/recreate. Files in the manifest but missing locally are reported as orphanFiles. Only develop is writable; run pullSmartForm first. Requires actors.management scope."),
+			mcp.WithString("actorId", mcp.Description("Smart form actor UUID — directory <actorId>/develop/ must exist with a .manifest.json."), mcp.Required()),
+		),
+		handlePushSmartForm,
+	)
+
 }

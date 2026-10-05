@@ -50,6 +50,11 @@ var allowedImageExts = map[string]bool{
 // arbitrary local files (such as ~/.ssh/id_rsa) by uploading them as an actor
 // picture — see security review.
 func readLocalImage(p string) ([]byte, error) {
+	if ecore.IsStateless() {
+		// The hosted server's disk is not the caller's: there is nothing of
+		// theirs to read there, only ours.
+		return nil, fmt.Errorf("localPath is not available on the hosted server; pass imageUrl or base64")
+	}
 	ext := strings.ToLower(filepath.Ext(p))
 	if !allowedImageExts[ext] {
 		return nil, fmt.Errorf("localPath must point to an image file; %q is not an allowed extension", ext)
@@ -169,6 +174,9 @@ func setActorPicture(ctx context.Context, formID int, actorID, picture string) e
 
 // fetchImageFromURL downloads bytes from a URL with a short timeout.
 func fetchImageFromURL(ctx context.Context, url string) ([]byte, string, error) {
+	if err := ecore.CheckUserURL(url); err != nil {
+		return nil, "", err
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, "", err
@@ -176,7 +184,7 @@ func fetchImageFromURL(ctx context.Context, url string) ([]byte, string, error) 
 	req.Header.Set("User-Agent",
 		"simulator-ai-plugin/uploadActorPicture (+https://github.com/corezoid/simulator-ai-plugin)")
 
-	client := ecore.APIHTTPClient()
+	client := ecore.UserURLClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
