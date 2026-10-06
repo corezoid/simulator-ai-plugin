@@ -72,12 +72,12 @@ func TestHostedToolHintsMatchBehaviour(t *testing.T) {
 // Descriptions and schemas must not offer files, login or workspace switching:
 // none exists on the hosted server.
 func TestHostedToolsOfferNoLocalFeatures(t *testing.T) {
-	for _, banned := range []string{"createSmartForm", "updateSmartFormEnv"} {
+	for _, banned := range []string{"createSmartForm", "updateSmartFormEnv", "appGetPage", "appSendForm"} {
 		if _, ok := hostedTools(t)[banned]; ok {
-			t.Errorf("%s takes Corezoid API credentials and must not be hosted", banned)
+			t.Errorf("%s must not be hosted", banned)
 		}
 	}
-	local := []string{"localPath", "modelPath", "scenariosPath", "graphPath", "working directory", "set-workspace", "local file", "Call after login"}
+	local := []string{"apiSecret", "localPath", "modelPath", "scenariosPath", "graphPath", "working directory", "set-workspace", "local file", "Call after login"}
 	for name, tl := range hostedTools(t) {
 		for _, l := range local {
 			if strings.Contains(tl.desc, l) || strings.Contains(tl.schema, l) {

@@ -87,6 +87,7 @@ const (
 // NewHandler wraps s (built with Stateless: true) into the full hosted HTTP
 // handler described in the package comment.
 func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
+	s.DeleteTools(hostedOmittedTools...)
 	addToolTitles(s)
 	applyHostedDescriptions(s)
 	endpoint := strings.TrimRight(cfg.EndpointPath, "/")
@@ -319,14 +320,52 @@ var hostedDescriptions = map[string]string{
 	"rollbackFile":  "Restore a Smart Form file to a prior version. Creates a new version whose content equals the target version. Requires actors.management scope.",
 }
 
+// hostedOmittedTools are not offered by a hosted connector: the Smart Form
+// runtime (appGetPage / appSendForm) runs another app's Corezoid process with
+// arbitrary side effects on the caller's behalf. They stay in the local
+// server.
+var hostedOmittedTools = []string{"appGetPage", "appSendForm"}
+
+// hostedArgRedactions removes text from argument descriptions: the
+// corezoidSyncApi options source embeds Corezoid API credentials in a form
+// field, which a hosted connector does not ask for.
+var hostedArgRedactions = map[string]map[string]string{
+	"createForm": {"sections": "|corezoidSyncApi{value.convId,apiLogin,apiSecret}"},
+	"updateForm": {"sections": "|corezoidSyncApi{value.convId,apiLogin,apiSecret}"},
+}
+
 func applyHostedDescriptions(s *server.MCPServer) {
 	for name, st := range s.ListTools() {
-		desc, ok := hostedDescriptions[name]
-		if !ok {
+		desc, hasDesc := hostedDescriptions[name]
+		redactions, hasRedactions := hostedArgRedactions[name]
+		if !hasDesc && !hasRedactions {
 			continue
 		}
 		t := st.Tool
-		t.Description = desc
+		if hasDesc {
+			t.Description = desc
+		}
+		if hasRedactions {
+			props := make(map[string]any, len(t.InputSchema.Properties))
+			for k, v := range t.InputSchema.Properties {
+				props[k] = v
+			}
+			for arg, cut := range redactions {
+				p, ok := props[arg].(map[string]any)
+				if !ok {
+					continue
+				}
+				cp := make(map[string]any, len(p))
+				for k, v := range p {
+					cp[k] = v
+				}
+				if d, ok := cp["description"].(string); ok {
+					cp["description"] = strings.ReplaceAll(d, cut, "")
+				}
+				props[arg] = cp
+			}
+			t.InputSchema.Properties = props
+		}
 		s.AddTool(t, st.Handler)
 	}
 }

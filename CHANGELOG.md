@@ -19,6 +19,10 @@
   point at `login`, `set-workspace` or local files.
 
 ### Security
+- Hosted mode no longer offers the Smart Form runtime (`appGetPage` / `appSendForm`: they run
+  another app's Corezoid process with arbitrary side effects), and the `createForm` / `updateForm`
+  `sections` description no longer advertises the `corezoidSyncApi` options source (it embeds
+  Corezoid API credentials).
 - Hosted mode no longer offers `createSmartForm` / `updateSmartFormEnv`: they take Corezoid API
   credentials as arguments, which a public connector should not collect in chat. `createLink` is
   marked destructive (it replaces a placeholder hole link); `getSystemActor` and `appGetPage` are

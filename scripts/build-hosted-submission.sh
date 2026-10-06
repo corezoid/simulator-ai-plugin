@@ -48,7 +48,7 @@ This plugin talks to the hosted Simulator MCP server. Differences from the local
 - **No login, set-workspace or set-environment.** The connection itself is authenticated (OAuth, account.corezoid.com). Pick the workspace with `getWorkspaces` and pass its id as `accId` where a tool asks for it.
 - **No local files.** `pullGraphFile` / `pushGraphFile`, `pullSmartForm` / `pushSmartForm` and `simulationSnapshot` are not available. Read layers with `getAllLayerPlacements` / `getLayerActors`, and change them with `createActor`, `createLink`, `manageLayerActors` and the other API tools. Simulations take the model as YAML text plus a live `layerId`.
 - **Images** for `uploadActorPicture` come from a public `https://` URL or `base64`; `localPath` is not available.
-- **No third-party credentials.** `createSmartForm` and `updateSmartFormEnv` (they take Corezoid `apiLogin` / `apiSecret`) are not available; create Smart Forms and bind their Corezoid credentials in the Simulator UI.
+- **No third-party credentials.** `createSmartForm` and `updateSmartFormEnv` (they take Corezoid `apiLogin` / `apiSecret`) are not available; create Smart Forms and bind their Corezoid credentials in the Simulator UI. The Smart Form runtime (`appGetPage` / `appSendForm`) is local-only too.
 - Ignore any step below that tells you to write or read a file, a `.env`, or a `<layerId>.yaml`.
 """
 if s.startswith("---"):
