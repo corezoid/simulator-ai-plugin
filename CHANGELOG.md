@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- Hosted mode gives every tool without one a human-readable title derived from its name
+  (`getWorkspaces` → "Get workspaces"), as connector directories require.
 - Hosted mode serves the OpenAI plugin-directory domain-verification token at
   `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
   token; 404 otherwise).

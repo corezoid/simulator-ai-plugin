@@ -247,3 +247,31 @@ func TestOpenAIAppsChallenge(t *testing.T) {
 		t.Errorf("challenge: %d %q %q, want 200 text/plain exact token", resp.StatusCode, body, resp.Header.Get("Content-Type"))
 	}
 }
+
+func TestHumanizeToolName(t *testing.T) {
+	for in, want := range map[string]string{
+		"getWorkspaces":          "Get workspaces",
+		"uploadActorPictureBulk": "Upload actor picture bulk",
+		"set-workspace":          "Set workspace",
+		"getURLForm":             "Get url form",
+		"x":                      "X",
+	} {
+		if got := humanizeToolName(in); got != want {
+			t.Errorf("humanizeToolName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestEveryHostedToolHasATitle(t *testing.T) {
+	s := echoServer()
+	s.AddTool(mcp.NewTool("keepMine", mcp.WithTitleAnnotation("Custom")), func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) { return nil, nil })
+	NewHandler(s, prodLike)
+	for name, st := range s.ListTools() {
+		if st.Tool.Title == "" && st.Tool.Annotations.Title == "" {
+			t.Errorf("%s has no title", name)
+		}
+	}
+	if got := s.ListTools()["keepMine"].Tool.Annotations.Title; got != "Custom" {
+		t.Errorf("existing title overwritten: %q", got)
+	}
+}

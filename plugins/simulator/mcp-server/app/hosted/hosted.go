@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
 	"github.com/mark3labs/mcp-go/server"
@@ -86,6 +87,7 @@ const (
 // NewHandler wraps s (built with Stateless: true) into the full hosted HTTP
 // handler described in the package comment.
 func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
+	addToolTitles(s)
 	endpoint := strings.TrimRight(cfg.EndpointPath, "/")
 	if endpoint == "" {
 		endpoint = "/mcp"
@@ -290,4 +292,52 @@ func originOf(rawURL string) string {
 		return u.Scheme + "://" + u.Host
 	}
 	return rawURL
+}
+
+// addToolTitles gives every tool without one a human-readable title derived
+// from its name ("getWorkspaces" -> "Get workspaces"). Connector directories
+// require a title per tool; clients show it instead of the raw name.
+func addToolTitles(s *server.MCPServer) {
+	for name, st := range s.ListTools() {
+		if st.Tool.Title != "" || st.Tool.Annotations.Title != "" {
+			continue
+		}
+		t := st.Tool
+		t.Title = humanizeToolName(name)
+		t.Annotations.Title = t.Title
+		s.AddTool(t, st.Handler)
+	}
+}
+
+// humanizeToolName splits camelCase and kebab/snake case into words and
+// capitalises the first: "uploadActorPictureBulk" -> "Upload actor picture bulk".
+func humanizeToolName(name string) string {
+	var words []string
+	var cur []rune
+	flush := func() {
+		if len(cur) > 0 {
+			words = append(words, strings.ToLower(string(cur)))
+			cur = nil
+		}
+	}
+	runes := []rune(name)
+	for i, r := range runes {
+		switch {
+		case r == '-' || r == '_' || r == ' ':
+			flush()
+		case unicode.IsUpper(r) && len(cur) > 0 && (unicode.IsLower(cur[len(cur)-1]) || (i+1 < len(runes) && unicode.IsLower(runes[i+1]))):
+			flush()
+			cur = append(cur, r)
+		default:
+			cur = append(cur, r)
+		}
+	}
+	flush()
+	if len(words) == 0 {
+		return name
+	}
+	first := []rune(words[0])
+	first[0] = unicode.ToUpper(first[0])
+	words[0] = string(first)
+	return strings.Join(words, " ")
 }
