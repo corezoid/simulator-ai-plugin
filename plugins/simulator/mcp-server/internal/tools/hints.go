@@ -38,7 +38,6 @@ var hintsByName = map[string]toolHints{
 	"createCurrency":     hintAdditive,
 	"createForm":         hintAdditive,
 	"createFormAccount":  hintAdditive,
-	"createLink":         hintAdditive,
 	"massLink":           hintAdditive,
 	"createActor":        hintAdditive,
 	"createReaction":     hintAdditive,
@@ -47,6 +46,9 @@ var hintsByName = map[string]toolHints{
 	"addAttachments":     hintAdditive,
 	"uploadBase64":       hintAdditive,
 	"generatePublicLink": hintAdditive,
+
+	// createLink (POST, so destructive) replaces a placeholder "hole" link
+	// with a real one, dropping the hole's history.
 
 	// PUT that only toggles a flag back and forth
 	"togglePinnedReaction": hintAdditive,
@@ -67,10 +69,11 @@ var hintsByName = map[string]toolHints{
 	"readAttachment":        hintRead,
 	"simulationCheck":       hintRead,
 	"simulationRun":         hintRead,
-	"appGetPage":            hintRead,
 
 	// not Operations: additive
 	"getAgent":           hintAdditive, // get-or-creates a user twin
+	"getSystemActor":     hintAdditive, // get-or-creates a user twin
+	"appGetPage":         hintAdditive, // rendering runs the app's Corezoid process
 	"exportGraph":        hintAdditive,
 	"uploadGraphFile":    hintAdditive,
 	"createChart":        hintAdditive,

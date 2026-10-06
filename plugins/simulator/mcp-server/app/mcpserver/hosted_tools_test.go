@@ -26,7 +26,7 @@ func TestHostedServerOmitsFileTools(t *testing.T) {
 			t.Errorf("hosted server offers %s", name)
 		}
 	}
-	for _, name := range []string{"uploadActorPicture", "simulationRun", "createSmartForm", "getAllLayerPlacements"} {
+	for _, name := range []string{"uploadActorPicture", "simulationRun", "deploySmartForm", "getAllLayerPlacements"} {
 		if _, ok := tools[name]; !ok {
 			t.Errorf("hosted server lost API tool %s", name)
 		}

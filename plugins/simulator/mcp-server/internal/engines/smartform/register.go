@@ -14,37 +14,8 @@ func Register(s *server.MCPServer) {
 	// are not offered there at all.
 	if !ecore.IsStateless() {
 		registerFileTools(s)
+		registerCredentialTools(s)
 	}
-	s.AddTool(
-		mcp.NewTool("createSmartForm",
-			mcp.WithDescription("Create a new Smart Form (CDU / Script application) actor with develop + production environments. Corezoid credentials are optional — omit them for static/design-only forms and configure the binding later. After creation, run pullSmartForm to download the initial file tree. Requires actors.management scope."),
-			mcp.WithString("title", mcp.Description("Display name of the Smart Form."), mcp.Required()),
-			mcp.WithString("ref", mcp.Description("Unique slug in the workspace (lowercase letters, digits, hyphens)."), mcp.Required()),
-			mcp.WithString("description", mcp.Description("Optional description.")),
-			mcp.WithString("sharedWith", mcp.Description("Access policy: userList (default) | allWorkspaceUsers | allRegisteredUsers | anyone.")),
-			mcp.WithString("picture", mcp.Description("Icon URL or storage path.")),
-			mcp.WithString("corezoidCredentials", mcp.Description("Full credentials JSON: {\"develop\":{\"apiLogin\":\"...\",\"apiSecret\":\"...\",\"procId\":\"...\",\"companyId\":\"...\"},\"production\":{...}}. Use this OR the individual apiLogin/apiSecret/procId/companyId fields below.")),
-			mcp.WithString("apiLogin", mcp.Description("Corezoid API login applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
-			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
-			mcp.WithString("procId", mcp.Description("Corezoid process ID applied to both envs (optional).")),
-			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier applied to both envs (optional). String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
-		),
-		handleCreateSmartForm,
-	)
-
-	s.AddTool(
-		mcp.NewTool("updateSmartFormEnv",
-			mcp.WithDescription("Update the Corezoid credentials (apiLogin, apiSecret, procId, companyId) bound to one environment of a Smart Form. Accepts env name (develop or production) and resolves to the numeric envId internally. Updating develop does NOT create a release; production credentials are updated independently. Use getApplicationEnvs to inspect current bindings. Requires actors.management scope."),
-			mcp.WithString("actorId", mcp.Description("Smart Form actor UUID."), mcp.Required()),
-			mcp.WithString("env", mcp.Description("Environment name to update: develop (default) or production.")),
-			mcp.WithString("apiLogin", mcp.Description("Corezoid API login for this env."), mcp.Required()),
-			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret for this env."), mcp.Required()),
-			mcp.WithString("procId", mcp.Description("Corezoid process ID of the bound process for this env.")),
-			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier for this env. String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
-		),
-		handleUpdateSmartFormEnv,
-	)
-
 	s.AddTool(
 		mcp.NewTool("deploySmartForm",
 			mcp.WithDescription("Deploy a Smart Form environment to another (typically develop → production). Resolves env names to IDs internally — no need to look up env IDs manually. Creates a new release in the target env. Requires actors.management scope."),
@@ -151,4 +122,39 @@ func registerFileTools(s *server.MCPServer) {
 		handlePushSmartForm,
 	)
 
+}
+
+// registerCredentialTools adds the tools that take Corezoid API credentials
+// (apiLogin / apiSecret) as arguments. A hosted connector does not collect
+// third-party secrets in chat, so they are offered by the local server only.
+func registerCredentialTools(s *server.MCPServer) {
+	s.AddTool(
+		mcp.NewTool("createSmartForm",
+			mcp.WithDescription("Create a new Smart Form (CDU / Script application) actor with develop + production environments. Corezoid credentials are optional — omit them for static/design-only forms and configure the binding later. After creation, run pullSmartForm to download the initial file tree. Requires actors.management scope."),
+			mcp.WithString("title", mcp.Description("Display name of the Smart Form."), mcp.Required()),
+			mcp.WithString("ref", mcp.Description("Unique slug in the workspace (lowercase letters, digits, hyphens)."), mcp.Required()),
+			mcp.WithString("description", mcp.Description("Optional description.")),
+			mcp.WithString("sharedWith", mcp.Description("Access policy: userList (default) | allWorkspaceUsers | allRegisteredUsers | anyone.")),
+			mcp.WithString("picture", mcp.Description("Icon URL or storage path.")),
+			mcp.WithString("corezoidCredentials", mcp.Description("Full credentials JSON: {\"develop\":{\"apiLogin\":\"...\",\"apiSecret\":\"...\",\"procId\":\"...\",\"companyId\":\"...\"},\"production\":{...}}. Use this OR the individual apiLogin/apiSecret/procId/companyId fields below.")),
+			mcp.WithString("apiLogin", mcp.Description("Corezoid API login applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
+			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
+			mcp.WithString("procId", mcp.Description("Corezoid process ID applied to both envs (optional).")),
+			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier applied to both envs (optional). String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
+		),
+		handleCreateSmartForm,
+	)
+
+	s.AddTool(
+		mcp.NewTool("updateSmartFormEnv",
+			mcp.WithDescription("Update the Corezoid credentials (apiLogin, apiSecret, procId, companyId) bound to one environment of a Smart Form. Accepts env name (develop or production) and resolves to the numeric envId internally. Updating develop does NOT create a release; production credentials are updated independently. Use getApplicationEnvs to inspect current bindings. Requires actors.management scope."),
+			mcp.WithString("actorId", mcp.Description("Smart Form actor UUID."), mcp.Required()),
+			mcp.WithString("env", mcp.Description("Environment name to update: develop (default) or production.")),
+			mcp.WithString("apiLogin", mcp.Description("Corezoid API login for this env."), mcp.Required()),
+			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret for this env."), mcp.Required()),
+			mcp.WithString("procId", mcp.Description("Corezoid process ID of the bound process for this env.")),
+			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier for this env. String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
+		),
+		handleUpdateSmartFormEnv,
+	)
 }

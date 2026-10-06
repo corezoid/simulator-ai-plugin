@@ -52,7 +52,7 @@ func TestHostedToolHintsMatchBehaviour(t *testing.T) {
 	destructive := regexp.MustCompile(`^(delete|remove|revoke|clean|prune|rollback|update|set|save|bulkSave|move|deploy|import|finalize)`)
 	for name, tl := range hostedTools(t) {
 		switch {
-		case name == "getAgent":
+		case name == "getAgent" || name == "getSystemActor":
 			// get-or-creates a twin: not read-only, not destructive
 			if tl.ro || tl.de {
 				t.Errorf("%s: ro=%v de=%v, want additive", name, tl.ro, tl.de)
@@ -72,6 +72,11 @@ func TestHostedToolHintsMatchBehaviour(t *testing.T) {
 // Descriptions and schemas must not offer files, login or workspace switching:
 // none exists on the hosted server.
 func TestHostedToolsOfferNoLocalFeatures(t *testing.T) {
+	for _, banned := range []string{"createSmartForm", "updateSmartFormEnv"} {
+		if _, ok := hostedTools(t)[banned]; ok {
+			t.Errorf("%s takes Corezoid API credentials and must not be hosted", banned)
+		}
+	}
 	local := []string{"localPath", "modelPath", "scenariosPath", "graphPath", "working directory", "set-workspace", "local file", "Call after login"}
 	for name, tl := range hostedTools(t) {
 		for _, l := range local {
