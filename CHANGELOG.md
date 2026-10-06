@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+- Hosted mode serves the OpenAI plugin-directory domain-verification token at
+  `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
+  token; 404 otherwise).
+
 ### Security
 - Hosted (stateless) mode hardening. URLs taken from tool arguments (`uploadActorPicture` /
   `uploadActorPictureBulk` `imageUrl`, `uploadGraphFile` `fileUrl`) must be https and may only

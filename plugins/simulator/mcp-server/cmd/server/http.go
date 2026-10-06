@@ -15,6 +15,8 @@
 //	                                    account URL; "off" disables it)
 //	SIMULATOR_RESOLVER_ALLOWED_ORIGINS  comma-separated extra origins a resolved
 //	                                    API URL may use (on-prem Simulators)
+//	OPENAI_APPS_CHALLENGE               domain-verification token served at
+//	                                    /.well-known/openai-apps-challenge
 //
 // The fallback API URL is the profile's (--profile), never a request header.
 package main
@@ -68,6 +70,8 @@ func hostedConfig(info mcpserver.Info, insecure bool) hosted.Config {
 		AccountURL:    envOr("SIMULATOR_RESOLVER_ACCOUNT_URL", info.AccountURL),
 		FallbackURL:   info.APIBaseURL,
 		Insecure:      insecure,
+
+		OpenAIAppsChallenge: strings.TrimSpace(os.Getenv("OPENAI_APPS_CHALLENGE")),
 	}
 	if strings.EqualFold(cfg.AccountURL, "off") {
 		cfg.AccountURL = ""

@@ -222,3 +222,28 @@ func TestNormalizeSimulatorAPIURL(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenAIAppsChallenge(t *testing.T) {
+	ts := newTestServer(t, prodLike)
+	resp, err := http.Get(ts.URL + "/.well-known/openai-apps-challenge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("unset challenge: status %d, want 404", resp.StatusCode)
+	}
+
+	cfg := prodLike
+	cfg.OpenAIAppsChallenge = " tok-123 "
+	ts2 := newTestServer(t, cfg)
+	resp, err = http.Get(ts2.URL + "/.well-known/openai-apps-challenge")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK || string(body) != "tok-123" || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/plain") {
+		t.Errorf("challenge: %d %q %q, want 200 text/plain exact token", resp.StatusCode, body, resp.Header.Get("Content-Type"))
+	}
+}

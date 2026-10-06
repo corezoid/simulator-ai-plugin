@@ -66,11 +66,18 @@ type Config struct {
 	// Insecure skips TLS verification on Account lookups (self-signed on-prem
 	// gateways only).
 	Insecure bool
+
+	// OpenAIAppsChallenge, when set, is served verbatim as text/plain at
+	// /.well-known/openai-apps-challenge — the domain-verification token the
+	// OpenAI plugin directory asks the MCP host to publish. It is public by
+	// design; an unset value leaves the path a 404.
+	OpenAIAppsChallenge string
 }
 
 const (
 	headerControlEventsContext = "control-events-context"
 	healthzPath                = "/healthz"
+	openAIChallengePath        = "/.well-known/openai-apps-challenge"
 	// heartbeatInterval keeps load-balancer idle timeouts from cutting
 	// long-running tool calls that stream their response.
 	heartbeatInterval = 30 * time.Second
@@ -109,6 +116,12 @@ func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
 	scoped := scopedHandler(streamSrv, endpoint, resolver, fallbackURL)
 	mux.Handle(endpoint+"/workspaces/{workspace_id}", requireAuth(scoped, oauth))
 	mux.Handle(endpoint+"/workspaces/{workspace_id}/actors/{actor_id}", requireAuth(scoped, oauth))
+	if tok := strings.TrimSpace(cfg.OpenAIAppsChallenge); tok != "" {
+		mux.HandleFunc(openAIChallengePath, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			_, _ = w.Write([]byte(tok))
+		})
+	}
 	mux.HandleFunc(healthzPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok"))
