@@ -52,6 +52,7 @@ func NewActorServer(actorID string, opts Options) (*server.MCPServer, Info, erro
 	s := server.NewMCPServer(name, version)
 	ecore.SetStateless(true)
 	tools.BuildActorScoped(s, client, actorID)
+	tools.ApplyHints(s)
 	return s, Info{
 		Profile:    prof.Name,
 		APIBaseURL: prof.APIBaseURL,

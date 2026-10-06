@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"strings"
+
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
@@ -71,26 +73,34 @@ func registerAPITools(s *server.MCPServer) {
 		handlePruneLongEdges,
 	)
 
-	s.AddTool(
-		mcp.NewTool("uploadActorPicture",
-			mcp.WithDescription("Upload an image and set it as the actor's picture (graph node avatar). Source can be an HTTP URL, a local path, or a raw base64 string. SVG sources are auto-rasterised to PNG."),
-			mcp.WithString("actorId", mcp.Description("Actor UUID whose picture should be set."), mcp.Required()),
-			mcp.WithNumber("formId", mcp.Description("Form ID the actor belongs to (needed for the updateActor endpoint)."), mcp.Required()),
-			mcp.WithString("imageUrl", mcp.Description("Public HTTP(S) URL of the image. One of imageUrl / localPath / base64 is required.")),
-			mcp.WithString("localPath", mcp.Description("Absolute path to an image file on the MCP server host. One of imageUrl / localPath / base64 is required.")),
-			mcp.WithString("base64", mcp.Description("Raw base64-encoded image bytes (optionally with a data: prefix). One of imageUrl / localPath / base64 is required.")),
-			mcp.WithString("filename", mcp.Description("Override the upload filename (extension drives Content-Type).")),
-			mcp.WithNumber("pngWidth", mcp.Description("PNG width when the source is SVG and gets auto-rasterised. Default 256.")),
-			mcp.WithNumber("pngHeight", mcp.Description("PNG height when the source is SVG and gets auto-rasterised. Default 256.")),
-			mcp.WithString("svgFillColor", mcp.Description("Optional brand colour injected on the <svg> root before rasterising.")),
-		),
-		handleUploadActorPicture,
+	// A hosted (stateless) server has no files of its own to offer: the
+	// handlers refuse localPath there, and the schema does not offer it.
+	pictureSources, sourceList := "an HTTP URL, a local path, or a raw base64 string", "imageUrl / localPath / base64"
+	if ecore.IsStateless() {
+		pictureSources, sourceList = "a public HTTPS URL or a raw base64 string", "imageUrl / base64"
+	}
+	pictureOpts := []mcp.ToolOption{
+		mcp.WithDescription("Upload an image and set it as the actor's picture (graph node avatar). Source can be " + pictureSources + ". SVG sources are auto-rasterised to PNG."),
+		mcp.WithString("actorId", mcp.Description("Actor UUID whose picture should be set."), mcp.Required()),
+		mcp.WithNumber("formId", mcp.Description("Form ID the actor belongs to (needed for the updateActor endpoint)."), mcp.Required()),
+		mcp.WithString("imageUrl", mcp.Description("Public HTTP(S) URL of the image. One of "+sourceList+" is required.")),
+	}
+	if !ecore.IsStateless() {
+		pictureOpts = append(pictureOpts, mcp.WithString("localPath", mcp.Description("Absolute path to an image file on the MCP server host. One of "+sourceList+" is required.")))
+	}
+	pictureOpts = append(pictureOpts,
+		mcp.WithString("base64", mcp.Description("Raw base64-encoded image bytes (optionally with a data: prefix). One of "+sourceList+" is required.")),
+		mcp.WithString("filename", mcp.Description("Override the upload filename (extension drives Content-Type).")),
+		mcp.WithNumber("pngWidth", mcp.Description("PNG width when the source is SVG and gets auto-rasterised. Default 256.")),
+		mcp.WithNumber("pngHeight", mcp.Description("PNG height when the source is SVG and gets auto-rasterised. Default 256.")),
+		mcp.WithString("svgFillColor", mcp.Description("Optional brand colour injected on the <svg> root before rasterising.")),
 	)
+	s.AddTool(mcp.NewTool("uploadActorPicture", pictureOpts...), handleUploadActorPicture)
 
 	s.AddTool(
 		mcp.NewTool("uploadActorPictureBulk",
-			mcp.WithDescription("Set pictures on many actors in one call. Identical source images are uploaded once and reused (SHA-256 dedup). Each item supports imageUrl / localPath / base64 / picture plus optional filename, pngWidth, pngHeight, svgFillColor."),
-			mcp.WithArray("items", mcp.Description("Array of {actorId, formId, [imageUrl|localPath|base64|picture], filename?, pngWidth?, pngHeight?, svgFillColor?}. Max 500 per call."), mcp.Required()),
+			mcp.WithDescription("Set pictures on many actors in one call. Identical source images are uploaded once and reused (SHA-256 dedup). Each item supports "+sourceList+" / picture plus optional filename, pngWidth, pngHeight, svgFillColor."),
+			mcp.WithArray("items", mcp.Description("Array of {actorId, formId, ["+strings.ReplaceAll(sourceList, " / ", "|")+"|picture], filename?, pngWidth?, pngHeight?, svgFillColor?}. Max 500 per call."), mcp.Required()),
 			mcp.WithNumber("pngWidth", mcp.Description("Default PNG width for SVG auto-rasterisation. Per-item value wins. Default 256.")),
 			mcp.WithNumber("pngHeight", mcp.Description("Default PNG height for SVG auto-rasterisation. Per-item value wins. Default 256.")),
 			mcp.WithString("svgFillColor", mcp.Description("Default brand colour to inject on the <svg> root. Per-item value wins.")),

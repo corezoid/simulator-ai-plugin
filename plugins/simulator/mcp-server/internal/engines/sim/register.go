@@ -20,25 +20,43 @@ const inputsDesc = "Model: pass `model` (YAML text) or `modelPath` (file in the 
 	"Graph: `layerId` (read live from Simulator: actors, links, account values) or `graphPath` " +
 	"(a layer YAML from pullGraphFile / simulationSnapshot)."
 
+// hostedInputsDesc is inputsDesc for the hosted (stateless) server, which has
+// no working directory: the *Path arguments are not offered there.
+const hostedInputsDesc = "Model: pass `model` (YAML text). " +
+	"Scenarios: `scenarios` (YAML list); without them one scenario `base` runs. " +
+	"Graph: `layerId` (read live from Simulator: actors, links, account values)."
+
 // Register adds the simulation tools (read-only: nothing is written to Simulator).
 func Register(s *server.MCPServer) {
+	inputs := inputsDesc
+	if ecore.IsStateless() {
+		inputs = hostedInputsDesc
+	}
 	common := func(opts ...mcp.ToolOption) []mcp.ToolOption {
-		return append([]mcp.ToolOption{
+		base := []mcp.ToolOption{
 			mcp.WithString("model", mcp.Description("Model YAML text (sim-morrow model format v1; see docs/simulation/model-format.md).")),
-			mcp.WithString("modelPath", mcp.Description("Model YAML file, relative to the working directory.")),
 			mcp.WithString("scenarios", mcp.Description("Scenarios YAML text: a list of {name, params, set, horizon, seed}.")),
-			mcp.WithString("scenariosPath", mcp.Description("Scenarios YAML file, relative to the working directory.")),
 			mcp.WithString("layerId", mcp.Description("Layer actor UUID to read live.")),
-			mcp.WithString("graphPath", mcp.Description("Graph file (plugin layer YAML), relative to the working directory.")),
 			mcp.WithString("period", mcp.Description("With layerId: account values are the turnover of this last period (e.g. 30d) instead of the balance.")),
 			mcp.WithReadOnlyHintAnnotation(true),
 			mcp.WithDestructiveHintAnnotation(false),
-		}, opts...)
+		}
+		// File arguments read the working directory, which a hosted
+		// (stateless) server does not have: localPath refuses them there, and
+		// they are not offered.
+		if !ecore.IsStateless() {
+			base = append(base,
+				mcp.WithString("modelPath", mcp.Description("Model YAML file, relative to the working directory.")),
+				mcp.WithString("scenariosPath", mcp.Description("Scenarios YAML file, relative to the working directory.")),
+				mcp.WithString("graphPath", mcp.Description("Graph file (plugin layer YAML), relative to the working directory.")),
+			)
+		}
+		return append(base, opts...)
 	}
 	s.AddTool(mcp.NewTool("simulationCheck", common(
 		mcp.WithDescription("Check a behaviour model before running it: unknown actions or functions, missing fields, "+
 			"typos in params, refs that match no actor, events nobody handles, handlers never triggered, add on a "+
-			"conserved account, goals over unknown metrics. Returns errors (a run would fail) and warnings. "+inputsDesc),
+			"conserved account, goals over unknown metrics. Returns errors (a run would fail) and warnings. "+inputs),
 		mcp.WithIdempotentHintAnnotation(true),
 	)...), handleCheck)
 
@@ -48,7 +66,7 @@ func Register(s *server.MCPServer) {
 			"model with errors does not run. With `runs` > 1 each scenario runs in that many random worlds and the "+
 			"result is the median with the 10–90 % range, plus the share of runs meeting each goal, over completed runs "+
 			"only: runs that failed or stopped before the horizon are counted apart and must be reported. "+
-			"Report a single run only when the model has no randomness. "+inputsDesc),
+			"Report a single run only when the model has no randomness. "+inputs),
 		mcp.WithString("scenario", mcp.Description("Comma-separated scenario names to run (default: all).")),
 		mcp.WithNumber("runs", mcp.Description("Runs per scenario with different random seeds (default 1, max 1000).")),
 		mcp.WithString("goals", mcp.Description("Extra goals as YAML/JSON map name -> condition over metrics, e.g. {no_leaves: 'leaves == 0'}.")),

@@ -88,6 +88,7 @@ const (
 // handler described in the package comment.
 func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
 	addToolTitles(s)
+	applyHostedDescriptions(s)
 	endpoint := strings.TrimRight(cfg.EndpointPath, "/")
 	if endpoint == "" {
 		endpoint = "/mcp"
@@ -305,6 +306,27 @@ func addToolTitles(s *server.MCPServer) {
 		t := st.Tool
 		t.Title = humanizeToolName(name)
 		t.Annotations.Title = t.Title
+		s.AddTool(t, st.Handler)
+	}
+}
+
+// hostedDescriptions replaces descriptions whose stdio wording sends the
+// model to tools or files the hosted server does not have (login,
+// set-workspace, pullSmartForm and the local manifest). Connector reviews
+// compare each description with what the tool can do.
+var hostedDescriptions = map[string]string{
+	"getWorkspaces": "List the workspaces you belong to (id + name). Use it to choose a workspace by name without knowing its id.",
+	"rollbackFile":  "Restore a Smart Form file to a prior version. Creates a new version whose content equals the target version. Requires actors.management scope.",
+}
+
+func applyHostedDescriptions(s *server.MCPServer) {
+	for name, st := range s.ListTools() {
+		desc, ok := hostedDescriptions[name]
+		if !ok {
+			continue
+		}
+		t := st.Tool
+		t.Description = desc
 		s.AddTool(t, st.Handler)
 	}
 }

@@ -9,6 +9,15 @@
   `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
   token; 404 otherwise).
 
+### Fixed
+- Every tool now declares accurate safety hints. `mcp.NewTool` defaulted all of them to
+  `readOnlyHint: false, destructiveHint: true`, so reads like `getActor` looked as dangerous as
+  `deleteActor`. Curated operations are classified by HTTP method (GET read-only; PUT and
+  DELETE destructive) with listed exceptions; engine tools are listed by name.
+- Hosted mode no longer offers file arguments (`localPath`, `modelPath`, `scenariosPath`,
+  `graphPath`) in tool schemas, and `getWorkspaces` / `rollbackFile` descriptions no longer
+  point at `login`, `set-workspace` or local files.
+
 ### Security
 - Hosted (stateless) mode hardening. URLs taken from tool arguments (`uploadActorPicture` /
   `uploadActorPictureBulk` `imageUrl`, `uploadGraphFile` `fileUrl`) must be https and may only
