@@ -30,8 +30,8 @@
       "category": "Developer Tools",
       "websiteURL": "https://simulator.company",
       "supportURL": "https://github.com/corezoid/simulator-ai-plugin/issues",
-      "privacyPolicyURL": "https://simulator.company/privacy-policy/",
-      "termsOfServiceURL": "https://simulator.company/terms/",
+      "privacyPolicyURL": "https://simulator.company/privacy-policy",
+      "termsOfServiceURL": "https://simulator.company/terms",
       "logo": "./plugins/simulator/assets/logo.png",
       "composerIcon": "./plugins/simulator/assets/composerIcon.png"
     }

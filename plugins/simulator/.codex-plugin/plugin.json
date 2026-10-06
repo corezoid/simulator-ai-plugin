@@ -27,8 +27,8 @@
     "developerName": "Simulator.Company",
     "category": "Developer Tools",
     "supportURL": "https://github.com/corezoid/simulator-ai-plugin/issues",
-    "privacyPolicyURL": "https://simulator.company/privacy-policy/",
-    "termsOfServiceURL": "https://simulator.company/terms/",
+    "privacyPolicyURL": "https://simulator.company/privacy-policy",
+    "termsOfServiceURL": "https://simulator.company/terms",
     "capabilities": [
       "Graph-based digital twin of your company",
       "Actor and form template management",
