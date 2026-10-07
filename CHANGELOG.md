@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.11.0]
+
+### Added
+- per-token in-flight cap and per-replica simulation slots (#142)
+- give every tool a title (#136)
+- serve the OpenAI domain-verification token (#134)
+- serve MCP over HTTP for mcp.simulator.company (app/hosted) (#132)
+- black From-API-to-KPI icon; drop BPM wording from listings
+
+### Changed
+- privacy policy and terms URLs without trailing slash (#138)
+- build script for the hosted OpenAI submission ZIP (#135)
+
+### Fixed
+- no Smart Form runtime; form schemas without credential option (#140)
+- no credential-taking Smart Form tools; createLink, getSystemActor, appGetPage hints (#139)
+- accurate safety hints for every tool; hosted schemas without file arguments (#137)
+- restrict server-side URL fetches and file tools in stateless mode (#133)
+- category exact title 'Developer Tools'
+- opaque white icon background; category Developer tools
+- address OpenAI plugin-portal validation findings
+
 ## [Unreleased]
 
 ### Added
