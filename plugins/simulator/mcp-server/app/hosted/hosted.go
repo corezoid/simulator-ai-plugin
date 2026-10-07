@@ -73,6 +73,11 @@ type Config struct {
 	// OpenAI plugin directory asks the MCP host to publish. It is public by
 	// design; an unset value leaves the path a 404.
 	OpenAIAppsChallenge string
+
+	// MaxConcurrentPerToken caps the requests one caller (Authorization
+	// header) may have in flight; more get 429. 0 means the default (4), a
+	// negative value disables the limit.
+	MaxConcurrentPerToken int
 }
 
 const (
@@ -112,12 +117,14 @@ func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
 	}
 	oauth := newOAuthConfig(cfg.ResourceURL, cfg.AuthServerURL)
 
+	limiter := newTokenLimiter(cfg.MaxConcurrentPerToken)
+
 	mux := http.NewServeMux()
 	if oauth.enabled() {
 		mux.Handle(oauth.metaPath, oauth.handler)
 	}
-	mux.Handle(endpoint, requireAuth(defaultBaseURLHandler(streamSrv, fallbackURL), oauth))
-	scoped := scopedHandler(streamSrv, endpoint, resolver, fallbackURL)
+	mux.Handle(endpoint, requireAuth(limiter.limit(defaultBaseURLHandler(streamSrv, fallbackURL)), oauth))
+	scoped := limiter.limit(scopedHandler(streamSrv, endpoint, resolver, fallbackURL))
 	mux.Handle(endpoint+"/workspaces/{workspace_id}", requireAuth(scoped, oauth))
 	mux.Handle(endpoint+"/workspaces/{workspace_id}/actors/{actor_id}", requireAuth(scoped, oauth))
 	if tok := strings.TrimSpace(cfg.OpenAIAppsChallenge); tok != "" {

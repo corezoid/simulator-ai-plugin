@@ -19,6 +19,10 @@
   point at `login`, `set-workspace` or local files.
 
 ### Security
+- Hosted mode caps in-flight requests per caller token (default 4, `SIMULATOR_MAX_CONCURRENT_PER_TOKEN`;
+  more get HTTP 429) and `simulationRun` calls per replica (default 2,
+  `SIMULATOR_MAX_CONCURRENT_SIMULATIONS`; more are refused at once), so one account cannot
+  starve the server. The local server is unchanged.
 - Hosted mode no longer offers the Smart Form runtime (`appGetPage` / `appSendForm`: they run
   another app's Corezoid process with arbitrary side effects), and the `createForm` / `updateForm`
   `sections` description no longer advertises the `corezoidSyncApi` options source (it embeds

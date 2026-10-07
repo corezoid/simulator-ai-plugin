@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -72,6 +73,13 @@ func hostedConfig(info mcpserver.Info, insecure bool) hosted.Config {
 		Insecure:      insecure,
 
 		OpenAIAppsChallenge: strings.TrimSpace(os.Getenv("OPENAI_APPS_CHALLENGE")),
+	}
+	if v := strings.TrimSpace(os.Getenv("SIMULATOR_MAX_CONCURRENT_PER_TOKEN")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			log.Fatalf("SIMULATOR_MAX_CONCURRENT_PER_TOKEN: %v", err)
+		}
+		cfg.MaxConcurrentPerToken = n
 	}
 	if strings.EqualFold(cfg.AccountURL, "off") {
 		cfg.AccountURL = ""

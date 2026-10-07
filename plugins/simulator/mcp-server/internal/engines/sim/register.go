@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ const hostedInputsDesc = "Model: pass `model` (YAML text). " +
 
 // Register adds the simulation tools (read-only: nothing is written to Simulator).
 func Register(s *server.MCPServer) {
+	configureRunSlots()
 	inputs := inputsDesc
 	if ecore.IsStateless() {
 		inputs = hostedInputsDesc
@@ -91,6 +93,47 @@ func Register(s *server.MCPServer) {
 		mcp.WithReadOnlyHintAnnotation(false),
 		mcp.WithDestructiveHintAnnotation(false),
 	), handleSnapshot)
+}
+
+// defaultHostedRunSlots is how many simulationRun calls one hosted
+// (stateless) replica runs at once. A run may use a full CPU for up to
+// maxTimeLimit; without a cap a few callers could starve every other tool
+// call on the replica. Further calls are refused at once rather than queued,
+// so they do not hold connections either. The local server has no cap.
+const defaultHostedRunSlots = 2
+
+var runSlots chan struct{}
+
+// configureRunSlots sets the hosted cap; SIMULATOR_MAX_CONCURRENT_SIMULATIONS
+// overrides the default (0 or less disables it).
+func configureRunSlots() {
+	runSlots = nil
+	if !ecore.IsStateless() {
+		return
+	}
+	n := defaultHostedRunSlots
+	if v := strings.TrimSpace(os.Getenv("SIMULATOR_MAX_CONCURRENT_SIMULATIONS")); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			n = parsed
+		}
+	}
+	if n > 0 {
+		runSlots = make(chan struct{}, n)
+	}
+}
+
+// acquireRunSlot takes a slot without waiting; release returns it.
+func acquireRunSlot() (release func(), ok bool) {
+	slots := runSlots
+	if slots == nil {
+		return func() {}, true
+	}
+	select {
+	case slots <- struct{}{}:
+		return func() { <-slots }, true
+	default:
+		return nil, false
+	}
 }
 
 // localPath resolves a user-given relative path inside the working directory.
@@ -246,6 +289,11 @@ func handleCheck(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 }
 
 func handleRun(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	release, ok := acquireRunSlot()
+	if !ok {
+		return mcp.NewToolResultError("[Error] simulationRun: the server is already running the maximum number of simulations; retry in a minute"), nil
+	}
+	defer release()
 	args := req.GetArguments()
 	in, res := loadInputs(ctx, args, true)
 	if res != nil {
