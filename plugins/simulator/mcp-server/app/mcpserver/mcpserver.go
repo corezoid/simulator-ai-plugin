@@ -175,6 +175,7 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 	}
 	engines.Configure(prof.APIBaseURL, opts.Insecure)
 	engines.RegisterTools(s)
+	tools.ApplyHints(s)
 	return s, Info{
 		Profile:    prof.Name,
 		APIBaseURL: prof.APIBaseURL,

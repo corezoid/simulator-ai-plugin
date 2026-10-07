@@ -3,57 +3,19 @@ package smartform
 import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 )
 
 // Register adds all Smart Form engine tools to the MCP server.
 func Register(s *server.MCPServer) {
-	s.AddTool(
-		mcp.NewTool("createSmartForm",
-			mcp.WithDescription("Create a new Smart Form (CDU / Script application) actor with develop + production environments. Corezoid credentials are optional — omit them for static/design-only forms and configure the binding later. After creation, run pullSmartForm to download the initial file tree. Requires actors.management scope."),
-			mcp.WithString("title", mcp.Description("Display name of the Smart Form."), mcp.Required()),
-			mcp.WithString("ref", mcp.Description("Unique slug in the workspace (lowercase letters, digits, hyphens)."), mcp.Required()),
-			mcp.WithString("description", mcp.Description("Optional description.")),
-			mcp.WithString("sharedWith", mcp.Description("Access policy: userList (default) | allWorkspaceUsers | allRegisteredUsers | anyone.")),
-			mcp.WithString("picture", mcp.Description("Icon URL or storage path.")),
-			mcp.WithString("corezoidCredentials", mcp.Description("Full credentials JSON: {\"develop\":{\"apiLogin\":\"...\",\"apiSecret\":\"...\",\"procId\":\"...\",\"companyId\":\"...\"},\"production\":{...}}. Use this OR the individual apiLogin/apiSecret/procId/companyId fields below.")),
-			mcp.WithString("apiLogin", mcp.Description("Corezoid API login applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
-			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
-			mcp.WithString("procId", mcp.Description("Corezoid process ID applied to both envs (optional).")),
-			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier applied to both envs (optional). String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
-		),
-		handleCreateSmartForm,
-	)
-
-	s.AddTool(
-		mcp.NewTool("pullSmartForm",
-			mcp.WithDescription("Fetch all environment file trees (pages, locale, viewModel, styles, definitions, widgets) of a smart form (CDU / Script application) and write them to <actorId>/<envTitle>/... in the current working directory. Also writes a .manifest.json in each env folder with file IDs and content hashes for use by pushSmartForm. Conflict detection: if a prior manifest exists and any local file differs from its last-pulled hash, the pull is refused — push your changes first or pass force=true to discard local edits. Requires actors.management scope."),
-			mcp.WithString("actorId", mcp.Description("Smart form actor UUID."), mcp.Required()),
-			mcp.WithBoolean("force", mcp.Description("Overwrite local files even when they have unsaved edits (local hash differs from the last-pulled manifest hash). Default false — the pull aborts and lists the conflicting files so you can decide what to do.")),
-		),
-		handlePullSmartForm,
-	)
-
-	s.AddTool(
-		mcp.NewTool("pushSmartForm",
-			mcp.WithDescription("Reconcile the local develop tree with the server: POST any new folders (parents first) and new files, PUT any modified files (including MIME-only drift), and update .manifest.json. MIME rules: text/css for the bare top-level `style` file, styles/, pages/<page>/style, and *.css; application/json for everything else. Duplicate guard: before creating a new file, the server tree is checked — if a file already occupies that (folder, title) slot the push aborts with guidance to re-run pullSmartForm. PUT always re-derives the correct MIME type so a previously wrong Content-Type is self-healed without manual delete/recreate. Files in the manifest but missing locally are reported as orphanFiles. Only develop is writable; run pullSmartForm first. Requires actors.management scope."),
-			mcp.WithString("actorId", mcp.Description("Smart form actor UUID — directory <actorId>/develop/ must exist with a .manifest.json."), mcp.Required()),
-		),
-		handlePushSmartForm,
-	)
-
-	s.AddTool(
-		mcp.NewTool("updateSmartFormEnv",
-			mcp.WithDescription("Update the Corezoid credentials (apiLogin, apiSecret, procId, companyId) bound to one environment of a Smart Form. Accepts env name (develop or production) and resolves to the numeric envId internally. Updating develop does NOT create a release; production credentials are updated independently. Use getApplicationEnvs to inspect current bindings. Requires actors.management scope."),
-			mcp.WithString("actorId", mcp.Description("Smart Form actor UUID."), mcp.Required()),
-			mcp.WithString("env", mcp.Description("Environment name to update: develop (default) or production.")),
-			mcp.WithString("apiLogin", mcp.Description("Corezoid API login for this env."), mcp.Required()),
-			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret for this env."), mcp.Required()),
-			mcp.WithString("procId", mcp.Description("Corezoid process ID of the bound process for this env.")),
-			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier for this env. String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
-		),
-		handleUpdateSmartFormEnv,
-	)
-
+	// pull/push sync a local file tree in the server's working directory. On a
+	// hosted (stateless) server that disk is shared by every caller, so they
+	// are not offered there at all.
+	if !ecore.IsStateless() {
+		registerFileTools(s)
+		registerCredentialTools(s)
+	}
 	s.AddTool(
 		mcp.NewTool("deploySmartForm",
 			mcp.WithDescription("Deploy a Smart Form environment to another (typically develop → production). Resolves env names to IDs internally — no need to look up env IDs manually. Creates a new release in the target env. Requires actors.management scope."),
@@ -139,5 +101,60 @@ func Register(s *server.MCPServer) {
 			mcp.WithString("objectId", mcp.Description("Object ID to restore (from listTrash)."), mcp.Required()),
 		),
 		handleRestoreFromTrash,
+	)
+}
+
+func registerFileTools(s *server.MCPServer) {
+	s.AddTool(
+		mcp.NewTool("pullSmartForm",
+			mcp.WithDescription("Fetch all environment file trees (pages, locale, viewModel, styles, definitions, widgets) of a smart form (CDU / Script application) and write them to <actorId>/<envTitle>/... in the current working directory. Also writes a .manifest.json in each env folder with file IDs and content hashes for use by pushSmartForm. Conflict detection: if a prior manifest exists and any local file differs from its last-pulled hash, the pull is refused — push your changes first or pass force=true to discard local edits. Requires actors.management scope."),
+			mcp.WithString("actorId", mcp.Description("Smart form actor UUID."), mcp.Required()),
+			mcp.WithBoolean("force", mcp.Description("Overwrite local files even when they have unsaved edits (local hash differs from the last-pulled manifest hash). Default false — the pull aborts and lists the conflicting files so you can decide what to do.")),
+		),
+		handlePullSmartForm,
+	)
+
+	s.AddTool(
+		mcp.NewTool("pushSmartForm",
+			mcp.WithDescription("Reconcile the local develop tree with the server: POST any new folders (parents first) and new files, PUT any modified files (including MIME-only drift), and update .manifest.json. MIME rules: text/css for the bare top-level `style` file, styles/, pages/<page>/style, and *.css; application/json for everything else. Duplicate guard: before creating a new file, the server tree is checked — if a file already occupies that (folder, title) slot the push aborts with guidance to re-run pullSmartForm. PUT always re-derives the correct MIME type so a previously wrong Content-Type is self-healed without manual delete/recreate. Files in the manifest but missing locally are reported as orphanFiles. Only develop is writable; run pullSmartForm first. Requires actors.management scope."),
+			mcp.WithString("actorId", mcp.Description("Smart form actor UUID — directory <actorId>/develop/ must exist with a .manifest.json."), mcp.Required()),
+		),
+		handlePushSmartForm,
+	)
+
+}
+
+// registerCredentialTools adds the tools that take Corezoid API credentials
+// (apiLogin / apiSecret) as arguments. A hosted connector does not collect
+// third-party secrets in chat, so they are offered by the local server only.
+func registerCredentialTools(s *server.MCPServer) {
+	s.AddTool(
+		mcp.NewTool("createSmartForm",
+			mcp.WithDescription("Create a new Smart Form (CDU / Script application) actor with develop + production environments. Corezoid credentials are optional — omit them for static/design-only forms and configure the binding later. After creation, run pullSmartForm to download the initial file tree. Requires actors.management scope."),
+			mcp.WithString("title", mcp.Description("Display name of the Smart Form."), mcp.Required()),
+			mcp.WithString("ref", mcp.Description("Unique slug in the workspace (lowercase letters, digits, hyphens)."), mcp.Required()),
+			mcp.WithString("description", mcp.Description("Optional description.")),
+			mcp.WithString("sharedWith", mcp.Description("Access policy: userList (default) | allWorkspaceUsers | allRegisteredUsers | anyone.")),
+			mcp.WithString("picture", mcp.Description("Icon URL or storage path.")),
+			mcp.WithString("corezoidCredentials", mcp.Description("Full credentials JSON: {\"develop\":{\"apiLogin\":\"...\",\"apiSecret\":\"...\",\"procId\":\"...\",\"companyId\":\"...\"},\"production\":{...}}. Use this OR the individual apiLogin/apiSecret/procId/companyId fields below.")),
+			mcp.WithString("apiLogin", mcp.Description("Corezoid API login applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
+			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret applied to both develop and production envs (ignored when corezoidCredentials is provided).")),
+			mcp.WithString("procId", mcp.Description("Corezoid process ID applied to both envs (optional).")),
+			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier applied to both envs (optional). String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
+		),
+		handleCreateSmartForm,
+	)
+
+	s.AddTool(
+		mcp.NewTool("updateSmartFormEnv",
+			mcp.WithDescription("Update the Corezoid credentials (apiLogin, apiSecret, procId, companyId) bound to one environment of a Smart Form. Accepts env name (develop or production) and resolves to the numeric envId internally. Updating develop does NOT create a release; production credentials are updated independently. Use getApplicationEnvs to inspect current bindings. Requires actors.management scope."),
+			mcp.WithString("actorId", mcp.Description("Smart Form actor UUID."), mcp.Required()),
+			mcp.WithString("env", mcp.Description("Environment name to update: develop (default) or production.")),
+			mcp.WithString("apiLogin", mcp.Description("Corezoid API login for this env."), mcp.Required()),
+			mcp.WithString("apiSecret", mcp.Description("Corezoid API secret for this env."), mcp.Required()),
+			mcp.WithString("procId", mcp.Description("Corezoid process ID of the bound process for this env.")),
+			mcp.WithString("companyId", mcp.Description("Corezoid company (workspace) identifier for this env. String, not a number — a UUID (e.g. \"4ddb8938-65f4-4f83-8208-7ac3faffe671\") or an \"i\"-prefixed id (e.g. \"i12412424\").")),
+		),
+		handleUpdateSmartFormEnv,
 	)
 }

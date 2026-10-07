@@ -638,8 +638,8 @@ go test ./...
 ## Support & Legal
 
 - **Support:** open an issue at <https://github.com/corezoid/simulator-ai-plugin/issues> or email <support@corezoid.com>
-- **Privacy Policy:** <https://simulator.company/privacy-policy/>
-- **Terms of Service:** <https://simulator.company/terms/>
+- **Privacy Policy:** <https://simulator.company/privacy-policy>
+- **Terms of Service:** <https://simulator.company/terms>
 
 ## License
 

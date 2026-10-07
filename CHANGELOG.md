@@ -1,5 +1,59 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Hosted mode gives every tool without one a human-readable title derived from its name
+  (`getWorkspaces` → "Get workspaces"), as connector directories require.
+- Hosted mode serves the OpenAI plugin-directory domain-verification token at
+  `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
+  token; 404 otherwise).
+
+### Fixed
+- Every tool now declares accurate safety hints. `mcp.NewTool` defaulted all of them to
+  `readOnlyHint: false, destructiveHint: true`, so reads like `getActor` looked as dangerous as
+  `deleteActor`. Curated operations are classified by HTTP method (GET read-only; PUT and
+  DELETE destructive) with listed exceptions; engine tools are listed by name.
+- Hosted mode no longer offers file arguments (`localPath`, `modelPath`, `scenariosPath`,
+  `graphPath`) in tool schemas, and `getWorkspaces` / `rollbackFile` descriptions no longer
+  point at `login`, `set-workspace` or local files.
+
+### Security
+- Hosted mode caps in-flight requests per caller token (default 4, `SIMULATOR_MAX_CONCURRENT_PER_TOKEN`;
+  more get HTTP 429) and `simulationRun` calls per replica (default 2,
+  `SIMULATOR_MAX_CONCURRENT_SIMULATIONS`; more are refused at once), so one account cannot
+  starve the server. The local server is unchanged.
+- Hosted mode no longer offers the Smart Form runtime (`appGetPage` / `appSendForm`: they run
+  another app's Corezoid process with arbitrary side effects), and the `createForm` / `updateForm`
+  `sections` description no longer advertises the `corezoidSyncApi` options source (it embeds
+  Corezoid API credentials).
+- Hosted mode no longer offers `createSmartForm` / `updateSmartFormEnv`: they take Corezoid API
+  credentials as arguments, which a public connector should not collect in chat. `createLink` is
+  marked destructive (it replaces a placeholder hole link); `getSystemActor` and `appGetPage` are
+  no longer marked read-only (get-or-create; page rendering runs the app's process).
+- Hosted (stateless) mode hardening. URLs taken from tool arguments (`uploadActorPicture` /
+  `uploadActorPictureBulk` `imageUrl`, `uploadGraphFile` `fileUrl`) must be https and may only
+  reach public internet addresses: the dialer resolves the host itself, refuses loopback,
+  private, link-local, CGNAT and other special-purpose ranges (including IPv4 embedded in
+  IPv6), connects to the vetted address, and re-checks redirects. `localPath` and simulation
+  file paths are refused, and the tools that read or write the server's working directory
+  (`pullGraphFile`, `pushGraphFile`, `pullSmartForm`, `pushSmartForm`, `simulationSnapshot`)
+  are not offered by a hosted server. The local (stdio) server is unchanged.
+
+### Added
+- Hosted (remote) serving mode: `--http <addr>` (or `SIMULATOR_HTTP_ADDR`) serves MCP over
+  streamable HTTP for deployments such as `mcp.simulator.company`. Routes match the existing
+  hosted server: `/mcp`, `/mcp/workspaces/{id}`, `/mcp/workspaces/{id}/actors/{id}`, plus
+  `/healthz`. The server is stateless and multi-tenant: no sessions, no `.env`, and no
+  `login` / `set-workspace` / `set-environment`. Every request carries the caller's own token
+  (`Bearer`, `Simulator` or bare, normalised to `Simulator <token>`); requests without one get
+  401, with an RFC 9728 challenge pointing at `account.corezoid.com` when
+  `SIMULATOR_RESOURCE_URL` is set. Workspace and actor come from the path; the API base URL comes
+  from `--profile` or a per-workspace Account lookup that is cached per caller and accepted only
+  for https origins on an allowlist (the profile host, its sibling subdomains, and
+  `SIMULATOR_RESOLVER_ALLOWED_ORIGINS`). Request bodies are capped at 32 MiB. The reusable
+  handler is `app/hosted`. Without the flag/env the server starts in stdio mode exactly as before.
+
 ## [2.9.1]
 
 ### Fixed

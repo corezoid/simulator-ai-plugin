@@ -65,7 +65,19 @@ func installShutdownFlush() {
 func main() {
 	profileFlag := flag.String("profile", "", "Environment profile: local | prod (default: SIMULATOR_PROFILE or prod)")
 	insecure := flag.Bool("insecure", false, "Skip TLS verification (self-signed on-prem gateways only)")
+	httpFlag := flag.String("http", "", "Serve MCP over streamable HTTP on this address (e.g. :8080) instead of stdio; stateless, credentials per request via headers (default: SIMULATOR_HTTP_ADDR)")
 	flag.Parse()
+
+	httpAddr := *httpFlag
+	if httpAddr == "" {
+		httpAddr = os.Getenv("SIMULATOR_HTTP_ADDR")
+	}
+	if httpAddr != "" {
+		// Hosted mode: stateless multi-tenant over streamable HTTP. No .env is
+		// read or written; everything below this branch is stdio-only.
+		runHTTPMode(httpAddr, *profileFlag, *insecure)
+		return
+	}
 
 	dotEnvPath := ".env"
 	if workDir := os.Getenv("SIMULATOR_WORK_DIR"); workDir != "" {

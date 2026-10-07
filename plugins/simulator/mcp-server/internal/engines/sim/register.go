@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,25 +21,44 @@ const inputsDesc = "Model: pass `model` (YAML text) or `modelPath` (file in the 
 	"Graph: `layerId` (read live from Simulator: actors, links, account values) or `graphPath` " +
 	"(a layer YAML from pullGraphFile / simulationSnapshot)."
 
+// hostedInputsDesc is inputsDesc for the hosted (stateless) server, which has
+// no working directory: the *Path arguments are not offered there.
+const hostedInputsDesc = "Model: pass `model` (YAML text). " +
+	"Scenarios: `scenarios` (YAML list); without them one scenario `base` runs. " +
+	"Graph: `layerId` (read live from Simulator: actors, links, account values)."
+
 // Register adds the simulation tools (read-only: nothing is written to Simulator).
 func Register(s *server.MCPServer) {
+	configureRunSlots()
+	inputs := inputsDesc
+	if ecore.IsStateless() {
+		inputs = hostedInputsDesc
+	}
 	common := func(opts ...mcp.ToolOption) []mcp.ToolOption {
-		return append([]mcp.ToolOption{
+		base := []mcp.ToolOption{
 			mcp.WithString("model", mcp.Description("Model YAML text (sim-morrow model format v1; see docs/simulation/model-format.md).")),
-			mcp.WithString("modelPath", mcp.Description("Model YAML file, relative to the working directory.")),
 			mcp.WithString("scenarios", mcp.Description("Scenarios YAML text: a list of {name, params, set, horizon, seed}.")),
-			mcp.WithString("scenariosPath", mcp.Description("Scenarios YAML file, relative to the working directory.")),
 			mcp.WithString("layerId", mcp.Description("Layer actor UUID to read live.")),
-			mcp.WithString("graphPath", mcp.Description("Graph file (plugin layer YAML), relative to the working directory.")),
 			mcp.WithString("period", mcp.Description("With layerId: account values are the turnover of this last period (e.g. 30d) instead of the balance.")),
 			mcp.WithReadOnlyHintAnnotation(true),
 			mcp.WithDestructiveHintAnnotation(false),
-		}, opts...)
+		}
+		// File arguments read the working directory, which a hosted
+		// (stateless) server does not have: localPath refuses them there, and
+		// they are not offered.
+		if !ecore.IsStateless() {
+			base = append(base,
+				mcp.WithString("modelPath", mcp.Description("Model YAML file, relative to the working directory.")),
+				mcp.WithString("scenariosPath", mcp.Description("Scenarios YAML file, relative to the working directory.")),
+				mcp.WithString("graphPath", mcp.Description("Graph file (plugin layer YAML), relative to the working directory.")),
+			)
+		}
+		return append(base, opts...)
 	}
 	s.AddTool(mcp.NewTool("simulationCheck", common(
 		mcp.WithDescription("Check a behaviour model before running it: unknown actions or functions, missing fields, "+
 			"typos in params, refs that match no actor, events nobody handles, handlers never triggered, add on a "+
-			"conserved account, goals over unknown metrics. Returns errors (a run would fail) and warnings. "+inputsDesc),
+			"conserved account, goals over unknown metrics. Returns errors (a run would fail) and warnings. "+inputs),
 		mcp.WithIdempotentHintAnnotation(true),
 	)...), handleCheck)
 
@@ -48,7 +68,7 @@ func Register(s *server.MCPServer) {
 			"model with errors does not run. With `runs` > 1 each scenario runs in that many random worlds and the "+
 			"result is the median with the 10–90 % range, plus the share of runs meeting each goal, over completed runs "+
 			"only: runs that failed or stopped before the horizon are counted apart and must be reported. "+
-			"Report a single run only when the model has no randomness. "+inputsDesc),
+			"Report a single run only when the model has no randomness. "+inputs),
 		mcp.WithString("scenario", mcp.Description("Comma-separated scenario names to run (default: all).")),
 		mcp.WithNumber("runs", mcp.Description("Runs per scenario with different random seeds (default 1, max 1000).")),
 		mcp.WithString("goals", mcp.Description("Extra goals as YAML/JSON map name -> condition over metrics, e.g. {no_leaves: 'leaves == 0'}.")),
@@ -58,6 +78,11 @@ func Register(s *server.MCPServer) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)...), handleRun)
 
+	// Snapshot writes a file to the server's working directory, which a
+	// hosted (stateless) server shares between callers: not offered there.
+	if ecore.IsStateless() {
+		return
+	}
 	s.AddTool(mcp.NewTool("simulationSnapshot",
 		mcp.WithDescription("Read a layer with its actors, links and account values and write it to "+
 			"<layerId>.sim.yaml in the working directory (plugin layer YAML plus sim: sections for accounts and "+
@@ -70,8 +95,52 @@ func Register(s *server.MCPServer) {
 	), handleSnapshot)
 }
 
+// defaultHostedRunSlots is how many simulationRun calls one hosted
+// (stateless) replica runs at once. A run may use a full CPU for up to
+// maxTimeLimit; without a cap a few callers could starve every other tool
+// call on the replica. Further calls are refused at once rather than queued,
+// so they do not hold connections either. The local server has no cap.
+const defaultHostedRunSlots = 2
+
+var runSlots chan struct{}
+
+// configureRunSlots sets the hosted cap; SIMULATOR_MAX_CONCURRENT_SIMULATIONS
+// overrides the default (0 or less disables it).
+func configureRunSlots() {
+	runSlots = nil
+	if !ecore.IsStateless() {
+		return
+	}
+	n := defaultHostedRunSlots
+	if v := strings.TrimSpace(os.Getenv("SIMULATOR_MAX_CONCURRENT_SIMULATIONS")); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			n = parsed
+		}
+	}
+	if n > 0 {
+		runSlots = make(chan struct{}, n)
+	}
+}
+
+// acquireRunSlot takes a slot without waiting; release returns it.
+func acquireRunSlot() (release func(), ok bool) {
+	slots := runSlots
+	if slots == nil {
+		return func() {}, true
+	}
+	select {
+	case slots <- struct{}{}:
+		return func() { <-slots }, true
+	default:
+		return nil, false
+	}
+}
+
 // localPath resolves a user-given relative path inside the working directory.
 func localPath(p string) (string, error) {
+	if ecore.IsStateless() {
+		return "", fmt.Errorf("file paths are not available on the hosted server; pass the YAML as text or use layerId")
+	}
 	if p == "" || filepath.IsAbs(p) {
 		return "", fmt.Errorf("path must be relative to the working directory: %q", p)
 	}
@@ -220,6 +289,11 @@ func handleCheck(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 }
 
 func handleRun(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	release, ok := acquireRunSlot()
+	if !ok {
+		return mcp.NewToolResultError("[Error] simulationRun: the server is already running the maximum number of simulations; retry in a minute"), nil
+	}
+	defer release()
 	args := req.GetArguments()
 	in, res := loadInputs(ctx, args, true)
 	if res != nil {

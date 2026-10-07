@@ -74,11 +74,14 @@ const maxGraphFileBase64Chars = (maxGraphFileBytes / 3) * 4
 
 // downloadGraphFileFromURL downloads a file from a public URL.
 func downloadGraphFileFromURL(ctx context.Context, url string) ([]byte, error) {
+	if err := ecore.CheckUserURL(url); err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	client := ecore.APIHTTPClient()
+	client := ecore.UserURLClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
