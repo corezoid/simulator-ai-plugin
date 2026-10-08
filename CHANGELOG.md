@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+- Hosted access log: one `access {...}` JSON line per MCP request with the JSON-RPC method, tool
+  name, route (bare / workspace / actor), HTTP status, `is_error`, duration, a 12-hex hash of the
+  caller's Authorization and the User-Agent — never the token, arguments or results.
+  `SIMULATOR_ACCESS_LOG=off` disables it.
 - Hosted mode gives every tool without one a human-readable title derived from its name
   (`getWorkspaces` → "Get workspaces"), as connector directories require.
 - Hosted mode serves the OpenAI plugin-directory domain-verification token at

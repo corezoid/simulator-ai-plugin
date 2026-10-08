@@ -73,6 +73,7 @@ func hostedConfig(info mcpserver.Info, insecure bool) hosted.Config {
 		Insecure:      insecure,
 
 		OpenAIAppsChallenge: strings.TrimSpace(os.Getenv("OPENAI_APPS_CHALLENGE")),
+		AccessLog:           !strings.EqualFold(strings.TrimSpace(os.Getenv("SIMULATOR_ACCESS_LOG")), "off"),
 	}
 	if v := strings.TrimSpace(os.Getenv("SIMULATOR_MAX_CONCURRENT_PER_TOKEN")); v != "" {
 		n, err := strconv.Atoi(v)
