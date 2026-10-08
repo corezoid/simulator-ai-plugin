@@ -266,7 +266,7 @@ func handleUploadActorPicture(ctx context.Context, req mcp.CallToolRequest) (*mc
 
 	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return mcp.NewToolResultError("[Error] WORKSPACE_ID is not set"), nil
+		return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
 	}
 
 	// Resolve image bytes from one of the three sources.
@@ -377,7 +377,7 @@ func handleUploadActorPictureBulk(ctx context.Context, req mcp.CallToolRequest) 
 
 	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return mcp.NewToolResultError("[Error] WORKSPACE_ID is not set"), nil
+		return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
 	}
 
 	defaultW := toInt(args["pngWidth"])

@@ -106,7 +106,7 @@ func handleExportGraph(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 
 	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return mcp.NewToolResultError("[Error] workspace ID is not set"), nil
+		return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
 	}
 
 	args := req.GetArguments()
@@ -199,7 +199,7 @@ func handleImportGraph(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 
 	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return mcp.NewToolResultError("[Error] workspace ID is not set"), nil
+		return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
 	}
 
 	args := req.GetArguments()
@@ -297,7 +297,7 @@ func handleGetTaskStatus(ctx context.Context, req mcp.CallToolRequest) (*mcp.Cal
 
 	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return mcp.NewToolResultError("[Error] workspace ID is not set"), nil
+		return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
 	}
 
 	args := req.GetArguments()
@@ -349,7 +349,7 @@ func handleUploadGraphFile(ctx context.Context, req mcp.CallToolRequest) (*mcp.C
 
 	accID := ecore.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return mcp.NewToolResultError("[Error] workspace ID is not set"), nil
+		return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
 	}
 
 	args := req.GetArguments()

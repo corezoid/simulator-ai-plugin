@@ -347,6 +347,14 @@ var hostedArgRedactions = map[string]map[string]string{
 // model must pass accId itself.
 const hostedAccIDDescription = "Workspace id from getWorkspaces. Required unless the connector URL already names a workspace (/mcp/workspaces/<id>)."
 
+// hostedWorkspaceArgTools are engine tools that take their workspace from
+// the connection only; hosted mode declares accId on them so they also run
+// on the bare /mcp route (mcpserver's workspaceFromArgs middleware reads it).
+var hostedWorkspaceArgTools = map[string]bool{
+	"uploadActorPicture": true, "uploadActorPictureBulk": true, "createChart": true,
+	"exportGraph": true, "importGraph": true, "uploadGraphFile": true, "getTaskStatus": true,
+}
+
 // activeWorkspace is stdio wording for the .env workspace; hosted connections
 // have no such default.
 const (
@@ -370,6 +378,10 @@ func applyHostedDescriptions(s *server.MCPServer) {
 		desc, hasDesc := hostedDescriptions[name]
 		redactions, hasRedactions := hostedArgRedactions[name]
 		_, hasAccID := st.Tool.InputSchema.Properties["accId"]
+		if !hasAccID && hostedWorkspaceArgTools[name] {
+			// the stateless workspaceFromArgs middleware reads it
+			hasAccID = true
+		}
 		mentionsActive := strings.Contains(st.Tool.Description, activeWorkspace) || propsMention(st.Tool.InputSchema.Properties, activeWorkspace)
 		if !hasDesc && !hasRedactions && !hasAccID && !mentionsActive {
 			continue
@@ -423,14 +435,14 @@ func applyHostedDescriptions(s *server.MCPServer) {
 			for k, v := range t.InputSchema.Properties {
 				props[k] = v
 			}
+			cp := map[string]any{"type": "string"}
 			if p, ok := props["accId"].(map[string]any); ok {
-				cp := make(map[string]any, len(p))
 				for k, v := range p {
 					cp[k] = v
 				}
-				cp["description"] = hostedAccIDDescription
-				props["accId"] = cp
 			}
+			cp["description"] = hostedAccIDDescription
+			props["accId"] = cp
 			t.InputSchema.Properties = props
 		}
 		s.AddTool(t, st.Handler)

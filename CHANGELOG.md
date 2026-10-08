@@ -10,6 +10,10 @@
   token; 404 otherwise).
 
 ### Fixed
+- Hosted mode: engine tools that took the workspace from the connection only
+  (`uploadActorPicture`, `uploadActorPictureBulk`, `createChart`, `exportGraph`, `importGraph`,
+  `uploadGraphFile`, `getTaskStatus`) failed with "WORKSPACE_ID is not set" on the bare `/mcp`
+  route. They now accept `accId`, and a missing workspace error says how to recover.
 - Hosted mode: `accId` was described as "Defaults to the configured workspace if omitted", but
   on the bare `/mcp` route (the one AI directories connect to) no workspace is configured, so
   models omitted it and calls failed. The hosted description now says to pass the id from

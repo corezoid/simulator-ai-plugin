@@ -86,3 +86,18 @@ func TestHostedToolsOfferNoLocalFeatures(t *testing.T) {
 		}
 	}
 }
+
+// Engine tools read the workspace from the connection only; on the bare /mcp
+// route (where AI directories connect) they need accId in their schema.
+func TestHostedEngineToolsTakeAccID(t *testing.T) {
+	tools := hostedTools(t)
+	for name := range hostedWorkspaceArgTools {
+		tl, ok := tools[name]
+		if !ok {
+			continue
+		}
+		if !strings.Contains(tl.schema, `"accId"`) {
+			t.Errorf("%s has no accId in its hosted schema", name)
+		}
+	}
+}
