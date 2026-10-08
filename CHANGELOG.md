@@ -10,6 +10,11 @@
   token; 404 otherwise).
 
 ### Fixed
+- Hosted mode: `accId` was described as "Defaults to the configured workspace if omitted", but
+  on the bare `/mcp` route (the one AI directories connect to) no workspace is configured, so
+  models omitted it and calls failed. The hosted description now says to pass the id from
+  `getWorkspaces`, "active workspace" wording is rewritten, and a missing `accId` error tells
+  the model what to do.
 - Every tool now declares accurate safety hints. `mcp.NewTool` defaulted all of them to
   `readOnlyHint: false, destructiveHint: true`, so reads like `getActor` looked as dangerous as
   `deleteActor`. Curated operations are classified by HTTP method (GET read-only; PUT and

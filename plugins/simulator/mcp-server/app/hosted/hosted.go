@@ -341,11 +341,37 @@ var hostedArgRedactions = map[string]map[string]string{
 	"updateForm": {"sections": "|corezoidSyncApi{value.convId,apiLogin,apiSecret}"},
 }
 
+// hostedAccIDDescription replaces the stdio wording "Defaults to the
+// configured workspace if omitted": a hosted connection names a workspace only
+// when its URL does (/mcp/workspaces/<id>), so on the bare /mcp route the
+// model must pass accId itself.
+const hostedAccIDDescription = "Workspace id from getWorkspaces. Required unless the connector URL already names a workspace (/mcp/workspaces/<id>)."
+
+// activeWorkspace is stdio wording for the .env workspace; hosted connections
+// have no such default.
+const (
+	activeWorkspace = "the active workspace"
+	hostedWorkspace = "the workspace given by accId (or named in the connector URL)"
+)
+
+func propsMention(props map[string]any, text string) bool {
+	for _, v := range props {
+		if p, ok := v.(map[string]any); ok {
+			if d, ok := p["description"].(string); ok && strings.Contains(d, text) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func applyHostedDescriptions(s *server.MCPServer) {
 	for name, st := range s.ListTools() {
 		desc, hasDesc := hostedDescriptions[name]
 		redactions, hasRedactions := hostedArgRedactions[name]
-		if !hasDesc && !hasRedactions {
+		_, hasAccID := st.Tool.InputSchema.Properties["accId"]
+		mentionsActive := strings.Contains(st.Tool.Description, activeWorkspace) || propsMention(st.Tool.InputSchema.Properties, activeWorkspace)
+		if !hasDesc && !hasRedactions && !hasAccID && !mentionsActive {
 			continue
 		}
 		t := st.Tool
@@ -370,6 +396,40 @@ func applyHostedDescriptions(s *server.MCPServer) {
 					cp["description"] = strings.ReplaceAll(d, cut, "")
 				}
 				props[arg] = cp
+			}
+			t.InputSchema.Properties = props
+		}
+		if mentionsActive {
+			t.Description = strings.ReplaceAll(t.Description, "accId defaults to "+activeWorkspace, "accId defaults to the workspace named in the connector URL")
+			t.Description = strings.ReplaceAll(t.Description, activeWorkspace, hostedWorkspace)
+			props := make(map[string]any, len(t.InputSchema.Properties))
+			for k, v := range t.InputSchema.Properties {
+				if p, ok := v.(map[string]any); ok {
+					if d, ok := p["description"].(string); ok && strings.Contains(d, activeWorkspace) {
+						cp := make(map[string]any, len(p))
+						for pk, pv := range p {
+							cp[pk] = pv
+						}
+						cp["description"] = strings.ReplaceAll(d, activeWorkspace, hostedWorkspace)
+						v = cp
+					}
+				}
+				props[k] = v
+			}
+			t.InputSchema.Properties = props
+		}
+		if hasAccID {
+			props := make(map[string]any, len(t.InputSchema.Properties))
+			for k, v := range t.InputSchema.Properties {
+				props[k] = v
+			}
+			if p, ok := props["accId"].(map[string]any); ok {
+				cp := make(map[string]any, len(p))
+				for k, v := range p {
+					cp[k] = v
+				}
+				cp["description"] = hostedAccIDDescription
+				props["accId"] = cp
 			}
 			t.InputSchema.Properties = props
 		}

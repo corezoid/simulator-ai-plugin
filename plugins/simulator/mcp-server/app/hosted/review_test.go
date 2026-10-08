@@ -77,7 +77,7 @@ func TestHostedToolsOfferNoLocalFeatures(t *testing.T) {
 			t.Errorf("%s must not be hosted", banned)
 		}
 	}
-	local := []string{"apiSecret", "localPath", "modelPath", "scenariosPath", "graphPath", "working directory", "set-workspace", "local file", "Call after login"}
+	local := []string{"configured workspace", "active workspace", "apiSecret", "localPath", "modelPath", "scenariosPath", "graphPath", "working directory", "set-workspace", "local file", "Call after login"}
 	for name, tl := range hostedTools(t) {
 		for _, l := range local {
 			if strings.Contains(tl.desc, l) || strings.Contains(tl.schema, l) {
