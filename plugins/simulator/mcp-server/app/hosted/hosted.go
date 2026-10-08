@@ -78,6 +78,11 @@ type Config struct {
 	// header) may have in flight; more get 429. 0 means the default (4), a
 	// negative value disables the limit.
 	MaxConcurrentPerToken int
+
+	// AccessLog writes one line per MCP request (method, tool, status,
+	// is_error, duration, caller hash, User-Agent; no token, arguments or
+	// results).
+	AccessLog bool
 }
 
 const (
@@ -95,6 +100,9 @@ func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
 	s.DeleteTools(hostedOmittedTools...)
 	addToolTitles(s)
 	applyHostedDescriptions(s)
+	if cfg.AccessLog {
+		s.Use(accessToolMiddleware)
+	}
 	endpoint := strings.TrimRight(cfg.EndpointPath, "/")
 	if endpoint == "" {
 		endpoint = "/mcp"
@@ -123,10 +131,16 @@ func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
 	if oauth.enabled() {
 		mux.Handle(oauth.metaPath, oauth.handler)
 	}
-	mux.Handle(endpoint, requireAuth(limiter.limit(defaultBaseURLHandler(streamSrv, fallbackURL)), oauth))
+	logged := func(route string, h http.Handler) http.Handler {
+		if cfg.AccessLog {
+			return accessLog(route, h)
+		}
+		return h
+	}
+	mux.Handle(endpoint, logged("bare", requireAuth(limiter.limit(defaultBaseURLHandler(streamSrv, fallbackURL)), oauth)))
 	scoped := limiter.limit(scopedHandler(streamSrv, endpoint, resolver, fallbackURL))
-	mux.Handle(endpoint+"/workspaces/{workspace_id}", requireAuth(scoped, oauth))
-	mux.Handle(endpoint+"/workspaces/{workspace_id}/actors/{actor_id}", requireAuth(scoped, oauth))
+	mux.Handle(endpoint+"/workspaces/{workspace_id}", logged("workspace", requireAuth(scoped, oauth)))
+	mux.Handle(endpoint+"/workspaces/{workspace_id}/actors/{actor_id}", logged("actor", requireAuth(scoped, oauth)))
 	if tok := strings.TrimSpace(cfg.OpenAIAppsChallenge); tok != "" {
 		mux.HandleFunc(openAIChallengePath, func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
