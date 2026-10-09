@@ -14,6 +14,21 @@
   token; 404 otherwise).
 
 ### Fixed
+- createActor / updateActor / pushGraphFile could silently build a Dashboards (chart) actor by hand-writing
+  `data.source`, bypassing createChart — the actor passed getActor but rendered "Something went wrong" in the
+  UI because it lacked the companion ActorFilters actor, the layer expand (`expandType:"chart"`) and account
+  inheritance that only createChart sets up. createActor now refuses to create a Dashboards-form actor;
+  updateActor blocks only an edit that hand-writes a non-empty `data.source` (so metadata-only edits — title,
+  description, status — and clearing the source stay allowed, and a legacy/broken dashboard is no longer
+  frozen); pushGraphFile applies the same two guards so it is not a bypass. All steer the caller to createChart
+  / the `/simulator-charts` skill. The Dashboards form is identified by resolving the *target* form by its id
+  (`GET /forms/{formId}`, `type == "system"` and a case-insensitive title match, cached per formId) — matching
+  the backend's own rule, so it is workspace-independent and a custom form merely titled "Dashboards" does not
+  trip (or disable) the guard. Guards fail open if the form cannot be resolved. KNOWN LIMITATIONS (CE-15957
+  follow-ups): (1) the backend still accepts hand-built dashboards from other clients (public `/papi` API,
+  Corezoid processes, sim-api) — the durable fix is server-side validation in `createActorReq`/`validateActor`;
+  (2) reconfiguring a real chart by hand is blocked, pending a dedicated `updateChart` tool that runs
+  createChart's `normalizeChartConfig` validation.
 - Hosted mode: engine tools that took the workspace from the connection only
   (`uploadActorPicture`, `uploadActorPictureBulk`, `createChart`, `exportGraph`, `importGraph`,
   `uploadGraphFile`, `getTaskStatus`) failed with "WORKSPACE_ID is not set" on the bare `/mcp`
