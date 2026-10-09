@@ -30,7 +30,7 @@ vet:
 	cd $(MCP) && go vet ./...
 
 # Requires golangci-lint v2. Install:
-#   curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.11.4
+#   curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $$(go env GOPATH)/bin v2.14.0
 lint:
 	cd $(MCP) && golangci-lint run ./...
 

@@ -46,6 +46,9 @@
   `graphPath`) in tool schemas, and `getWorkspaces` / `rollbackFile` descriptions no longer
   point at `login`, `set-workspace` or local files.
 
+### Changed
+- Build: Go directive bumped to `1.27.2`; the documented golangci-lint is v2.14.0 (older releases cannot lint a `go 1.27` module).
+
 ### Security
 - Hosted mode caps in-flight requests per caller token (default 4, `SIMULATOR_MAX_CONCURRENT_PER_TOKEN`;
   more get HTTP 429) and `simulationRun` calls per replica (default 2,
