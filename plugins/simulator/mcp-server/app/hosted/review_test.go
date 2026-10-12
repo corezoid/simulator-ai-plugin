@@ -69,6 +69,31 @@ func TestHostedToolHintsMatchBehaviour(t *testing.T) {
 	}
 }
 
+// openWorldHint is true only for tools that fetch a caller-given URL or
+// publish data publicly; the workspace itself is a bounded private account.
+func TestHostedOpenWorldOnlyForExternalReach(t *testing.T) {
+	s, _, err := mcpserver.New(mcpserver.Options{Profile: "prod", Stateless: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	NewHandler(s, prodLike)
+	want := map[string]bool{"uploadActorPicture": true, "uploadActorPictureBulk": true, "uploadGraphFile": true, "generatePublicLink": true}
+	for name, st := range s.ListTools() {
+		a := st.Tool.Annotations
+		if a.IdempotentHint == nil {
+			t.Errorf("%s: idempotentHint unset", name)
+		}
+		if a.OpenWorldHint != nil && *a.OpenWorldHint != want[name] {
+			t.Errorf("%s: openWorldHint=%v, want %v", name, *a.OpenWorldHint, want[name])
+		}
+	}
+	for _, name := range []string{"createLink", "massLink"} {
+		if st := s.GetTool(name); st == nil || !*st.Tool.Annotations.DestructiveHint {
+			t.Errorf("%s must be destructive (it can replace a hole link)", name)
+		}
+	}
+}
+
 // Descriptions and schemas must not offer files, login or workspace switching:
 // none exists on the hosted server.
 func TestHostedToolsOfferNoLocalFeatures(t *testing.T) {

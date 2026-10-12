@@ -14,6 +14,11 @@
   token; 404 otherwise).
 
 ### Fixed
+- Tool annotations: `openWorldHint` is now false for tools that only touch the user's own workspace
+  and true only for `uploadActorPicture`, `uploadActorPictureBulk`, `uploadGraphFile` (fetch a
+  caller-given URL) and `generatePublicLink` (publishes a public link). `massLink` is destructive
+  like `createLink` (both can replace a placeholder "hole" link); `setCounters` and
+  `togglePinnedReaction` are idempotent (they set the given value).
 - createActor / updateActor / pushGraphFile could silently build a Dashboards (chart) actor by hand-writing
   `data.source`, bypassing createChart — the actor passed getActor but rendered "Something went wrong" in the
   UI because it lacked the companion ActorFilters actor, the layer expand (`expandType:"chart"`) and account
