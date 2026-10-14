@@ -737,3 +737,57 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	out, _ := json.Marshal(result)
 	return mcp.NewToolResultText(string(out)), nil
 }
+
+// isDashboardFormID reports whether formID is the Dashboards system form in this
+// syncer's workspace. It reuses lookupSystemFormID (system-forms endpoint, so a
+// same-named custom form cannot collide) and fails open (false) when the form
+// cannot be resolved — mirroring the createActor/updateActor guards in
+// internal/tools so pushGraphFile does not become a bypass for hand-built charts.
+func (s *GraphSyncer) isDashboardFormID(ctx context.Context, formID int) bool {
+	if formID == 0 {
+		return false
+	}
+	dashID, err := lookupSystemFormID(ctx, "Dashboards", s.workspaceID, s.auth, s.baseURL)
+	if err != nil {
+		return false // fail open
+	}
+	return formID == dashID
+}
+
+// dashboardSourceHasContent reports whether a graph actor's data sets data.source
+// to a value with real content (mirrors valueHasContent in internal/tools): empty
+// strings, nulls and empty objects/arrays — including the JSON-string forms
+// createChart stores, e.g. the literal "\"{}\"" — count as clearing, not content.
+func dashboardSourceHasContent(data map[string]interface{}) bool {
+	if data == nil {
+		return false
+	}
+	src, ok := data["source"]
+	if !ok {
+		return false
+	}
+	return jsonValueHasContent(src)
+}
+
+func jsonValueHasContent(v interface{}) bool {
+	switch t := v.(type) {
+	case nil:
+		return false
+	case string:
+		s := strings.TrimSpace(t)
+		if s == "" {
+			return false
+		}
+		var inner interface{}
+		if json.Unmarshal([]byte(s), &inner) == nil {
+			return jsonValueHasContent(inner)
+		}
+		return true
+	case map[string]interface{}:
+		return len(t) > 0
+	case []interface{}:
+		return len(t) > 0
+	default:
+		return true
+	}
+}

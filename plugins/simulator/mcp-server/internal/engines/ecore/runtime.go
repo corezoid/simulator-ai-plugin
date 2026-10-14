@@ -75,6 +75,10 @@ func IsStateless() bool {
 	return stateless
 }
 
+// NoWorkspaceError is the tool error when no workspace is known for a call:
+// it tells the model how to recover.
+const NoWorkspaceError = "[Error] no workspace is selected for this connection: call getWorkspaces and pass the workspace id as accId"
+
 // WorkspaceIDForContext returns the per-request workspace id (from ctx) if set,
 // otherwise the WORKSPACE_ID env var. In stateless mode the env fallback is
 // suppressed so callers cannot accidentally leak process-wide state.

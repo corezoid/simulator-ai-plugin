@@ -703,6 +703,14 @@ func (s *GraphSyncer) createGraphActor(ctx context.Context, a GraphActor) (strin
 	if finalFormID == 0 {
 		finalFormID = formID
 	}
+	// Mirror the createActor guard: a Dashboards (chart) actor cannot be built by
+	// hand — only createChart wires up the companion ActorFilters actor, the layer
+	// expand and account inheritance, so a graph-file dashboard renders "Something
+	// went wrong". Reject it here too (pushGraphFile would otherwise bypass the tool).
+	if s.isDashboardFormID(ctx, finalFormID) {
+		return "", fmt.Errorf("actor %q is a Dashboards (chart) actor — create charts with the createChart tool, "+
+			"not via pushGraphFile: a hand-built data.source renders \"Something went wrong\" in the UI", a.Title)
+	}
 	var bodyToSend interface{}
 	if bodyStr, ok := actorArgs["body"].(string); ok {
 		var m map[string]interface{}
@@ -749,6 +757,13 @@ func (s *GraphSyncer) updateGraphActor(ctx context.Context, sa layerActor, fa Gr
 	}
 
 	childFormID := formIDFromLayerActor(sa)
+	// Mirror the updateActor guard: never hand-write a Dashboards chart's
+	// data.source (metadata-only edits are fine). pushGraphFile would otherwise
+	// bypass the tool and inject a chart config that renders "Something went wrong".
+	if dashboardSourceHasContent(fa.Data) && s.isDashboardFormID(ctx, childFormID) {
+		return false, fmt.Errorf("actor %q is a Dashboards (chart) actor — its data.source cannot be hand-written "+
+			"via pushGraphFile; configure charts with the createChart tool", fa.Title)
+	}
 	apiFormID := childFormID
 	if sysForms, sysErr := s.loadSysForms(ctx); sysErr == nil && sysForms != nil {
 		if parentID, isChild, found := findFormInTree(sysForms, childFormID, 0); found && isChild {

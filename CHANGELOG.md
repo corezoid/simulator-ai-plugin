@@ -25,6 +25,10 @@
 ## [Unreleased]
 
 ### Added
+- Hosted access log: one `access {...}` JSON line per MCP request with the JSON-RPC method, tool
+  name, route (bare / workspace / actor), HTTP status, `is_error`, duration, a 12-hex hash of the
+  caller's Authorization and the User-Agent — never the token, arguments or results.
+  `SIMULATOR_ACCESS_LOG=off` disables it.
 - Hosted mode gives every tool without one a human-readable title derived from its name
   (`getWorkspaces` → "Get workspaces"), as connector directories require.
 - Hosted mode serves the OpenAI plugin-directory domain-verification token at
@@ -32,6 +36,35 @@
   token; 404 otherwise).
 
 ### Fixed
+- Tool annotations: `openWorldHint` is now false for tools that only touch the user's own workspace
+  and true only for `uploadActorPicture`, `uploadActorPictureBulk`, `uploadGraphFile` (fetch a
+  caller-given URL) and `generatePublicLink` (publishes a public link). `massLink` is destructive
+  like `createLink` (both can replace a placeholder "hole" link); `setCounters` and
+  `togglePinnedReaction` are idempotent (they set the given value).
+- createActor / updateActor / pushGraphFile could silently build a Dashboards (chart) actor by hand-writing
+  `data.source`, bypassing createChart — the actor passed getActor but rendered "Something went wrong" in the
+  UI because it lacked the companion ActorFilters actor, the layer expand (`expandType:"chart"`) and account
+  inheritance that only createChart sets up. createActor now refuses to create a Dashboards-form actor;
+  updateActor blocks only an edit that hand-writes a non-empty `data.source` (so metadata-only edits — title,
+  description, status — and clearing the source stay allowed, and a legacy/broken dashboard is no longer
+  frozen); pushGraphFile applies the same two guards so it is not a bypass. All steer the caller to createChart
+  / the `/simulator-charts` skill. The Dashboards form is identified by resolving the *target* form by its id
+  (`GET /forms/{formId}`, `type == "system"` and a case-insensitive title match, cached per formId) — matching
+  the backend's own rule, so it is workspace-independent and a custom form merely titled "Dashboards" does not
+  trip (or disable) the guard. Guards fail open if the form cannot be resolved. KNOWN LIMITATIONS (CE-15957
+  follow-ups): (1) the backend still accepts hand-built dashboards from other clients (public `/papi` API,
+  Corezoid processes, sim-api) — the durable fix is server-side validation in `createActorReq`/`validateActor`;
+  (2) reconfiguring a real chart by hand is blocked, pending a dedicated `updateChart` tool that runs
+  createChart's `normalizeChartConfig` validation.
+- Hosted mode: engine tools that took the workspace from the connection only
+  (`uploadActorPicture`, `uploadActorPictureBulk`, `createChart`, `exportGraph`, `importGraph`,
+  `uploadGraphFile`, `getTaskStatus`) failed with "WORKSPACE_ID is not set" on the bare `/mcp`
+  route. They now accept `accId`, and a missing workspace error says how to recover.
+- Hosted mode: `accId` was described as "Defaults to the configured workspace if omitted", but
+  on the bare `/mcp` route (the one AI directories connect to) no workspace is configured, so
+  models omitted it and calls failed. The hosted description now says to pass the id from
+  `getWorkspaces`, "active workspace" wording is rewritten, and a missing `accId` error tells
+  the model what to do.
 - Every tool now declares accurate safety hints. `mcp.NewTool` defaulted all of them to
   `readOnlyHint: false, destructiveHint: true`, so reads like `getActor` looked as dangerous as
   `deleteActor`. Curated operations are classified by HTTP method (GET read-only; PUT and
@@ -39,6 +72,9 @@
 - Hosted mode no longer offers file arguments (`localPath`, `modelPath`, `scenariosPath`,
   `graphPath`) in tool schemas, and `getWorkspaces` / `rollbackFile` descriptions no longer
   point at `login`, `set-workspace` or local files.
+
+### Changed
+- Build: Go directive bumped to `1.27.2`; the documented golangci-lint is v2.14.0 (older releases cannot lint a `go 1.27` module).
 
 ### Security
 - Hosted mode caps in-flight requests per caller token (default 4, `SIMULATOR_MAX_CONCURRENT_PER_TOKEN`;

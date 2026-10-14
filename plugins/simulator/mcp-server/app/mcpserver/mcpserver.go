@@ -167,6 +167,9 @@ func New(opts Options) (*server.MCPServer, Info, error) {
 	// (cmd/server's main, typically) calls telemetry.Init; embedders that never
 	// call Init see no behavior change.
 	s.Use(telemetry.Middleware(client.BaseURL))
+	if opts.Stateless {
+		s.Use(workspaceFromArgs)
+	}
 	ecore.SetStateless(opts.Stateless)
 	if opts.Stateless {
 		tools.BuildUnified(s, client, true)

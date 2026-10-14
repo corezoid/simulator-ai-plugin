@@ -12,6 +12,10 @@ import (
 // and connector directories reject tools whose hints contradict what they do.
 // Curated operations are classified by HTTP method, with the exceptions
 // below; engine and helper tools (no Operation) are listed by name.
+//
+// openWorldHint is false by default: the workspace is a bounded private
+// account, and a hosted API alone does not make a tool open-world. Only the
+// tools in openWorldTools reach arbitrary destinations.
 
 type toolHints struct{ readOnly, destructive, idempotent bool }
 
@@ -38,20 +42,20 @@ var hintsByName = map[string]toolHints{
 	"createCurrency":     hintAdditive,
 	"createForm":         hintAdditive,
 	"createFormAccount":  hintAdditive,
-	"massLink":           hintAdditive,
 	"createActor":        hintAdditive,
 	"createReaction":     hintAdditive,
 	"markReactionsRead":  {idempotent: true},
+	"setCounters":        hintOverwrite, // sets fixed values, not increments
 	"requestAccess":      hintAdditive,
 	"addAttachments":     hintAdditive,
 	"uploadBase64":       hintAdditive,
 	"generatePublicLink": hintAdditive,
 
-	// createLink (POST, so destructive) replaces a placeholder "hole" link
-	// with a real one, dropping the hole's history.
+	// createLink and massLink (POST, so destructive) replace a placeholder
+	// "hole" link with a real one, dropping the hole's history.
 
-	// PUT that only toggles a flag back and forth
-	"togglePinnedReaction": hintAdditive,
+	// PUT that sets the pinned flag to the given value
+	"togglePinnedReaction": {idempotent: true},
 
 	// not Operations: read-only
 	"buildLink":             hintRead,
@@ -82,6 +86,23 @@ var hintsByName = map[string]toolHints{
 	"simulationSnapshot": hintAdditive,
 	"pullGraphFile":      hintAdditive, // writes a local file only
 	"pullSmartForm":      hintAdditive,
+
+	// not Operations: destructive
+	"importGraph":        hintDestructive, // "reuse" strategy merges into existing objects
+	"deploySmartForm":    hintDestructive,
+	"rollbackFile":       hintDestructive,
+	"rollbackRelease":    hintDestructive,
+	"compactGraphLayout": hintDestructive, // rewrites node positions
+	"pruneLongEdges":     hintDestructive, // deletes edges
+}
+
+// openWorldTools fetch an arbitrary URL the caller names, or publish
+// workspace data to anyone holding the link.
+var openWorldTools = map[string]bool{
+	"uploadActorPicture":     true, // imageUrl
+	"uploadActorPictureBulk": true, // imageUrl per item
+	"uploadGraphFile":        true, // fileUrl
+	"generatePublicLink":     true, // public, unauthenticated link
 }
 
 // hintsFor returns the hints of a tool, or false when it is not classified
@@ -117,7 +138,7 @@ func ApplyHints(s *server.MCPServer) {
 		t.Annotations.ReadOnlyHint = mcp.ToBoolPtr(h.readOnly)
 		t.Annotations.DestructiveHint = mcp.ToBoolPtr(h.destructive)
 		t.Annotations.IdempotentHint = mcp.ToBoolPtr(h.idempotent)
-		t.Annotations.OpenWorldHint = mcp.ToBoolPtr(true)
+		t.Annotations.OpenWorldHint = mcp.ToBoolPtr(openWorldTools[name])
 		s.AddTool(t, st.Handler)
 	}
 }

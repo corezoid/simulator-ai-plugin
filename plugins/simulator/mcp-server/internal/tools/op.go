@@ -232,6 +232,9 @@ func makeHandlerCtxAware(c *apiclient.Client, op Operation, adjust func(context.
 			}
 			if !present {
 				if p.Required {
+					if p.Name == "accId" {
+						return mcp.NewToolResultError("[Error] missing required parameter \"accId\": no workspace is selected for this connection. Call getWorkspaces and pass the chosen workspace id as accId"), nil
+					}
 					return mcp.NewToolResultError(fmt.Sprintf("[Error] missing required parameter %q", p.Name)), nil
 				}
 				continue

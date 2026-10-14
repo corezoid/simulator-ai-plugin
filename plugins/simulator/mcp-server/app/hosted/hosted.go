@@ -78,6 +78,11 @@ type Config struct {
 	// header) may have in flight; more get 429. 0 means the default (4), a
 	// negative value disables the limit.
 	MaxConcurrentPerToken int
+
+	// AccessLog writes one line per MCP request (method, tool, status,
+	// is_error, duration, caller hash, User-Agent; no token, arguments or
+	// results).
+	AccessLog bool
 }
 
 const (
@@ -95,6 +100,9 @@ func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
 	s.DeleteTools(hostedOmittedTools...)
 	addToolTitles(s)
 	applyHostedDescriptions(s)
+	if cfg.AccessLog {
+		s.Use(accessToolMiddleware)
+	}
 	endpoint := strings.TrimRight(cfg.EndpointPath, "/")
 	if endpoint == "" {
 		endpoint = "/mcp"
@@ -123,10 +131,16 @@ func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
 	if oauth.enabled() {
 		mux.Handle(oauth.metaPath, oauth.handler)
 	}
-	mux.Handle(endpoint, requireAuth(limiter.limit(defaultBaseURLHandler(streamSrv, fallbackURL)), oauth))
+	logged := func(route string, h http.Handler) http.Handler {
+		if cfg.AccessLog {
+			return accessLog(route, h)
+		}
+		return h
+	}
+	mux.Handle(endpoint, logged("bare", requireAuth(limiter.limit(defaultBaseURLHandler(streamSrv, fallbackURL)), oauth)))
 	scoped := limiter.limit(scopedHandler(streamSrv, endpoint, resolver, fallbackURL))
-	mux.Handle(endpoint+"/workspaces/{workspace_id}", requireAuth(scoped, oauth))
-	mux.Handle(endpoint+"/workspaces/{workspace_id}/actors/{actor_id}", requireAuth(scoped, oauth))
+	mux.Handle(endpoint+"/workspaces/{workspace_id}", logged("workspace", requireAuth(scoped, oauth)))
+	mux.Handle(endpoint+"/workspaces/{workspace_id}/actors/{actor_id}", logged("actor", requireAuth(scoped, oauth)))
 	if tok := strings.TrimSpace(cfg.OpenAIAppsChallenge); tok != "" {
 		mux.HandleFunc(openAIChallengePath, func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -341,11 +355,49 @@ var hostedArgRedactions = map[string]map[string]string{
 	"updateForm": {"sections": "|corezoidSyncApi{value.convId,apiLogin,apiSecret}"},
 }
 
+// hostedAccIDDescription replaces the stdio wording "Defaults to the
+// configured workspace if omitted": a hosted connection names a workspace only
+// when its URL does (/mcp/workspaces/<id>), so on the bare /mcp route the
+// model must pass accId itself.
+const hostedAccIDDescription = "Workspace id from getWorkspaces. Required unless the connector URL already names a workspace (/mcp/workspaces/<id>)."
+
+// hostedWorkspaceArgTools are engine tools that take their workspace from
+// the connection only; hosted mode declares accId on them so they also run
+// on the bare /mcp route (mcpserver's workspaceFromArgs middleware reads it).
+var hostedWorkspaceArgTools = map[string]bool{
+	"uploadActorPicture": true, "uploadActorPictureBulk": true, "createChart": true,
+	"exportGraph": true, "importGraph": true, "uploadGraphFile": true, "getTaskStatus": true,
+}
+
+// activeWorkspace is stdio wording for the .env workspace; hosted connections
+// have no such default.
+const (
+	activeWorkspace = "the active workspace"
+	hostedWorkspace = "the workspace given by accId (or named in the connector URL)"
+)
+
+func propsMention(props map[string]any, text string) bool {
+	for _, v := range props {
+		if p, ok := v.(map[string]any); ok {
+			if d, ok := p["description"].(string); ok && strings.Contains(d, text) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func applyHostedDescriptions(s *server.MCPServer) {
 	for name, st := range s.ListTools() {
 		desc, hasDesc := hostedDescriptions[name]
 		redactions, hasRedactions := hostedArgRedactions[name]
-		if !hasDesc && !hasRedactions {
+		_, hasAccID := st.Tool.InputSchema.Properties["accId"]
+		if !hasAccID && hostedWorkspaceArgTools[name] {
+			// the stateless workspaceFromArgs middleware reads it
+			hasAccID = true
+		}
+		mentionsActive := strings.Contains(st.Tool.Description, activeWorkspace) || propsMention(st.Tool.InputSchema.Properties, activeWorkspace)
+		if !hasDesc && !hasRedactions && !hasAccID && !mentionsActive {
 			continue
 		}
 		t := st.Tool
@@ -371,6 +423,40 @@ func applyHostedDescriptions(s *server.MCPServer) {
 				}
 				props[arg] = cp
 			}
+			t.InputSchema.Properties = props
+		}
+		if mentionsActive {
+			t.Description = strings.ReplaceAll(t.Description, "accId defaults to "+activeWorkspace, "accId defaults to the workspace named in the connector URL")
+			t.Description = strings.ReplaceAll(t.Description, activeWorkspace, hostedWorkspace)
+			props := make(map[string]any, len(t.InputSchema.Properties))
+			for k, v := range t.InputSchema.Properties {
+				if p, ok := v.(map[string]any); ok {
+					if d, ok := p["description"].(string); ok && strings.Contains(d, activeWorkspace) {
+						cp := make(map[string]any, len(p))
+						for pk, pv := range p {
+							cp[pk] = pv
+						}
+						cp["description"] = strings.ReplaceAll(d, activeWorkspace, hostedWorkspace)
+						v = cp
+					}
+				}
+				props[k] = v
+			}
+			t.InputSchema.Properties = props
+		}
+		if hasAccID {
+			props := make(map[string]any, len(t.InputSchema.Properties))
+			for k, v := range t.InputSchema.Properties {
+				props[k] = v
+			}
+			cp := map[string]any{"type": "string"}
+			if p, ok := props["accId"].(map[string]any); ok {
+				for k, v := range p {
+					cp[k] = v
+				}
+			}
+			cp["description"] = hostedAccIDDescription
+			props["accId"] = cp
 			t.InputSchema.Properties = props
 		}
 		s.AddTool(t, st.Handler)

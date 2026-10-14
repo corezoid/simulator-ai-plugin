@@ -1,6 +1,6 @@
 module github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server
 
-go 1.25.5
+go 1.27.2
 
 require (
 	github.com/mark3labs/mcp-go v1.1.1
