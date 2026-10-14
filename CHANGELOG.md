@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.12.0]
+
+### Added
+- access log line per MCP request (#145)
+
+### Changed
+- bump Go directive to 1.27.2 (#146)
+
+### Fixed
+- openWorldHint only for external reach; massLink destructive (#147)
+- block hand-built Dashboards actors (CE-15957) (#141)
+- engine tools take accId on the bare /mcp route (#144)
+- accId guidance on the bare /mcp route (#143)
+
 ## [2.11.0]
 
 ### Added
