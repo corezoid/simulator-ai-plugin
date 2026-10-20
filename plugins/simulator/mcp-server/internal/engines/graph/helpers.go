@@ -22,10 +22,6 @@ func loadSysForms() ([]SysFormItem, error) { return nil, nil }
 // (the formId is always present and is what push relies on).
 func resolveFormIDToName(id int) string { return "" }
 
-// resolveFormNameToID returns 0 (cache miss); callers fall back to a live API
-// lookup. The legacy sys-forms cache is not ported.
-func resolveFormNameToID(name string) int { return 0 }
-
 // findFormInTree locates a form by id within a SysFormItem tree, reporting its
 // parent id and whether it is a child (non-root) form.
 func findFormInTree(forms []SysFormItem, formID, parentID int) (parent int, isChild, found bool) {

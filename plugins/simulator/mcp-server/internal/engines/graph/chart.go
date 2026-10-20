@@ -135,13 +135,33 @@ func normalizeChartConfig(cfg *ChartConfig) ([]string, error) {
 
 	// Copy before defaulting: cfg is a value but Accounts shares the caller's array.
 	cfg.Accounts = slices.Clone(cfg.Accounts)
+	// The UI keys a series by actorId_nameId_currencyId_incomeType (Dashboard
+	// accountHelpers / dataTransformers uniqBy) and silently drops a repeat, and
+	// a series without an actor, account name or currency renders no data — so
+	// reject both up front instead of creating a chart with missing metrics.
+	seen := make(map[string]int, len(cfg.Accounts))
 	for i := range cfg.Accounts {
-		if cfg.Accounts[i].IncomeType == "" {
-			cfg.Accounts[i].IncomeType = "total"
+		a := &cfg.Accounts[i]
+		if a.IncomeType == "" {
+			a.IncomeType = "total"
 		}
-		if err := checkChartEnum(fmt.Sprintf("accounts[%d].incomeType", i), cfg.Accounts[i].IncomeType, chartIncomeTypes); err != nil {
+		if err := checkChartEnum(fmt.Sprintf("accounts[%d].incomeType", i), a.IncomeType, chartIncomeTypes); err != nil {
 			return nil, err
 		}
+		switch {
+		case strings.TrimSpace(a.ActorID) == "":
+			return nil, fmt.Errorf("accounts[%d].actorId is required", i)
+		case strings.TrimSpace(a.NameID) == "":
+			return nil, fmt.Errorf("accounts[%d].nameId is required (the account name UUID)", i)
+		case a.CurrencyID <= 0:
+			return nil, fmt.Errorf("accounts[%d].currencyId must be a positive currency id", i)
+		}
+		key := fmt.Sprintf("%s_%s_%d_%s", a.ActorID, a.NameID, a.CurrencyID, a.IncomeType)
+		if j, dup := seen[key]; dup {
+			return nil, fmt.Errorf("accounts[%d] duplicates accounts[%d] (same actorId, nameId, currencyId and incomeType) — "+
+				"the chart would show it once", i, j)
+		}
+		seen[key] = i
 	}
 	return warnings, nil
 }
@@ -186,28 +206,35 @@ type CreateChartResult struct {
 
 // ---- System form ID cache for chart forms ----
 
+// chartFormCache memoizes system form ids per API base URL + workspace + title.
+// Every workspace has its own copy of each system form (its own id), and form
+// ids are only unique within one backend database, so a key without the
+// workspace or the base URL hands workspace A's Dashboards id to workspace B
+// after set-workspace / set-environment. A system form's id never changes, so
+// entries live for the process lifetime (no TTL); failed lookups are not cached.
 var (
 	chartFormCacheMu sync.RWMutex
-	chartFormCache   = map[string]int{} // title → formId
+	chartFormCache   = map[string]int{} // baseURL|workspaceID|title → formId
 )
 
-// lookupSystemFormID resolves a system form title to its numeric ID.
-// Checks the server-wide form name cache first; falls back to a direct API call.
-func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL string) (int, error) {
-	// 1. Try the global name→id cache (populated from sys-forms.yaml after sim-init)
-	if id := resolveFormNameToID(title); id != 0 {
-		return id, nil
-	}
+func chartFormCacheKey(baseURL, workspaceID, title string) string {
+	return strings.TrimSuffix(baseURL, "/") + "|" + workspaceID + "|" + title
+}
 
-	// 2. Try our local chart form cache
+// lookupSystemFormID resolves a system form title to its numeric ID in the given
+// workspace, checking chartFormCache first and falling back to a direct API call.
+func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL string) (int, error) {
 	chartFormCacheMu.RLock()
-	id := chartFormCache[title]
+	id := chartFormCache[chartFormCacheKey(baseURL, workspaceID, title)]
 	chartFormCacheMu.RUnlock()
 	if id != 0 {
 		return id, nil
 	}
 
-	// 3. Fetch from the system forms endpoint
+	// The system endpoint lists only system forms. The all-forms fallback also
+	// lists custom ones (type null), which may share a system form's title, so
+	// from it only type == "system" entries are taken.
+	systemOnly := false
 	url := fmt.Sprintf("%s/forms/templates/system/%s?formTypes=system&limit=200&offset=0", baseURL, workspaceID)
 	data, err := chartHTTPGet(ctx, url, auth)
 	if err != nil {
@@ -217,12 +244,14 @@ func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL s
 		if err != nil {
 			return 0, fmt.Errorf("fetch forms to resolve %q: %w", title, err)
 		}
+		systemOnly = true
 	}
 
 	var resp struct {
 		Data []struct {
 			ID    int    `json:"id"`
 			Title string `json:"title"`
+			Type  string `json:"type"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
@@ -231,15 +260,16 @@ func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL s
 
 	chartFormCacheMu.Lock()
 	for _, f := range resp.Data {
-		if f.Title != "" && f.ID != 0 {
-			chartFormCache[f.Title] = f.ID
+		if f.Title == "" || f.ID == 0 || (systemOnly && f.Type != "system") {
+			continue
+		}
+		chartFormCache[chartFormCacheKey(baseURL, workspaceID, f.Title)] = f.ID
+		if f.Title == title {
+			id = f.ID
 		}
 	}
 	chartFormCacheMu.Unlock()
 
-	chartFormCacheMu.RLock()
-	id = chartFormCache[title]
-	chartFormCacheMu.RUnlock()
 	if id == 0 {
 		return 0, fmt.Errorf("form %q not found in workspace %s", title, workspaceID)
 	}
@@ -508,7 +538,7 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 			"accounts":               accounts,
 			"counterType":            cfg.CounterType,
 			"chartType":              cfg.ChartType,
-			"sourceType":             "accounts",
+			"sourceType":             "manual", // the UI wizard's per-account mode; pong-server links accounts[].actorId only for "manual"
 			"range":                  cfg.Range,
 			"rangeDates":             map[string]interface{}{"from": nil, "to": nil},
 			"showTotal":              true,
@@ -739,8 +769,9 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 }
 
 // isDashboardFormID reports whether formID is the Dashboards system form in this
-// syncer's workspace. It reuses lookupSystemFormID (system-forms endpoint, so a
-// same-named custom form cannot collide) and fails open (false) when the form
+// syncer's workspace. It reuses lookupSystemFormID (cached per base URL +
+// workspace, and only system forms are taken, so neither another workspace's id
+// nor a same-named custom form can collide) and fails open (false) when the form
 // cannot be resolved — mirroring the createActor/updateActor guards in
 // internal/tools so pushGraphFile does not become a bypass for hand-built charts.
 func (s *GraphSyncer) isDashboardFormID(ctx context.Context, formID int) bool {

@@ -38,8 +38,48 @@ func TestNormalizeChartConfigRejectsValuesTheUICannotRender(t *testing.T) {
 	}
 }
 
+// TestNormalizeChartConfigRejectsBadAccounts: a series the UI cannot chart
+// (missing actor / account name / currency) or a repeat it would drop must fail
+// before anything is created, not vanish silently from the chart.
+func TestNormalizeChartConfigRejectsBadAccounts(t *testing.T) {
+	ok := ChartAccountEntry{ActorID: "a1", NameID: "n1", CurrencyID: 1}
+	with := func(f func(*ChartAccountEntry)) ChartAccountEntry { a := ok; f(&a); return a }
+	cases := []struct {
+		name     string
+		accounts []ChartAccountEntry
+		want     string
+	}{
+		{"no actorId", []ChartAccountEntry{ok, with(func(a *ChartAccountEntry) { a.ActorID = " " })}, "accounts[1].actorId is required"},
+		{"no nameId", []ChartAccountEntry{with(func(a *ChartAccountEntry) { a.NameID = "" })}, "accounts[0].nameId is required"},
+		{"no currencyId", []ChartAccountEntry{with(func(a *ChartAccountEntry) { a.CurrencyID = 0 })}, "accounts[0].currencyId"},
+		{"negative currencyId", []ChartAccountEntry{with(func(a *ChartAccountEntry) { a.CurrencyID = -3 })}, "accounts[0].currencyId"},
+		// "" defaults to "total", so these two are the same series.
+		{"duplicate", []ChartAccountEntry{ok, with(func(a *ChartAccountEntry) { a.IncomeType = "total"; a.Color = "#000" })}, "accounts[1] duplicates accounts[0]"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := ChartConfig{Accounts: tc.accounts}
+			_, err := normalizeChartConfig(&cfg)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+
+	// Same account, different incomeType / currency / actor: distinct series.
+	cfg := ChartConfig{Accounts: []ChartAccountEntry{
+		ok,
+		with(func(a *ChartAccountEntry) { a.IncomeType = "credit" }),
+		with(func(a *ChartAccountEntry) { a.CurrencyID = 2 }),
+		with(func(a *ChartAccountEntry) { a.ActorID = "a2" }),
+	}}
+	if _, err := normalizeChartConfig(&cfg); err != nil {
+		t.Errorf("distinct series rejected: %v", err)
+	}
+}
+
 func TestNormalizeChartConfigDefaults(t *testing.T) {
-	accounts := []ChartAccountEntry{{}}
+	accounts := []ChartAccountEntry{{ActorID: "a1", NameID: "n1", CurrencyID: 1}}
 	cfg := ChartConfig{Accounts: accounts}
 	warnings, err := normalizeChartConfig(&cfg)
 	if err != nil {
@@ -183,6 +223,11 @@ func TestCreateChartWritesUIValuesAndExpandsOnPlacement(t *testing.T) {
 			}
 			if src["counterType"] != "count" || src["orderValue"] != "desc" || src["chartType"] != "bar" {
 				t.Errorf("source = %v", src)
+			}
+			// Direct-accounts mode is the UI wizard's "manual" source; pong-server
+			// links accounts[].actorId to the dashboard only for "manual".
+			if src["sourceType"] != "manual" {
+				t.Errorf("sourceType = %v, want manual", src["sourceType"])
 			}
 		case c.Method == "POST" && strings.HasPrefix(c.Path, "/graph_layers/actors/"):
 			sawPlacement = true
