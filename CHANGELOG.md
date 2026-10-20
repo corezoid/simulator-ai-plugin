@@ -50,6 +50,7 @@
   token; 404 otherwise).
 
 ### Fixed
+- createChart / Dashboards push guard: system form ids are cached per backend + workspace (no more reuse of another workspace's id after set-workspace / set-environment); the all-forms fallback no longer overwrites a system id with a same-titled custom form. Direct-accounts charts now write `sourceType: "manual"` and createChart validates `accounts` (non-empty ids, currencyId > 0, no duplicates) (CE-16017).
 - Tool annotations: `openWorldHint` is now false for tools that only touch the user's own workspace
   and true only for `uploadActorPicture`, `uploadActorPictureBulk`, `uploadGraphFile` (fetch a
   caller-given URL) and `generatePublicLink` (publishes a public link). `massLink` is destructive

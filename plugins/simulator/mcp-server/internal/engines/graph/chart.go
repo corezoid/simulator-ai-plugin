@@ -188,11 +188,19 @@ type CreateChartResult struct {
 
 var (
 	chartFormCacheMu sync.RWMutex
-	chartFormCache   = map[string]int{} // title → formId
+	chartFormCache   = map[string]int{} // baseURL|workspaceID|title → formId
 )
+
+// chartFormCacheKey scopes a cached form id to its backend and workspace, so
+// switching workspace/environment in one MCP session never reuses another
+// scope's id.
+func chartFormCacheKey(baseURL, workspaceID, title string) string {
+	return baseURL + "|" + workspaceID + "|" + title
+}
 
 // lookupSystemFormID resolves a system form title to its numeric ID.
 // Checks the server-wide form name cache first; falls back to a direct API call.
+// Cached ids are keyed by (baseURL, workspaceID, title).
 func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL string) (int, error) {
 	// 1. Try the global name→id cache (populated from sys-forms.yaml after sim-init)
 	if id := resolveFormNameToID(title); id != 0 {
@@ -200,8 +208,9 @@ func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL s
 	}
 
 	// 2. Try our local chart form cache
+	key := chartFormCacheKey(baseURL, workspaceID, title)
 	chartFormCacheMu.RLock()
-	id := chartFormCache[title]
+	id := chartFormCache[key]
 	chartFormCacheMu.RUnlock()
 	if id != 0 {
 		return id, nil
@@ -209,9 +218,12 @@ func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL s
 
 	// 3. Fetch from the system forms endpoint
 	url := fmt.Sprintf("%s/forms/templates/system/%s?formTypes=system&limit=200&offset=0", baseURL, workspaceID)
+	authoritative := true
 	data, err := chartHTTPGet(ctx, url, auth)
 	if err != nil {
-		// Fall back to all-forms endpoint
+		// Fall back to all-forms endpoint (may include custom forms with the
+		// same title, so it must never overwrite a known system id)
+		authoritative = false
 		url2 := fmt.Sprintf("%s/forms/templates/%s?formTypes=all&limit=200&offset=0&withDefault=false", baseURL, workspaceID)
 		data, err = chartHTTPGet(ctx, url2, auth)
 		if err != nil {
@@ -231,15 +243,17 @@ func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL s
 
 	chartFormCacheMu.Lock()
 	for _, f := range resp.Data {
-		if f.Title != "" && f.ID != 0 {
-			chartFormCache[f.Title] = f.ID
+		if f.Title == "" || f.ID == 0 {
+			continue
 		}
+		k := chartFormCacheKey(baseURL, workspaceID, f.Title)
+		if _, exists := chartFormCache[k]; exists && !authoritative {
+			continue
+		}
+		chartFormCache[k] = f.ID
 	}
+	id = chartFormCache[key]
 	chartFormCacheMu.Unlock()
-
-	chartFormCacheMu.RLock()
-	id = chartFormCache[title]
-	chartFormCacheMu.RUnlock()
 	if id == 0 {
 		return 0, fmt.Errorf("form %q not found in workspace %s", title, workspaceID)
 	}
@@ -508,7 +522,7 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 			"accounts":               accounts,
 			"counterType":            cfg.CounterType,
 			"chartType":              cfg.ChartType,
-			"sourceType":             "accounts",
+			"sourceType":             "manual",
 			"range":                  cfg.Range,
 			"rangeDates":             map[string]interface{}{"from": nil, "to": nil},
 			"showTotal":              true,
@@ -710,6 +724,10 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		}
 	}
 
+	if err := validateChartAccounts(accounts); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("[Error] createChart: %v", err)), nil
+	}
+
 	cfg := ChartConfig{
 		LayerID:       layerID,
 		Title:         title,
@@ -790,4 +808,24 @@ func jsonValueHasContent(v interface{}) bool {
 	default:
 		return true
 	}
+}
+
+// validateChartAccounts rejects direct-accounts entries the UI would silently
+// drop from the chart: empty ids, non-positive currencyId, duplicated metrics.
+func validateChartAccounts(accounts []ChartAccountEntry) error {
+	seen := map[string]int{}
+	for i, a := range accounts {
+		if a.ActorID == "" || a.NameID == "" {
+			return fmt.Errorf("accounts[%d]: actorId and nameId must be non-empty", i)
+		}
+		if a.CurrencyID <= 0 {
+			return fmt.Errorf("accounts[%d]: currencyId must be > 0", i)
+		}
+		k := fmt.Sprintf("%s|%s|%d|%s", a.ActorID, a.NameID, a.CurrencyID, a.IncomeType)
+		if j, dup := seen[k]; dup {
+			return fmt.Errorf("accounts[%d] duplicates accounts[%d] (same actorId, nameId, currencyId, incomeType)", i, j)
+		}
+		seen[k] = i
+	}
+	return nil
 }
