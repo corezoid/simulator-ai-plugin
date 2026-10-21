@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -148,11 +149,18 @@ func normalizeChartConfig(cfg *ChartConfig) ([]string, error) {
 		if err := checkChartEnum(fmt.Sprintf("accounts[%d].incomeType", i), a.IncomeType, chartIncomeTypes); err != nil {
 			return nil, err
 		}
+		// pong-server looks every accounts[].actorId up as a uuid when it links the
+		// dashboard (dashboardValency); a non-UUID (e.g. an actor title) throws there
+		// and silently stops linking the series after it, so check the shape too.
 		switch {
 		case strings.TrimSpace(a.ActorID) == "":
 			return nil, fmt.Errorf("accounts[%d].actorId is required", i)
+		case !ecore.IsUUID(a.ActorID):
+			return nil, fmt.Errorf("accounts[%d].actorId must be an actor UUID, got %q", i, a.ActorID)
 		case strings.TrimSpace(a.NameID) == "":
 			return nil, fmt.Errorf("accounts[%d].nameId is required (the account name UUID)", i)
+		case !ecore.IsUUID(a.NameID):
+			return nil, fmt.Errorf("accounts[%d].nameId must be the account name UUID, got %q", i, a.NameID)
 		case a.CurrencyID <= 0:
 			return nil, fmt.Errorf("accounts[%d].currencyId must be a positive currency id", i)
 		}
@@ -194,6 +202,84 @@ func newChartLayerSettings() chartLayerSettings {
 	}
 }
 
+// dashboardSource is the Dashboards actor's data.source (stored as a JSON
+// string) — the shape the UI DashboardWizard writes and pong-server reads.
+type dashboardSource struct {
+	DefaultAccount         *dashboardAccount       `json:"defaultAccount"` // always null here
+	Accounts               []dashboardAccount      `json:"accounts"`       // [] (not null) in actorFilter mode
+	CounterType            string                  `json:"counterType"`
+	ChartType              string                  `json:"chartType"`
+	SourceType             string                  `json:"sourceType"` // dashboardSourceActorFilter | dashboardSourceManual
+	Range                  string                  `json:"range"`
+	RangeDates             dashboardRangeDates     `json:"rangeDates"`
+	ShowTotal              bool                    `json:"showTotal"`
+	OrderValue             string                  `json:"orderValue"`
+	Legend                 dashboardLegend         `json:"legend"`
+	DisplayChartDataLabels bool                    `json:"displayChartDataLabels"`
+	DynamicSource          *dashboardDynamicSource `json:"dynamicSource,omitempty"` // actorFilter mode only
+	ChartViewMode          string                  `json:"chartViewMode"`
+}
+
+const (
+	dashboardSourceActorFilter = "actorFilter"
+	// The UI wizard's per-account mode; pong-server links accounts[].actorId to
+	// the dashboard only for "manual".
+	dashboardSourceManual = "manual"
+)
+
+// dashboardAccount is one series of a "manual" source.
+type dashboardAccount struct {
+	ActorID    string `json:"actorId"`
+	Color      string `json:"color"`
+	IncomeType string `json:"incomeType"`
+	CurrencyID int    `json:"currencyId"`
+	NameID     string `json:"nameId"`
+}
+
+type dashboardRangeDates struct {
+	From *string `json:"from"`
+	To   *string `json:"to"`
+}
+
+// dashboardLegend picks the parts of a series label. The UI's duplicate-series
+// check keys by incomeType only when IncomeType is on, so it must be on whenever
+// two series differ only by incomeType.
+type dashboardLegend struct {
+	ActorTitle   bool `json:"actorTitle"`
+	AccountName  bool `json:"accountName"`
+	CurrencyName bool `json:"currencyName"`
+	IncomeType   bool `json:"incomeType,omitempty"`
+}
+
+// dashboardDynamicSource points an actorFilter source at its ActorFilters actor.
+type dashboardDynamicSource struct {
+	ID            string           `json:"id"`
+	Title         string           `json:"title"`
+	Top           string           `json:"top"`
+	GroupByFields []string         `json:"groupByFields"`
+	Filter        *dashboardFilter `json:"filter,omitempty"`
+}
+
+type dashboardFilter struct {
+	FormID        int    `json:"formId"`
+	SelectedForms []int  `json:"selectedForms"`
+	AccountNameID string `json:"accountNameId"`
+	CurrencyID    int    `json:"currencyId"`
+	QFormID       string `json:"qFormId"`
+	IsUat         bool   `json:"isUat"`
+}
+
+// legendNeedsIncomeType reports whether the series use more than one incomeType;
+// otherwise two of them could share a label (and trip the wizard's dedup).
+func legendNeedsIncomeType(accounts []ChartAccountEntry) bool {
+	for _, a := range accounts {
+		if a.IncomeType != accounts[0].IncomeType {
+			return true
+		}
+	}
+	return false
+}
+
 // CreateChartResult is returned by CreateChart.
 type CreateChartResult struct {
 	DashboardActorID string `json:"dashboardActorId"`
@@ -231,20 +317,26 @@ func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL s
 		return id, nil
 	}
 
-	// The system endpoint lists only system forms. The all-forms fallback also
-	// lists custom ones (type null), which may share a system form's title, so
-	// from it only type == "system" entries are taken.
+	// The system endpoint lists only system forms. The fallback is the generic
+	// templates route filtered to system forms (pong-server getSystemTemplates,
+	// f.type IN (:formTypes)) — not formTypes=all, whose single page is ordered
+	// type NULLS FIRST and so holds no system form once a workspace has 200
+	// custom templates. Its rows are still filtered to type == "system" so a
+	// custom form sharing a system form's title can never be picked.
+	//
+	// Both routes share the access check, so only a missing route (404) or a
+	// server error is worth a second request; auth, transport and ctx errors are
+	// returned as they are.
 	systemOnly := false
 	url := fmt.Sprintf("%s/forms/templates/system/%s?formTypes=system&limit=200&offset=0", baseURL, workspaceID)
 	data, err := chartHTTPGet(ctx, url, auth)
-	if err != nil {
-		// Fall back to all-forms endpoint
-		url2 := fmt.Sprintf("%s/forms/templates/%s?formTypes=all&limit=200&offset=0&withDefault=false", baseURL, workspaceID)
+	if status := ecore.HTTPStatusOf(err); status == http.StatusNotFound || status >= 500 {
+		url2 := fmt.Sprintf("%s/forms/templates/%s?formTypes=system&limit=200&offset=0&withDefault=false", baseURL, workspaceID)
 		data, err = chartHTTPGet(ctx, url2, auth)
-		if err != nil {
-			return 0, fmt.Errorf("fetch forms to resolve %q: %w", title, err)
-		}
 		systemOnly = true
+	}
+	if err != nil {
+		return 0, fmt.Errorf("fetch forms to resolve %q: %w", title, err)
 	}
 
 	var resp struct {
@@ -478,40 +570,34 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 	}
 
 	// ---- Step 3: build dashboard source config ----
-	var sourceConfig map[string]interface{}
+	source := dashboardSource{
+		Accounts:               []dashboardAccount{},
+		CounterType:            cfg.CounterType,
+		ChartType:              cfg.ChartType,
+		Range:                  cfg.Range,
+		ShowTotal:              true,
+		OrderValue:             cfg.OrderValue,
+		Legend:                 dashboardLegend{ActorTitle: true, AccountName: true, CurrencyName: true},
+		DisplayChartDataLabels: true,
+		ChartViewMode:          "default",
+	}
 
 	if isActorFilterMode {
-		dynamicSource := map[string]interface{}{
-			"id":            filterActorID,
-			"title":         filterTitle,
-			"top":           fmt.Sprintf("%d", cfg.Top),
-			"groupByFields": []interface{}{},
+		source.SourceType = dashboardSourceActorFilter
+		source.DynamicSource = &dashboardDynamicSource{
+			ID:            filterActorID,
+			Title:         filterTitle,
+			Top:           fmt.Sprintf("%d", cfg.Top),
+			GroupByFields: []string{},
 		}
 		if cfg.SourceFormID != 0 {
-			dynamicSource["filter"] = map[string]interface{}{
-				"formId":        cfg.SourceFormID,
-				"selectedForms": []int{cfg.SourceFormID},
-				"accountNameId": cfg.AccountNameID,
-				"currencyId":    cfg.CurrencyID,
-				"qFormId":       fmt.Sprintf("%d", cfg.SourceFormID),
-				"isUat":         false,
+			source.DynamicSource.Filter = &dashboardFilter{
+				FormID:        cfg.SourceFormID,
+				SelectedForms: []int{cfg.SourceFormID},
+				AccountNameID: cfg.AccountNameID,
+				CurrencyID:    cfg.CurrencyID,
+				QFormID:       fmt.Sprintf("%d", cfg.SourceFormID),
 			}
-		}
-
-		sourceConfig = map[string]interface{}{
-			"defaultAccount":         nil,
-			"accounts":               []interface{}{},
-			"counterType":            cfg.CounterType,
-			"chartType":              cfg.ChartType,
-			"sourceType":             "actorFilter",
-			"range":                  cfg.Range,
-			"rangeDates":             map[string]interface{}{"from": nil, "to": nil},
-			"showTotal":              true,
-			"orderValue":             cfg.OrderValue,
-			"legend":                 map[string]interface{}{"actorTitle": true, "accountName": true, "currencyName": true},
-			"displayChartDataLabels": true,
-			"dynamicSource":          dynamicSource,
-			"chartViewMode":          "default",
 		}
 	} else {
 		// Direct accounts mode
@@ -519,33 +605,21 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 			"#499894", "#59A14F", "#D37295", "#4E79A7", "#FF9D9A",
 			"#B07AA1", "#B6992D", "#F1CE63", "#BAB0AC", "#79706E",
 		}
-		accounts := make([]interface{}, len(cfg.Accounts))
+		source.SourceType = dashboardSourceManual
+		source.Legend.IncomeType = legendNeedsIncomeType(cfg.Accounts)
+		source.Accounts = make([]dashboardAccount, len(cfg.Accounts))
 		for i, a := range cfg.Accounts {
 			col := a.Color
 			if col == "" {
 				col = palette[i%len(palette)]
 			}
-			accounts[i] = map[string]interface{}{
-				"actorId":    a.ActorID,
-				"color":      col,
-				"incomeType": a.IncomeType,
-				"currencyId": a.CurrencyID,
-				"nameId":     a.NameID,
+			source.Accounts[i] = dashboardAccount{
+				ActorID:    a.ActorID,
+				Color:      col,
+				IncomeType: a.IncomeType,
+				CurrencyID: a.CurrencyID,
+				NameID:     a.NameID,
 			}
-		}
-		sourceConfig = map[string]interface{}{
-			"defaultAccount":         nil,
-			"accounts":               accounts,
-			"counterType":            cfg.CounterType,
-			"chartType":              cfg.ChartType,
-			"sourceType":             "manual", // the UI wizard's per-account mode; pong-server links accounts[].actorId only for "manual"
-			"range":                  cfg.Range,
-			"rangeDates":             map[string]interface{}{"from": nil, "to": nil},
-			"showTotal":              true,
-			"orderValue":             cfg.OrderValue,
-			"legend":                 map[string]interface{}{"actorTitle": true, "accountName": true, "currencyName": true},
-			"displayChartDataLabels": true,
-			"chartViewMode":          "default",
 		}
 	}
 
@@ -555,7 +629,7 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 		"title":       cfg.Title,
 		"description": cfg.Description,
 		"data": map[string]interface{}{
-			"source": chartJSONString(sourceConfig),
+			"source": chartJSONString(source),
 		},
 		"hole": false,
 	}
@@ -768,21 +842,17 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	return mcp.NewToolResultText(string(out)), nil
 }
 
-// isDashboardFormID reports whether formID is the Dashboards system form in this
-// syncer's workspace. It reuses lookupSystemFormID (cached per base URL +
-// workspace, and only system forms are taken, so neither another workspace's id
-// nor a same-named custom form can collide) and fails open (false) when the form
-// cannot be resolved — mirroring the createActor/updateActor guards in
-// internal/tools so pushGraphFile does not become a bypass for hand-built charts.
+// isDashboardFormID reports whether formID is the Dashboards system form. Like
+// the createActor/updateActor guards in internal/tools it resolves the form by
+// its own id (ecore.IsDashboardForm: GET /forms/{id}), so neither another
+// workspace's id nor a same-named custom form can collide, and it fails open
+// (false) when the form cannot be resolved — so pushGraphFile does not become a
+// bypass for hand-built charts.
 func (s *GraphSyncer) isDashboardFormID(ctx context.Context, formID int) bool {
-	if formID == 0 {
-		return false
-	}
-	dashID, err := lookupSystemFormID(ctx, "Dashboards", s.workspaceID, s.auth, s.baseURL)
-	if err != nil {
-		return false // fail open
-	}
-	return formID == dashID
+	isDash, err := ecore.IsDashboardForm(ctx, s.baseURL, formID, func(ctx context.Context, path string, q url.Values) ([]byte, error) {
+		return s.get(ctx, s.baseURL+path+"?"+q.Encode())
+	})
+	return err == nil && isDash
 }
 
 // dashboardSourceHasContent reports whether a graph actor's data sets data.source

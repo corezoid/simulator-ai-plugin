@@ -133,10 +133,11 @@ createChart(
 
 `color` and `incomeType` (`"total"` | `"credit"` | `"debit"`) are optional per
 item; defaults are auto-assigned from the Tableau palette and `"total"` respectively.
-`actorId`, `nameId` and a positive `currencyId` are required on every item, and two
-items with the same `actorId` + `nameId` + `currencyId` + `incomeType` are rejected —
-the UI would draw that series only once. The chart is stored as the UI wizard's
-"manual" source.
+`actorId` and `nameId` (both UUIDs — not titles) and a positive `currencyId` are
+required on every item, and two items with the same `actorId` + `nameId` +
+`currencyId` + `incomeType` are rejected — the UI would draw that series only once.
+Items that differ only by `incomeType` get it shown in the legend. The chart is
+stored as the UI wizard's "manual" source.
 
 ---
 

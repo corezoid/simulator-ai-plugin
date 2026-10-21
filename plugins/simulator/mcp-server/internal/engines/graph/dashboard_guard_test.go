@@ -18,23 +18,39 @@ func clearChartFormCache() {
 	chartFormCacheMu.Unlock()
 }
 
-func TestIsDashboardFormID(t *testing.T) {
-	clearChartFormCache()
+// formByIDServer serves GET /forms/{id} from a table of id → (type, title); any
+// other id or route is a 404.
+func formByIDServer(t *testing.T, forms map[int][2]string) *httptest.Server {
+	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "/forms/templates/system/") {
-			_, _ = w.Write([]byte(`{"data":[{"id":71872,"title":"Dashboards"},{"id":100,"title":"Clients"}]}`))
-			return
+		var id int
+		if _, err := fmt.Sscanf(r.URL.Path, "/forms/%d", &id); err == nil {
+			if f, ok := forms[id]; ok {
+				_, _ = fmt.Fprintf(w, `{"data":{"type":%q,"title":%q}}`, f[0], f[1])
+				return
+			}
 		}
 		w.WriteHeader(http.StatusNotFound)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
+	return srv
+}
 
+func TestIsDashboardFormID(t *testing.T) {
+	srv := formByIDServer(t, map[int][2]string{
+		71872: {"system", "Dashboards"},
+		100:   {"system", "Clients"},
+		900:   {"custom", "Dashboards"},
+	})
 	s := newGraphSyncer(srv.URL, "Simulator t", t.Name())
 	if !s.isDashboardFormID(context.Background(), 71872) {
 		t.Error("71872 (system Dashboards) should be recognized as the dashboard form")
 	}
 	if s.isDashboardFormID(context.Background(), 100) {
 		t.Error("100 (Clients) must not be recognized as the dashboard form")
+	}
+	if s.isDashboardFormID(context.Background(), 900) {
+		t.Error("900 (custom form titled Dashboards) must not trip the push guard")
 	}
 	if s.isDashboardFormID(context.Background(), 0) {
 		t.Error("formID 0 must never match")
@@ -113,47 +129,27 @@ func TestLookupSystemFormIDScopedPerWorkspace(t *testing.T) {
 	}
 }
 
-// TestIsDashboardFormIDAfterWorkspaceSwitch guards the push-guard bypass: once
-// workspace A's Dashboards id is cached, a push into workspace B must still
-// block B's Dashboards form (and not treat A's id as B's).
-func TestIsDashboardFormIDAfterWorkspaceSwitch(t *testing.T) {
-	clearChartFormCache()
+// TestIsDashboardFormIDScopedPerBackend: form ids are only unique within one
+// backend, so after set-environment the same id can name another form — the
+// first backend's cached verdict must not leak to the second.
+func TestIsDashboardFormIDScopedPerBackend(t *testing.T) {
 	ctx := context.Background()
-	for _, tc := range []struct {
-		name       string
-		urlA, urlB string
-		wsA, wsB   string
-		idA, idB   int
-	}{
-		{name: "set-workspace", wsA: "wsA", wsB: "wsB", idA: 101, idB: 202},
-		{name: "set-environment", wsA: "ws", wsB: "ws", idA: 303, idB: 404},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.wsA == tc.wsB {
-				tc.urlA = systemFormsServer(t, map[string]int{tc.wsA: tc.idA}).URL
-				tc.urlB = systemFormsServer(t, map[string]int{tc.wsB: tc.idB}).URL
-			} else {
-				srv := systemFormsServer(t, map[string]int{tc.wsA: tc.idA, tc.wsB: tc.idB})
-				tc.urlA, tc.urlB = srv.URL, srv.URL
-			}
-			sA := newGraphSyncer(tc.urlA, "t", tc.wsA)
-			if !sA.isDashboardFormID(ctx, tc.idA) {
-				t.Fatalf("%d should be workspace A's Dashboards form", tc.idA)
-			}
-			sB := newGraphSyncer(tc.urlB, "t", tc.wsB)
-			if !sB.isDashboardFormID(ctx, tc.idB) {
-				t.Errorf("%d (B's Dashboards) passed the guard after A's id was cached", tc.idB)
-			}
-			if sB.isDashboardFormID(ctx, tc.idA) {
-				t.Errorf("%d (A's Dashboards) must not count as B's Dashboards form", tc.idA)
-			}
-		})
+	a := formByIDServer(t, map[int][2]string{303: {"system", "Dashboards"}})
+	b := formByIDServer(t, map[int][2]string{303: {"custom", "Clients"}})
+	sA, sB := newGraphSyncer(a.URL, "t", "ws"), newGraphSyncer(b.URL, "t", "ws")
+	for range 2 { // second round is served from the cache
+		if !sA.isDashboardFormID(ctx, 303) {
+			t.Error("303 is backend A's Dashboards form")
+		}
+		if sB.isDashboardFormID(ctx, 303) {
+			t.Error("303 on backend B is Clients, not Dashboards")
+		}
 	}
 }
 
-// TestLookupSystemFormIDFallbackIgnoresCustomForms: the all-forms fallback also
-// returns custom templates (type null); one titled "Dashboards" must neither be
-// picked nor overwrite the cached system id.
+// TestLookupSystemFormIDFallbackIgnoresCustomForms: should the fallback listing
+// ever include custom templates (type null), one titled "Dashboards" must
+// neither be picked nor overwrite the cached system id.
 func TestLookupSystemFormIDFallbackIgnoresCustomForms(t *testing.T) {
 	clearChartFormCache()
 	ctx := context.Background()
@@ -167,7 +163,7 @@ func TestLookupSystemFormIDFallbackIgnoresCustomForms(t *testing.T) {
 			}
 			_, _ = w.Write([]byte(`{"data":[{"id":71872,"title":"Dashboards","type":"system"}]}`))
 		case strings.HasPrefix(r.URL.Path, "/forms/templates/"):
-			// formTypes=all lists custom forms first (type NULLS FIRST).
+			// A listing that (unexpectedly) also carries custom forms, first.
 			_, _ = w.Write([]byte(`{"data":[` +
 				`{"id":900,"title":"Dashboards","type":null},` +
 				`{"id":71872,"title":"Dashboards","type":"system"},` +
@@ -196,9 +192,24 @@ func TestLookupSystemFormIDFallbackIgnoresCustomForms(t *testing.T) {
 	if id, err := lookupSystemFormID(ctx, "Dashboards", "ws", "t", srv.URL); err != nil || id != 71872 {
 		t.Errorf("Dashboards via fallback = %d, %v; want 71872 (not the custom 900)", id, err)
 	}
-	s := newGraphSyncer(srv.URL, "t", "ws")
-	if s.isDashboardFormID(ctx, 900) {
-		t.Error("the custom form titled Dashboards must not trip the push guard")
+}
+
+// TestLookupSystemFormIDNoFallbackOnAuthError: both routes share the access
+// check, so a 403 is returned as is instead of being retried on the fallback.
+func TestLookupSystemFormIDNoFallbackOnAuthError(t *testing.T) {
+	clearChartFormCache()
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(srv.Close)
+	_, err := lookupSystemFormID(context.Background(), "Dashboards", "ws", "t", srv.URL)
+	if err == nil || !strings.Contains(err.Error(), "403") {
+		t.Fatalf("err = %v, want the original 403", err)
+	}
+	if n := calls.Load(); n != 1 {
+		t.Errorf("made %d requests, want 1 (no fallback on 403)", n)
 	}
 }
 

@@ -42,7 +42,7 @@ func TestNormalizeChartConfigRejectsValuesTheUICannotRender(t *testing.T) {
 // (missing actor / account name / currency) or a repeat it would drop must fail
 // before anything is created, not vanish silently from the chart.
 func TestNormalizeChartConfigRejectsBadAccounts(t *testing.T) {
-	ok := ChartAccountEntry{ActorID: "a1", NameID: "n1", CurrencyID: 1}
+	ok := ChartAccountEntry{ActorID: chartTestActor1, NameID: chartTestName1, CurrencyID: 1}
 	with := func(f func(*ChartAccountEntry)) ChartAccountEntry { a := ok; f(&a); return a }
 	cases := []struct {
 		name     string
@@ -71,7 +71,7 @@ func TestNormalizeChartConfigRejectsBadAccounts(t *testing.T) {
 		ok,
 		with(func(a *ChartAccountEntry) { a.IncomeType = "credit" }),
 		with(func(a *ChartAccountEntry) { a.CurrencyID = 2 }),
-		with(func(a *ChartAccountEntry) { a.ActorID = "a2" }),
+		with(func(a *ChartAccountEntry) { a.ActorID = chartTestActor2 }),
 	}}
 	if _, err := normalizeChartConfig(&cfg); err != nil {
 		t.Errorf("distinct series rejected: %v", err)
@@ -79,7 +79,7 @@ func TestNormalizeChartConfigRejectsBadAccounts(t *testing.T) {
 }
 
 func TestNormalizeChartConfigDefaults(t *testing.T) {
-	accounts := []ChartAccountEntry{{ActorID: "a1", NameID: "n1", CurrencyID: 1}}
+	accounts := []ChartAccountEntry{{ActorID: chartTestActor1, NameID: chartTestName1, CurrencyID: 1}}
 	cfg := ChartConfig{Accounts: accounts}
 	warnings, err := normalizeChartConfig(&cfg)
 	if err != nil {
@@ -134,6 +134,13 @@ type chartRequest struct {
 	Method, Path string
 	Body         []byte
 }
+
+// Series ids must be UUIDs (normalizeChartConfig).
+const (
+	chartTestActor1 = "aaaaaaaa-0000-0000-0000-000000000001"
+	chartTestActor2 = "aaaaaaaa-0000-0000-0000-000000000002"
+	chartTestName1  = "bbbbbbbb-0000-0000-0000-000000000001"
+)
 
 // linkedActors* are GET /graph/linked_actors/{layer} bodies in the real
 // {data: {nodes, edges}} shape; nodes include the layer itself.
@@ -191,7 +198,7 @@ func TestCreateChartWritesUIValuesAndExpandsOnPlacement(t *testing.T) {
 		CounterType: "count",
 		Range:       "lastWeek",
 		OrderValue:  "desc",
-		Accounts:    []ChartAccountEntry{{ActorID: "a1", CurrencyID: 1, NameID: "n1", IncomeType: "credit"}},
+		Accounts:    []ChartAccountEntry{{ActorID: chartTestActor1, CurrencyID: 1, NameID: chartTestName1, IncomeType: "credit"}},
 	}
 	res, err := CreateChart(context.Background(), cfg, "ws", "t", srv.URL)
 	if err != nil {
@@ -274,7 +281,7 @@ func inheritParents(t *testing.T, calls []chartRequest) []string {
 func TestCreateChartInheritsFromLinkedGraph(t *testing.T) {
 	srv, calls := chartStub(t, linkedActorsWithGraph)
 	res, err := CreateChart(context.Background(), ChartConfig{LayerID: chartTestLayerID, Title: "t",
-		Accounts: []ChartAccountEntry{{ActorID: "a1", CurrencyID: 1, NameID: "n1"}}}, "ws", "t", srv.URL)
+		Accounts: []ChartAccountEntry{{ActorID: chartTestActor1, CurrencyID: 1, NameID: chartTestName1}}}, "ws", "t", srv.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +296,7 @@ func TestCreateChartInheritsFromLinkedGraph(t *testing.T) {
 func TestCreateChartReportsGraphLookupFailure(t *testing.T) {
 	srv, calls := chartStub(t, "")
 	res, err := CreateChart(context.Background(), ChartConfig{LayerID: chartTestLayerID, Title: "t",
-		Accounts: []ChartAccountEntry{{ActorID: "a1", CurrencyID: 1, NameID: "n1"}}}, "ws", "t", srv.URL)
+		Accounts: []ChartAccountEntry{{ActorID: chartTestActor1, CurrencyID: 1, NameID: chartTestName1}}}, "ws", "t", srv.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
