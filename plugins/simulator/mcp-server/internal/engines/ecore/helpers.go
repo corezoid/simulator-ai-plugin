@@ -3,6 +3,7 @@ package ecore
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -68,13 +69,34 @@ func Seg(s string) string { return url.PathEscape(s) }
 // The hint is suppressed in stateless mode, mirroring AuthHeaderForContext:
 // there the credential arrived from the caller's header, so this process has no
 // advice to give about it.
+//
+// The returned error is a *StatusError, so callers can branch on the status via
+// HTTPStatusOf without parsing the message.
 func HTTPStatusError(method, apiURL string, status int, body []byte) error {
 	if !IsStateless() {
 		if hint := auth.HintFor(status); hint != "" {
-			return fmt.Errorf("%s %s: HTTP %d: %.300s — %s", method, apiURL, status, body, hint)
+			return &StatusError{Status: status, msg: fmt.Sprintf("%s %s: HTTP %d: %.300s — %s", method, apiURL, status, body, hint)}
 		}
 	}
-	return fmt.Errorf("%s %s: HTTP %d: %.300s", method, apiURL, status, body)
+	return &StatusError{Status: status, msg: fmt.Sprintf("%s %s: HTTP %d: %.300s", method, apiURL, status, body)}
+}
+
+// StatusError is a non-2xx engine reply (see HTTPStatusError).
+type StatusError struct {
+	Status int
+	msg    string
+}
+
+func (e *StatusError) Error() string { return e.msg }
+
+// HTTPStatusOf returns the HTTP status carried by err (or anything it wraps),
+// or 0 when err is not a StatusError — e.g. a transport or context error.
+func HTTPStatusOf(err error) int {
+	var se *StatusError
+	if errors.As(err, &se) {
+		return se.Status
+	}
+	return 0
 }
 
 // PapiGET sends an authenticated GET and returns the response body.

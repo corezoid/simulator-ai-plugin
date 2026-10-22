@@ -12,8 +12,8 @@ import (
 )
 
 // guardClient builds a client pointed at a mock backend. Each mock gets a unique
-// httptest URL, and both package-global caches (formTitleCache,
-// dashboardFormCache) are keyed by base URL, so entries never leak between tests.
+// httptest URL, and both package-global caches (formTitleCache here,
+// ecore's dashboardFormCache) are keyed by base URL, so entries never leak between tests.
 func guardClient(t *testing.T, h http.HandlerFunc) *apiclient.Client {
 	t.Helper()
 	srv := httptest.NewServer(h)

@@ -14,6 +14,19 @@
   token; 404 otherwise).
 
 ### Fixed
+- createChart and the pushGraphFile Dashboards guard cached system form ids by title only, so after
+  `set-workspace` / `set-environment` in the same session createChart built the dashboard on the previous
+  workspace's Dashboards form and the push guard compared against that foreign id and let a hand-built
+  Dashboards actor through. The cache is now keyed by base URL + workspace + title; the fallback lists
+  `formTypes=system` (the `formTypes=all` page held no system form in workspaces with 200+ custom
+  templates) and runs only on 404/5xx, so auth errors surface as is. The push guard now checks the
+  pushed form by id (`GET /forms/{id}`), shared with the createActor/updateActor guards.
+- createChart direct-accounts mode wrote `"sourceType": "accounts"`, a value neither the UI nor pong-server
+  knows (the backend then linked no actors to the dashboard). It now writes `"manual"`, like the UI wizard.
+  Every `accounts` item must carry a UUID `actorId` and `nameId` and a positive `currencyId`, and
+  duplicate series (same `actorId` + `nameId` + `currencyId` + `incomeType`, which the UI silently
+  drops) are rejected before anything is created. When series differ by `incomeType` the legend shows
+  it, so they no longer render with the same label.
 - Tool annotations: `openWorldHint` is now false for tools that only touch the user's own workspace
   and true only for `uploadActorPicture`, `uploadActorPictureBulk`, `uploadGraphFile` (fetch a
   caller-given URL) and `generatePublicLink` (publishes a public link). `massLink` is destructive

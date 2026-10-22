@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 )
 
 // formTitleCacheTTL bounds how long a workspace's title→id map is trusted; a
@@ -336,8 +337,7 @@ func requireActorUUID(_ context.Context, args map[string]any, _ *apiclient.Clien
 	return nil
 }
 
-// dashboardsFormTitle is the system form whose actors are charts/dashboards. A
-// Dashboards actor only renders if createChart built it: createChart also creates
+// A Dashboards (system form) actor only renders if createChart built it: createChart also creates
 // the companion ActorFilters actor, places the actor on the layer expanded as a
 // chart (expandType:"chart") and sets account inheritance. A hand-written
 // data.source is stored without error but renders "Something went wrong" in the
@@ -349,51 +349,21 @@ func requireActorUUID(_ context.Context, args map[string]any, _ *apiclient.Clien
 // dashboards actor from any other client (public /papi API, Corezoid processes,
 // sim-api), so the real fix is server-side validation in createActorReq/
 // validateActor — tracked as a CE-15957 follow-up alongside an updateChart tool.
-const dashboardsFormTitle = "Dashboards"
-
+//
 // dashboardsManualBuildHint is the shared remediation appended to the guards.
 const dashboardsManualBuildHint = "A Dashboards (chart) actor must be created with the createChart tool " +
 	"(or the /simulator-charts skill): only createChart builds the companion ActorFilters actor, places the " +
 	"actor on its layer expanded as a chart (expandType:\"chart\") and sets account inheritance. A hand-written " +
 	"data.source is stored without error but renders \"Something went wrong\" in the UI."
 
-// dashboardFormCache memoizes, per API base URL + form id, whether that form is
-// the Dashboards system form. A form's type and title do not change, so the entry
-// is cached for the process lifetime (no TTL). The key needs no workspace (GET
-// /forms/{formId} resolves the form by its own id) but must carry the base URL:
-// form ids are only unique within one backend database, so after set-environment
-// the same id can name a different form.
-var dashboardFormCache sync.Map // string (baseURL|formId) → bool
-
-// isDashboardForm reports whether formID is the Dashboards *system* form, matching
-// the backend's own rule (pong-server getSystemForms: type == "system" and a
-// case-insensitive title match on "dashboards"). It resolves the target form by
-// its id — GET /forms/{formId} needs no active workspace and cannot be fooled by a
-// custom form that merely shares the title. ok is false (nil error) when the form
-// cannot be resolved, so the guards fail open rather than block a legitimate write.
+// isDashboardForm reports whether formID is the Dashboards *system* form — see
+// ecore.IsDashboardForm, shared with the pushGraphFile guard. A non-nil error
+// means the form could not be resolved; the guards then fail open rather than
+// block a legitimate write.
 func isDashboardForm(ctx context.Context, c *apiclient.Client, formID int) (bool, error) {
-	key := c.BaseURL() + "|" + strconv.Itoa(formID)
-	if v, ok := dashboardFormCache.Load(key); ok {
-		return v.(bool), nil
-	}
-	q := url.Values{}
-	q.Set("filter", "type,title")
-	resp, err := c.Do(ctx, "GET", fmt.Sprintf("/forms/%d", formID), q, nil)
-	if err != nil {
-		return false, err
-	}
-	var out struct {
-		Data struct {
-			Type  string `json:"type"`
-			Title string `json:"title"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(resp, &out); err != nil {
-		return false, err
-	}
-	isDash := out.Data.Type == "system" && strings.EqualFold(out.Data.Title, dashboardsFormTitle)
-	dashboardFormCache.Store(key, isDash)
-	return isDash, nil
+	return ecore.IsDashboardForm(ctx, c.BaseURL(), formID, func(ctx context.Context, path string, q url.Values) ([]byte, error) {
+		return c.Do(ctx, "GET", path, q, nil)
+	})
 }
 
 // guardActorCreate resolves formName→formId (resolveActorFormID) and then refuses
