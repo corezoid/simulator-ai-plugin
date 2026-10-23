@@ -13,6 +13,12 @@
   `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
   token; 404 otherwise).
 
+### Changed
+- simulator-attachments skill: documents pong-server's new linking rule — `addAttachments` and a
+  reaction's `attachments` take only a file of the target actor's workspace that the caller uploaded
+  or can already see on an actor (an anonymous visitor's unlinked upload is linkable by a member or
+  API key); anything else is refused with 400 / 403.
+
 ### Fixed
 - createChart and the pushGraphFile Dashboards guard cached system form ids by title only, so after
   `set-workspace` / `set-environment` in the same session createChart built the dashboard on the previous
