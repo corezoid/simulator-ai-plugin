@@ -27,6 +27,7 @@ import (
 	"unicode"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/tools"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -461,10 +462,9 @@ func applyHostedDescriptions(s *server.MCPServer) {
 					cp[k] = v
 				}
 			}
-			// An accId that only feeds a convenience lookup (createActor's
-			// formName, getRelatedActors' default edge type) is not required:
+			// An accId that only feeds a convenience lookup is not required:
 			// keep its own wording, minus the stdio default.
-			if d, _ := cp["description"].(string); strings.Contains(d, "used only to") {
+			if d, _ := cp["description"].(string); strings.HasPrefix(d, tools.OptionalAccIDPrefix) {
 				cp["description"] = strings.ReplaceAll(d, "Defaults to the configured workspace if omitted.", "Defaults to the workspace named in the connector URL.")
 			} else {
 				cp["description"] = hostedAccIDDescription

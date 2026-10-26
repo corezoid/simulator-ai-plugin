@@ -164,7 +164,7 @@ var actorOps = []Operation{
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Desc: "Form id this actor instantiates. Provide formId or formName."},
 			{Name: "formName", In: InLocal, Type: "string", Desc: "Form name — resolved to its id in the workspace (see accId). Provide formId or formName."},
-			{Name: "accId", In: InLocal, Type: "string", Desc: "Workspace id — used only to resolve formName (not needed with formId). Defaults to the configured workspace if omitted."},
+			{Name: "accId", In: InLocal, Type: "string", Desc: OptionalAccIDPrefix + "resolve formName (not needed with formId). Defaults to the configured workspace if omitted."},
 			{Name: "data", In: InBody, Type: "object", Required: true, Desc: actorDataDesc},
 			{Name: "title", In: InBody, Type: "string", Desc: "Actor title shown on the graph."},
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},

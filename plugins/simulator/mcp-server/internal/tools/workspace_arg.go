@@ -13,6 +13,13 @@ import (
 // endpoint themselves. Hosted mode rewrites it for the bare /mcp route.
 const accIDArgDesc = "Workspace id. Defaults to the configured workspace if omitted."
 
+// OptionalAccIDPrefix opens the description of an accId that only feeds a
+// convenience lookup (createActor's formName, getRelatedActors' default edge
+// type) and is never required. Hosted mode keys on it to keep that wording
+// instead of its "Required unless the connector URL names a workspace" text,
+// so a required accId must not start with it.
+const OptionalAccIDPrefix = "Workspace id — used only to "
+
 // WorkspaceArgContext returns ctx carrying the accId argument as the request's
 // workspace, so helpers that read c.WorkspaceIDForContext(ctx) see it. A
 // workspace already on ctx (one named by a hosted connection URL) wins, exactly

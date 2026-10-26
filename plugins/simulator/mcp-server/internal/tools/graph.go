@@ -227,7 +227,7 @@ var graphOps = []Operation{
 			{Name: "type", In: InPath, Type: "string", Required: true, Enum: []string{"linked", "parents", "children"}, Desc: "Relation direction relative to the anchor actor."},
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Anchor actor UUID — the actor whose related actors you want."},
 			{Name: "edgeTypeId", In: InQuery, Type: "number", Desc: "Edge type id to traverse. Defaults to the workspace's hierarchy link type (resolved automatically). Pass it only to traverse a non-hierarchy edge type (see getEdgeTypes)."},
-			{Name: "accId", In: InLocal, Type: "string", Desc: "Workspace id — used only to resolve the default hierarchy edge type (not needed with edgeTypeId). Defaults to the configured workspace if omitted."},
+			{Name: "accId", In: InLocal, Type: "string", Desc: OptionalAccIDPrefix + "resolve the default hierarchy edge type (not needed with edgeTypeId). Defaults to the configured workspace if omitted."},
 			{Name: "formId", In: InQuery, Type: "number", Desc: "Only return related actors of this form."},
 			{Name: "exceptFormId", In: InQuery, Type: "number", Desc: "Exclude related actors of this form."},
 			{Name: "search", In: InQuery, Type: "string", Desc: "Full-text search on related actor title."},

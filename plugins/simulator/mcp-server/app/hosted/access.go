@@ -116,14 +116,14 @@ func accessMethodHook(ctx context.Context, _ any, method mcp.MCPMethod, _ any) {
 	}
 }
 
-// accessToolMiddleware records the called tool and whether the call failed;
-// the HTTP status of a failed tool call is still 200.
+// accessToolMiddleware records the called tool and whether the call failed
+// (accessMethodHook has already set the method); the HTTP status of a failed
+// tool call is still 200.
 func accessToolMiddleware(next server.ToolHandlerFunc) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		result, err := next(ctx, req)
 		if e, ok := ctx.Value(accessKey{}).(*accessEntry); ok {
 			e.mu.Lock()
-			e.Method = string(mcp.MethodToolsCall)
 			e.Tool = clip(req.Params.Name, 64)
 			e.IsError = err != nil || (result != nil && result.IsError)
 			e.mu.Unlock()
