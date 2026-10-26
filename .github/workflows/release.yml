@@ -46,11 +46,15 @@ jobs:
         env:
           VERSION: ${{ github.ref_name }}
         run: |
-          for GOOS in darwin linux; do
+          for GOOS in darwin linux windows; do
             for GOARCH in amd64 arm64; do
+              EXT=""
+              if [ "$GOOS" = "windows" ]; then EXT=".exe"; fi
+              # -trimpath keeps the runner's absolute paths out of the binary, which is
+              # what lets anyone rebuild this tag and get the same bytes as the asset.
               CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH \
-                go build -ldflags="-s -w -X main.Version=${VERSION}" \
-                -o "simulator-mcp-${GOOS}-${GOARCH}" ./cmd/server
+                go build -trimpath -ldflags="-s -w -X main.Version=${VERSION}" \
+                -o "simulator-mcp-${GOOS}-${GOARCH}${EXT}" ./cmd/server
             done
           done
 
