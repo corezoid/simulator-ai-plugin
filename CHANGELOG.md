@@ -49,7 +49,26 @@
   `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
   token; 404 otherwise).
 
+### Changed
+- simulator-attachments skill: documents pong-server's new linking rule — `addAttachments` and a
+  reaction's `attachments` take only a file of the target actor's workspace that the caller uploaded
+  or can already see on an actor (an anonymous visitor's unlinked upload is linkable by a member or
+  API key); anything else is refused with 400 / 403.
+
 ### Fixed
+- createChart and the pushGraphFile Dashboards guard cached system form ids by title only, so after
+  `set-workspace` / `set-environment` in the same session createChart built the dashboard on the previous
+  workspace's Dashboards form and the push guard compared against that foreign id and let a hand-built
+  Dashboards actor through. The cache is now keyed by base URL + workspace + title; the fallback lists
+  `formTypes=system` (the `formTypes=all` page held no system form in workspaces with 200+ custom
+  templates) and runs only on 404/5xx, so auth errors surface as is. The push guard now checks the
+  pushed form by id (`GET /forms/{id}`), shared with the createActor/updateActor guards.
+- createChart direct-accounts mode wrote `"sourceType": "accounts"`, a value neither the UI nor pong-server
+  knows (the backend then linked no actors to the dashboard). It now writes `"manual"`, like the UI wizard.
+  Every `accounts` item must carry a UUID `actorId` and `nameId` and a positive `currencyId`, and
+  duplicate series (same `actorId` + `nameId` + `currencyId` + `incomeType`, which the UI silently
+  drops) are rejected before anything is created. When series differ by `incomeType` the legend shows
+  it, so they no longer render with the same label.
 - Tool annotations: `openWorldHint` is now false for tools that only touch the user's own workspace
   and true only for `uploadActorPicture`, `uploadActorPictureBulk`, `uploadGraphFile` (fetch a
   caller-given URL) and `generatePublicLink` (publishes a public link). `massLink` is destructive
@@ -86,9 +105,25 @@
 - Hosted mode no longer offers file arguments (`localPath`, `modelPath`, `scenariosPath`,
   `graphPath`) in tool schemas, and `getWorkspaces` / `rollbackFile` descriptions no longer
   point at `login`, `set-workspace` or local files.
+- Hosted `/mcp` (no workspace in the connector URL): `findAgent`, `getAgent` (by `userId`), `findSkill`
+  and `getSkill` (by `ref`) now take `accId`, and `createActor` (with `formName`) and `getRelatedActors`
+  (default hierarchy edge type) take an optional `accId` — before, they failed with "no workspace set — run
+  set-workspace", a tool the hosted server does not have. On stdio `accId` overrides the configured
+  workspace. A test now calls every hosted tool without a workspace instead of trusting a hand-kept list.
+- The Dashboards guard (`createActor` / `updateActor`) and the `formName` cache keyed by the client's stored
+  base URL while a hosted request goes to the backend on its context, so a form id cached as "not
+  Dashboards" on one backend let a hand-built Dashboards actor through on another. Both now key by the
+  base URL the request is actually sent to (`Client.BaseURLForContext`).
+- Hosted access log: a request body over 64 KiB (an inline base64 image, a long description) logged no
+  `method` / `tool`, and the log read the body before `requireAuth` and the per-token limiter. The log no
+  longer reads the body; the JSON-RPC method and tool name come from the parsed MCP request, so an
+  anonymous request is refused unread (its line has no `method`).
 
 ### Changed
 - Build: Go directive bumped to `1.27.2`; the documented golangci-lint is v2.14.0 (older releases cannot lint a `go 1.27` module).
+- Docs state the Go requirement as 1.27.2+ (README, CONTRIBUTING, AGENTS, ARCHITECTURE said 1.24+ / 1.25).
+- The version test checks every file `scripts/release.sh` bumps (the root `plugin.json` stayed at 2.10.0
+  through the 2.11.0 and 2.12.0 releases), not only the Claude manifest.
 
 ### Security
 - Hosted mode caps in-flight requests per caller token (default 4, `SIMULATOR_MAX_CONCURRENT_PER_TOKEN`;

@@ -111,7 +111,7 @@ launch the same `go run ./cmd/server` command — there is no build step.
 ## 3. Go MCP server
 
 Source: `plugins/simulator/mcp-server/`. Module:
-`github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server` (Go 1.24+).
+`github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server` (Go 1.27.2+).
 SDK: `github.com/mark3labs/mcp-go`.
 
 ```

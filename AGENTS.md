@@ -20,7 +20,7 @@ Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before making non-trivial ch
 ## Layout (the parts you'll touch)
 
 ```
-plugins/simulator/mcp-server/   Go MCP server (Go 1.24+, mark3labs/mcp-go)
+plugins/simulator/mcp-server/   Go MCP server (Go 1.27.2+, mark3labs/mcp-go)
   cmd/server/                   entry point: profile → apiclient → tools → stdio
   cmd/gendiscovery/             regenerate public/ discovery artifacts
   cmd/evalrunner/               behavioural eval (opt-in; needs ANTHROPIC_API_KEY)

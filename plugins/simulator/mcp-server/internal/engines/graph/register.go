@@ -126,7 +126,7 @@ func registerAPITools(s *server.MCPServer) {
 			mcp.WithString("accountNameId", mcp.Description("(actorFilter mode) UUID of the account name to chart. Required when filterActorId is not provided.")),
 			mcp.WithNumber("currencyId", mcp.Description("(actorFilter mode) Numeric currency ID. Required when filterActorId is not provided.")),
 			mcp.WithNumber("top", mcp.Description("(actorFilter mode) Number of top actors to show. Default 20.")),
-			mcp.WithArray("accounts", mcp.Description("(direct accounts mode) Explicit series: each {actorId, currencyId, nameId, color?, incomeType? (total (default) | credit | debit)}. When provided, actorFilter params are ignored.")),
+			mcp.WithArray("accounts", mcp.Description("(direct accounts mode) Explicit series: each {actorId, currencyId, nameId, color?, incomeType? (total (default) | credit | debit)}; actorId, nameId and a positive currencyId are required, and no two items may share actorId+nameId+currencyId+incomeType (the chart would show them once). When provided, actorFilter params are ignored.")),
 		),
 		handleCreateChart,
 	)

@@ -1,12 +1,10 @@
 package hosted
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -15,10 +13,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
-
-// accessPeekBytes bounds how much of a request body is read to find the
-// JSON-RPC method and tool name; the full body still reaches the server.
-const accessPeekBytes = 64 << 10
 
 // accessEntry is one line of the access log: which JSON-RPC method and tool
 // were called, how it ended and how long it took. It never carries the token,
@@ -87,26 +81,13 @@ func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter 
 func accessLog(route string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		// The body is never read here: this runs before requireAuth and the
+		// per-token limiter, so an anonymous or slow body must not hold the
+		// handler. The JSON-RPC method and tool name are filled in by the MCP
+		// layer (accessMethodHook, accessToolMiddleware) once the request has
+		// been authorized and parsed — whatever the body's size.
 		e := &accessEntry{Route: route}
-		if r.Method == http.MethodPost && r.Body != nil {
-			peek, _ := io.ReadAll(io.LimitReader(r.Body, accessPeekBytes))
-			r.Body = struct {
-				io.Reader
-				io.Closer
-			}{io.MultiReader(bytes.NewReader(peek), r.Body), r.Body}
-			var msg struct {
-				Method string `json:"method"`
-				Params struct {
-					Name string `json:"name"`
-				} `json:"params"`
-			}
-			if json.Unmarshal(peek, &msg) == nil {
-				e.Method = clip(msg.Method, 64)
-				if msg.Method == "tools/call" {
-					e.Tool = clip(msg.Params.Name, 64)
-				}
-			}
-		} else {
+		if r.Method != http.MethodPost {
 			e.Method = r.Method
 		}
 		rec := &statusRecorder{ResponseWriter: w}
@@ -126,13 +107,24 @@ func accessLog(route string, next http.Handler) http.Handler {
 	})
 }
 
-// accessToolMiddleware records whether the tool call failed; the HTTP status
-// of a failed tool call is still 200.
+// accessMethodHook records the JSON-RPC method of a parsed request.
+func accessMethodHook(ctx context.Context, _ any, method mcp.MCPMethod, _ any) {
+	if e, ok := ctx.Value(accessKey{}).(*accessEntry); ok {
+		e.mu.Lock()
+		e.Method = clip(string(method), 64)
+		e.mu.Unlock()
+	}
+}
+
+// accessToolMiddleware records the called tool and whether the call failed
+// (accessMethodHook has already set the method); the HTTP status of a failed
+// tool call is still 200.
 func accessToolMiddleware(next server.ToolHandlerFunc) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		result, err := next(ctx, req)
 		if e, ok := ctx.Value(accessKey{}).(*accessEntry); ok {
 			e.mu.Lock()
+			e.Tool = clip(req.Params.Name, 64)
 			e.IsError = err != nil || (result != nil && result.IsError)
 			e.mu.Unlock()
 		}
