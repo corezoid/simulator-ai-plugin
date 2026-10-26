@@ -70,6 +70,10 @@ const (
 	chartMinHeight = 450
 )
 
+// dashboardDisplayGroupBy is the UI's DASHBOARD_DISPLAY_MODE.GROUP_BY: the
+// chart groups the filtered actors by groupByFields instead of showing the top N.
+const dashboardDisplayGroupBy = "groupBy"
+
 func (c UpdateChartConfig) changesSource() bool {
 	return c.ChartType != "" || c.CounterType != "" || c.Range != "" || c.OrderValue != "" ||
 		c.IncomeType != "" || c.Top > 0 || c.FilterActorID != "" || c.FilterTitle != "" ||
@@ -84,6 +88,8 @@ func (c UpdateChartConfig) validate() error {
 	switch {
 	case !ecore.IsUUID(c.DashboardActorID):
 		return fmt.Errorf("dashboardActorId must be the chart actor's UUID, got %q", c.DashboardActorID)
+	case c.Top < 0 || c.SourceFormID < 0 || c.CurrencyID < 0 || c.LaID < 0:
+		return errors.New("top, sourceFormId, currencyId and laId must be positive (0 or omitted keeps the current value)")
 	case !c.changesSource() && c.LaID == 0:
 		return errors.New("nothing to change — pass a chart setting (chartType, range, counterType, orderValue, " +
 			"incomeType, top, the filter or accounts) and/or laId for the placement")
@@ -115,12 +121,47 @@ type dashboardActor struct {
 	} `json:"data"`
 }
 
+// sourceView is the part of data.source updateChart reads. It is deliberately
+// looser than dashboardSource (what createChart writes): the UI wizard,
+// createChart and older plugin versions store the same keys with different
+// JSON types (top "20" or 20, range null), and every key not listed here is
+// kept verbatim in the raw map that gets written back.
+type sourceView struct {
+	SourceType    string             `json:"sourceType"`
+	ChartType     string             `json:"chartType"`
+	CounterType   string             `json:"counterType"`
+	Range         string             `json:"range"`
+	OrderValue    string             `json:"orderValue"`
+	Accounts      []accountView      `json:"accounts"`
+	DynamicSource *dynamicSourceView `json:"dynamicSource"`
+}
+
+type accountView struct {
+	ActorID    string  `json:"actorId"`
+	NameID     string  `json:"nameId"`
+	CurrencyID flexInt `json:"currencyId"`
+	Color      string  `json:"color"`
+	IncomeType string  `json:"incomeType"`
+}
+
+type dynamicSourceView struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Top         flexInt `json:"top"`
+	DisplayMode string  `json:"displayMode"`
+	Filter      *struct {
+		FormID        flexInt `json:"formId"`
+		AccountNameID string  `json:"accountNameId"`
+		CurrencyID    flexInt `json:"currencyId"`
+	} `json:"filter"`
+}
+
 // parseDashboardSource reads data.source, stored as a JSON string by the UI and
-// createChart (a hand-written object is read too). The typed view is for
-// reading; the raw map is what gets written back, so keys this plugin does not
-// model (the UI owns them) survive the update.
-func parseDashboardSource(raw json.RawMessage) (dashboardSource, map[string]json.RawMessage, error) {
-	var src dashboardSource
+// createChart (a hand-written object is read too). The view is for reading;
+// the raw map is what gets written back, so keys this plugin does not model
+// (the UI owns them) survive the update.
+func parseDashboardSource(raw json.RawMessage) (sourceView, map[string]json.RawMessage, error) {
+	var src sourceView
 	var s string
 	if json.Unmarshal(raw, &s) == nil {
 		raw = json.RawMessage(s)
@@ -141,6 +182,17 @@ func setJSON(m map[string]json.RawMessage, key string, v any) {
 	m[key] = b
 }
 
+// rawObject decodes a JSON object into a key map; nil or a non-object gives an
+// empty map.
+func rawObject(raw json.RawMessage) map[string]json.RawMessage {
+	m := map[string]json.RawMessage{}
+	_ = json.Unmarshal(raw, &m)
+	if m == nil {
+		m = map[string]json.RawMessage{}
+	}
+	return m
+}
+
 // sourcePlan is the computed new data.source plus what has to be written first.
 type sourcePlan struct {
 	keys          map[string]json.RawMessage
@@ -150,7 +202,25 @@ type sourcePlan struct {
 	top           int
 	prevFilterID  string
 	filterActorID string // set when the chart keeps or is repointed to an existing filter
-	cfg           ChartConfig
+	// grouping holds the displayMode/groupByFields a rebuilt dynamicSource
+	// carries over from a "group by" chart (nil: show the top N).
+	grouping   map[string]json.RawMessage
+	sourceType string
+	cfg        ChartConfig
+}
+
+// dynamicSource builds the dynamicSource for filter id, with the grouping
+// carried over when there is one.
+func (p sourcePlan) dynamicSource(id, title string, f filterActorFilter) map[string]json.RawMessage {
+	b, _ := json.Marshal(newDynamicSource(id, title, p.top, f.FormID, f.AccountNameID, f.CurrencyID))
+	ds := rawObject(b)
+	if p.grouping != nil {
+		for k, v := range p.grouping {
+			ds[k] = v
+		}
+		delete(ds, "top") // the UI keeps no top in group-by mode
+	}
+	return ds
 }
 
 // planSource merges cfg onto the chart's current source and validates the
@@ -175,6 +245,10 @@ func planSource(ctx context.Context, cfg UpdateChartConfig, actor dashboardActor
 	// createChart wrote sourceType "accounts" before v2.12.0 — that is "manual".
 	curFilterMode := cur.SourceType == dashboardSourceActorFilter ||
 		(cur.SourceType != dashboardSourceManual && cur.SourceType != "accounts" && cur.DynamicSource != nil)
+	curDS := cur.DynamicSource
+	if !curFilterMode {
+		curDS = nil
+	}
 	filterMode := curFilterMode
 	switch {
 	case len(cfg.Accounts) > 0:
@@ -194,6 +268,14 @@ func planSource(ctx context.Context, cfg UpdateChartConfig, actor dashboardActor
 		Range:       firstNonEmpty(cfg.Range, cur.Range),
 		OrderValue:  firstNonEmpty(cfg.OrderValue, cur.OrderValue),
 	}
+	// A key the chart has no value for gets normalizeChartConfig's default; say so.
+	var defaulted []string
+	for name, v := range map[string]string{"chartType": c.ChartType, "counterType": c.CounterType, "range": c.Range, "orderValue": c.OrderValue} {
+		if v == "" {
+			defaulted = append(defaulted, name)
+		}
+	}
+	slices.Sort(defaulted)
 	if !filterMode {
 		if len(cfg.Accounts) > 0 {
 			c.Accounts = slices.Clone(cfg.Accounts)
@@ -207,7 +289,7 @@ func planSource(ctx context.Context, cfg UpdateChartConfig, actor dashboardActor
 				return p, nil, errors.New("this chart has no series — pass accounts, or switch it to actorFilter mode with filterActorId or sourceFormId+accountNameId+currencyId")
 			}
 			for _, a := range cur.Accounts {
-				e := ChartAccountEntry{ActorID: a.ActorID, CurrencyID: a.CurrencyID, NameID: a.NameID, Color: a.Color, IncomeType: a.IncomeType}
+				e := ChartAccountEntry{ActorID: a.ActorID, CurrencyID: int(a.CurrencyID), NameID: a.NameID, Color: a.Color, IncomeType: a.IncomeType}
 				if cfg.IncomeType != "" {
 					e.IncomeType = cfg.IncomeType
 				}
@@ -216,28 +298,33 @@ func planSource(ctx context.Context, cfg UpdateChartConfig, actor dashboardActor
 		}
 	} else {
 		c.Top = cfg.Top
-		if c.Top == 0 && curFilterMode && cur.DynamicSource != nil {
-			c.Top, _ = strconv.Atoi(cur.DynamicSource.Top)
+		if c.Top == 0 && curDS != nil {
+			c.Top = int(curDS.Top)
 		}
 	}
 	warnings, err := normalizeChartConfig(&c)
 	if err != nil {
 		return p, nil, err
 	}
+	final := map[string]string{"chartType": c.ChartType, "counterType": c.CounterType, "range": c.Range, "orderValue": c.OrderValue}
+	for _, name := range defaulted {
+		warnings = append(warnings, fmt.Sprintf("the chart had no %s — stored the default %s", name, final[name]))
+	}
 	p.cfg = c
 	p.top = c.Top
-	if curFilterMode && cur.DynamicSource != nil {
-		p.prevFilterID = cur.DynamicSource.ID
+	if curDS != nil {
+		p.prevFilterID = curDS.ID
 	}
 
 	setJSON(keys, "chartType", c.ChartType)
 	setJSON(keys, "counterType", c.CounterType)
 	setJSON(keys, "range", c.Range)
 	setJSON(keys, "orderValue", c.OrderValue)
-	legend := map[string]json.RawMessage{}
-	if raw, ok := keys["legend"]; ok {
-		_ = json.Unmarshal(raw, &legend)
+	if cur.Range == "custom" {
+		// What the UI stores for every range but custom (buildDashboardSource).
+		setJSON(keys, "rangeDates", dashboardRangeDates{})
 	}
+	legend := rawObject(keys["legend"])
 	if len(legend) == 0 {
 		setJSON(legend, "actorTitle", true)
 		setJSON(legend, "accountName", true)
@@ -245,8 +332,28 @@ func planSource(ctx context.Context, cfg UpdateChartConfig, actor dashboardActor
 	}
 
 	if !filterMode {
+		p.sourceType = dashboardSourceManual
 		setJSON(keys, "sourceType", dashboardSourceManual)
-		setJSON(keys, "accounts", dashboardAccounts(c.Accounts))
+		if len(cfg.Accounts) > 0 {
+			setJSON(keys, "accounts", dashboardAccounts(c.Accounts))
+		} else {
+			// Kept series are patched, not rebuilt: the UI stores more per series
+			// (accountType plan/fact, customName, showTrendLine, account, actor).
+			var series []map[string]json.RawMessage
+			if json.Unmarshal(keys["accounts"], &series) != nil || len(series) != len(c.Accounts) {
+				return p, nil, errors.New("parse data.source accounts: not a list of series objects")
+			}
+			for i := range series {
+				if series[i] == nil {
+					series[i] = map[string]json.RawMessage{}
+				}
+				setJSON(series[i], "incomeType", c.Accounts[i].IncomeType)
+				if cur.Accounts[i].Color == "" {
+					setJSON(series[i], "color", chartSeriesPalette[i%len(chartSeriesPalette)])
+				}
+			}
+			setJSON(keys, "accounts", series)
+		}
 		delete(keys, "dynamicSource")
 		if legendNeedsIncomeType(c.Accounts) {
 			setJSON(legend, "incomeType", true)
@@ -257,13 +364,33 @@ func planSource(ctx context.Context, cfg UpdateChartConfig, actor dashboardActor
 		return p, warnings, nil
 	}
 
+	p.sourceType = dashboardSourceActorFilter
 	setJSON(keys, "sourceType", dashboardSourceActorFilter)
 	setJSON(keys, "accounts", []dashboardAccount{})
 	setJSON(keys, "legend", legend)
 	var curFilter filterActorFilter
-	if curFilterMode && cur.DynamicSource != nil && cur.DynamicSource.Filter != nil {
-		f := cur.DynamicSource.Filter
-		curFilter = filterActorFilter{FormID: f.FormID, AccountNameID: f.AccountNameID, CurrencyID: f.CurrencyID}
+	if curDS != nil && curDS.Filter != nil {
+		f := curDS.Filter
+		curFilter = filterActorFilter{FormID: int(f.FormID), AccountNameID: f.AccountNameID, CurrencyID: int(f.CurrencyID)}
+	}
+	groupBy := curDS != nil && curDS.DisplayMode == dashboardDisplayGroupBy
+	// keepGrouping decides whether a rebuilt dynamicSource stays "group by":
+	// groupByFields are fields of the source form, so only while it is unchanged.
+	keepGrouping := func(formID int) error {
+		if !groupBy {
+			return nil
+		}
+		if formID == 0 || formID != curFilter.FormID {
+			warnings = append(warnings, fmt.Sprintf("the chart grouped actors by fields of form %d; form %d has other fields, "+
+				"so it now shows the top %d actors — set the grouping again in the UI", curFilter.FormID, formID, c.Top))
+			return nil
+		}
+		if cfg.Top > 0 {
+			return errors.New("this chart groups its actors by fields (display mode \"group by\"), so it has no top — switch it to top-N in the UI first")
+		}
+		ds := rawObject(keys["dynamicSource"])
+		p.grouping = map[string]json.RawMessage{"displayMode": ds["displayMode"], "groupByFields": ds["groupByFields"]}
+		return nil
 	}
 	switch {
 	case cfg.FilterActorID != "":
@@ -277,8 +404,11 @@ func planSource(ctx context.Context, cfg UpdateChartConfig, actor dashboardActor
 			f = *fa.Filter
 		}
 		f = overrideFilter(f, cfg)
+		if err := keepGrouping(f.FormID); err != nil {
+			return p, nil, err
+		}
 		p.filterActorID = cfg.FilterActorID
-		setJSON(keys, "dynamicSource", newDynamicSource(cfg.FilterActorID, firstNonEmpty(cfg.FilterTitle, fa.Title), c.Top, f.FormID, f.AccountNameID, f.CurrencyID))
+		setJSON(keys, "dynamicSource", p.dynamicSource(cfg.FilterActorID, firstNonEmpty(cfg.FilterTitle, fa.Title), f))
 	case cfg.changesFilter():
 		// A filter actor can back several charts (createChart's filterActorId), so
 		// a new filter gets a new actor instead of editing the shared one.
@@ -287,26 +417,34 @@ func planSource(ctx context.Context, cfg UpdateChartConfig, actor dashboardActor
 			return p, nil, errors.New("a new actorFilter source needs sourceFormId, accountNameId and currencyId " +
 				"(the ones not passed are taken from the chart's current filter) — or pass filterActorId to reuse a filter")
 		}
+		if err := keepGrouping(f.FormID); err != nil {
+			return p, nil, err
+		}
 		p.newFilter = true
 		p.filter = f
 		title := cfg.FilterTitle
-		if title == "" && curFilterMode && cur.DynamicSource != nil {
-			title = cur.DynamicSource.Title
+		if title == "" && curDS != nil {
+			title = curDS.Title
 		}
 		p.filterTitle = firstNonEmpty(title, actor.Title)
 	default:
 		// Same filter: patch top (and the title) in place so the UI's own keys survive.
-		if !curFilterMode || cur.DynamicSource == nil {
+		if curDS == nil {
 			return p, nil, errors.New("no filter to keep — pass filterActorId, or sourceFormId+accountNameId+currencyId")
 		}
-		ds := map[string]json.RawMessage{}
-		_ = json.Unmarshal(keys["dynamicSource"], &ds)
-		setJSON(ds, "top", strconv.Itoa(c.Top))
+		ds := rawObject(keys["dynamicSource"])
+		if groupBy {
+			if cfg.Top > 0 {
+				return p, nil, errors.New("this chart groups its actors by fields (display mode \"group by\"), so it has no top — switch it to top-N in the UI first")
+			}
+		} else {
+			setJSON(ds, "top", strconv.Itoa(c.Top))
+		}
 		if cfg.FilterTitle != "" {
 			setJSON(ds, "title", cfg.FilterTitle)
 		}
 		setJSON(keys, "dynamicSource", ds)
-		p.filterActorID = cur.DynamicSource.ID
+		p.filterActorID = curDS.ID
 	}
 	return p, warnings, nil
 }
@@ -386,6 +524,7 @@ func readChartPlacement(ctx context.Context, layerID string, laID int, actorID, 
 		if err := json.Unmarshal(page, &edges); err != nil {
 			return pl, fmt.Errorf("parse layer edges: %w", err)
 		}
+		// a short page is not the last: the server drops deleted elements after LIMIT
 		if len(edges.Data) == 0 {
 			break
 		}
@@ -411,9 +550,11 @@ func chartLayerSettingsFor(cur map[string]json.RawMessage, expand bool, width, h
 	if width != 0 {
 		setJSON(ls, "width", width)
 		setJSON(ls, "height", height)
+		// An odd remainder goes right/bottom so the offsets add up to the size.
+		left, top := (width-chartCellSize)/2, (height-chartCellSize)/2
 		setJSON(ls, "offset", chartLayerOffsets{
-			Left: (width - chartCellSize) / 2, Right: (width - chartCellSize) / 2,
-			Top: (height - chartCellSize) / 2, Bottom: (height - chartCellSize) / 2,
+			Left: left, Right: width - chartCellSize - left,
+			Top: top, Bottom: height - chartCellSize - top,
 		})
 	} else if _, ok := ls["offset"]; !ok {
 		setJSON(ls, "offset", newChartLayerSettings().Offset)
@@ -428,7 +569,9 @@ func chartLayerSettingsFor(cur map[string]json.RawMessage, expand bool, width, h
 //  3. PUT the new data.source (pong-server re-links the dashboard's actors).
 //  4. Re-place laId with chart layerSettings (new laId, same position).
 //
-// Every validation and read happens before the first write.
+// Every validation and read happens before the first write. Step 4 takes two
+// requests — pong rejects a create on a cell the old placement still holds,
+// even when the same request deletes it — so its errors say what was written.
 func UpdateChart(ctx context.Context, cfg UpdateChartConfig, workspaceID, auth, baseURL string) (UpdateChartResult, error) {
 	result := UpdateChartResult{DashboardActorID: cfg.DashboardActorID}
 	if err := cfg.validate(); err != nil {
@@ -458,28 +601,25 @@ func UpdateChart(ctx context.Context, cfg UpdateChartConfig, workspaceID, auth, 
 		return result, fmt.Errorf("actor %s is not a Dashboards (chart) actor", cfg.DashboardActorID)
 	}
 
-	var plan sourcePlan
 	if cfg.changesSource() {
-		var warnings []string
-		if plan, warnings, err = planSource(ctx, cfg, actor, auth, baseURL); err != nil {
+		plan, warnings, err := planSource(ctx, cfg, actor, auth, baseURL)
+		if err != nil {
 			return result, err
 		}
 		result.Warnings = append(result.Warnings, warnings...)
 		if plan.newFilter && workspaceID == "" {
 			return result, errors.New("a new actorFilter source needs a workspace to create its ActorFilters actor — pass accId or run set-workspace")
 		}
-	} else if _, plan.keys, err = parseDashboardSource(actor.Data.Source); err != nil {
-		return result, err
-	}
+		result.SourceType, result.ChartType, result.CounterType, result.Range, result.OrderValue =
+			plan.sourceType, plan.cfg.ChartType, plan.cfg.CounterType, plan.cfg.Range, plan.cfg.OrderValue
 
-	var placement chartPlacement
-	if cfg.LaID != 0 {
-		if placement, err = readChartPlacement(ctx, cfg.LayerID, cfg.LaID, cfg.DashboardActorID, auth, baseURL); err != nil {
-			return result, err
+		var placement chartPlacement
+		if cfg.LaID != 0 {
+			if placement, err = readChartPlacement(ctx, cfg.LayerID, cfg.LaID, cfg.DashboardActorID, auth, baseURL); err != nil {
+				return result, err
+			}
 		}
-	}
 
-	if cfg.changesSource() {
 		if plan.newFilter {
 			id, err := createFilterActor(ctx, plan.filterTitle, plan.filter.FormID, plan.filter.AccountNameID, plan.filter.CurrencyID,
 				cfg.LayerID, workspaceID, auth, baseURL)
@@ -487,7 +627,7 @@ func UpdateChart(ctx context.Context, cfg UpdateChartConfig, workspaceID, auth, 
 				return result, err
 			}
 			plan.filterActorID = id
-			setJSON(plan.keys, "dynamicSource", newDynamicSource(id, plan.filterTitle, plan.top, plan.filter.FormID, plan.filter.AccountNameID, plan.filter.CurrencyID))
+			setJSON(plan.keys, "dynamicSource", plan.dynamicSource(id, plan.filterTitle, plan.filter))
 		}
 		body := map[string]any{"data": map[string]any{"source": chartJSONString(plan.keys)}}
 		if _, err := chartHTTPJSON(ctx, "PUT", fmt.Sprintf("%s/actors/actor/%d/%s", baseURL, actor.FormID, cfg.DashboardActorID), auth, body); err != nil {
@@ -500,44 +640,77 @@ func UpdateChart(ctx context.Context, cfg UpdateChartConfig, workspaceID, auth, 
 			result.Warnings = append(result.Warnings, fmt.Sprintf(
 				"the chart no longer uses ActorFilters actor %s — delete it if no other chart does", plan.prevFilterID))
 		}
-	}
-	result.FilterActorID = plan.filterActorID
+		result.FilterActorID = plan.filterActorID
 
-	var cur dashboardSource
-	_ = json.Unmarshal([]byte(chartJSONString(plan.keys)), &cur)
+		if cfg.LaID != 0 {
+			if err := replaceChartPlacement(ctx, cfg, placement, auth, baseURL, &result); err != nil {
+				// The source write above stands; say so, with what the caller must still know.
+				note := "the chart config itself was saved"
+				if len(result.Warnings) > 0 {
+					note += "; " + strings.Join(result.Warnings, "; ")
+				}
+				return result, fmt.Errorf("%w (%s)", err, note)
+			}
+		}
+		return result, nil
+	}
+
+	// Placement only: the actor must still hold a chart config.
+	cur, _, err := parseDashboardSource(actor.Data.Source)
+	if err != nil {
+		return result, err
+	}
 	result.SourceType, result.ChartType, result.CounterType, result.Range, result.OrderValue =
 		cur.SourceType, cur.ChartType, cur.CounterType, cur.Range, cur.OrderValue
-
-	if cfg.LaID != 0 {
-		expand := true
-		if cfg.Expand != nil {
-			expand = *cfg.Expand
-		}
-		// One request, one transaction: the delete and the create commit together.
-		replace := []map[string]any{
-			{"action": "delete", "data": map[string]any{"id": cfg.DashboardActorID, "type": "node", "laId": cfg.LaID}},
-			{"action": "create", "data": map[string]any{
-				"id": cfg.DashboardActorID, "type": "node", "position": placement.Position,
-				"layerSettings": chartLayerSettingsFor(placement.LayerSettings, expand, cfg.Width, cfg.Height),
-			}},
-		}
-		data, err := chartHTTPJSON(ctx, "POST", fmt.Sprintf("%s/graph_layers/actors/%s", baseURL, cfg.LayerID), auth, replace)
-		if err != nil {
-			return result, fmt.Errorf("re-place the chart on its layer: %w", err)
-		}
-		var lr struct {
-			Data struct {
-				NodesMap []struct {
-					LaID int `json:"laId"`
-				} `json:"nodesMap"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal(data, &lr); err != nil || len(lr.Data.NodesMap) == 0 {
-			return result, fmt.Errorf("re-placed the chart but could not read its new laId (%.200s)", data)
-		}
-		result.LaID, result.PreviousLaID = lr.Data.NodesMap[0].LaID, cfg.LaID
+	if cur.DynamicSource != nil {
+		result.FilterActorID = cur.DynamicSource.ID
+	}
+	placement, err := readChartPlacement(ctx, cfg.LayerID, cfg.LaID, cfg.DashboardActorID, auth, baseURL)
+	if err != nil {
+		return result, err
+	}
+	if err := replaceChartPlacement(ctx, cfg, placement, auth, baseURL, &result); err != nil {
+		return result, err
 	}
 	return result, nil
+}
+
+// replaceChartPlacement deletes placement cfg.LaID and creates the chart again
+// at the same position with chart layerSettings, recording the new laId.
+func replaceChartPlacement(ctx context.Context, cfg UpdateChartConfig, placement chartPlacement, auth, baseURL string, result *UpdateChartResult) error {
+	expand := true
+	if cfg.Expand != nil {
+		expand = *cfg.Expand
+	}
+	layerURL := fmt.Sprintf("%s/graph_layers/actors/%s", baseURL, cfg.LayerID)
+	remove := []map[string]any{{"action": "delete", "data": map[string]any{"id": cfg.DashboardActorID, "type": "node", "laId": cfg.LaID}}}
+	if _, err := chartHTTPJSON(ctx, "POST", layerURL, auth, remove); err != nil {
+		return fmt.Errorf("take placement %d off the layer: %w", cfg.LaID, err)
+	}
+	create := []map[string]any{{"action": "create", "data": map[string]any{
+		"id": cfg.DashboardActorID, "type": "node", "position": placement.Position,
+		"layerSettings": chartLayerSettingsFor(placement.LayerSettings, expand, cfg.Width, cfg.Height),
+	}}}
+	data, err := chartHTTPJSON(ctx, "POST", layerURL, auth, create)
+	if err != nil {
+		restore, _ := json.Marshal([]map[string]any{{"action": "create", "data": map[string]any{
+			"id": cfg.DashboardActorID, "type": "node", "position": placement.Position, "layerSettings": placement.LayerSettings,
+		}}})
+		return fmt.Errorf("took placement %d off layer %s but placing the chart again failed: %w — put it back with "+
+			"manageLayerActors(actorId=%q, items=%s)", cfg.LaID, cfg.LayerID, err, cfg.LayerID, restore)
+	}
+	var lr struct {
+		Data struct {
+			NodesMap []struct {
+				LaID int `json:"laId"`
+			} `json:"nodesMap"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(data, &lr); err != nil || len(lr.Data.NodesMap) == 0 {
+		return fmt.Errorf("re-placed the chart but could not read its new laId (%.200s) — getAllLayerPlacements lists it", data)
+	}
+	result.LaID, result.PreviousLaID = lr.Data.NodesMap[0].LaID, cfg.LaID
+	return nil
 }
 
 // ---- MCP handler ----

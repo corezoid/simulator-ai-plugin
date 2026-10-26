@@ -169,7 +169,9 @@ updateChart(dashboardActorId = "<chartUUID>", top = 10)                         
 | Chart specific actors | `accounts` (same shape as in `createChart`) | replaces **all** series and switches to direct-accounts mode; `incomeType` fills the items that name none |
 
 When the chart stops using its old `ActorFilters` actor, a warning names it —
-delete it only if no other chart uses it. `incomeType` applies to direct-accounts
+delete it only if no other chart uses it. A chart the UI set to **group by** fields
+keeps its grouping while its source form stays the same (a new form falls back to
+top-N, with a warning), and takes no `top`. `incomeType` applies to direct-accounts
 charts only; `top` / `filterTitle` to actorFilter charts only; `accounts` cannot
 be combined with the actorFilter params.
 
@@ -179,10 +181,14 @@ collapsed node) and `width` + `height` in px (at least 650 × 450, the UI
 default). `/papi` cannot edit a placement in place, so the chart is **re-placed**
 at the same position: the result's `laId` is the new placement and `previousLaId`
 the old one. It is refused if layer edges are drawn to the placement (re-placing
-would drop them) — remove them first or resize the chart in the UI. `laId` alone
-restores the expanded-chart rendering of a chart placed without it.
+would drop them) — remove them first or resize the chart in the UI. Anything else
+keyed by the old `laId` (e.g. its star) is not carried over. `laId` alone restores
+the expanded-chart rendering of a chart placed without it.
 
-Every check runs before the first write, so a rejected call changes nothing.
+Every check runs before the first write, so a call rejected by validation changes
+nothing. Re-placing takes two requests after the config is saved; if it fails, the
+error says the config was saved and gives the `manageLayerActors` call that puts
+the chart back.
 Returns `{ dashboardActorId, sourceType, chartType, counterType, range, orderValue,
 filterActorId?, laId?, previousLaId?, warnings? }`.
 

@@ -525,7 +525,7 @@ func readFilterActor(ctx context.Context, id, auth, baseURL string) (filterActor
 		Data struct {
 			Title string `json:"title"`
 			Data  struct {
-				Filter string `json:"filter"`
+				Filter json.RawMessage `json:"filter"` // a JSON string, or an object from other writers
 			} `json:"data"`
 		} `json:"data"`
 	}
@@ -533,9 +533,18 @@ func readFilterActor(ctx context.Context, id, auth, baseURL string) (filterActor
 		return fa, fmt.Errorf("parse ActorFilters actor %s: %w", id, err)
 	}
 	fa.Title = ar.Data.Title
-	var f filterActorFilter
-	if ar.Data.Data.Filter != "" && json.Unmarshal([]byte(ar.Data.Data.Filter), &f) == nil {
-		fa.Filter = &f
+	raw := ar.Data.Data.Filter
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		raw = json.RawMessage(s)
+	}
+	var f struct {
+		FormID        flexInt `json:"formId"`
+		AccountNameID string  `json:"accountNameId"`
+		CurrencyID    flexInt `json:"currencyId"`
+	}
+	if len(raw) > 0 && json.Unmarshal(raw, &f) == nil {
+		fa.Filter = &filterActorFilter{FormID: int(f.FormID), AccountNameID: f.AccountNameID, CurrencyID: int(f.CurrencyID)}
 	}
 	return fa, nil
 }

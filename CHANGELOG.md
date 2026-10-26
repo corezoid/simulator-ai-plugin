@@ -20,8 +20,11 @@
   shared one — or the direct-accounts `accounts`); the merged config runs createChart's
   `normalizeChartConfig`, and keys the UI wrote that the tool does not manage are kept. With `layerId` +
   `laId` it also sets the chart's layer settings (`expand`, `width`/`height`): /papi cannot edit a
-  placement in place, so the chart is re-placed at the same position with a new `laId`, and refused when
-  layer edges are attached. All checks run before the first write. The updateActor and pushGraphFile
+  placement in place, so the chart is re-placed at the same position with a new `laId` (delete, then
+  create — pong refuses a create on the cell the old placement still holds), and refused when layer edges
+  are attached. All checks run before the first write; a failed re-placement says the config was saved.
+  Kept series keep the UI's per-series keys (plan/fact, custom name, trend line), and a "group by" chart
+  keeps its grouping. The updateActor and pushGraphFile
   Dashboards guards now point to `updateChart`; the `/simulator-charts` skill documents it; hosted mode
   accepts `accId`. Server-side validation of hand-built dashboards (CE-15957 limitation (1)) remains a
   pong-server item.

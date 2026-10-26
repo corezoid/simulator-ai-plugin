@@ -15,6 +15,7 @@ const (
 	updDashID    = "d0000000-0000-4000-8000-000000000001"
 	updFilterID  = "f0000000-0000-4000-8000-000000000001"
 	updFilter2ID = "f0000000-0000-4000-8000-000000000002"
+	updFilter3ID = "f0000000-0000-4000-8000-000000000003"
 	updLayerID   = "10000000-0000-4000-8000-000000000001"
 	updNameID    = "a0000000-0000-4000-8000-000000000001"
 )
@@ -36,12 +37,61 @@ const manualSourceJSON = `{"accounts":[` +
 	`"counterType":"amount","chartType":"bar","sourceType":"accounts","range":"lastWeek","orderValue":"desc",` +
 	`"legend":{"actorTitle":true,"accountName":true,"currencyName":true}}`
 
+// uiManualSourceJSON is a direct-accounts source as the UI wizard stores it
+// (buildDashboardSource): per-series keys the plugin does not model, and a
+// custom range.
+const uiManualSourceJSON = `{"defaultAccount":null,"accounts":[{"actorId":"` + chartTestActor1 + `",` +
+	`"account":{"aggTypes":["sum"]},"nameId":"` + chartTestName1 + `","currencyId":1,` +
+	`"actor":{"id":"` + chartTestActor1 + `","title":"Shop"},"accountType":"plan","incomeType":"total",` +
+	`"color":"#111111","showTrendLine":true,"customName":"Budget"}],` +
+	`"counterType":"amount","chartType":"bar","sourceType":"manual","range":"custom",` +
+	`"rangeDates":{"from":"2026-01-01","to":"2026-02-01"},"orderValue":"desc",` +
+	`"legend":{"actorTitle":true,"accountName":true,"currencyName":true}}`
+
+// groupBySourceJSON is filterSourceJSON in the UI's "group by" display mode,
+// which keeps no top.
+var groupBySourceJSON = strings.Replace(filterSourceJSON, `"top":"20",`, `"displayMode":"groupBy",`, 1)
+
 type updStub struct {
-	formTitle string // title of form 243 ("Dashboards" unless set)
-	source    string // the chart's data.source
-	edges     string // JSON array of layer edges
-	mu        sync.Mutex
-	calls     []chartRequest
+	formTitle  string // title of form 243 ("Dashboards" unless set)
+	source     string // the chart's data.source
+	edges      string // JSON array of layer edges
+	failCreate bool   // POST /graph_layers/actors answers 500 to a create
+	mu         sync.Mutex
+	calls      []chartRequest
+	removed    bool // placement 77 was deleted
+}
+
+// layerOps answers POST /graph_layers/actors like pong: its checkLayerActorPosition
+// preHandler rejects a create on a cell that is still occupied before the
+// handler applies any delete of the same request.
+func (s *updStub) layerOps(w http.ResponseWriter, body []byte) {
+	var ops []struct {
+		Action string `json:"action"`
+		Data   struct {
+			LaID     int            `json:"laId"`
+			Position map[string]any `json:"position"`
+		} `json:"data"`
+	}
+	_ = json.Unmarshal(body, &ops)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, op := range ops {
+		if op.Action == "create" && !s.removed && op.Data.Position["x"] == float64(120) && op.Data.Position["y"] == float64(-40) {
+			http.Error(w, `{"msg":"Occupied cells: (2, -1)"}`, http.StatusBadRequest)
+			return
+		}
+		if op.Action == "create" && s.failCreate {
+			http.Error(w, `{"msg":"boom"}`, http.StatusInternalServerError)
+			return
+		}
+	}
+	for _, op := range ops {
+		if op.Action == "delete" && op.Data.LaID == 77 {
+			s.removed = true
+		}
+	}
+	_, _ = w.Write([]byte(`{"data":{"nodesMap":[{"laId":88}]}}`))
 }
 
 func (s *updStub) serve(t *testing.T) *httptest.Server {
@@ -62,6 +112,9 @@ func (s *updStub) serve(t *testing.T) *httptest.Server {
 		case p == "/actors/"+updDashID:
 			src, _ := json.Marshal(s.source)
 			_, _ = w.Write([]byte(`{"data":{"id":"` + updDashID + `","formId":243,"title":"Spend chart","data":{"source":` + string(src) + `}}}`))
+		case p == "/actors/"+updFilter3ID:
+			// data.filter stored as an object, numbers as strings.
+			_, _ = w.Write([]byte(`{"data":{"title":"Object filter","data":{"filter":{"formId":"901","accountNameId":"` + updNameID + `","currencyId":4}}}}`))
 		case p == "/actors/"+updFilter2ID:
 			f, _ := json.Marshal(`{"formId":900,"accountNameId":"` + updNameID + `","currencyId":3}`)
 			_, _ = w.Write([]byte(`{"data":{"title":"Other filter","data":{"filter":` + string(f) + `}}}`))
@@ -83,7 +136,7 @@ func (s *updStub) serve(t *testing.T) *httptest.Server {
 				_, _ = w.Write([]byte(`{"data":[]}`))
 			}
 		case r.Method == "POST" && p == "/graph_layers/actors/"+updLayerID:
-			_, _ = w.Write([]byte(`{"data":{"nodesMap":[{"laId":88}]}}`))
+			s.layerOps(w, body)
 		default:
 			http.Error(w, "Route not found", http.StatusNotFound)
 		}
@@ -324,11 +377,16 @@ func TestUpdateChartReplacesPlacement(t *testing.T) {
 	if res.LaID != 88 || res.PreviousLaID != 77 {
 		t.Errorf("result = %+v, want laId 88 replacing 77", res)
 	}
-	w := stub.writes()
-	if len(w) != 1 || w[0].Path != "/graph_layers/actors/"+updLayerID {
-		t.Fatalf("writes = %v, want only the re-placement (no source change)", w)
+	if res.ChartType != "line" || res.SourceType != "actorFilter" || res.FilterActorID != updFilterID {
+		t.Errorf("result = %+v, want the chart's current config reported", res)
 	}
-	var ops []struct {
+	// Two requests: pong rejects a create on the cell the old placement holds,
+	// even when the same request deletes it.
+	w := stub.writes()
+	if len(w) != 2 || w[0].Path != "/graph_layers/actors/"+updLayerID || w[1].Path != w[0].Path {
+		t.Fatalf("writes = %v, want the delete, then the create (no source change)", w)
+	}
+	type layerOp struct {
 		Action string `json:"action"`
 		Data   struct {
 			ID            string         `json:"id"`
@@ -337,17 +395,49 @@ func TestUpdateChartReplacesPlacement(t *testing.T) {
 			LayerSettings map[string]any `json:"layerSettings"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(w[0].Body, &ops); err != nil {
+	var del, create []layerOp
+	if err := json.Unmarshal(w[0].Body, &del); err != nil {
 		t.Fatal(err)
 	}
-	if len(ops) != 2 || ops[0].Action != "delete" || ops[0].Data.LaID != 77 || ops[1].Action != "create" || ops[1].Data.ID != updDashID {
-		t.Fatalf("ops = %s", w[0].Body)
+	if err := json.Unmarshal(w[1].Body, &create); err != nil {
+		t.Fatal(err)
 	}
-	ls := ops[1].Data.LayerSettings
+	if len(del) != 1 || del[0].Action != "delete" || del[0].Data.LaID != 77 || len(create) != 1 || create[0].Action != "create" || create[0].Data.ID != updDashID {
+		t.Fatalf("ops = %s then %s", w[0].Body, w[1].Body)
+	}
+	ls := create[0].Data.LayerSettings
 	off, _ := ls["offset"].(map[string]any)
-	if ops[1].Data.Position["x"] != float64(120) || ls["expand"] != true || ls["expandType"] != "chart" || ls["pin"] != true ||
+	if create[0].Data.Position["x"] != float64(120) || ls["expand"] != true || ls["expandType"] != "chart" || ls["pin"] != true ||
 		ls["width"] != float64(750) || off["left"] != float64(350) || off["top"] != float64(250) {
-		t.Errorf("create = %+v", ops[1].Data)
+		t.Errorf("create = %+v", create[0].Data)
+	}
+}
+
+func TestUpdateChartPlacementFailureSaysWhatWasWritten(t *testing.T) {
+	stub := &updStub{source: filterSourceJSON, failCreate: true}
+	srv := stub.serve(t)
+	_, err := UpdateChart(context.Background(), UpdateChartConfig{
+		DashboardActorID: updDashID, ChartType: "bar", FilterActorID: updFilter2ID, LayerID: updLayerID, LaID: 77,
+	}, "ws", "t", srv.URL)
+	if err == nil {
+		t.Fatal("want an error when placing the chart again fails")
+	}
+	for _, want := range []string{"manageLayerActors", `"x":120`, "config itself was saved", updFilterID} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("err = %v, want it to mention %q", err, want)
+		}
+	}
+	if stub.putSource(t)["chartType"] != "bar" {
+		t.Error("the source PUT should have run before the placement")
+	}
+}
+
+func TestChartLayerSettingsOddSize(t *testing.T) {
+	ls := chartLayerSettingsFor(nil, true, 651, 451)
+	var off chartLayerOffsets
+	_ = json.Unmarshal(ls["offset"], &off)
+	if off.Left+off.Right+chartCellSize != 651 || off.Top+off.Bottom+chartCellSize != 451 {
+		t.Errorf("offset = %+v, want it to add up to 651×451", off)
 	}
 }
 
@@ -365,6 +455,104 @@ func TestUpdateChartRefusesPlacementWithEdges(t *testing.T) {
 	}
 }
 
+func TestUpdateChartKeepsUISeriesKeys(t *testing.T) {
+	stub := &updStub{source: uiManualSourceJSON}
+	srv := stub.serve(t)
+	if _, err := UpdateChart(context.Background(), UpdateChartConfig{
+		DashboardActorID: updDashID, Range: "lastMonth", IncomeType: "credit",
+	}, "ws", "t", srv.URL); err != nil {
+		t.Fatal(err)
+	}
+	src := stub.putSource(t)
+	a := src["accounts"].([]any)[0].(map[string]any)
+	if a["incomeType"] != "credit" || a["accountType"] != "plan" || a["customName"] != "Budget" ||
+		a["showTrendLine"] != true || a["color"] != "#111111" || a["actor"] == nil || a["account"] == nil {
+		t.Errorf("series = %v, want incomeType credit and every UI key kept", a)
+	}
+	if rd := src["rangeDates"].(map[string]any); rd["from"] != nil || rd["to"] != nil {
+		t.Errorf("rangeDates = %v, want cleared when leaving the custom range", rd)
+	}
+}
+
+func TestUpdateChartGroupByChart(t *testing.T) {
+	// Same filter: no top is written into a group-by dynamicSource.
+	stub := &updStub{source: groupBySourceJSON}
+	srv := stub.serve(t)
+	if _, err := UpdateChart(context.Background(), UpdateChartConfig{DashboardActorID: updDashID, Range: "lastMonth"}, "ws", "t", srv.URL); err != nil {
+		t.Fatal(err)
+	}
+	ds := stub.putSource(t)["dynamicSource"].(map[string]any)
+	if _, ok := ds["top"]; ok || ds["displayMode"] != "groupBy" {
+		t.Errorf("dynamicSource = %v, want group by kept and no top", ds)
+	}
+
+	// top has no meaning there.
+	stub2 := &updStub{source: groupBySourceJSON}
+	srv2 := stub2.serve(t)
+	if _, err := UpdateChart(context.Background(), UpdateChartConfig{DashboardActorID: updDashID, Top: 5}, "ws", "t", srv2.URL); err == nil {
+		t.Error("top on a group-by chart: want an error")
+	}
+	if w := stub2.writes(); len(w) != 0 {
+		t.Errorf("rejected update wrote %v", w)
+	}
+
+	// A new filter on the same form keeps the grouping.
+	stub3 := &updStub{source: groupBySourceJSON}
+	srv3 := stub3.serve(t)
+	if _, err := UpdateChart(context.Background(), UpdateChartConfig{DashboardActorID: updDashID, CurrencyID: 9}, "ws", "t", srv3.URL); err != nil {
+		t.Fatal(err)
+	}
+	ds = stub3.putSource(t)["dynamicSource"].(map[string]any)
+	if g, _ := ds["groupByFields"].([]any); ds["id"] != "filter-new" || ds["displayMode"] != "groupBy" || len(g) != 1 || ds["top"] != nil {
+		t.Errorf("dynamicSource = %v, want the new filter grouped by region", ds)
+	}
+
+	// Another form has other fields: back to top-N, with a warning.
+	stub4 := &updStub{source: groupBySourceJSON}
+	srv4 := stub4.serve(t)
+	res, err := UpdateChart(context.Background(), UpdateChartConfig{DashboardActorID: updDashID, SourceFormID: 777}, "ws", "t", srv4.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ds = stub4.putSource(t)["dynamicSource"].(map[string]any)
+	if ds["displayMode"] != nil || ds["top"] != "20" {
+		t.Errorf("dynamicSource = %v, want top-N for the new form", ds)
+	}
+	if len(res.Warnings) == 0 || !strings.Contains(strings.Join(res.Warnings, " "), "grouping") {
+		t.Errorf("warnings = %v, want the dropped-grouping note", res.Warnings)
+	}
+}
+
+func TestUpdateChartReadsLooseSourceTypes(t *testing.T) {
+	// The UI's int input stores top as a number; a range outside its list is null.
+	src := strings.Replace(filterSourceJSON, `"top":"20"`, `"top":15`, 1)
+	src = strings.Replace(src, `"range":"lastWeek"`, `"range":null`, 1)
+	stub := &updStub{source: src}
+	srv := stub.serve(t)
+	res, err := UpdateChart(context.Background(), UpdateChartConfig{DashboardActorID: updDashID, ChartType: "bar"}, "ws", "t", srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ds := stub.putSource(t)["dynamicSource"].(map[string]any); ds["top"] != "15" {
+		t.Errorf("top = %v, want the stored 15 kept", ds["top"])
+	}
+	if res.Range != "lastHour" || !strings.Contains(strings.Join(res.Warnings, " "), "no range") {
+		t.Errorf("result = %+v, want the default range with a warning", res)
+	}
+}
+
+func TestUpdateChartRepointsAtObjectFilter(t *testing.T) {
+	stub := &updStub{source: filterSourceJSON}
+	srv := stub.serve(t)
+	if _, err := UpdateChart(context.Background(), UpdateChartConfig{DashboardActorID: updDashID, FilterActorID: updFilter3ID}, "ws", "t", srv.URL); err != nil {
+		t.Fatal(err)
+	}
+	ds := stub.putSource(t)["dynamicSource"].(map[string]any)
+	if f := ds["filter"].(map[string]any); ds["title"] != "Object filter" || f["formId"] != float64(901) || f["currencyId"] != float64(4) {
+		t.Errorf("dynamicSource = %v, want the object filter read", ds)
+	}
+}
+
 func TestUpdateChartConfigValidate(t *testing.T) {
 	yes := true
 	for _, tc := range []struct {
@@ -374,6 +562,7 @@ func TestUpdateChartConfigValidate(t *testing.T) {
 	}{
 		{"no id", UpdateChartConfig{ChartType: "bar"}, "dashboardActorId"},
 		{"nothing", UpdateChartConfig{DashboardActorID: updDashID}, "nothing to change"},
+		{"negative top", UpdateChartConfig{DashboardActorID: updDashID, Top: -5, Range: "lastWeek"}, "positive"},
 		{"accounts+top", UpdateChartConfig{DashboardActorID: updDashID, Top: 3, Accounts: []ChartAccountEntry{{}}}, "cannot be combined"},
 		{"expand without laId", UpdateChartConfig{DashboardActorID: updDashID, Expand: &yes}, "laId"},
 		{"laId without layer", UpdateChartConfig{DashboardActorID: updDashID, LaID: 1}, "layerId"},
