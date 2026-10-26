@@ -1,7 +1,10 @@
 version: 2
 updates:
+  # main is release-only and its base-branch guard rejects other PRs, so
+  # bumps go to develop like any other change.
   - package-ecosystem: gomod
     directory: /plugins/simulator/mcp-server
+    target-branch: develop
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -12,6 +15,7 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
     commit-message:
