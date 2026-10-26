@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -38,12 +39,16 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 	if name == "" {
 		return nil // neither given — the path check reports the missing formId
 	}
+	ctx, err := WorkspaceArgContext(ctx, args)
+	if err != nil {
+		return err
+	}
 	id, ok, err := formIDByTitle(ctx, c, name)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("form %q not found in the active workspace", name)
+		return fmt.Errorf("form %q not found in the workspace", name)
 	}
 	args["formId"] = float64(id) // JSON-number arg type, like the model would send
 	return nil
@@ -60,9 +65,9 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 func formIDByTitle(ctx context.Context, c *apiclient.Client, title string) (int, bool, error) {
 	accID := c.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return 0, false, fmt.Errorf("resolving a form by name needs an active workspace — run set-workspace or pass formId")
+		return 0, false, errors.New("resolving a form by name needs a workspace — pass accId (a workspace id from getWorkspaces) or formId")
 	}
-	key := c.BaseURL() + "|" + accID
+	key := c.BaseURLForContext(ctx) + "|" + accID
 	if v, ok := formTitleCache.Load(key); ok {
 		cached := v.(formTitleIDs)
 		if id, ok := cached.ids[title]; ok && time.Since(cached.fetched) < formTitleCacheTTL {
@@ -158,7 +163,8 @@ var actorOps = []Operation{
 		Resolve: guardActorCreate,
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Desc: "Form id this actor instantiates. Provide formId or formName."},
-			{Name: "formName", In: InLocal, Type: "string", Desc: "Form name — resolved to its id via the active workspace. Provide formId or formName."},
+			{Name: "formName", In: InLocal, Type: "string", Desc: "Form name — resolved to its id in the workspace (see accId). Provide formId or formName."},
+			{Name: "accId", In: InLocal, Type: "string", Desc: "Workspace id — used only to resolve formName (not needed with formId). Defaults to the configured workspace if omitted."},
 			{Name: "data", In: InBody, Type: "object", Required: true, Desc: actorDataDesc},
 			{Name: "title", In: InBody, Type: "string", Desc: "Actor title shown on the graph."},
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},
@@ -361,7 +367,7 @@ const dashboardsManualBuildHint = "A Dashboards (chart) actor must be created wi
 // means the form could not be resolved; the guards then fail open rather than
 // block a legitimate write.
 func isDashboardForm(ctx context.Context, c *apiclient.Client, formID int) (bool, error) {
-	return ecore.IsDashboardForm(ctx, c.BaseURL(), formID, func(ctx context.Context, path string, q url.Values) ([]byte, error) {
+	return ecore.IsDashboardForm(ctx, c.BaseURLForContext(ctx), formID, func(ctx context.Context, path string, q url.Values) ([]byte, error) {
 		return c.Do(ctx, "GET", path, q, nil)
 	})
 }

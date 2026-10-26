@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
@@ -16,6 +17,10 @@ import (
 func resolveHierarchyEdgeType(ctx context.Context, args map[string]any, c *apiclient.Client) error {
 	if _, ok := args["edgeTypeId"]; ok {
 		return nil // explicit edgeTypeId wins
+	}
+	ctx, err := WorkspaceArgContext(ctx, args)
+	if err != nil {
+		return err
 	}
 	id, err := hierarchyEdgeTypeID(ctx, c)
 	if err != nil {
@@ -64,7 +69,7 @@ func resolveHierarchyForLinks(ctx context.Context, args map[string]any, c *apicl
 func hierarchyEdgeTypeID(ctx context.Context, c *apiclient.Client) (int, error) {
 	accID := c.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return 0, fmt.Errorf("resolving the hierarchy edge type needs a workspace — run set-workspace or pass edgeTypeId")
+		return 0, errors.New("resolving the hierarchy edge type needs a workspace — pass accId (a workspace id from getWorkspaces) or edgeTypeId")
 	}
 	resp, err := c.Do(ctx, "GET", "/edge_types/"+accID, nil, nil)
 	if err != nil {
@@ -222,6 +227,7 @@ var graphOps = []Operation{
 			{Name: "type", In: InPath, Type: "string", Required: true, Enum: []string{"linked", "parents", "children"}, Desc: "Relation direction relative to the anchor actor."},
 			{Name: "actorId", In: InPath, Type: "string", Required: true, Desc: "Anchor actor UUID — the actor whose related actors you want."},
 			{Name: "edgeTypeId", In: InQuery, Type: "number", Desc: "Edge type id to traverse. Defaults to the workspace's hierarchy link type (resolved automatically). Pass it only to traverse a non-hierarchy edge type (see getEdgeTypes)."},
+			{Name: "accId", In: InLocal, Type: "string", Desc: "Workspace id — used only to resolve the default hierarchy edge type (not needed with edgeTypeId). Defaults to the configured workspace if omitted."},
 			{Name: "formId", In: InQuery, Type: "number", Desc: "Only return related actors of this form."},
 			{Name: "exceptFormId", In: InQuery, Type: "number", Desc: "Exclude related actors of this form."},
 			{Name: "search", In: InQuery, Type: "string", Desc: "Full-text search on related actor title."},

@@ -18,7 +18,9 @@ const DashboardsFormTitle = "Dashboards"
 // is cached for the process lifetime (no TTL). The key needs no workspace (GET
 // /forms/{formId} resolves the form by its own id) but must carry the base URL:
 // form ids are only unique within one backend database, so after set-environment
-// the same id can name a different form. Failed lookups are not cached.
+// (or on a stateless server, from one request to the next) the same id can name
+// a different form — so callers pass the base URL the lookup request actually
+// goes to. Failed lookups are not cached.
 var dashboardFormCache sync.Map // string (baseURL|formId) → bool
 
 // FormGetter issues an authenticated GET for a /papi path relative to the
