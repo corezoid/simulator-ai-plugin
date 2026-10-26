@@ -354,13 +354,18 @@ func requireActorUUID(_ context.Context, args map[string]any, _ *apiclient.Clien
 // updateActor, and pushGraphFile). The backend still accepts a hand-built
 // dashboards actor from any other client (public /papi API, Corezoid processes,
 // sim-api), so the real fix is server-side validation in createActorReq/
-// validateActor — tracked as a CE-15957 follow-up alongside an updateChart tool.
+// validateActor — a CE-15957 backend follow-up.
 //
-// dashboardsManualBuildHint is the shared remediation appended to the guards.
+// dashboardsManualBuildHint is the shared remediation appended to the guards;
+// dashboardsReconfigureHint is the update guard's way out.
 const dashboardsManualBuildHint = "A Dashboards (chart) actor must be created with the createChart tool " +
 	"(or the /simulator-charts skill): only createChart builds the companion ActorFilters actor, places the " +
 	"actor on its layer expanded as a chart (expandType:\"chart\") and sets account inheritance. A hand-written " +
 	"data.source is stored without error but renders \"Something went wrong\" in the UI."
+
+const dashboardsReconfigureHint = "To change an existing chart's type, range, counterType, sort, incomeType, " +
+	"filter or series, or its expand/size on the layer, call the updateChart tool (dashboardActorId + only what " +
+	"changes): it keeps the actor id and validates the config like createChart."
 
 // isDashboardForm reports whether formID is the Dashboards *system* form — see
 // ecore.IsDashboardForm, shared with the pushGraphFile guard. A non-nil error
@@ -403,7 +408,7 @@ func guardActorCreate(ctx context.Context, args map[string]any, c *apiclient.Cli
 // that tells a createChart chart from a hand-built one (direct-accounts charts have
 // no ActorFilters actor), so the guard gates the *action* (writing a source), not a
 // guess about the actor. Editing a real chart's config by hand is likewise blocked;
-// the sanctioned path is the createChart/updateChart tooling. Fails open if the
+// the sanctioned path is the updateChart tool. Fails open if the
 // form cannot be resolved.
 func guardActorUpdate(ctx context.Context, args map[string]any, c *apiclient.Client) error {
 	formID, ok := asInt(args["formId"])
@@ -418,7 +423,7 @@ func guardActorUpdate(ctx context.Context, args map[string]any, c *apiclient.Cli
 		return nil // can't resolve the form — fail open
 	}
 	if isDash {
-		return fmt.Errorf("updateActor cannot hand-write a Dashboards chart's data.source. %s", dashboardsManualBuildHint)
+		return fmt.Errorf("updateActor cannot hand-write a Dashboards chart's data.source. %s %s", dashboardsReconfigureHint, dashboardsManualBuildHint)
 	}
 	return nil
 }

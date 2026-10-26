@@ -78,6 +78,7 @@ overlay in place.
 | `createAccountName` / `createCurrency` / `addFormAccount` | Account setup. |
 | `createTransaction` / `createTransfer` | Move value between accounts. |
 | `createChart` / `createDashboard` | Visualise account / counter data. |
+| `updateChart` | Change an existing chart's type, range, sort, filter or series in place. |
 
 The full tool list is generated from the OpenAPI spec; ~190 operations are
 exposed.

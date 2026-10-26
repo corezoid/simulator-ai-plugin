@@ -341,7 +341,7 @@ Call tools by these exact names:
 - **Actors:** `createActor`, `getActor`, `getActorByRef`, `searchActors`, `searchLayerActors`, `updateActor`, `deleteActor`, `setActorStatus`
 - **Accounts:** `createAccountPair` (REQUIRED bootstrap — creates name + currency if missing AND grants pair access), `createAccount`, `getAccounts`, `getBalance`, `updateAccount`, `deleteAccount`, `createCurrency`, `getCurrencies`, `createAccountName`, `getAccountNames`
 - **Transactions:** `createTransaction`, `finalizeTransaction`, `getTransactions`, `createTransfer`, `getTransfer`
-- **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`
+- **Graph:** `createLink`, `massLink`, `getEdgeTypes`, `getLayerActors`, `manageLayerActors` (place/remove nodes & edges on a layer), plus engines `pullGraphFile`, `pushGraphFile`, `getAllLayerPlacements`, `compactGraphLayout`, `pruneLongEdges`, `createChart`, `updateChart` (reconfigure an existing chart — never hand-write a Dashboards `data.source`)
 - **Applications / smart forms:** `createApplication`, `createSmartForm`, `listSmartForms`, `manageAppContent` (read an application with `getActor` — it is an actor)
 - **Search:** `searchAll` — global workspace search across actors/users, **text or semantic** (vector); `filters` picks targets, `searchType=semantic` for meaning-based lookup
 - **Pictures:** `uploadActorPicture`, `uploadActorPictureBulk`

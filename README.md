@@ -316,6 +316,7 @@ the actor/node items.)
 | `listTrash`              | List soft-deleted objects in a Smart Form environment                                                |
 | `restoreFromTrash`       | Restore a soft-deleted object from trash                                                             |
 | `createChart`            | Create a dashboard chart actor (dynamic `actorFilter` or explicit accounts mode)                     |
+| `updateChart`            | Reconfigure an existing chart in place (same actor id): type, range, counter/income type, sort, filter or series, and its expand/size on the layer (`laId`) — validated like `createChart` |
 | `simulationCheck`        | Check a behaviour model (and scenarios) against a layer before running: unknown actions, typos in params, unresolved refs, unhandled events |
 | `simulationRun`          | Simulate a layer: run behaviour rules in model time per scenario and compare metrics; `runs` > 1 gives medians, ranges and goal shares. Read-only |
 | `simulationSnapshot`     | Read a layer with its account values into `<layerId>.sim.yaml` (plugin layer YAML + `sim:` sections) |
@@ -332,7 +333,7 @@ Claude Code / Codex / Kiro
         │               transactions, graph, apps) — one tool per backend op
         ├── engines     pullGraphFile, pushGraphFile, exportGraph, importGraph,
         │               uploadGraphFile, getTaskStatus, compactGraphLayout,
-        │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, buildLink,
+        │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, updateChart, buildLink,
         │               simulationCheck, simulationRun, simulationSnapshot
         └── apiclient   HTTP → Simulator /papi/1.0 (local :9000 or mw gateway)
 ```
@@ -408,7 +409,8 @@ Specialist for financial and metric tracking:
 
 ### `/simulator-charts`
 Specialist for dashboard charts and time-series visualisation on graph layers — builds
-chart actors via `createChart` (dynamic `actorFilter` or explicit accounts mode).
+chart actors via `createChart` (dynamic `actorFilter` or explicit accounts mode) and reconfigures them in
+place via `updateChart`.
 
 ### `/simulator-simulate`
 Behaviour simulation ("what if") on any layer: describe how actors behave in a YAML model,

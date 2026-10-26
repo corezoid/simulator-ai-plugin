@@ -762,7 +762,7 @@ func (s *GraphSyncer) updateGraphActor(ctx context.Context, sa layerActor, fa Gr
 	// bypass the tool and inject a chart config that renders "Something went wrong".
 	if dashboardSourceHasContent(fa.Data) && s.isDashboardFormID(ctx, childFormID) {
 		return false, fmt.Errorf("actor %q is a Dashboards (chart) actor — its data.source cannot be hand-written "+
-			"via pushGraphFile; configure charts with the createChart tool", fa.Title)
+			"via pushGraphFile; reconfigure an existing chart with the updateChart tool (createChart builds a new one)", fa.Title)
 	}
 	apiFormID := childFormID
 	if sysForms, sysErr := s.loadSysForms(ctx); sysErr == nil && sysForms != nil {

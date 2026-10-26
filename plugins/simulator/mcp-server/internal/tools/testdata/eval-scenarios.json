@@ -562,6 +562,24 @@
     "liveOnly": true
   },
   {
+    "name": "Reconfigure an existing chart",
+    "prompt": "Switch chart d0e1f2a3-4b5c-4d6e-8f70-8192a3b4c5d6 to a bar chart over last month, sorted descending. Keep the same chart.",
+    "tools": [
+      "updateChart"
+    ],
+    "argChecks": [
+      {
+        "tool": "updateChart",
+        "mustContain": [
+          "d0e1f2a3-4b5c-4d6e-8f70-8192a3b4c5d6",
+          "bar",
+          "lastMonth",
+          "desc"
+        ]
+      }
+    ]
+  },
+  {
     "name": "Upload an actor picture",
     "prompt": "Set the picture of actor 11111111-1111-1111-1111-111111111111 (form 42) from https://example.com/car.png.",
     "tools": [

@@ -163,8 +163,13 @@ func TestGuardActorUpdate_BlocksWritingSourceOnDashboard(t *testing.T) {
 	// Both the JSON-string form createChart uses and a raw object must be blocked.
 	for _, src := range []any{`{"chartType":"line","sourceType":"actorFilter"}`, map[string]any{"chartType": "bar"}} {
 		args := map[string]any{"formId": float64(243), "actorId": "a1", "data": map[string]any{"source": src}}
-		if err := guardActorUpdate(context.Background(), args, c); err == nil {
+		err := guardActorUpdate(context.Background(), args, c)
+		if err == nil {
 			t.Fatalf("writing a non-empty source (%#v) on a dashboard must be blocked", src)
+		}
+		// The way out for an existing chart is updateChart, not recreating it.
+		if !strings.Contains(err.Error(), "updateChart") {
+			t.Fatalf("expected an updateChart hint, got: %v", err)
 		}
 	}
 }

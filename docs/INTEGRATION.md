@@ -155,7 +155,7 @@ to typed/safe · `[new]` to be written.
 | `getLayerActors` / `getAllLayerPlacements` | exists |
 | `getActorLinks` / `getLinkedActors` | exists |
 | `pullGraphFile` / `pushGraphFile` | exists |
-| `compactGraphLayout` / `pruneLongEdges` / `createChart` | exists |
+| `compactGraphLayout` / `pruneLongEdges` / `createChart` / `updateChart` | exists |
 
 **6 & 7. Applications & Smart Forms** — `applications.js`, `appContent.js`, `smartForms.js`, pages
 | Tool | Status |
