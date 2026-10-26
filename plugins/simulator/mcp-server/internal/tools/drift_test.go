@@ -53,3 +53,43 @@ func TestSpecDrift(t *testing.T) {
 		}
 	}
 }
+
+// engineEndpoints are the /papi routes engine tools call directly (they are not
+// Operations, so the loop above does not see them). Paths use the spec's
+// {param} names.
+var engineEndpoints = []struct{ tool, method, path string }{
+	{"createChart", "GET", "/forms/templates/system/{accId}"},
+	{"createChart", "GET", "/forms/templates/{accId}"},
+	{"createChart", "GET", "/actors/{actorId}"},
+	{"createChart", "POST", "/actors/actor/{formId}"},
+	{"createChart", "POST", "/graph_layers/actors/{actorId}"},
+	{"createChart", "GET", "/graph/linked_actors/{actorId}"},
+	{"createChart", "POST", "/accounts/inherit/{accId}"},
+	{"updateChart", "GET", "/actors/{actorId}"},
+	{"updateChart", "GET", "/forms/{formId}"},
+	{"updateChart", "POST", "/actors/actor/{formId}"},
+	{"updateChart", "PUT", "/actors/actor/{formId}/{actorId}"},
+	{"updateChart", "POST", "/graph_layers/elements/{actorId}"},
+	{"updateChart", "GET", "/graph_layers/paginated/{actorId}"},
+	{"updateChart", "POST", "/graph_layers/actors/{actorId}"},
+}
+
+// TestEngineEndpointDrift checks that every engineEndpoints route still exists
+// in the backend spec.
+func TestEngineEndpointDrift(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("testdata", "papi-openapi.json"))
+	if err != nil {
+		t.Skip("no backend spec — see TestSpecDrift")
+	}
+	var spec struct {
+		Paths map[string]map[string]json.RawMessage `json:"paths"`
+	}
+	if err := json.Unmarshal(data, &spec); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range engineEndpoints {
+		if _, ok := spec.Paths["/papi/1.0"+e.path][strings.ToLower(e.method)]; !ok {
+			t.Errorf("%s: %s /papi/1.0%s not present in backend spec", e.tool, e.method, e.path)
+		}
+	}
+}

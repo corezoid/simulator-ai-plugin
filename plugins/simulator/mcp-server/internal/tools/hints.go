@@ -94,6 +94,7 @@ var hintsByName = map[string]toolHints{
 	"rollbackRelease":    hintDestructive,
 	"compactGraphLayout": hintDestructive, // rewrites node positions
 	"pruneLongEdges":     hintDestructive, // deletes edges
+	"updateChart":        hintDestructive, // overwrites the chart config; re-placing gives a new laId
 }
 
 // openWorldTools fetch an arbitrary URL the caller names, or publish

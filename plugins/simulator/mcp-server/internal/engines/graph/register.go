@@ -131,6 +131,31 @@ func registerAPITools(s *server.MCPServer) {
 		handleCreateChart,
 	)
 
+	s.AddTool(
+		mcp.NewTool("updateChart",
+			mcp.WithDescription("Reconfigure an existing Dashboard (chart) actor in place — same actor id, same layer, same account inheritance. Pass only what changes; everything else keeps its current value, and the result is validated exactly like createChart. Changes the chart type, time range, counterType, orderValue (sort), incomeType, top, the actorFilter source (filterActorId, or sourceFormId/accountNameId/currencyId — which builds a new ActorFilters actor) or the direct-accounts series (accounts). With laId + layerId it also re-places the chart with chart layerSettings (expand, width/height): /papi cannot edit a placement in place, so it gets a new laId at the same position (anything keyed by the old laId, such as its star, is not carried over), and it is refused if layer edges are drawn to it. Use this instead of updateActor, which blocks hand-written data.source. Returns {dashboardActorId, sourceType, chartType, counterType, range, orderValue, filterActorId?, laId?, previousLaId?, warnings?}."),
+			mcp.WithString("dashboardActorId", mcp.Description("UUID of the Dashboards (chart) actor to reconfigure."), mcp.Required()),
+			mcp.WithString("chartType", mcp.Enum(chartTypes...), mcp.Description("New chart visual type.")),
+			mcp.WithString("counterType", mcp.Enum(chartCounterTypes...), mcp.Description("\"Show values as\": amount = account amount per interval; count = number of transactions per interval.")),
+			mcp.WithString("range", mcp.Enum(chartRanges...), mcp.Description("New time range. line/stackedBar cannot use allTime; realTime and lineRealTime are swapped to match the chartType.")),
+			mcp.WithString("orderValue", mcp.Enum(chartOrderValues...), mcp.Description("Sort values: default (as returned), desc, asc. Ignored for line and stackedBar — the UI always stores default for them.")),
+			mcp.WithString("incomeType", mcp.Enum(chartIncomeTypes...), mcp.Description("(direct accounts mode) Side of every series: total = credit − debit, credit = incoming, debit = outgoing. With accounts, it fills each series that names none.")),
+			mcp.WithNumber("top", mcp.Description("(actorFilter mode) Number of top actors to show. Refused on a chart that groups its actors by fields (UI display mode \"group by\").")),
+			mcp.WithString("filterActorId", mcp.Description("(actorFilter mode) Repoint the chart at this existing ActorFilters actor (switches a direct-accounts chart to actorFilter mode).")),
+			mcp.WithString("filterTitle", mcp.Description("(actorFilter mode) Title of the new ActorFilters actor, or the dynamic source's title when the filter is kept.")),
+			mcp.WithNumber("sourceFormId", mcp.Description("(actorFilter mode) Form whose actors are charted. Any of sourceFormId/accountNameId/currencyId creates a new ActorFilters actor (a filter can back several charts, so it is never edited); the ones not passed come from the current filter.")),
+			mcp.WithString("accountNameId", mcp.Description("(actorFilter mode) UUID of the account name to chart.")),
+			mcp.WithNumber("currencyId", mcp.Description("(actorFilter mode) Numeric currency ID.")),
+			mcp.WithArray("accounts", mcp.Description("(direct accounts mode) Replaces every series and switches the chart to direct-accounts mode: each {actorId, currencyId, nameId, color?, incomeType? (total | credit | debit)}; actorId, nameId and a positive currencyId are required, and no two items may share actorId+nameId+currencyId+incomeType. Cannot be combined with the actorFilter params.")),
+			mcp.WithString("layerId", mcp.Description("Layer UUID the laId placement is on. Required with laId.")),
+			mcp.WithNumber("laId", mcp.Description("The chart's placement on layerId (from createChart or getAllLayerPlacements). Re-places it as an expanded chart with the layer settings below — the result's laId is the new placement.")),
+			mcp.WithBoolean("expand", mcp.Description("Show the placement as an expanded chart (true, default) or as a collapsed node (false). Needs laId.")),
+			mcp.WithNumber("width", mcp.Description("Expanded chart width in px, at least 650 (the UI default). Pass with height. Needs laId.")),
+			mcp.WithNumber("height", mcp.Description("Expanded chart height in px, at least 450 (the UI default). Pass with width. Needs laId.")),
+		),
+		handleUpdateChart,
+	)
+
 	// ---- Async import/export tasks (backed by pong-server task API) ----
 	//
 	// Export flow:  exportGraph → poll getTaskStatus → completed details contain

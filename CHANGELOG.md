@@ -12,6 +12,24 @@
 - Hosted mode serves the OpenAI plugin-directory domain-verification token at
   `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
   token; 404 otherwise).
+- `updateChart` reconfigures an existing Dashboards chart in place — same actor id, layer and account
+  inheritance — closing CE-15957 known limitation (2): since v2.12.0 updateActor blocks a hand-written
+  `data.source`, so a chart could only be recreated. Pass only what changes (chart type, range,
+  counterType, orderValue, incomeType, top, the actorFilter source — `filterActorId`, or
+  `sourceFormId`/`accountNameId`/`currencyId`, which creates a new ActorFilters actor rather than editing a
+  shared one — or the direct-accounts `accounts`); the merged config runs createChart's
+  `normalizeChartConfig`, and keys the UI wrote that the tool does not manage are kept. With `layerId` +
+  `laId` it also sets the chart's layer settings (`expand`, `width`/`height`): /papi cannot edit a
+  placement in place, so the chart is re-placed at the same position with a new `laId` (delete, then
+  create — pong refuses a create on the cell the old placement still holds), and refused when layer edges
+  are attached. All checks run before the first write; a failed re-placement says the config was saved.
+  Kept series keep the UI's per-series keys (plan/fact, custom name, trend line), and a "group by" chart
+  keeps its grouping. The updateActor and pushGraphFile
+  Dashboards guards now point to `updateChart`; the `/simulator-charts` skill documents it; hosted mode
+  accepts `accId`. Server-side validation of hand-built dashboards (CE-15957 limitation (1)) remains a
+  pong-server item.
+- Drift gate: `TestEngineEndpointDrift` checks the `/papi` routes `createChart` and `updateChart` call
+  against the backend spec.
 
 ### Changed
 - simulator-attachments skill: documents pong-server's new linking rule — `addAttachments` and a

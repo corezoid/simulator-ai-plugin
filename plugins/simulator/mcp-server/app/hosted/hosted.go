@@ -372,7 +372,7 @@ const hostedAccIDDescription = "Workspace id from getWorkspaces. Required unless
 // the connection only; hosted mode declares accId on them so they also run
 // on the bare /mcp route (mcpserver's workspaceFromArgs middleware reads it).
 var hostedWorkspaceArgTools = map[string]bool{
-	"uploadActorPicture": true, "uploadActorPictureBulk": true, "createChart": true,
+	"uploadActorPicture": true, "uploadActorPictureBulk": true, "createChart": true, "updateChart": true,
 	"exportGraph": true, "importGraph": true, "uploadGraphFile": true, "getTaskStatus": true,
 }
 
