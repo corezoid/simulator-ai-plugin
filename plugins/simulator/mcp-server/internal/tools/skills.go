@@ -69,6 +69,7 @@ func registerSkillTools(s *server.MCPServer, c *apiclient.Client) {
 					"Only verified skills are returned (drafts/disabled are hidden). Call this before planning a multi-step Simulator task to reuse an existing playbook."),
 			mcp.WithString("query", mcp.Description("Intent / title fragment to match. Empty lists all verified skills (enumeration).")),
 			mcp.WithNumber("limit", mcp.Description("Max results (1-200, default 20).")),
+			mcp.WithString("accId", mcp.Description(accIDArgDesc)),
 		),
 		findSkillHandler(c),
 	)
@@ -80,6 +81,7 @@ func registerSkillTools(s *server.MCPServer, c *apiclient.Client) {
 					"Provide `ref` (the skill's slug) OR `id` (actor UUID). Verify status=verified and that the entity ids it references still exist before following the steps; confirm any destructive/outward action with the user."),
 			mcp.WithString("ref", mcp.Description("Skill slug (the actor's ref). Provide ref or id.")),
 			mcp.WithString("id", mcp.Description("Skill actor UUID. Provide ref or id.")),
+			mcp.WithString("accId", mcp.Description(accIDArgDesc+" Used only with ref.")),
 		),
 		getSkillHandler(c),
 	)
@@ -94,6 +96,10 @@ func findSkillHandler(c *apiclient.Client) server.ToolHandlerFunc {
 		limit := 20
 		if l, ok := args["limit"].(float64); ok && l > 0 {
 			limit = int(l)
+		}
+		ctx, err := WorkspaceArgContext(ctx, args)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("[Error] findSkill: %v", err)), nil
 		}
 		formID, err := resolveSkillsFormID(ctx, c)
 		if err != nil {
@@ -134,6 +140,10 @@ func getSkillHandler(c *apiclient.Client) server.ToolHandlerFunc {
 		if id != "" {
 			path = "/actors/" + url.PathEscape(id)
 		} else {
+			ctx, err := WorkspaceArgContext(ctx, args)
+			if err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("[Error] getSkill: %v", err)), nil
+			}
 			formID, err := resolveSkillsFormID(ctx, c)
 			if err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("[Error] getSkill: %v", err)), nil

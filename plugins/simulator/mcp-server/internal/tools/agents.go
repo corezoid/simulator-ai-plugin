@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -74,7 +75,7 @@ func resolveSystemFormID(ctx context.Context, c *apiclient.Client) (int, error) 
 func resolveSystemFormByTitle(ctx context.Context, c *apiclient.Client, title string, cache *sync.Map, missingHint string) (int, error) {
 	accID := c.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return 0, fmt.Errorf("no workspace set — run set-workspace (or pass WORKSPACE_ID)")
+		return 0, fmt.Errorf("%s", strings.TrimPrefix(ecore.NoWorkspaceError, "[Error] "))
 	}
 	if v, ok := cache.Load(accID); ok {
 		if id, ok := v.(int); ok {
@@ -127,6 +128,7 @@ func registerAgentTools(s *server.MCPServer, c *apiclient.Client) {
 			mcp.WithString("searchType", mcp.Description("Match mode when query is given: semantic (default; falls back to text if vector search is unprovisioned) or text.")),
 			mcp.WithString("formId", mcp.Description("Agent-registry form to search (a form whose actors carry \"# Agent\" profiles). Omit for the user-twin registry (System form). Must be a form id number.")),
 			mcp.WithNumber("limit", mcp.Description("Max results (default 20; up to 200 when listing members, capped at 100 for competency search).")),
+			mcp.WithString("accId", mcp.Description(accIDArgDesc)),
 		),
 		findAgentHandler(c),
 	)
@@ -141,6 +143,7 @@ func registerAgentTools(s *server.MCPServer, c *apiclient.Client) {
 					"Use it to assess whether the agent fits a task before delegating."),
 			mcp.WithString("userId", mcp.Description("Workspace user id (see searchUsers/getUsers) for a person twin. Get-or-creates the twin. Provide userId or actorId.")),
 			mcp.WithString("actorId", mcp.Description("The agent actor's UUID (any actor with an \"# Agent\" profile). Provide userId or actorId.")),
+			mcp.WithString("accId", mcp.Description(accIDArgDesc+" Used only with userId.")),
 		),
 		getAgentHandler(c),
 	)
@@ -165,9 +168,13 @@ func findAgentHandler(c *apiclient.Client) server.ToolHandlerFunc {
 			limit = int(l)
 		}
 
+		ctx, err := WorkspaceArgContext(ctx, args)
+		if err != nil {
+			return mcp.NewToolResultError("[Error] findAgent: " + err.Error()), nil
+		}
 		accID := c.WorkspaceIDForContext(ctx)
 		if accID == "" {
-			return mcp.NewToolResultError("[Error] findAgent: no workspace set — run set-workspace (or pass WORKSPACE_ID)"), nil
+			return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
 		}
 
 		// A named registry must be a form id number — it points at a form whose
@@ -271,9 +278,13 @@ func getAgentHandler(c *apiclient.Client) server.ToolHandlerFunc {
 		if actorID != "" {
 			path = "/actors/" + url.PathEscape(actorID)
 		} else {
+			ctx, err := WorkspaceArgContext(ctx, args)
+			if err != nil {
+				return mcp.NewToolResultError("[Error] getAgent: " + err.Error()), nil
+			}
 			accID := c.WorkspaceIDForContext(ctx)
 			if accID == "" {
-				return mcp.NewToolResultError("[Error] getAgent: no workspace set — run set-workspace (or pass WORKSPACE_ID)"), nil
+				return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
 			}
 			path = "/actors/system/" + accID + "/user/" + url.PathEscape(userID)
 		}

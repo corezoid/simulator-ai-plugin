@@ -27,6 +27,7 @@ import (
 	"unicode"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/app/mcpserver"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/tools"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -102,6 +103,12 @@ func NewHandler(s *server.MCPServer, cfg Config) http.Handler {
 	applyHostedDescriptions(s)
 	if cfg.AccessLog {
 		s.Use(accessToolMiddleware)
+		hooks := s.GetHooks()
+		if hooks == nil {
+			hooks = &server.Hooks{}
+			server.WithHooks(hooks)(s)
+		}
+		hooks.AddBeforeAny(accessMethodHook)
 	}
 	endpoint := strings.TrimRight(cfg.EndpointPath, "/")
 	if endpoint == "" {
@@ -455,7 +462,13 @@ func applyHostedDescriptions(s *server.MCPServer) {
 					cp[k] = v
 				}
 			}
-			cp["description"] = hostedAccIDDescription
+			// An accId that only feeds a convenience lookup is not required:
+			// keep its own wording, minus the stdio default.
+			if d, _ := cp["description"].(string); strings.HasPrefix(d, tools.OptionalAccIDPrefix) {
+				cp["description"] = strings.ReplaceAll(d, "Defaults to the configured workspace if omitted.", "Defaults to the workspace named in the connector URL.")
+			} else {
+				cp["description"] = hostedAccIDDescription
+			}
 			props["accId"] = cp
 			t.InputSchema.Properties = props
 		}

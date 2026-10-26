@@ -19,7 +19,7 @@ is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Prerequisites
 
-- [Go 1.25+](https://go.dev/dl/) in `PATH` (the module declares `go 1.25`; the MCP server runs via `go run`)
+- [Go 1.27.2+](https://go.dev/dl/) in `PATH` (the module declares `go 1.27.2`; the MCP server runs via `go run`)
 - `make`
 - Optionally [`golangci-lint`](https://golangci-lint.run/) v2 for `make lint`
 
