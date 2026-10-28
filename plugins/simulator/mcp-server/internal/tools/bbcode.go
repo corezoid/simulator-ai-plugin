@@ -25,18 +25,14 @@ func registerBbcodeTags(s *server.MCPServer, c *apiclient.Client) {
 	tool := mcp.NewTool("getBbcodeTags",
 		mcp.WithDescription(
 			"Fetch the BBCode tag vocabulary for the current environment (from <web-base>/bbcode-tags.json) — "+
-				"the tags you may use in description text to make it render nicely in the UI: chips "+
-				"([actor=<uuid>]…[/actor], [user=…], [application=<smartFormId>]…[/application], …), formatting, "+
-				"lists, code, pictures and [md]…[/md] for a markdown block. Each tag entry has its attributes, an "+
-				"example and `context` — the places the tag is allowed in: actor-description, reaction, event-card "+
-				"(Events actors: chats, meetings, tasks), layer-comment, form-label. Use only tags whose `context` "+
-				"lists the place you are writing to; anything else shows as literal text or is dropped. "+
-				"Call it before composing a rich description so you use real tags. "+
+				"the tags you may use in description text to make it render nicely in the UI (chips like "+
+				"[actor=<uuid>]…[/actor], formatting, lists, code, pictures, and [md]…[/md] for a markdown block). "+
+				"Each tag entry has its attributes, an example and `context` — the places it is allowed in "+
+				"(actor-description, reaction, event-card for Events actors, …). Use only tags listed here whose "+
+				"`context` names the place you write to; call it before composing a rich description. "+
 				"IMPORTANT: BBCode tags are processed only OUTSIDE [md] blocks — inside [md]…[/md] the content is "+
-				"markdown, so put chips/BBCode outside the [md] section. A tag closes only with its exact [/tag]. "+
-				"Pictures: [img=<fileName>] takes the fileName an upload returned, [imgSrc=…] only an http(s):// "+
-				"address or a /path; inside [md] write ![alt](<fileName>#width=W;height=H). A reaction's text "+
-				"cannot hold pictures — attach the file to the reaction instead."),
+				"markdown, so put chips/BBCode outside the [md] section. A picture inside [md] is "+
+				"![alt](<the upload's fileName>#width=W;height=H)."),
 	)
 	s.AddTool(tool, bbcodeTagsHandler(c))
 }

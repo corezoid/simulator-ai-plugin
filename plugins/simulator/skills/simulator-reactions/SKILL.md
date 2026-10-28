@@ -147,7 +147,8 @@ A reaction can carry more than text:
   `[u]` `[s]`, `[color=…]`, `[url=…]`, `[icode]…[/icode]`, `[code=<lang>]…[/code]`,
   `[blockquote]…[/blockquote]`, `[hr]`; and `[md]…[/md]` for markdown. Fetch the environment's exact
   tag set with **`getBbcodeTags`** and use only tags whose `context` lists `reaction` — BBCode headings,
-  lists and pictures are not reaction tags (markdown headings and lists inside `[md]` are fine). **No pictures in reaction text:** upload the file and
+  lists and pictures are not reaction tags (markdown headings and lists inside `[md]` are fine). If `getBbcodeTags` does
+  not list a tag, do not use it. **No pictures in reaction text:** upload the file and
   pass it in the reaction's `attachments` (see `simulator-attachments`). **BBCode works only OUTSIDE `[md]`
   blocks** — keep chips/BBCode out of any `[md]…[/md]` section. And the reverse: `description`
   is BBCode by default, **not** markdown, so any markdown you write MUST be wrapped in
@@ -178,4 +179,4 @@ markReactionsRead(actorId="<parent actor UUID>", count=12)   # clears the unread
 - Reply by setting `parentId`; omit it for a top-level comment.
 - `notify=false` posts without sending notifications (it is honoured — sent explicitly).
 - `deleteReaction` is irreversible — confirm with the user first.
-- To attach a file, upload it first (`uploadBase64` → `attachId`) then pass `attachments:[{attachId}]` — see `simulator-attachments`.
+- To attach a file, upload it first (`uploadBase64` → record `id`, the `attachId`) then pass `attachments:[{attachId}]` — see `simulator-attachments`.

@@ -369,7 +369,7 @@ var dryFixtures = map[string]string{
 	"getAccountFormula":      `{"data":{"acc-2":{"id":"acc-2","amount":1000,"actor":{"id":"22222222-2222-2222-2222-222222222222","title":"Wheel"}}}}`,
 	// create/mutating tools that scenarios chain off of.
 	"createReaction":        `{"data":{"id":"rx-100"}}`,
-	"uploadBase64":          `{"data":{"attachId":5521,"fileName":"report.pdf"}}`,
+	"uploadBase64":          `{"data":{"id":5521,"fileName":"c26122dc-6a29-4131-924d-9bb607e21573/2026/10/28/XAgV6sVygh","title":"report.pdf"}}`,
 	"createFormAccount":     `{"data":{"id":7788}}`,
 	"createTransfer":        `{"data":{"id":"tr-1"}}`,
 	"createTransferTwoStep": `{"data":{"id":"tr-1","status":"authorized"}}`,

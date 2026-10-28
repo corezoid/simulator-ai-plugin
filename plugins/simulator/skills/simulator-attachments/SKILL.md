@@ -16,8 +16,8 @@ description: >
 
 # Simulator.Company Files & Attachments Specialist
 
-A **file** is uploaded once into the workspace and becomes an **attachment record** (with an
-`attachId`). You then **link** that record to actors or reactions. Listing, renaming and
+A **file** is uploaded once into the workspace and becomes an **attachment record** (its `id` is the
+`attachId` the other tools take). You then **link** that record to actors or reactions. Listing, renaming and
 unlinking operate on the record.
 
 > **Relationship to the other skills**
@@ -26,7 +26,7 @@ unlinking operate on the record.
 
 ## The flow: upload → attachId → link
 
-1. **Upload** the bytes → get the attachment record (`attachId`, stored `fileName`).
+1. **Upload** the bytes → get the attachment record (`id` — the `attachId` — and stored `fileName`).
 2. **Link** the `attachId` to an actor/reaction (or pass it in a reaction's `attachments`).
 3. **Manage** it later (rename, list, unlink).
 
@@ -46,7 +46,7 @@ uploadBase64(
   file="<base64 string>",          # prefer RAW base64; a data:<mime>;base64, prefix is also stripped server-side
   originalName="report.pdf",       # sets the type + title
   ttl=0)                           # seconds; 0 = permanent
-# → returns the attachment record incl. attachId + fileName
+# → returns the attachment record incl. id (= attachId) + fileName
 ```
 
 > Prefer raw base64. A `data:` URI prefix is accepted and stripped server-side, but raw base64
@@ -86,7 +86,7 @@ updateAttachment(attachId=5521, title="Q3 report.pdf")
 
 ```
 # 1. upload
-uploadBase64(originalName="contract.pdf", file="<base64>")   → attachId 5521
+uploadBase64(originalName="contract.pdf", file="<base64>")   → record id 5521 (the attachId)
 # 2. link it to the actor
 addAttachments(items=[{ "attachId": 5521, "actorId": "<actor UUID>" }])
 # (or attach to a comment instead — see simulator-reactions: createReaction(..., attachments=[{attachId:5521}]))
@@ -108,7 +108,7 @@ addAttachments(items=[{ "attachId": 5521, "actorId": "<actor UUID>" }])
 - `uploadBase64` prefers raw base64; a `data:<mime>;base64,` prefix is stripped server-side.
 - For an actor's avatar/picture use `uploadActorPicture` (handles URL / local path / base64, auto-rasterises SVG).
 - To show a picture **inside an actor's description**, upload it, `addAttachments` it to that actor,
-  then write `[img=<fileName>]alt[/img]` (or `![alt](<fileName>)` inside `[md]`) with the returned
-  `fileName` — see `simulator-actors`. A reaction's text cannot hold pictures: pass the file in the
+  then write `[img=<fileName>]alt[/img]` (or `![alt](<fileName>)` inside `[md]`), putting the returned
+  `fileName` in place of `<fileName>` without angle brackets — see `simulator-actors`. A reaction's text cannot hold pictures: pass the file in the
   reaction's `attachments`.
 - `addAttachments`/`removeAttachments` `items` need BOTH `attachId` and `actorId` per entry.

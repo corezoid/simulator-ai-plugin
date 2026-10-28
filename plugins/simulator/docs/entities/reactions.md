@@ -144,7 +144,7 @@ A reaction (and an actor) can embed richer content than plain text:
   actor `description`s render **BBCode** — chips and rich formatting:
   - Chips: `[actor=<id>]Label[/actor]` (nested actor card), `[application=<smartFormId>]Label[/application]`
     (smart-form chip), plus `[event=…]`, `[graph=…]`, `[graphLayer=…]`, `[user=…]`, `[chat=…]`,
-    `[file=…]`, `[quote=…]`, `[smarttag=<id>]Label[/smarttag]` (the label without `#` — the chip
+    `[file=…]`, `[quote=…]` (reactions and Events cards only), `[smarttag=<id>]Label[/smarttag]` (the label without `#` — the chip
     draws it).
   - Formatting: `[b]` `[i]` `[u]` `[s]`, `[h1]`..`[h6]`, `[color=…]` `[size=…]` `[bg=…]` `[span …]`,
     `[ul][*]…[/ul]` / `[ol][*]…[/ol]` (`[ol=3]` starts the numbering at 3), `[url=href]…[/url]`,
@@ -156,15 +156,18 @@ A reaction (and an actor) can embed richer content than plain text:
     (reads `<web-host>/bbcode-tags.json`: each tag's attributes, an example and `context`)
     before composing a rich description.
   - **Each tag lists where it is allowed (`context`):** `actor-description`, `reaction`,
-    `event-card` (Events actors — chats, meetings, tasks), `layer-comment`, `form-label`. Use
+    `event-card` (Events actors — chats, meetings, tasks), `layer-comment` (comments on a graph
+    layer), `form-label` (not CDU smart-form labels — those have their own set, see
+    `simulator-smart-forms`). If `getBbcodeTags` does not list a tag, do not use it. Use
     only tags allowed where you write: a reaction takes chips, `[b]` `[i]` `[u]` `[s]`,
     `[color]` `[size]` `[bg]`, `[url]`, `[icode]`, `[code]`, `[blockquote]`, `[hr]`, `[br]` and
     `[md]…[/md]` — no BBCode headings, lists or pictures (markdown headings and lists inside `[md]`
     are fine).
-  - **Pictures (descriptions, not reactions).** Upload the file (`uploadBase64` → `attachId` +
-    `fileName`), link it to the actor with `addAttachments`, then reference it by `fileName` (it
-    may contain `/`): `[img=<fileName> width=640 height=480]alt text[/img]`; inside `[md]`:
-    `![alt text](<fileName>#width=640;height=480)`. A picture already on the web:
+  - **Pictures (descriptions, not reactions).** Upload the file (`uploadBase64` → record `id`,
+    the `attachId`, + `fileName`), link it to the actor with `addAttachments` so it is listed among
+    the actor's files, then reference it by the real `fileName` (it may contain `/`; no angle
+    brackets): `[img=c26122dc-6a29-4131-924d-9bb607e21573/2026/10/28/XAgV6sVygh width=640 height=480]alt text[/img]`;
+    inside `[md]`: `![alt text](c26122dc-6a29-4131-924d-9bb607e21573/2026/10/28/XAgV6sVygh#width=640;height=480)`. A picture already on the web:
     `[imgSrc=https://…]alt[/imgSrc]` or `![alt](https://…)` — only `http(s)://` or a `/path`,
     never a `data:` URI. Width/height are optional. **A reaction's text cannot hold a
     picture** — pass the uploaded file in the reaction's `attachments` instead.
