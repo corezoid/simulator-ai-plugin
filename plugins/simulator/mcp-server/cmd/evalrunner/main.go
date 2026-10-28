@@ -354,7 +354,7 @@ var dryFixtures = map[string]string{
 	"getActorLinks":          `{"data":[{"id":"eeeeeeee-0000-0000-0000-000000000001","source":"11111111-1111-1111-1111-111111111111","target":"22222222-2222-2222-2222-222222222222","edgeTypeId":1}]}`,
 	"getReactions":           `{"data":[{"id":"rx-100","description":"Looks good"}]}`,
 	"getTranscription":       `{"data":{"items":[{"speaker":"Olena","text":"Let's start the demo."}],"total":1,"hasMore":false}}`,
-	"getBbcodeTags":          `{"version":"1","tags":[{"tag":"actor","example":"[actor=<uuid>]Name[/actor]"},{"tag":"b","example":"[b]Bold[/b]"},{"tag":"md","example":"[md]## H[/md]"}]}`,
+	"getBbcodeTags":          `{"version":"1","tags":[{"tag":"actor","context":["actor-description","reaction"],"example":"[actor=<uuid>]Name[/actor]"},{"tag":"b","context":["actor-description","reaction"],"example":"[b]Bold[/b]"},{"tag":"md","context":["actor-description"],"example":"[md]## H[/md]"}]}`,
 	"getPinnedReactions":     `{"data":[{"id":"rx-100","pinned":true}]}`,
 	"getReactionsStats":      `{"data":{"comment":3,"total":3}}`,
 	"getTransferByRef":       `{"data":{"id":"tr-1","amount":200}}`,

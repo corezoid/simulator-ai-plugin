@@ -32,6 +32,12 @@
   against the backend spec.
 
 ### Changed
+- Description markup guidance follows the extended BBCode vocabulary: `getBbcodeTags`, the
+  `/simulator`, `/simulator-actors`, `/simulator-reactions` and `/simulator-attachments` skills and
+  `docs/entities/reactions.md` now cover `[s]`, `[code]`/`[code=lang]`, `[icode]`, `[blockquote]`,
+  `[hr]`, `[ol=N]`, the per-tag `context` rule (which tags each place accepts), and pictures —
+  `[img=<fileName>]` after upload + `addAttachments`, `[imgSrc=…]` (http(s) or `/path` only),
+  `![alt](<fileName>#width=W;height=H)` inside `[md]`, and no pictures in reaction text (attach them).
 - simulator-attachments skill: documents pong-server's new linking rule — `addAttachments` and a
   reaction's `attachments` take only a file of the target actor's workspace that the caller uploaded
   or can already see on an actor (an anonymous visitor's unlinked upload is linkable by a member or

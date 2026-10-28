@@ -107,4 +107,8 @@ addAttachments(items=[{ "attachId": 5521, "actorId": "<actor UUID>" }])
 - `removeAttachments` only **unlinks** — it does not delete the stored bytes.
 - `uploadBase64` prefers raw base64; a `data:<mime>;base64,` prefix is stripped server-side.
 - For an actor's avatar/picture use `uploadActorPicture` (handles URL / local path / base64, auto-rasterises SVG).
+- To show a picture **inside an actor's description**, upload it, `addAttachments` it to that actor,
+  then write `[img=<fileName>]alt[/img]` (or `![alt](<fileName>)` inside `[md]`) with the returned
+  `fileName` — see `simulator-actors`. A reaction's text cannot hold pictures: pass the file in the
+  reaction's `attachments`.
 - `addAttachments`/`removeAttachments` `items` need BOTH `attachId` and `actorId` per entry.

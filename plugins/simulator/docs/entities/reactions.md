@@ -144,13 +144,29 @@ A reaction (and an actor) can embed richer content than plain text:
   actor `description`s render **BBCode** — chips and rich formatting:
   - Chips: `[actor=<id>]Label[/actor]` (nested actor card), `[application=<smartFormId>]Label[/application]`
     (smart-form chip), plus `[event=…]`, `[graph=…]`, `[graphLayer=…]`, `[user=…]`, `[chat=…]`,
-    `[file=…]`, `[quote=…]`, `[smarttag=…]`.
-  - Formatting: `[b]` `[i]` `[u]`, `[h1]`..`[h6]`, `[color=…]` `[size=…]` `[bg=…]` `[span …]`,
-    `[ul][*]…[/ul]` / `[ol][*]…[/ol]`, `[url=href]…[/url]`, `[img=<id>]` / `[imgSrc=…]`, `[br]`,
-    and `[md]…[/md]` for a markdown block.
+    `[file=…]`, `[quote=…]`, `[smarttag=<id>]Label[/smarttag]` (the label without `#` — the chip
+    draws it).
+  - Formatting: `[b]` `[i]` `[u]` `[s]`, `[h1]`..`[h6]`, `[color=…]` `[size=…]` `[bg=…]` `[span …]`,
+    `[ul][*]…[/ul]` / `[ol][*]…[/ol]` (`[ol=3]` starts the numbering at 3), `[url=href]…[/url]`,
+    `[icode]…[/icode]` (inline code), `[code]…[/code]` / `[code=<lang>]…[/code]` (code block;
+    tags inside are shown as typed), `[blockquote]…[/blockquote]`, `[hr]` (a line on its own),
+    `[br]`, pictures (below) and `[md]…[/md]` for a markdown block. A tag closes only with its
+    exact `[/tag]`.
   - **The exact tag set is per-environment** — fetch it with the **`getBbcodeTags`** tool
-    (reads `<web-host>/bbcode-tags.json`: each tag's attributes + an example) before composing
-    a rich description.
+    (reads `<web-host>/bbcode-tags.json`: each tag's attributes, an example and `context`)
+    before composing a rich description.
+  - **Each tag lists where it is allowed (`context`):** `actor-description`, `reaction`,
+    `event-card` (Events actors — chats, meetings, tasks), `layer-comment`, `form-label`. Use
+    only tags allowed where you write: a reaction takes chips, `[b]` `[i]` `[u]` `[s]`,
+    `[color]` `[size]` `[bg]`, `[url]`, `[icode]`, `[code]`, `[blockquote]`, `[hr]`, `[br]` — no
+    headings, lists or pictures.
+  - **Pictures (descriptions, not reactions).** Upload the file (`uploadBase64` → `attachId` +
+    `fileName`), link it to the actor with `addAttachments`, then reference it by `fileName` (it
+    may contain `/`): `[img=<fileName> width=640 height=480]alt text[/img]`; inside `[md]`:
+    `![alt text](<fileName>#width=640;height=480)`. A picture already on the web:
+    `[imgSrc=https://…]alt[/imgSrc]` or `![alt](https://…)` — only `http(s)://` or a `/path`,
+    never a `data:` URI. Width/height are optional. **A reaction's text cannot hold a
+    picture** — pass the uploaded file in the reaction's `attachments` instead.
   - **BBCode is processed only OUTSIDE `[md]` blocks.** Inside `[md]…[/md]` the content is
     markdown, so a chip/BBCode placed there is **not** rendered — keep chips/BBCode outside the
     `[md]` section (use one or the other in a given span).

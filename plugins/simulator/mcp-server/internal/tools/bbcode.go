@@ -12,10 +12,11 @@ import (
 )
 
 // getBbcodeTags is a local tool that fetches the environment's published BBCode
-// vocabulary from <web-base>/bbcode-tags.json — the tags allowed in actor and
-// reaction `description` text (chips like [actor=…], formatting like [b]/[color],
-// and [md] for a markdown block). The spec is per-environment (served at the web
-// host root, like routes.json), so it is fetched live rather than embedded.
+// vocabulary from <web-base>/bbcode-tags.json — the tags allowed in description
+// text (chips like [actor=…], formatting like [b]/[color], pictures, and [md] for
+// a markdown block), each with the places it is allowed in (`context`). The spec
+// is per-environment (served at the web host root, like routes.json), so it is
+// fetched live rather than embedded.
 //
 // Registered alongside buildLink (workspace mode only — see registerBuildLink).
 
@@ -24,12 +25,18 @@ func registerBbcodeTags(s *server.MCPServer, c *apiclient.Client) {
 	tool := mcp.NewTool("getBbcodeTags",
 		mcp.WithDescription(
 			"Fetch the BBCode tag vocabulary for the current environment (from <web-base>/bbcode-tags.json) — "+
-				"the tags you may use in an actor's or reaction's `description` to make it render nicely in the UI "+
-				"(chips like [actor=<uuid>]…[/actor], [user=…], [application=<smartFormId>]…[/application]; formatting "+
-				"like [b]/[i]/[color=…]/[h2]/[ul][*]…[/ul]/[url=…]; and [md]…[/md] for a markdown block). Each tag entry "+
-				"has its attributes and an example. Call it before composing a rich description so you use real tags. "+
+				"the tags you may use in description text to make it render nicely in the UI: chips "+
+				"([actor=<uuid>]…[/actor], [user=…], [application=<smartFormId>]…[/application], …), formatting, "+
+				"lists, code, pictures and [md]…[/md] for a markdown block. Each tag entry has its attributes, an "+
+				"example and `context` — the places the tag is allowed in: actor-description, reaction, event-card "+
+				"(Events actors: chats, meetings, tasks), layer-comment, form-label. Use only tags whose `context` "+
+				"lists the place you are writing to; anything else shows as literal text or is dropped. "+
+				"Call it before composing a rich description so you use real tags. "+
 				"IMPORTANT: BBCode tags are processed only OUTSIDE [md] blocks — inside [md]…[/md] the content is "+
-				"markdown, so put chips/BBCode outside the [md] section."),
+				"markdown, so put chips/BBCode outside the [md] section. A tag closes only with its exact [/tag]. "+
+				"Pictures: [img=<fileName>] takes the fileName an upload returned, [imgSrc=…] only an http(s):// "+
+				"address or a /path; inside [md] write ![alt](<fileName>#width=W;height=H). A reaction's text "+
+				"cannot hold pictures — attach the file to the reaction instead."),
 	)
 	s.AddTool(tool, bbcodeTagsHandler(c))
 }
