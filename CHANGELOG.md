@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.13.0]
+
+### Added
+- updateChart — reconfigure an existing chart in place (#162)
+
+### Changed
+- open bump PRs against develop (#160)
+- bump github.com/mark3labs/mcp-go (#161)
+- publish Windows binaries, and build them reproducibly (#150)
+- linking takes only files within the caller's reach (#157)
+
+### Fixed
+- sync root plugin.json to 2.12.0 (#159)
+- accId on /mcp, per-request cache keys, log after auth (#158)
+- scope dashboards form lookup per workspace; sourceType manual (#153)
+
 ## [2.12.0]
 
 ### Added
