@@ -12,8 +12,8 @@ import (
 )
 
 // guardClient builds a client pointed at a mock backend. Each mock gets a unique
-// httptest URL, and both package-global caches (formTitleCache,
-// dashboardFormCache) are keyed by base URL, so entries never leak between tests.
+// httptest URL, and both package-global caches (formTitleCache here,
+// ecore's dashboardFormCache) are keyed by base URL, so entries never leak between tests.
 func guardClient(t *testing.T, h http.HandlerFunc) *apiclient.Client {
 	t.Helper()
 	srv := httptest.NewServer(h)
@@ -117,6 +117,25 @@ func TestGuardActorCreate_CacheKeyedByBaseURL(t *testing.T) {
 	}
 }
 
+// A stateless server routes each request to the backend on its ctx
+// (apiclient.WithBaseURL) while the client's stored base URL stays put, so the
+// cache must be keyed by the URL the lookup actually went to.
+func TestGuardActorCreate_CacheKeyedByRequestBaseURL(t *testing.T) {
+	c := guardClient(t, formHandler(nil, nil, 0)) // stored backend: never consulted
+	envA := httptest.NewServer(formHandler(map[int][2]string{243: {"custom", "Clients"}}, nil, 0))
+	t.Cleanup(envA.Close)
+	envB := httptest.NewServer(formHandler(map[int][2]string{243: {"system", "Dashboards"}}, nil, 0))
+	t.Cleanup(envB.Close)
+	args := func() map[string]any { return map[string]any{"formId": float64(243), "data": map[string]any{}} }
+
+	if err := guardActorCreate(apiclient.WithBaseURL(context.Background(), envA.URL), args(), c); err != nil {
+		t.Fatalf("formId 243 is an ordinary form on backend A, must pass, got: %v", err)
+	}
+	if err := guardActorCreate(apiclient.WithBaseURL(context.Background(), envB.URL), args(), c); err == nil {
+		t.Fatal("formId 243 is Dashboards on backend B: backend A's cached verdict must not let it through")
+	}
+}
+
 // ---- updateActor ----
 
 func TestGuardActorUpdate_AllowsMetadataOnlyEditOnDashboard(t *testing.T) {
@@ -144,8 +163,13 @@ func TestGuardActorUpdate_BlocksWritingSourceOnDashboard(t *testing.T) {
 	// Both the JSON-string form createChart uses and a raw object must be blocked.
 	for _, src := range []any{`{"chartType":"line","sourceType":"actorFilter"}`, map[string]any{"chartType": "bar"}} {
 		args := map[string]any{"formId": float64(243), "actorId": "a1", "data": map[string]any{"source": src}}
-		if err := guardActorUpdate(context.Background(), args, c); err == nil {
+		err := guardActorUpdate(context.Background(), args, c)
+		if err == nil {
 			t.Fatalf("writing a non-empty source (%#v) on a dashboard must be blocked", src)
+		}
+		// The way out for an existing chart is updateChart, not recreating it.
+		if !strings.Contains(err.Error(), "updateChart") {
+			t.Fatalf("expected an updateChart hint, got: %v", err)
 		}
 	}
 }

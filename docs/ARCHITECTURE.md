@@ -111,7 +111,7 @@ launch the same `go run ./cmd/server` command — there is no build step.
 ## 3. Go MCP server
 
 Source: `plugins/simulator/mcp-server/`. Module:
-`github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server` (Go 1.24+).
+`github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server` (Go 1.27.2+).
 SDK: `github.com/mark3labs/mcp-go`.
 
 ```
@@ -233,7 +233,8 @@ operationId) against `internal/tools/testdata/papi-openapi.json` — the OpenAPI
 from the live backend (where `operationId`s are now declared at the source; see
 [`INTEGRATION.md`](INTEGRATION.md) §9). If the file is absent the test skips; when present
 it fails on any divergence between the plugin's declared tools and the backend contract.
-Refresh the spec with pong-server's `yarn dump-openapi` and copy it into `testdata/`.
+`TestEngineEndpointDrift` does the same for the `/papi` routes engine tools call directly
+(`engineEndpoints`: method + path, today `createChart` and `updateChart`). Refresh the spec with pong-server's `yarn dump-openapi` and copy it into `testdata/`.
 
 ---
 
@@ -294,7 +295,8 @@ ported from the original implementation:
 | `rollbackFile`           | `smart_form_file_history.go`  | Restore a file to a prior version                              |
 | `listTrash`              | `smart_form_file_history.go`  | List soft-deleted objects in an env                            |
 | `restoreFromTrash`       | `smart_form_file_history.go`  | Restore a soft-deleted object from trash                       |
-| `createChart`            | `create_chart.go`             | Create a dashboard chart actor (dynamic filter or explicit accounts) |
+| `createChart`            | `graph/chart.go`              | Create a dashboard chart actor (dynamic filter or explicit accounts) |
+| `updateChart`            | `graph/chart_update.go`       | Reconfigure an existing chart in place (same actor id), validated by createChart's `normalizeChartConfig`; a placement change (`laId`) re-places it — /papi has no in-place layerSettings route |
 | `simulationCheck`        | `sim/check.go`                | Static check of a behaviour model against a layer (errors/warnings) |
 | `simulationRun`          | `sim/engine.go` + `sim/montecarlo.go` | Discrete-event simulation of a layer per scenario; many-run medians, ranges, goals. Read-only |
 | `simulationSnapshot`     | `sim/snapshot.go`             | Layer + account values (optionally turnover of a period) to `<layerId>.sim.yaml` |

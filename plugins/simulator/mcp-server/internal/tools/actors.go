@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/apiclient"
+	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
 )
 
 // formTitleCacheTTL bounds how long a workspace's title→id map is trusted; a
@@ -37,12 +39,16 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 	if name == "" {
 		return nil // neither given — the path check reports the missing formId
 	}
+	ctx, err := WorkspaceArgContext(ctx, args)
+	if err != nil {
+		return err
+	}
 	id, ok, err := formIDByTitle(ctx, c, name)
 	if err != nil {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("form %q not found in the active workspace", name)
+		return fmt.Errorf("form %q not found in the workspace", name)
 	}
 	args["formId"] = float64(id) // JSON-number arg type, like the model would send
 	return nil
@@ -59,9 +65,9 @@ func resolveActorFormID(ctx context.Context, args map[string]any, c *apiclient.C
 func formIDByTitle(ctx context.Context, c *apiclient.Client, title string) (int, bool, error) {
 	accID := c.WorkspaceIDForContext(ctx)
 	if accID == "" {
-		return 0, false, fmt.Errorf("resolving a form by name needs an active workspace — run set-workspace or pass formId")
+		return 0, false, errors.New("resolving a form by name needs a workspace — pass accId (a workspace id from getWorkspaces) or formId")
 	}
-	key := c.BaseURL() + "|" + accID
+	key := c.BaseURLForContext(ctx) + "|" + accID
 	if v, ok := formTitleCache.Load(key); ok {
 		cached := v.(formTitleIDs)
 		if id, ok := cached.ids[title]; ok && time.Since(cached.fetched) < formTitleCacheTTL {
@@ -157,7 +163,8 @@ var actorOps = []Operation{
 		Resolve: guardActorCreate,
 		Params: []Param{
 			{Name: "formId", In: InPath, Type: "number", Desc: "Form id this actor instantiates. Provide formId or formName."},
-			{Name: "formName", In: InLocal, Type: "string", Desc: "Form name — resolved to its id via the active workspace. Provide formId or formName."},
+			{Name: "formName", In: InLocal, Type: "string", Desc: "Form name — resolved to its id in the workspace (see accId). Provide formId or formName."},
+			{Name: "accId", In: InLocal, Type: "string", Desc: OptionalAccIDPrefix + "resolve formName (not needed with formId). Defaults to the configured workspace if omitted."},
 			{Name: "data", In: InBody, Type: "object", Required: true, Desc: actorDataDesc},
 			{Name: "title", In: InBody, Type: "string", Desc: "Actor title shown on the graph."},
 			{Name: "description", In: InBody, Type: "string", Desc: "Optional description."},
@@ -336,8 +343,7 @@ func requireActorUUID(_ context.Context, args map[string]any, _ *apiclient.Clien
 	return nil
 }
 
-// dashboardsFormTitle is the system form whose actors are charts/dashboards. A
-// Dashboards actor only renders if createChart built it: createChart also creates
+// A Dashboards (system form) actor only renders if createChart built it: createChart also creates
 // the companion ActorFilters actor, places the actor on the layer expanded as a
 // chart (expandType:"chart") and sets account inheritance. A hand-written
 // data.source is stored without error but renders "Something went wrong" in the
@@ -348,52 +354,27 @@ func requireActorUUID(_ context.Context, args map[string]any, _ *apiclient.Clien
 // updateActor, and pushGraphFile). The backend still accepts a hand-built
 // dashboards actor from any other client (public /papi API, Corezoid processes,
 // sim-api), so the real fix is server-side validation in createActorReq/
-// validateActor — tracked as a CE-15957 follow-up alongside an updateChart tool.
-const dashboardsFormTitle = "Dashboards"
-
-// dashboardsManualBuildHint is the shared remediation appended to the guards.
+// validateActor — a CE-15957 backend follow-up.
+//
+// dashboardsManualBuildHint is the shared remediation appended to the guards;
+// dashboardsReconfigureHint is the update guard's way out.
 const dashboardsManualBuildHint = "A Dashboards (chart) actor must be created with the createChart tool " +
 	"(or the /simulator-charts skill): only createChart builds the companion ActorFilters actor, places the " +
 	"actor on its layer expanded as a chart (expandType:\"chart\") and sets account inheritance. A hand-written " +
 	"data.source is stored without error but renders \"Something went wrong\" in the UI."
 
-// dashboardFormCache memoizes, per API base URL + form id, whether that form is
-// the Dashboards system form. A form's type and title do not change, so the entry
-// is cached for the process lifetime (no TTL). The key needs no workspace (GET
-// /forms/{formId} resolves the form by its own id) but must carry the base URL:
-// form ids are only unique within one backend database, so after set-environment
-// the same id can name a different form.
-var dashboardFormCache sync.Map // string (baseURL|formId) → bool
+const dashboardsReconfigureHint = "To change an existing chart's type, range, counterType, sort, incomeType, " +
+	"filter or series, or its expand/size on the layer, call the updateChart tool (dashboardActorId + only what " +
+	"changes): it keeps the actor id and validates the config like createChart."
 
-// isDashboardForm reports whether formID is the Dashboards *system* form, matching
-// the backend's own rule (pong-server getSystemForms: type == "system" and a
-// case-insensitive title match on "dashboards"). It resolves the target form by
-// its id — GET /forms/{formId} needs no active workspace and cannot be fooled by a
-// custom form that merely shares the title. ok is false (nil error) when the form
-// cannot be resolved, so the guards fail open rather than block a legitimate write.
+// isDashboardForm reports whether formID is the Dashboards *system* form — see
+// ecore.IsDashboardForm, shared with the pushGraphFile guard. A non-nil error
+// means the form could not be resolved; the guards then fail open rather than
+// block a legitimate write.
 func isDashboardForm(ctx context.Context, c *apiclient.Client, formID int) (bool, error) {
-	key := c.BaseURL() + "|" + strconv.Itoa(formID)
-	if v, ok := dashboardFormCache.Load(key); ok {
-		return v.(bool), nil
-	}
-	q := url.Values{}
-	q.Set("filter", "type,title")
-	resp, err := c.Do(ctx, "GET", fmt.Sprintf("/forms/%d", formID), q, nil)
-	if err != nil {
-		return false, err
-	}
-	var out struct {
-		Data struct {
-			Type  string `json:"type"`
-			Title string `json:"title"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(resp, &out); err != nil {
-		return false, err
-	}
-	isDash := out.Data.Type == "system" && strings.EqualFold(out.Data.Title, dashboardsFormTitle)
-	dashboardFormCache.Store(key, isDash)
-	return isDash, nil
+	return ecore.IsDashboardForm(ctx, c.BaseURLForContext(ctx), formID, func(ctx context.Context, path string, q url.Values) ([]byte, error) {
+		return c.Do(ctx, "GET", path, q, nil)
+	})
 }
 
 // guardActorCreate resolves formName→formId (resolveActorFormID) and then refuses
@@ -427,7 +408,7 @@ func guardActorCreate(ctx context.Context, args map[string]any, c *apiclient.Cli
 // that tells a createChart chart from a hand-built one (direct-accounts charts have
 // no ActorFilters actor), so the guard gates the *action* (writing a source), not a
 // guess about the actor. Editing a real chart's config by hand is likewise blocked;
-// the sanctioned path is the createChart/updateChart tooling. Fails open if the
+// the sanctioned path is the updateChart tool. Fails open if the
 // form cannot be resolved.
 func guardActorUpdate(ctx context.Context, args map[string]any, c *apiclient.Client) error {
 	formID, ok := asInt(args["formId"])
@@ -442,7 +423,7 @@ func guardActorUpdate(ctx context.Context, args map[string]any, c *apiclient.Cli
 		return nil // can't resolve the form — fail open
 	}
 	if isDash {
-		return fmt.Errorf("updateActor cannot hand-write a Dashboards chart's data.source. %s", dashboardsManualBuildHint)
+		return fmt.Errorf("updateActor cannot hand-write a Dashboards chart's data.source. %s %s", dashboardsReconfigureHint, dashboardsManualBuildHint)
 	}
 	return nil
 }

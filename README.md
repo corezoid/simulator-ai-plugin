@@ -1,12 +1,12 @@
 # Simulator.Company — Claude Code, Codex & Kiro Plugin
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
+[![Go 1.27.2+](https://img.shields.io/badge/Go-1.27.2%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/dl/)
 [![MCP](https://img.shields.io/badge/MCP-2025--03--26-555)](https://modelcontextprotocol.io)
 [![Release](https://img.shields.io/github/v/release/corezoid/simulator-ai-plugin?sort=semver)](https://github.com/corezoid/simulator-ai-plugin/releases)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](https://claude.ai/code)
 
-> **Status:** stable — released, actively maintained. Supported clients: Claude Code ≥ 1.x, Codex, AWS Kiro. Go 1.24+ required. macOS and Linux tested.
+> **Status:** stable — released, actively maintained. Supported clients: Claude Code ≥ 1.x, Codex, AWS Kiro. Go 1.27.2+ required. macOS and Linux tested.
 
 A plugin for [Claude Code](https://claude.ai/code), [Codex](https://codex.openai.com) and [AWS Kiro](https://kiro.dev) that connects the [Simulator.Company](https://simulator.company) platform to Claude via MCP (Model Context Protocol). Claude gets direct access to the Simulator REST API and domain knowledge to manage actors, graphs, forms, and financial accounts through natural conversation.
 
@@ -39,7 +39,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 ## Requirements
 
 - [Claude Code](https://claude.ai/code), [Codex](https://codex.openai.com) or [AWS Kiro](https://kiro.dev) installed
-- [Go 1.24+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed)
+- [Go 1.27.2+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed)
   ```bash
   brew install golang        # macOS
   sudo apt install golang    # Ubuntu/Debian
@@ -316,6 +316,7 @@ the actor/node items.)
 | `listTrash`              | List soft-deleted objects in a Smart Form environment                                                |
 | `restoreFromTrash`       | Restore a soft-deleted object from trash                                                             |
 | `createChart`            | Create a dashboard chart actor (dynamic `actorFilter` or explicit accounts mode)                     |
+| `updateChart`            | Reconfigure an existing chart in place (same actor id): type, range, counter/income type, sort, filter or series, and its expand/size on the layer (`laId`) — validated like `createChart` |
 | `simulationCheck`        | Check a behaviour model (and scenarios) against a layer before running: unknown actions, typos in params, unresolved refs, unhandled events |
 | `simulationRun`          | Simulate a layer: run behaviour rules in model time per scenario and compare metrics; `runs` > 1 gives medians, ranges and goal shares. Read-only |
 | `simulationSnapshot`     | Read a layer with its account values into `<layerId>.sim.yaml` (plugin layer YAML + `sim:` sections) |
@@ -332,7 +333,7 @@ Claude Code / Codex / Kiro
         │               transactions, graph, apps) — one tool per backend op
         ├── engines     pullGraphFile, pushGraphFile, exportGraph, importGraph,
         │               uploadGraphFile, getTaskStatus, compactGraphLayout,
-        │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, buildLink,
+        │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, updateChart, buildLink,
         │               simulationCheck, simulationRun, simulationSnapshot
         └── apiclient   HTTP → Simulator /papi/1.0 (local :9000 or mw gateway)
 ```
@@ -408,7 +409,8 @@ Specialist for financial and metric tracking:
 
 ### `/simulator-charts`
 Specialist for dashboard charts and time-series visualisation on graph layers — builds
-chart actors via `createChart` (dynamic `actorFilter` or explicit accounts mode).
+chart actors via `createChart` (dynamic `actorFilter` or explicit accounts mode) and reconfigures them in
+place via `updateChart`.
 
 ### `/simulator-simulate`
 Behaviour simulation ("what if") on any layer: describe how actors behave in a YAML model,
@@ -478,7 +480,7 @@ simulator-ai-plugin/
 Run the plugin from this repo (developing it, or testing against a local `pong-server`),
 not from the marketplace.
 
-**Requirements:** Go 1.24+, and a backend — a local `pong-server` on `http://localhost:9000`
+**Requirements:** Go 1.27.2+, and a backend — a local `pong-server` on `http://localhost:9000`
 (profile `local`) or the public gateway (profile `prod`).
 
 ### 1. Pick the environment
@@ -614,7 +616,7 @@ go test ./...
 | Claude Code       | ≥ 1.x                         | MCP protocol 2025-03-26                     |
 | Codex             | current stable                | Same MCP server, same skills                |
 | AWS Kiro          | current stable                | Same MCP server, same skills; install via `scripts/install-kiro.sh` (no marketplace) |
-| Go toolchain      | 1.24+ (module declares 1.25)  | Required to run the MCP server via `go run` |
+| Go toolchain      | 1.27.2+ (`go.mod` declares it) | Required to run the MCP server via `go run`; an older Go ≥ 1.21 downloads 1.27.2 itself unless `GOTOOLCHAIN=local` |
 | macOS             | 13 Ventura and later          | Tested on arm64 and amd64                   |
 | Linux             | Ubuntu 22.04+, Debian 12+     | amd64 tested                                |
 | Windows           | not tested                    | Likely works; PRs welcome                   |

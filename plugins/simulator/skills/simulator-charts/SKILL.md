@@ -11,7 +11,7 @@ description: >
     "show metrics on graph", "visualise account data", "plot actor balances".
   — Configuring: "change chart type", "switch to bar chart", "update chart range",
     "use last week", "show transaction count", "sort descending", "change time range",
-    "filter chart actors".
+    "filter chart actors", "reconfigure chart", "change chart series", "resize chart".
   — Querying: "get chart data", "show dashboard", "what charts are on this layer",
     "fetch chart metrics", "dashboard data".
 ---
@@ -33,7 +33,7 @@ graph layers using the `simulator` MCP server.
 | **ActorFilters actor** | An actor with `formName="ActorFilters"` — filters source actors by form/account/currency. |
 | **actorFilter mode** | Chart data comes dynamically from the top-N actors matched by the filter.                 |
 | **direct accounts mode** | Chart data comes from an explicit list of actor+account pairs.                       |
-| **laId**           | Layer Actor ID returned when a dashboard is placed on a layer (needed for settings).      |
+| **laId**           | Layer Actor ID returned when a dashboard is placed on a layer (needed for its layer settings). |
 
 ---
 
@@ -133,6 +133,67 @@ createChart(
 
 `color` and `incomeType` (`"total"` | `"credit"` | `"debit"`) are optional per
 item; defaults are auto-assigned from the Tableau palette and `"total"` respectively.
+`actorId` and `nameId` (both UUIDs — not titles) and a positive `currencyId` are
+required on every item, and two items with the same `actorId` + `nameId` +
+`currencyId` + `incomeType` are rejected — the UI would draw that series only once.
+Items that differ only by `incomeType` get it shown in the legend. The chart is
+stored as the UI wizard's "manual" source.
+
+---
+
+## Reconfigure an existing chart — `updateChart`
+
+To change a chart that already exists, call `updateChart` — **never** recreate it
+and never write `data.source` with `updateActor` (that is blocked: a hand-written
+source renders "Something went wrong"). `updateChart` keeps the same
+`dashboardActorId`, its layer and its account inheritance. Pass the chart id plus
+**only what changes**; every other setting keeps its current value, and the merged
+config goes through the same validation as `createChart` (same enums, same
+`line`/`stackedBar` rules, same `warnings`). Keys the UI wrote that the tool does
+not manage (legend, totals, data labels, …) are kept.
+
+```
+updateChart(dashboardActorId = "<chartUUID>", chartType = "bar", orderValue = "desc")   // type + sort
+updateChart(dashboardActorId = "<chartUUID>", range = "lastMonth")                        // time range
+updateChart(dashboardActorId = "<chartUUID>", counterType = "count")                      // amount → transaction count
+updateChart(dashboardActorId = "<chartUUID>", incomeType = "credit")                      // every series: incoming only
+updateChart(dashboardActorId = "<chartUUID>", top = 10)                                   // actorFilter: top-N
+```
+
+**Filter / series.**
+
+| Want | Pass | Effect |
+|------|------|--------|
+| Chart other actors / another account or currency | any of `sourceFormId`, `accountNameId`, `currencyId` | a **new** `ActorFilters` actor is created (a filter can back several charts, so it is never edited); the values not passed come from the current filter |
+| Reuse a filter you already have | `filterActorId` | the chart points at it (also turns a direct-accounts chart into actorFilter mode) |
+| Chart specific actors | `accounts` (same shape as in `createChart`) | replaces **all** series and switches to direct-accounts mode; `incomeType` fills the items that name none |
+
+When the chart stops using its old `ActorFilters` actor, a warning names it —
+delete it only if no other chart uses it. A chart the UI set to **group by** fields
+keeps its grouping while its source form stays the same (a new form falls back to
+top-N, with a warning), and takes no `top`. `incomeType` applies to direct-accounts
+charts only; `top` / `filterTitle` to actorFilter charts only; `accounts` cannot
+be combined with the actorFilter params.
+
+**Placement (expand / size).** Pass `layerId` + `laId` (from `createChart` or
+`getAllLayerPlacements`) and optionally `expand` (default `true`; `false` shows a
+collapsed node) and `width` + `height` in px (at least 650 × 450, the UI
+default). `/papi` cannot edit a placement in place, so the chart is **re-placed**
+at the same position: the result's `laId` is the new placement and `previousLaId`
+the old one. It is refused if layer edges are drawn to the placement (re-placing
+would drop them) — remove them first or resize the chart in the UI. Anything else
+keyed by the old `laId` (e.g. its star) is not carried over. `laId` alone restores
+the expanded-chart rendering of a chart placed without it.
+
+Every check runs before the first write, so a call rejected by validation changes
+nothing. Re-placing takes two requests after the config is saved; if it fails, the
+error says the config was saved and gives the `manageLayerActors` call that puts
+the chart back.
+Returns `{ dashboardActorId, sourceType, chartType, counterType, range, orderValue,
+filterActorId?, laId?, previousLaId?, warnings? }`.
+
+Not supported (edit those in the UI): `kpiCard` charts and the `custom` date range —
+the call is rejected unless it replaces them with another `chartType` / `range`.
 
 ---
 
@@ -233,7 +294,8 @@ The chart appears immediately on the layer as a widget node.
 
 ## Key Rules
 
-- **`createChart` is the only tool needed** — it handles filter creation, placement, inheritance, and expand-type in one call.
+- **`createChart` is the only tool needed to build a chart** — it handles filter creation, placement, inheritance, and expand-type in one call.
+- **To change a chart, use `updateChart`** (same actor id) — don't recreate it, and don't write `data.source` via `updateActor`.
 - **actorFilter mode** is the default when `accounts` is not provided. Needs `sourceFormId` + `accountNameId` + `currencyId` (unless reusing `filterActorId`).
 - **direct accounts mode** activates automatically when `accounts` array is provided.
 - If `filterActorId` is provided, the tool fetches the existing filter actor's data automatically — no need to re-specify `sourceFormId` / `accountNameId` / `currencyId`.

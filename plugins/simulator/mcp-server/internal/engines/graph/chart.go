@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -135,13 +136,40 @@ func normalizeChartConfig(cfg *ChartConfig) ([]string, error) {
 
 	// Copy before defaulting: cfg is a value but Accounts shares the caller's array.
 	cfg.Accounts = slices.Clone(cfg.Accounts)
+	// The UI keys a series by actorId_nameId_currencyId_incomeType (Dashboard
+	// accountHelpers / dataTransformers uniqBy) and silently drops a repeat, and
+	// a series without an actor, account name or currency renders no data — so
+	// reject both up front instead of creating a chart with missing metrics.
+	seen := make(map[string]int, len(cfg.Accounts))
 	for i := range cfg.Accounts {
-		if cfg.Accounts[i].IncomeType == "" {
-			cfg.Accounts[i].IncomeType = "total"
+		a := &cfg.Accounts[i]
+		if a.IncomeType == "" {
+			a.IncomeType = "total"
 		}
-		if err := checkChartEnum(fmt.Sprintf("accounts[%d].incomeType", i), cfg.Accounts[i].IncomeType, chartIncomeTypes); err != nil {
+		if err := checkChartEnum(fmt.Sprintf("accounts[%d].incomeType", i), a.IncomeType, chartIncomeTypes); err != nil {
 			return nil, err
 		}
+		// pong-server looks every accounts[].actorId up as a uuid when it links the
+		// dashboard (dashboardValency); a non-UUID (e.g. an actor title) throws there
+		// and silently stops linking the series after it, so check the shape too.
+		switch {
+		case strings.TrimSpace(a.ActorID) == "":
+			return nil, fmt.Errorf("accounts[%d].actorId is required", i)
+		case !ecore.IsUUID(a.ActorID):
+			return nil, fmt.Errorf("accounts[%d].actorId must be an actor UUID, got %q", i, a.ActorID)
+		case strings.TrimSpace(a.NameID) == "":
+			return nil, fmt.Errorf("accounts[%d].nameId is required (the account name UUID)", i)
+		case !ecore.IsUUID(a.NameID):
+			return nil, fmt.Errorf("accounts[%d].nameId must be the account name UUID, got %q", i, a.NameID)
+		case a.CurrencyID <= 0:
+			return nil, fmt.Errorf("accounts[%d].currencyId must be a positive currency id", i)
+		}
+		key := fmt.Sprintf("%s_%s_%d_%s", a.ActorID, a.NameID, a.CurrencyID, a.IncomeType)
+		if j, dup := seen[key]; dup {
+			return nil, fmt.Errorf("accounts[%d] duplicates accounts[%d] (same actorId, nameId, currencyId and incomeType) — "+
+				"the chart would show it once", i, j)
+		}
+		seen[key] = i
 	}
 	return warnings, nil
 }
@@ -174,6 +202,84 @@ func newChartLayerSettings() chartLayerSettings {
 	}
 }
 
+// dashboardSource is the Dashboards actor's data.source (stored as a JSON
+// string) — the shape the UI DashboardWizard writes and pong-server reads.
+type dashboardSource struct {
+	DefaultAccount         *dashboardAccount       `json:"defaultAccount"` // always null here
+	Accounts               []dashboardAccount      `json:"accounts"`       // [] (not null) in actorFilter mode
+	CounterType            string                  `json:"counterType"`
+	ChartType              string                  `json:"chartType"`
+	SourceType             string                  `json:"sourceType"` // dashboardSourceActorFilter | dashboardSourceManual
+	Range                  string                  `json:"range"`
+	RangeDates             dashboardRangeDates     `json:"rangeDates"`
+	ShowTotal              bool                    `json:"showTotal"`
+	OrderValue             string                  `json:"orderValue"`
+	Legend                 dashboardLegend         `json:"legend"`
+	DisplayChartDataLabels bool                    `json:"displayChartDataLabels"`
+	DynamicSource          *dashboardDynamicSource `json:"dynamicSource,omitempty"` // actorFilter mode only
+	ChartViewMode          string                  `json:"chartViewMode"`
+}
+
+const (
+	dashboardSourceActorFilter = "actorFilter"
+	// The UI wizard's per-account mode; pong-server links accounts[].actorId to
+	// the dashboard only for "manual".
+	dashboardSourceManual = "manual"
+)
+
+// dashboardAccount is one series of a "manual" source.
+type dashboardAccount struct {
+	ActorID    string `json:"actorId"`
+	Color      string `json:"color"`
+	IncomeType string `json:"incomeType"`
+	CurrencyID int    `json:"currencyId"`
+	NameID     string `json:"nameId"`
+}
+
+type dashboardRangeDates struct {
+	From *string `json:"from"`
+	To   *string `json:"to"`
+}
+
+// dashboardLegend picks the parts of a series label. The UI's duplicate-series
+// check keys by incomeType only when IncomeType is on, so it must be on whenever
+// two series differ only by incomeType.
+type dashboardLegend struct {
+	ActorTitle   bool `json:"actorTitle"`
+	AccountName  bool `json:"accountName"`
+	CurrencyName bool `json:"currencyName"`
+	IncomeType   bool `json:"incomeType,omitempty"`
+}
+
+// dashboardDynamicSource points an actorFilter source at its ActorFilters actor.
+type dashboardDynamicSource struct {
+	ID            string           `json:"id"`
+	Title         string           `json:"title"`
+	Top           string           `json:"top"`
+	GroupByFields []string         `json:"groupByFields"`
+	Filter        *dashboardFilter `json:"filter,omitempty"`
+}
+
+type dashboardFilter struct {
+	FormID        int    `json:"formId"`
+	SelectedForms []int  `json:"selectedForms"`
+	AccountNameID string `json:"accountNameId"`
+	CurrencyID    int    `json:"currencyId"`
+	QFormID       string `json:"qFormId"`
+	IsUat         bool   `json:"isUat"`
+}
+
+// legendNeedsIncomeType reports whether the series use more than one incomeType;
+// otherwise two of them could share a label (and trip the wizard's dedup).
+func legendNeedsIncomeType(accounts []ChartAccountEntry) bool {
+	for _, a := range accounts {
+		if a.IncomeType != accounts[0].IncomeType {
+			return true
+		}
+	}
+	return false
+}
+
 // CreateChartResult is returned by CreateChart.
 type CreateChartResult struct {
 	DashboardActorID string `json:"dashboardActorId"`
@@ -186,43 +292,58 @@ type CreateChartResult struct {
 
 // ---- System form ID cache for chart forms ----
 
+// chartFormCache memoizes system form ids per API base URL + workspace + title.
+// Every workspace has its own copy of each system form (its own id), and form
+// ids are only unique within one backend database, so a key without the
+// workspace or the base URL hands workspace A's Dashboards id to workspace B
+// after set-workspace / set-environment. A system form's id never changes, so
+// entries live for the process lifetime (no TTL); failed lookups are not cached.
 var (
 	chartFormCacheMu sync.RWMutex
-	chartFormCache   = map[string]int{} // title → formId
+	chartFormCache   = map[string]int{} // baseURL|workspaceID|title → formId
 )
 
-// lookupSystemFormID resolves a system form title to its numeric ID.
-// Checks the server-wide form name cache first; falls back to a direct API call.
-func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL string) (int, error) {
-	// 1. Try the global name→id cache (populated from sys-forms.yaml after sim-init)
-	if id := resolveFormNameToID(title); id != 0 {
-		return id, nil
-	}
+func chartFormCacheKey(baseURL, workspaceID, title string) string {
+	return strings.TrimSuffix(baseURL, "/") + "|" + workspaceID + "|" + title
+}
 
-	// 2. Try our local chart form cache
+// lookupSystemFormID resolves a system form title to its numeric ID in the given
+// workspace, checking chartFormCache first and falling back to a direct API call.
+func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL string) (int, error) {
 	chartFormCacheMu.RLock()
-	id := chartFormCache[title]
+	id := chartFormCache[chartFormCacheKey(baseURL, workspaceID, title)]
 	chartFormCacheMu.RUnlock()
 	if id != 0 {
 		return id, nil
 	}
 
-	// 3. Fetch from the system forms endpoint
+	// The system endpoint lists only system forms. The fallback is the generic
+	// templates route filtered to system forms (pong-server getSystemTemplates,
+	// f.type IN (:formTypes)) — not formTypes=all, whose single page is ordered
+	// type NULLS FIRST and so holds no system form once a workspace has 200
+	// custom templates. Its rows are still filtered to type == "system" so a
+	// custom form sharing a system form's title can never be picked.
+	//
+	// Both routes share the access check, so only a missing route (404) or a
+	// server error is worth a second request; auth, transport and ctx errors are
+	// returned as they are.
+	systemOnly := false
 	url := fmt.Sprintf("%s/forms/templates/system/%s?formTypes=system&limit=200&offset=0", baseURL, workspaceID)
 	data, err := chartHTTPGet(ctx, url, auth)
-	if err != nil {
-		// Fall back to all-forms endpoint
-		url2 := fmt.Sprintf("%s/forms/templates/%s?formTypes=all&limit=200&offset=0&withDefault=false", baseURL, workspaceID)
+	if status := ecore.HTTPStatusOf(err); status == http.StatusNotFound || status >= 500 {
+		url2 := fmt.Sprintf("%s/forms/templates/%s?formTypes=system&limit=200&offset=0&withDefault=false", baseURL, workspaceID)
 		data, err = chartHTTPGet(ctx, url2, auth)
-		if err != nil {
-			return 0, fmt.Errorf("fetch forms to resolve %q: %w", title, err)
-		}
+		systemOnly = true
+	}
+	if err != nil {
+		return 0, fmt.Errorf("fetch forms to resolve %q: %w", title, err)
 	}
 
 	var resp struct {
 		Data []struct {
 			ID    int    `json:"id"`
 			Title string `json:"title"`
+			Type  string `json:"type"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
@@ -231,15 +352,16 @@ func lookupSystemFormID(ctx context.Context, title, workspaceID, auth, baseURL s
 
 	chartFormCacheMu.Lock()
 	for _, f := range resp.Data {
-		if f.Title != "" && f.ID != 0 {
-			chartFormCache[f.Title] = f.ID
+		if f.Title == "" || f.ID == 0 || (systemOnly && f.Type != "system") {
+			continue
+		}
+		chartFormCache[chartFormCacheKey(baseURL, workspaceID, f.Title)] = f.ID
+		if f.Title == title {
+			id = f.ID
 		}
 	}
 	chartFormCacheMu.Unlock()
 
-	chartFormCacheMu.RLock()
-	id = chartFormCache[title]
-	chartFormCacheMu.RUnlock()
 	if id == 0 {
 		return 0, fmt.Errorf("form %q not found in workspace %s", title, workspaceID)
 	}
@@ -330,6 +452,152 @@ func findGraphActorForLayer(ctx context.Context, layerID, auth, baseURL string) 
 	return "", nil
 }
 
+// ---- Shared chart pieces (createChart + updateChart) ----
+
+// chartSeriesPalette colours a direct-accounts series that names no color.
+var chartSeriesPalette = []string{
+	"#499894", "#59A14F", "#D37295", "#4E79A7", "#FF9D9A",
+	"#B07AA1", "#B6992D", "#F1CE63", "#BAB0AC", "#79706E",
+}
+
+// dashboardAccounts turns normalized series into data.source accounts.
+func dashboardAccounts(accounts []ChartAccountEntry) []dashboardAccount {
+	out := make([]dashboardAccount, len(accounts))
+	for i, a := range accounts {
+		col := a.Color
+		if col == "" {
+			col = chartSeriesPalette[i%len(chartSeriesPalette)]
+		}
+		out[i] = dashboardAccount{
+			ActorID:    a.ActorID,
+			Color:      col,
+			IncomeType: a.IncomeType,
+			CurrencyID: a.CurrencyID,
+			NameID:     a.NameID,
+		}
+	}
+	return out
+}
+
+// newDynamicSource builds an actorFilter source's dynamicSource. filter is set
+// only when the source form is known.
+func newDynamicSource(filterActorID, filterTitle string, top, sourceFormID int, accountNameID string, currencyID int) *dashboardDynamicSource {
+	ds := &dashboardDynamicSource{
+		ID:            filterActorID,
+		Title:         filterTitle,
+		Top:           fmt.Sprintf("%d", top),
+		GroupByFields: []string{},
+	}
+	if sourceFormID != 0 {
+		ds.Filter = &dashboardFilter{
+			FormID:        sourceFormID,
+			SelectedForms: []int{sourceFormID},
+			AccountNameID: accountNameID,
+			CurrencyID:    currencyID,
+			QFormID:       fmt.Sprintf("%d", sourceFormID),
+		}
+	}
+	return ds
+}
+
+// filterActor is what a chart reads back from an ActorFilters actor: its title
+// and data.filter (stored as a JSON string), or nil Filter when it has none.
+type filterActor struct {
+	Title  string
+	Filter *filterActorFilter
+}
+
+type filterActorFilter struct {
+	FormID        int    `json:"formId"`
+	AccountNameID string `json:"accountNameId"`
+	CurrencyID    int    `json:"currencyId"`
+}
+
+// readFilterActor fetches an ActorFilters actor's title and data.filter.
+func readFilterActor(ctx context.Context, id, auth, baseURL string) (filterActor, error) {
+	var fa filterActor
+	actorURL := fmt.Sprintf("%s/actors/%s?attachments=false&meetingParticipants=false&lastTranscription=false&streams=false&webhooks=false&executionState=false&triggers=false", baseURL, id)
+	data, err := chartHTTPGet(ctx, actorURL, auth)
+	if err != nil {
+		return fa, err
+	}
+	var ar struct {
+		Data struct {
+			Title string `json:"title"`
+			Data  struct {
+				Filter json.RawMessage `json:"filter"` // a JSON string, or an object from other writers
+			} `json:"data"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(data, &ar); err != nil {
+		return fa, fmt.Errorf("parse ActorFilters actor %s: %w", id, err)
+	}
+	fa.Title = ar.Data.Title
+	raw := ar.Data.Data.Filter
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		raw = json.RawMessage(s)
+	}
+	var f struct {
+		FormID        flexInt `json:"formId"`
+		AccountNameID string  `json:"accountNameId"`
+		CurrencyID    flexInt `json:"currencyId"`
+	}
+	if len(raw) > 0 && json.Unmarshal(raw, &f) == nil {
+		fa.Filter = &filterActorFilter{FormID: int(f.FormID), AccountNameID: f.AccountNameID, CurrencyID: int(f.CurrencyID)}
+	}
+	return fa, nil
+}
+
+// createFilterActor creates the ActorFilters actor an actorFilter chart reads
+// its top-N actors from, and returns its id. layerID ("" for none) is passed as
+// contextLayerId.
+func createFilterActor(ctx context.Context, title string, sourceFormID int, accountNameID string, currencyID int,
+	layerID, workspaceID, auth, baseURL string) (string, error) {
+	actorFiltersFormID, err := lookupSystemFormID(ctx, "ActorFilters", workspaceID, auth, baseURL)
+	if err != nil {
+		return "", fmt.Errorf("resolve ActorFilters form: %w", err)
+	}
+
+	filterJSON := chartJSONString(map[string]interface{}{
+		"formId":        sourceFormID,
+		"selectedForms": []int{sourceFormID},
+		"accountNameId": accountNameID,
+		"currencyId":    currencyID,
+	})
+
+	createFilterURL := fmt.Sprintf("%s/actors/actor/%d", baseURL, actorFiltersFormID)
+	if layerID != "" {
+		createFilterURL += "?contextLayerId=" + url.QueryEscape(layerID)
+	}
+	filterBody := map[string]interface{}{
+		"title": title,
+		"data": map[string]interface{}{
+			"filter":                filterJSON,
+			"fields":                "[]",
+			"defaultFields":         `["title","id","ref","owner","createdAt","updatedAt","balance"]`,
+			"formFieldExportFormat": "idAndTitle",
+			"cacheFilterResult":     false,
+		},
+		"hole": false,
+	}
+
+	respData, err := chartHTTPJSON(ctx, "POST", createFilterURL, auth, filterBody)
+	if err != nil {
+		return "", fmt.Errorf("create ActorFilters actor: %w", err)
+	}
+
+	var fr struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respData, &fr); err != nil {
+		return "", fmt.Errorf("parse ActorFilters response: %w", err)
+	}
+	return fr.Data.ID, nil
+}
+
 // ---- Core logic ----
 
 // CreateChart orchestrates the full chart creation flow:
@@ -363,160 +631,55 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 			filterActorID = cfg.FilterActorID
 			filterTitle = cfg.FilterTitle
 			if filterTitle == "" {
-				// Fetch actor title from API
-				actorURL := fmt.Sprintf("%s/actors/%s?attachments=false&meetingParticipants=false&lastTranscription=false&streams=false&webhooks=false&executionState=false&triggers=false", baseURL, filterActorID)
-				actorData, err := chartHTTPGet(ctx, actorURL, auth)
-				if err == nil {
-					var ar struct {
-						Data struct {
-							Title string                 `json:"title"`
-							Data  map[string]interface{} `json:"data"`
-						} `json:"data"`
-					}
-					if json.Unmarshal(actorData, &ar) == nil {
-						filterTitle = ar.Data.Title
-						// If caller didn't provide filter params, extract from actor data
-						if cfg.SourceFormID == 0 {
-							if raw, ok := ar.Data.Data["filter"].(string); ok {
-								var fd struct {
-									FormID        int    `json:"formId"`
-									AccountNameID string `json:"accountNameId"`
-									CurrencyID    int    `json:"currencyId"`
-								}
-								if json.Unmarshal([]byte(raw), &fd) == nil {
-									cfg.SourceFormID = fd.FormID
-									if cfg.AccountNameID == "" {
-										cfg.AccountNameID = fd.AccountNameID
-									}
-									if cfg.CurrencyID == 0 {
-										cfg.CurrencyID = fd.CurrencyID
-									}
-								}
-							}
+				// Best-effort: a failed read leaves the title empty and the filter unset.
+				if fa, err := readFilterActor(ctx, filterActorID, auth, baseURL); err == nil {
+					filterTitle = fa.Title
+					// If caller didn't provide filter params, extract from actor data
+					if cfg.SourceFormID == 0 && fa.Filter != nil {
+						cfg.SourceFormID = fa.Filter.FormID
+						if cfg.AccountNameID == "" {
+							cfg.AccountNameID = fa.Filter.AccountNameID
+						}
+						if cfg.CurrencyID == 0 {
+							cfg.CurrencyID = fa.Filter.CurrencyID
 						}
 					}
 				}
 			}
 		} else {
-			// Create a new ActorFilters actor
-			actorFiltersFormID, err := lookupSystemFormID(ctx, "ActorFilters", workspaceID, auth, baseURL)
-			if err != nil {
-				return result, fmt.Errorf("resolve ActorFilters form: %w", err)
-			}
-
 			filterTitle = cfg.FilterTitle
 			if filterTitle == "" {
 				filterTitle = cfg.Title
 			}
-
-			filterJSON := chartJSONString(map[string]interface{}{
-				"formId":        cfg.SourceFormID,
-				"selectedForms": []int{cfg.SourceFormID},
-				"accountNameId": cfg.AccountNameID,
-				"currencyId":    cfg.CurrencyID,
-			})
-
-			createFilterURL := fmt.Sprintf("%s/actors/actor/%d?contextLayerId=%s", baseURL, actorFiltersFormID, cfg.LayerID)
-			filterBody := map[string]interface{}{
-				"title": filterTitle,
-				"data": map[string]interface{}{
-					"filter":                filterJSON,
-					"fields":                "[]",
-					"defaultFields":         `["title","id","ref","owner","createdAt","updatedAt","balance"]`,
-					"formFieldExportFormat": "idAndTitle",
-					"cacheFilterResult":     false,
-				},
-				"hole": false,
-			}
-
-			respData, err := chartHTTPJSON(ctx, "POST", createFilterURL, auth, filterBody)
+			filterActorID, err = createFilterActor(ctx, filterTitle, cfg.SourceFormID, cfg.AccountNameID, cfg.CurrencyID,
+				cfg.LayerID, workspaceID, auth, baseURL)
 			if err != nil {
-				return result, fmt.Errorf("create ActorFilters actor: %w", err)
+				return result, err
 			}
-
-			var fr struct {
-				Data struct {
-					ID string `json:"id"`
-				} `json:"data"`
-			}
-			if err := json.Unmarshal(respData, &fr); err != nil {
-				return result, fmt.Errorf("parse ActorFilters response: %w", err)
-			}
-			filterActorID = fr.Data.ID
 			result.FilterActorID = filterActorID
 		}
 	}
 
 	// ---- Step 3: build dashboard source config ----
-	var sourceConfig map[string]interface{}
+	source := dashboardSource{
+		Accounts:               []dashboardAccount{},
+		CounterType:            cfg.CounterType,
+		ChartType:              cfg.ChartType,
+		Range:                  cfg.Range,
+		ShowTotal:              true,
+		OrderValue:             cfg.OrderValue,
+		Legend:                 dashboardLegend{ActorTitle: true, AccountName: true, CurrencyName: true},
+		DisplayChartDataLabels: true,
+		ChartViewMode:          "default",
+	}
 
 	if isActorFilterMode {
-		dynamicSource := map[string]interface{}{
-			"id":            filterActorID,
-			"title":         filterTitle,
-			"top":           fmt.Sprintf("%d", cfg.Top),
-			"groupByFields": []interface{}{},
-		}
-		if cfg.SourceFormID != 0 {
-			dynamicSource["filter"] = map[string]interface{}{
-				"formId":        cfg.SourceFormID,
-				"selectedForms": []int{cfg.SourceFormID},
-				"accountNameId": cfg.AccountNameID,
-				"currencyId":    cfg.CurrencyID,
-				"qFormId":       fmt.Sprintf("%d", cfg.SourceFormID),
-				"isUat":         false,
-			}
-		}
-
-		sourceConfig = map[string]interface{}{
-			"defaultAccount":         nil,
-			"accounts":               []interface{}{},
-			"counterType":            cfg.CounterType,
-			"chartType":              cfg.ChartType,
-			"sourceType":             "actorFilter",
-			"range":                  cfg.Range,
-			"rangeDates":             map[string]interface{}{"from": nil, "to": nil},
-			"showTotal":              true,
-			"orderValue":             cfg.OrderValue,
-			"legend":                 map[string]interface{}{"actorTitle": true, "accountName": true, "currencyName": true},
-			"displayChartDataLabels": true,
-			"dynamicSource":          dynamicSource,
-			"chartViewMode":          "default",
-		}
+		source.SourceType = dashboardSourceActorFilter
+		source.DynamicSource = newDynamicSource(filterActorID, filterTitle, cfg.Top, cfg.SourceFormID, cfg.AccountNameID, cfg.CurrencyID)
 	} else {
-		// Direct accounts mode
-		palette := []string{
-			"#499894", "#59A14F", "#D37295", "#4E79A7", "#FF9D9A",
-			"#B07AA1", "#B6992D", "#F1CE63", "#BAB0AC", "#79706E",
-		}
-		accounts := make([]interface{}, len(cfg.Accounts))
-		for i, a := range cfg.Accounts {
-			col := a.Color
-			if col == "" {
-				col = palette[i%len(palette)]
-			}
-			accounts[i] = map[string]interface{}{
-				"actorId":    a.ActorID,
-				"color":      col,
-				"incomeType": a.IncomeType,
-				"currencyId": a.CurrencyID,
-				"nameId":     a.NameID,
-			}
-		}
-		sourceConfig = map[string]interface{}{
-			"defaultAccount":         nil,
-			"accounts":               accounts,
-			"counterType":            cfg.CounterType,
-			"chartType":              cfg.ChartType,
-			"sourceType":             "accounts",
-			"range":                  cfg.Range,
-			"rangeDates":             map[string]interface{}{"from": nil, "to": nil},
-			"showTotal":              true,
-			"orderValue":             cfg.OrderValue,
-			"legend":                 map[string]interface{}{"actorTitle": true, "accountName": true, "currencyName": true},
-			"displayChartDataLabels": true,
-			"chartViewMode":          "default",
-		}
+		source.SourceType = dashboardSourceManual
+		source.Legend.IncomeType = legendNeedsIncomeType(cfg.Accounts)
+		source.Accounts = dashboardAccounts(cfg.Accounts)
 	}
 
 	// ---- Step 4: create Dashboards actor ----
@@ -525,7 +688,7 @@ func CreateChart(ctx context.Context, cfg ChartConfig, workspaceID, auth, baseUR
 		"title":       cfg.Title,
 		"description": cfg.Description,
 		"data": map[string]interface{}{
-			"source": chartJSONString(sourceConfig),
+			"source": chartJSONString(source),
 		},
 		"hole": false,
 	}
@@ -738,20 +901,17 @@ func handleCreateChart(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	return mcp.NewToolResultText(string(out)), nil
 }
 
-// isDashboardFormID reports whether formID is the Dashboards system form in this
-// syncer's workspace. It reuses lookupSystemFormID (system-forms endpoint, so a
-// same-named custom form cannot collide) and fails open (false) when the form
-// cannot be resolved — mirroring the createActor/updateActor guards in
-// internal/tools so pushGraphFile does not become a bypass for hand-built charts.
+// isDashboardFormID reports whether formID is the Dashboards system form. Like
+// the createActor/updateActor guards in internal/tools it resolves the form by
+// its own id (ecore.IsDashboardForm: GET /forms/{id}), so neither another
+// workspace's id nor a same-named custom form can collide, and it fails open
+// (false) when the form cannot be resolved — so pushGraphFile does not become a
+// bypass for hand-built charts.
 func (s *GraphSyncer) isDashboardFormID(ctx context.Context, formID int) bool {
-	if formID == 0 {
-		return false
-	}
-	dashID, err := lookupSystemFormID(ctx, "Dashboards", s.workspaceID, s.auth, s.baseURL)
-	if err != nil {
-		return false // fail open
-	}
-	return formID == dashID
+	isDash, err := ecore.IsDashboardForm(ctx, s.baseURL, formID, func(ctx context.Context, path string, q url.Values) ([]byte, error) {
+		return s.get(ctx, s.baseURL+path+"?"+q.Encode())
+	})
+	return err == nil && isDash
 }
 
 // dashboardSourceHasContent reports whether a graph actor's data sets data.source

@@ -64,6 +64,13 @@ removeAttachments(accId="ws_xxx", items=[
 ])   # unlinks; does NOT delete the stored file
 ```
 
+> **Which files you may link.** The file must be in the target actor's workspace and within your
+> reach: you uploaded it, or it already hangs on an actor you can view. An unlinked file is its
+> uploader's alone, except an anonymous visitor's upload (public form/widget intake), which a
+> workspace member or API key may link. Anything else → `400` (another workspace) / `403`. The
+> same rule applies to a reaction's `attachments`. Link the file you just uploaded, not an id
+> picked from `getAttachments`.
+
 ## List & rename
 
 ```

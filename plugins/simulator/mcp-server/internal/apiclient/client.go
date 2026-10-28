@@ -62,6 +62,17 @@ func (c *Client) BaseURL() string {
 	return c.baseURL
 }
 
+// BaseURLForContext returns the API base URL a request on ctx is sent to: the
+// per-request override (WithBaseURL) when set, else the stored base URL. Caches
+// keyed by backend must use it, not BaseURL — a stateless server routes each
+// request to its own backend.
+func (c *Client) BaseURLForContext(ctx context.Context) string {
+	if base := BaseURLFromContext(ctx); base != "" {
+		return base
+	}
+	return c.BaseURL()
+}
+
 // SetBaseURL updates the API base URL at runtime (used by set-environment).
 func (c *Client) SetBaseURL(baseURL string) {
 	c.mu.Lock()
@@ -326,11 +337,7 @@ func (c *Client) DoRaw(ctx context.Context, method, path string, query url.Value
 // the base URL (ctx override else stored), appends the query, marshals a JSON
 // body, and attaches the Authorization header (ctx override else AuthHeader).
 func (c *Client) buildRequest(ctx context.Context, method, path string, query url.Values, body any) (*http.Request, error) {
-	base := BaseURLFromContext(ctx)
-	if base == "" {
-		base = c.BaseURL()
-	}
-	full := base + path
+	full := c.BaseURLForContext(ctx) + path
 	if len(query) > 0 {
 		full += "?" + query.Encode()
 	}

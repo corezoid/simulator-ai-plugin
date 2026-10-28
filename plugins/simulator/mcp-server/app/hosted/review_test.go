@@ -126,3 +126,14 @@ func TestHostedEngineToolsTakeAccID(t *testing.T) {
 		}
 	}
 }
+
+// An accId that only feeds a lookup keeps its optional wording on hosted.
+func TestHostedOptionalAccIDStaysOptional(t *testing.T) {
+	tools := hostedTools(t)
+	for _, name := range []string{"createActor", "getRelatedActors"} {
+		if s := tools[name].schema; !strings.Contains(s, "used only to") || !strings.Contains(s, "named in the connector URL") ||
+			strings.Contains(s, hostedAccIDDescription) {
+			t.Errorf("%s accId lost its optional hosted wording: %s", name, s)
+		}
+	}
+}
