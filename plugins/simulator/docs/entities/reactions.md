@@ -158,8 +158,9 @@ A reaction (and an actor) can embed richer content than plain text:
   - **Each tag lists where it is allowed (`context`):** `actor-description`, `reaction`,
     `event-card` (Events actors — chats, meetings, tasks), `layer-comment`, `form-label`. Use
     only tags allowed where you write: a reaction takes chips, `[b]` `[i]` `[u]` `[s]`,
-    `[color]` `[size]` `[bg]`, `[url]`, `[icode]`, `[code]`, `[blockquote]`, `[hr]`, `[br]` — no
-    headings, lists or pictures.
+    `[color]` `[size]` `[bg]`, `[url]`, `[icode]`, `[code]`, `[blockquote]`, `[hr]`, `[br]` and
+    `[md]…[/md]` — no BBCode headings, lists or pictures (markdown headings and lists inside `[md]`
+    are fine).
   - **Pictures (descriptions, not reactions).** Upload the file (`uploadBase64` → `attachId` +
     `fileName`), link it to the actor with `addAttachments`, then reference it by `fileName` (it
     may contain `/`): `[img=<fileName> width=640 height=480]alt text[/img]`; inside `[md]`:

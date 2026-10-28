@@ -146,8 +146,8 @@ A reaction can carry more than text:
   `[application=<smartFormId>]Label[/application]`, `[user=…]`, `[event=…]`; formatting `[b]` `[i]`
   `[u]` `[s]`, `[color=…]`, `[url=…]`, `[icode]…[/icode]`, `[code=<lang>]…[/code]`,
   `[blockquote]…[/blockquote]`, `[hr]`; and `[md]…[/md]` for markdown. Fetch the environment's exact
-  tag set with **`getBbcodeTags`** and use only tags whose `context` lists `reaction` — headings,
-  lists and pictures are not reaction tags. **No pictures in reaction text:** upload the file and
+  tag set with **`getBbcodeTags`** and use only tags whose `context` lists `reaction` — BBCode headings,
+  lists and pictures are not reaction tags (markdown headings and lists inside `[md]` are fine). **No pictures in reaction text:** upload the file and
   pass it in the reaction's `attachments` (see `simulator-attachments`). **BBCode works only OUTSIDE `[md]`
   blocks** — keep chips/BBCode out of any `[md]…[/md]` section. And the reverse: `description`
   is BBCode by default, **not** markdown, so any markdown you write MUST be wrapped in
