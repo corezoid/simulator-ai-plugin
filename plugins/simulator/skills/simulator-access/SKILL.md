@@ -98,7 +98,36 @@ saveAccessRules(objType="actor", objId="<UUID>", recursive=false, notify=false, 
 `saveTreeLayerAccess(objId=<layer id>, rules=[…])` take the same `rules` shape for the
 template-actor and tree-layer scopes.
 
+### Actors access of a system form (Events, Graphs, Layers, …)
+
+A rule on the actors of a **system form** (`type: "system"`) gives the grantee access to every
+actor of that form, existing and new; deleting the rule revokes it. The backend restricts it:
+
+- **Who:** only a workspace user with the `system_actors:management` permission (owner and admin
+  roles by default). Anyone else — a member, a guest, an API key — gets **403**.
+- **Whom:** only **API keys** (`userId` of a user of type `api`) can be **added**. Adding a person
+  or a group returns **400**: share the individual actors instead. Existing rules of any grantee
+  can still be updated or deleted.
+- **What:** only `privs.view` and `privs.modify` are applied. The other privileges of an
+  existing rule stay as they are; `view: false` drops all privileges of the rule, and `modify`
+  is not granted without `view`.
+- **The form owner's rule** (the system user, `userId` 0) is read-only: changing or deleting it
+  returns **400**. Leave it out of `rules`.
+
+```
+# Let API key 7001 read all events (Events form template 12):
+saveTemplateActorsAccess(objId="12", rules=[
+  { "action": "create", "data": {
+      "userId": 7001,
+      "privs": { "view": true, "modify": false, "remove": false } } }
+])
+```
+
 ## Bulk
+
+`bulkSaveAccessRules` checks every item as its own call would (a `templateActors` item of a
+system form follows the rules above) and validates all items before saving any: one invalid item
+fails the whole call and nothing is applied.
 
 ```
 # Many objects at once (≤50), each with its own rules:
