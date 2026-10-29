@@ -5,7 +5,8 @@ import "strings"
 // privsDesc documents the per-rule `privs` object shared by every save operation.
 const privsDesc = "Privilege flags: " +
 	"{view, modify, remove (all booleans, required), sign, ds, execute (optional booleans)}. " +
-	"`view` is implied when any other privilege is set."
+	"`view` is implied when any other privilege is set, except in the actors access of a system form " +
+	"(see saveTemplateActorsAccess), where `view` must be set explicitly."
 
 // ruleDesc documents one entry of the access-rule body array.
 const ruleDesc = "Array of rule operations. Each item = " +
@@ -41,7 +42,8 @@ var accessRuleOps = []Operation{
 	{
 		Name: "saveAccessRules", Method: "POST", Path: "/access_rules/{objType}/{objId}",
 		Summary: "Grant, change or revoke access on an object (actor, form, account, template). " +
-			"Applied asynchronously — returns a taskId. Use action=create/update/delete per grantee.",
+			"Applied asynchronously — returns a taskId. Use action=create/update/delete per grantee. " +
+			"objType=templateActors is the same call as saveTemplateActorsAccess, so a system form's rules apply.",
 		Params: []Param{
 			{Name: "objType", In: InPath, Type: "string", Required: true, Enum: accessObjTypes, Desc: "Object kind."},
 			{Name: "objId", In: InPath, Type: "string", Required: true, Desc: "Object id (actor UUID, or numeric form/account id as a string)."},
@@ -70,7 +72,8 @@ var accessRuleOps = []Operation{
 			"permission (owner/admin) may call it, others incl. API keys get 403; only API keys can be added " +
 			"(a user or group → 400), existing rules of any grantee can be updated or deleted; only privs.view/" +
 			"modify are applied (other privileges of an existing rule are kept, view=false drops them all, modify " +
-			"needs view); the form owner's rule (system user, userId 0) can not be changed or deleted (400).",
+			"needs view, and view is not implied: set privs.view=true explicitly or the rule grants nothing); " +
+			"the form owner's rule (system user, userId 0) can not be changed or deleted (400).",
 		Params: []Param{
 			{Name: "objId", In: InPath, Type: "string", Required: true, Desc: "Form-template id."},
 			{Name: "rules", In: InBodyRoot, Type: "array", Required: true, Desc: ruleDesc},

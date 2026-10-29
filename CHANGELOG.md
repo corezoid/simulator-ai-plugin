@@ -41,6 +41,9 @@
   only API keys can be added, only view/modify are applied (view=false drops the rule's privileges),
   the system user's rule is read-only. `bulkSaveAccessRules` validates every item before saving any.
   Drift-gate spec carries the route's new description.
+- Access-rule `privs` description: on a system form's actors access `view` is not implied by
+  `modify` and must be set explicitly; `saveAccessRules` with `objType=templateActors` notes that it
+  is the same call as `saveTemplateActorsAccess`, so the system-form rules apply.
 
 ### Fixed
 - createChart and the pushGraphFile Dashboards guard cached system form ids by title only, so after
