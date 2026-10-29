@@ -141,16 +141,38 @@ A reaction (and an actor) can embed richer content than plain text:
   card/preview** inside the reaction:
   `createReaction(type="comment", actorId="<actor>", extra={ "linkedActorId": "<otherActorId>" })`.
 - **Inline chips & formatting (in `description` / comment text).** Both reaction bodies and
-  actor `description`s render **BBCode** — chips and rich formatting:
-  - Chips: `[actor=<id>]Label[/actor]` (nested actor card), `[application=<smartFormId>]Label[/application]`
-    (smart-form chip), plus `[event=…]`, `[graph=…]`, `[graphLayer=…]`, `[user=…]`, `[chat=…]`,
-    `[file=…]`, `[quote=…]`, `[smarttag=…]`.
-  - Formatting: `[b]` `[i]` `[u]`, `[h1]`..`[h6]`, `[color=…]` `[size=…]` `[bg=…]` `[span …]`,
-    `[ul][*]…[/ul]` / `[ol][*]…[/ol]`, `[url=href]…[/url]`, `[img=<id>]` / `[imgSrc=…]`, `[br]`,
-    and `[md]…[/md]` for a markdown block.
-  - **The exact tag set is per-environment** — fetch it with the **`getBbcodeTags`** tool
-    (reads `<web-host>/bbcode-tags.json`: each tag's attributes + an example) before composing
-    a rich description.
+  actor `description`s render **BBCode** — chips and rich formatting. This section is the one
+  place the plugin describes the markup; the skills point here.
+  - **Ask the tool what the place you write to accepts.** Call **`getBbcodeTags`** with
+    `context` set to that place — `actor-description`, `reaction`, `event-card` (Events actors:
+    chats, meetings, tasks), `layer-comment` (comments on a graph layer) or `form-label` (not CDU
+    smart-form labels — those have their own set, see `simulator-smart-forms`). It returns only
+    the tags allowed there, from **this environment's** vocabulary, with their attributes and an
+    example. Use only those tags and attributes: an environment on an older frontend may lack a
+    tag, an attribute (e.g. the number in `[ol=3]`) or a place, and anything else shows as
+    literal text. Write attributes in the order the tool lists them.
+  - What exists (the tool has the exact set): chips `[actor=<id>]Label[/actor]` (nested actor
+    card), `[application=<smartFormId>]Label[/application]` (smart-form chip), `[event=…]`,
+    `[graph=…]`, `[graphLayer=…]`, `[user=…]`, `[chat=…]`, `[file=…]`, `[quote=…]`,
+    `[smarttag=<id>]Label[/smarttag]` (the label without `#` — the chip draws it); formatting
+    `[b]` `[i]` `[u]` `[s]`, `[h1]`..`[h6]`, `[color=…]` `[size=…]` `[bg=…]`, `[ul][*]…[/ul]` /
+    `[ol][*]…[/ol]` (`[ol=3]` starts the numbering at 3), `[url=href]…[/url]`, `[icode]…[/icode]`
+    (inline code), `[code]…[/code]` / `[code=<lang>]…[/code]` (code block; tags inside are shown
+    as typed), `[blockquote]…[/blockquote]`, `[hr]` (a line on its own), `[br]`, pictures (below)
+    and `[md]…[/md]` for a markdown block. A tag closes only with its exact `[/tag]`.
+  - **Pictures (descriptions, not reaction text).**
+    1. Upload the file: `uploadBase64` → the record's `id` (the `attachId`) and its `fileName`.
+    2. Link it to the actor with `addAttachments`. **Do not skip this:** an unlinked upload expires
+       with the workspace file TTL (`ttl=0` does not make it permanent) and the picture breaks.
+    3. Reference it by the real `fileName` — it may contain `/`; write it as is, never inside
+       `<…>`: `[img=c26122dc-6a29-4131-924d-9bb607e21573/2026/10/28/XAgV6sVygh width=640 height=480]alt text[/img]`, or inside `[md]`:
+       `![alt text](c26122dc-6a29-4131-924d-9bb607e21573/2026/10/28/XAgV6sVygh#width=640;height=480)`.
+
+    `width` and `height` are optional, but in `[img]` / `[imgSrc]` `width` must come before
+    `height` (the other order breaks the picture). A picture already on the web:
+    `[imgSrc=https://…]alt[/imgSrc]` or `![alt](https://…)` — only `http(s)://` or a `/path`,
+    never a `data:` URI. **A reaction's text cannot hold a picture** — pass the uploaded file in
+    the reaction's `attachments` instead.
   - **BBCode is processed only OUTSIDE `[md]` blocks.** Inside `[md]…[/md]` the content is
     markdown, so a chip/BBCode placed there is **not** rendered — keep chips/BBCode outside the
     `[md]` section (use one or the other in a given span).

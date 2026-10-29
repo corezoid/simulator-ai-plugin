@@ -57,19 +57,19 @@ var attachmentOps = []Operation{
 
 // uploadOps — store a file in the workspace. Only the base64 variant is exposed as
 // a curated tool (a single JSON call); multipart uploads go through the
-// uploadActorPicture engine tool. The response carries the attachment record (with
-// its `attachId` and storage `fileName`) you then pass to addAttachments or a
+// uploadActorPicture engine tool. The response carries the attachment record (its
+// `id` is the attachId, plus the storage `fileName`) you then pass to addAttachments or a
 // reaction's `attachments`.
 var uploadOps = []Operation{
 	{
 		Name: "uploadBase64", Method: "POST", Path: "/upload/base64/{accId}",
-		Summary: "Upload a file from base64 content; returns the stored attachment record (attachId, fileName). " +
-			"Use the returned attachId with addAttachments or createReaction's attachments.",
+		Summary: "Upload a file from base64 content; returns the stored attachment record (id, fileName). " +
+			"Use the returned id as attachId with addAttachments or createReaction's attachments.",
 		Params: []Param{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "file", In: InBody, Type: "string", Required: true, Desc: "File content as a base64 string. Prefer raw base64; a `data:<mime>;base64,` URI prefix is also accepted (it is stripped server-side)."},
 			{Name: "originalName", In: InBody, Type: "string", Required: true, Desc: "Original file name with extension (e.g. report.pdf) — sets the type and title."},
-			{Name: "ttl", In: InQuery, Type: "number", Desc: "Lifetime in seconds; 0 = permanent."},
+			{Name: "ttl", In: InQuery, Type: "number", Desc: "Lifetime in seconds; 0 or omitted = the workspace file TTL. Only linking the file (addAttachments / a reaction's attachments) keeps it permanently."},
 			{Name: "compressionLevel", In: InQuery, Type: "string", Enum: []string{"low", "medium", "high"}, Desc: "Optional image/video compression level."},
 		},
 	},

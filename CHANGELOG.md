@@ -32,12 +32,27 @@
   against the backend spec.
 
 ### Changed
+- Description markup guidance follows the extended BBCode vocabulary. `getBbcodeTags` takes a
+  `context` (e.g. `reaction`, `actor-description`) and returns only the tags that place accepts,
+  as a compact answer (no prose unless `detail=true`, no editor-only attributes) cached per
+  environment for 10 minutes (an older vocabulary that lists no places returns every tag with a
+  note); it is now also served in actor mode, so the reaction-triggered agent can check its markup. The rules — new tags (`[s]`, `[code]`, `[icode]`, `[blockquote]`,
+  `[hr]`, `[ol=N]`), pictures (`[img=fileName]` after upload + `addAttachments`, `width` before
+  `height`, `![alt](fileName#width=W;height=H)` inside `[md]`, `[imgSrc]` http(s) or `/path` only,
+  no pictures in reaction text) — live once in `docs/entities/reactions.md` → "Embedding"; the
+  `/simulator`, `/simulator-actors`, `/simulator-reactions` and `/simulator-attachments` skills
+  point there.
 - simulator-attachments skill: documents pong-server's new linking rule — `addAttachments` and a
   reaction's `attachments` take only a file of the target actor's workspace that the caller uploaded
   or can already see on an actor (an anonymous visitor's unlinked upload is linkable by a member or
   API key); anything else is refused with 400 / 403.
 
 ### Fixed
+- `uploadBase64` docs said it returns an `attachId`; it returns the record's `id` (which is the
+  `attachId` other tools take). Fixed in the tool summary, the attachments / chat / reactions /
+  actors skills and the eval fixture.
+- `ttl=0` on `uploadBase64` was documented as "permanent"; it falls back to the workspace file TTL.
+  Only linking the file keeps it.
 - createChart and the pushGraphFile Dashboards guard cached system form ids by title only, so after
   `set-workspace` / `set-environment` in the same session createChart built the dashboard on the previous
   workspace's Dashboards form and the push guard compared against that foreign id and let a hand-built
