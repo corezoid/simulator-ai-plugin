@@ -104,3 +104,14 @@ func TestGetBbcodeTagsProjection(t *testing.T) {
 		t.Errorf("vocabulary fetched %d times, want 1 (cached per environment)", hits.Load())
 	}
 }
+
+func TestProjectBbcodeVocabularyWithoutContexts(t *testing.T) {
+	v := bbcodeVocabulary{Tags: []bbcodeTag{{Tag: "b"}, {Tag: "i"}}}
+	got, err := projectBbcodeVocabulary(v, "reaction", false)
+	if err != nil {
+		t.Fatalf("want every tag for a vocabulary that lists no places, got %v", err)
+	}
+	if len(got.Tags) != 2 || got.Context != "" || !strings.Contains(got.Note, `"reaction"`) {
+		t.Errorf("got %+v, want both tags, no context and a note naming the place", got)
+	}
+}

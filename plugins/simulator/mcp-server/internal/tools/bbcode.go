@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -162,18 +163,28 @@ func loadBbcodeVocabulary(ctx context.Context, c *apiclient.Client, base string)
 }
 
 // bbcodeAnswer is what the tool returns: the vocabulary version, the context it
-// was narrowed to (if any) and the tags.
+// was narrowed to (if any), a note when the narrowing could not be applied, and
+// the tags.
 type bbcodeAnswer struct {
 	Version string      `json:"version,omitempty"`
 	Context string      `json:"context,omitempty"`
+	Note    string      `json:"note,omitempty"`
 	Tags    []bbcodeTag `json:"tags"`
 }
 
 // projectBbcodeVocabulary keeps the tags allowed in place (all when empty), drops
 // editor-only attributes, and drops prose descriptions unless detail is set.
 // Within a single context the per-tag context list is redundant and dropped too.
-// An unknown place is an error naming the places the vocabulary knows.
+// An unknown place is an error naming the places the vocabulary knows. An older
+// vocabulary that lists no places at all cannot be narrowed: every tag comes back
+// with a note saying so, rather than an error naming no places.
 func projectBbcodeVocabulary(v bbcodeVocabulary, place string, detail bool) (bbcodeAnswer, error) {
+	if place != "" && !slices.ContainsFunc(v.Tags, func(t bbcodeTag) bool { return len(t.Context) > 0 }) {
+		out, err := projectBbcodeVocabulary(v, "", detail)
+		out.Note = fmt.Sprintf("this environment's vocabulary does not say where each tag is allowed, so it "+
+			"cannot be narrowed to %q; every tag is returned", place)
+		return out, err
+	}
 	out := bbcodeAnswer{Version: v.Version, Context: place, Tags: []bbcodeTag{}}
 	known := map[string]bool{}
 	for _, t := range v.Tags {

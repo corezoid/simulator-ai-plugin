@@ -35,8 +35,8 @@
 - Description markup guidance follows the extended BBCode vocabulary. `getBbcodeTags` takes a
   `context` (e.g. `reaction`, `actor-description`) and returns only the tags that place accepts,
   as a compact answer (no prose unless `detail=true`, no editor-only attributes) cached per
-  environment for 10 minutes; it is now also served in actor mode, so the reaction-triggered
-  agent can check its markup. The rules — new tags (`[s]`, `[code]`, `[icode]`, `[blockquote]`,
+  environment for 10 minutes (an older vocabulary that lists no places returns every tag with a
+  note); it is now also served in actor mode, so the reaction-triggered agent can check its markup. The rules — new tags (`[s]`, `[code]`, `[icode]`, `[blockquote]`,
   `[hr]`, `[ol=N]`), pictures (`[img=fileName]` after upload + `addAttachments`, `width` before
   `height`, `![alt](fileName#width=W;height=H)` inside `[md]`, `[imgSrc]` http(s) or `/path` only,
   no pictures in reaction text) — live once in `docs/entities/reactions.md` → "Embedding"; the
