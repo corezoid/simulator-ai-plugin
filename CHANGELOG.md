@@ -36,6 +36,11 @@
   reaction's `attachments` take only a file of the target actor's workspace that the caller uploaded
   or can already see on an actor (an anonymous visitor's unlinked upload is linkable by a member or
   API key); anything else is refused with 400 / 403.
+- `saveTemplateActorsAccess` / simulator-access skill: documents pong-server's actors access of
+  system forms — only users with `system_actors:management` (owner/admin) manage it,
+  only API keys can be added, only view/modify are applied (view=false drops the rule's privileges),
+  the system user's rule is read-only. `bulkSaveAccessRules` validates every item before saving any.
+  Drift-gate spec carries the route's new description.
 
 ### Fixed
 - createChart and the pushGraphFile Dashboards guard cached system form ids by title only, so after
