@@ -110,7 +110,10 @@ actor of that form, existing and new; deleting the rule revokes it. The backend 
   can still be updated or deleted.
 - **What:** only `privs.view` and `privs.modify` are applied. The other privileges of an
   existing rule stay as they are; `view: false` drops all privileges of the rule, and `modify`
-  is not granted without `view`.
+  is not granted without `view`. Unlike other objects, `view` is not implied here: to grant
+  access, send `view: true` explicitly.
+- **Route:** `saveAccessRules(objType="templateActors", …)` is the same call as
+  `saveTemplateActorsAccess`, so these rules apply to it too.
 - **The form owner's rule** (the system user, `userId` 0) is read-only: changing or deleting it
   returns **400**. Leave it out of `rules`.
 
