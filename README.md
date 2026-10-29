@@ -321,7 +321,7 @@ the actor/node items.)
 | `simulationRun`          | Simulate a layer: run behaviour rules in model time per scenario and compare metrics; `runs` > 1 gives medians, ranges and goal shares. Read-only |
 | `simulationSnapshot`     | Read a layer with its account values into `<layerId>.sim.yaml` (plugin layer YAML + `sim:` sections) |
 | `buildLink`              | Build an absolute web-app deep-link (actor / event / chat / layer / transaction / …) for the user to click; resolves the web base + workspace automatically, and defaults to the user's open actor/layer from the UI context when present |
-| `getBbcodeTags`          | Fetch the environment's BBCode vocabulary (`<web-base>/bbcode-tags.json`): each tag's attributes, example and `context` (where it is allowed) — read before writing a rich description |
+| `getBbcodeTags`          | The environment's BBCode vocabulary (`<web-base>/bbcode-tags.json`), compact and cached; `context` narrows it to the tags one place accepts (e.g. `reaction`), `detail` adds prose. Also served in actor mode |
 
 ## Architecture
 

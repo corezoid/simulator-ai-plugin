@@ -216,20 +216,14 @@ form; `appSettings` `{autorun, expired, users, groups, fullWidth}` tunes it. See
 
 **Rich `description` (BBCode).** An actor's `description` renders **BBCode** — chips like
 `[actor=<otherActorId>]Label[/actor]` (nested actor card) and `[application=<smartFormId>]Label[/application]`
-(smart-form chip), plus formatting (`[b]` `[i]` `[u]` `[s]`, `[color=…]`, `[h2]`, `[ul][*]…[/ul]`,
-`[ol=3][*]…[/ol]` — a numbered list starting at 3, `[url=…]`, `[icode]`, `[code=<lang>]…[/code]`,
-`[blockquote]`, `[hr]`), pictures and `[md]…[/md]` for markdown. Fetch the environment's exact tag
-set with **`getBbcodeTags`** and use only tags whose `context` lists `actor-description`
-(`event-card` for Events actors — chats, meetings, tasks). If `getBbcodeTags` does not list a
-tag, do not use it.
-**Pictures in a description:** upload the file (`uploadBase64` → record `id`, the `attachId`, +
-`fileName`), link it to the actor with `addAttachments` so it is listed among the actor's files
-(the editor keeps description pictures and attachments in sync), then reference it by the real
-`fileName` (it may contain `/`; no angle brackets): `[img=c26122dc-6a29-4131-924d-9bb607e21573/2026/10/28/XAgV6sVygh width=640 height=480]alt text[/img]`,
-or inside `[md]` `![alt text](c26122dc-6a29-4131-924d-9bb607e21573/2026/10/28/XAgV6sVygh#width=640;height=480)`. A picture already on the web:
-`[imgSrc=https://…]alt[/imgSrc]` or `![alt](https://…)` — only `http(s)://` addresses or a
-`/path`, never a `data:` URI. Width and height are optional.
-**BBCode is processed only OUTSIDE `[md]` blocks.** The reverse matters too: a `description` is rendered as **BBCode by default, not markdown**, so any markdown you write (`##`, `-`, `**bold**`, tables) MUST be wrapped in `[md]…[/md]` or it shows as literal text — applies to every `createActor`/`updateActor` `description`, Events actors (chats/meetings/tasks) included (e.g. `description="[md]## Agenda\n- item[/md]"`). See `docs/entities/reactions.md` → "Embedding".
+(smart-form chip), formatting, lists, code, pictures and `[md]…[/md]` for markdown. Call
+**`getBbcodeTags(context="actor-description")`** (`event-card` for Events actors — chats, meetings,
+tasks) and use only the tags and attributes it returns.
+**Pictures:** upload (`uploadBase64` → record `id` + `fileName`), **link with `addAttachments`**
+(an unlinked upload expires with the workspace file TTL and the picture breaks), then write
+`[img=<the fileName as is> width=640 height=480]alt[/img]` — `width` before `height`, no angle
+brackets. Steps, the `[md]` form and `[imgSrc]`: `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` → "Embedding".
+**BBCode is processed only OUTSIDE `[md]` blocks.** The reverse matters too: a `description` is rendered as **BBCode by default, not markdown**, so any markdown you write (`##`, `-`, `**bold**`, tables) MUST be wrapped in `[md]…[/md]` or it shows as literal text — applies to every `createActor`/`updateActor` `description`, Events actors (chats/meetings/tasks) included (e.g. `description="[md]## Agenda\n- item[/md]"`).
 
 ## Holes — empty placeholder nodes
 

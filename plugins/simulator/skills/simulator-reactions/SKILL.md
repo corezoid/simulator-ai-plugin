@@ -142,18 +142,14 @@ A reaction can carry more than text:
   (The same `appId`/`appSettings` embed a smart form into a regular actor — see `simulator-smart-forms`.)
 - **Nested actor card** — `extra.linkedActorId` embeds another actor as a preview card:
   `createReaction(..., extra={ "linkedActorId": "<otherActorId>" })`.
-- **Inline chips / rich text** — `description` renders **BBCode**: chips `[actor=<id>]Label[/actor]`,
-  `[application=<smartFormId>]Label[/application]`, `[user=…]`, `[event=…]`; formatting `[b]` `[i]`
-  `[u]` `[s]`, `[color=…]`, `[url=…]`, `[icode]…[/icode]`, `[code=<lang>]…[/code]`,
-  `[blockquote]…[/blockquote]`, `[hr]`; and `[md]…[/md]` for markdown. Fetch the environment's exact
-  tag set with **`getBbcodeTags`** and use only tags whose `context` lists `reaction` — BBCode headings,
-  lists and pictures are not reaction tags (markdown headings and lists inside `[md]` are fine). If `getBbcodeTags` does
-  not list a tag, do not use it. **No pictures in reaction text:** upload the file and
-  pass it in the reaction's `attachments` (see `simulator-attachments`). **BBCode works only OUTSIDE `[md]`
-  blocks** — keep chips/BBCode out of any `[md]…[/md]` section. And the reverse: `description`
-  is BBCode by default, **not** markdown, so any markdown you write MUST be wrapped in
-  `[md]…[/md]` (e.g. `[md]## Title\n- item[/md]`) or it renders as literal text. See
-  `docs/entities/reactions.md`.
+- **Inline chips / rich text** — `description` renders **BBCode** (chips like
+  `[actor=<id>]Label[/actor]`, formatting, code, quotes) and `[md]…[/md]` for markdown. Call
+  **`getBbcodeTags(context="reaction")`** and use only the tags and attributes it returns.
+  **No pictures in reaction text:** upload the file and pass it in the reaction's `attachments`
+  (see `simulator-attachments`). **BBCode works only OUTSIDE `[md]` blocks**, and the reverse:
+  `description` is BBCode by default, **not** markdown, so any markdown you write MUST be wrapped
+  in `[md]…[/md]` (e.g. `[md]## Title\n- item[/md]`) or it renders as literal text. Full rules:
+  `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` → "Embedding".
 
 ## Pin & read state
 

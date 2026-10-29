@@ -45,7 +45,7 @@ uploadBase64(
   accId="ws_xxx",                  # optional — defaults to the configured workspace
   file="<base64 string>",          # prefer RAW base64; a data:<mime>;base64, prefix is also stripped server-side
   originalName="report.pdf",       # sets the type + title
-  ttl=0)                           # seconds; 0 = permanent
+  ttl=0)                           # seconds; 0/omitted = the workspace file TTL
 # → returns the attachment record incl. id (= attachId) + fileName
 ```
 
@@ -104,11 +104,13 @@ addAttachments(items=[{ "attachId": 5521, "actorId": "<actor UUID>" }])
 ## Tips
 
 - Upload first to get an `attachId`, then `addAttachments` (or a reaction's `attachments`).
+- An upload that is never linked expires with the workspace file TTL (`ttl=0` does not make it
+  permanent); linking it (`addAttachments` or a reaction's `attachments`) keeps it.
 - `removeAttachments` only **unlinks** — it does not delete the stored bytes.
 - `uploadBase64` prefers raw base64; a `data:<mime>;base64,` prefix is stripped server-side.
 - For an actor's avatar/picture use `uploadActorPicture` (handles URL / local path / base64, auto-rasterises SVG).
-- To show a picture **inside an actor's description**, upload it, `addAttachments` it to that actor,
-  then write `[img=<fileName>]alt[/img]` (or `![alt](<fileName>)` inside `[md]`), putting the returned
-  `fileName` in place of `<fileName>` without angle brackets — see `simulator-actors`. A reaction's text cannot hold pictures: pass the file in the
+- To show a picture **inside an actor's description**, upload it and `addAttachments` it to that
+  actor, then reference its `fileName` — steps and syntax in
+  `$CLAUDE_PLUGIN_ROOT/docs/entities/reactions.md` → "Embedding". A reaction's text cannot hold pictures: pass the file in the
   reaction's `attachments`.
 - `addAttachments`/`removeAttachments` `items` need BOTH `attachId` and `actorId` per entry.

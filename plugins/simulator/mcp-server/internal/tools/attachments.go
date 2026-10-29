@@ -69,7 +69,7 @@ var uploadOps = []Operation{
 			{Name: "accId", In: InPath, Type: "string", Required: true, Desc: "Workspace id. Defaults to the configured workspace if omitted."},
 			{Name: "file", In: InBody, Type: "string", Required: true, Desc: "File content as a base64 string. Prefer raw base64; a `data:<mime>;base64,` URI prefix is also accepted (it is stripped server-side)."},
 			{Name: "originalName", In: InBody, Type: "string", Required: true, Desc: "Original file name with extension (e.g. report.pdf) — sets the type and title."},
-			{Name: "ttl", In: InQuery, Type: "number", Desc: "Lifetime in seconds; 0 = permanent."},
+			{Name: "ttl", In: InQuery, Type: "number", Desc: "Lifetime in seconds; 0 or omitted = the workspace file TTL. Only linking the file (addAttachments / a reaction's attachments) keeps it permanently."},
 			{Name: "compressionLevel", In: InQuery, Type: "string", Enum: []string{"low", "medium", "high"}, Desc: "Optional image/video compression level."},
 		},
 	},
