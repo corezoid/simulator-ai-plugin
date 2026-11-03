@@ -77,7 +77,7 @@ func TestUnifiedServerSwitchesModeOnCtxActor(t *testing.T) {
 		"getRelatedActors", "getLinkedActors", "getActorLinks",
 		"createLink", "existLink", "updateEdge", "deleteEdge",
 		"getActorAttachments", "uploadBase64", "addAttachments", "removeAttachments",
-		"getAccessRules", "saveAccessRules",
+		"getAccessRules", "saveAccessRules", "getBbcodeTags",
 	} {
 		if _, ok := actor[want]; !ok {
 			t.Errorf("actor mode is missing tool %q", want)

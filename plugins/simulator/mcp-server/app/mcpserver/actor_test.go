@@ -61,7 +61,7 @@ func TestNewActorServerServesPerActorSpec(t *testing.T) {
 		"getRelatedActors", "getLinkedActors", "getActorLinks",
 		"createLink", "existLink", "updateEdge", "deleteEdge",
 		"getActorAttachments", "uploadBase64", "addAttachments", "removeAttachments",
-		"getAccessRules", "saveAccessRules",
+		"getAccessRules", "saveAccessRules", "getBbcodeTags",
 	} {
 		if _, ok := byName[want]; !ok {
 			t.Errorf("per-actor spec is missing tool %q", want)
