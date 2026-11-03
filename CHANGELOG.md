@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- bump golang.org/x/net to v0.62.0 (CVE-2023-44487, HTTP/2 Rapid Reset)
+
 ## [2.13.0]
 
 ### Added
