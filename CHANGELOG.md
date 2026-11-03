@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Security
+- bump golang.org/x/net to v0.62.0 (CVE-2023-44487, HTTP/2 Rapid Reset; CISA KEV) — SEC-1916
+
 ### Added
 - Hosted access log: one `access {...}` JSON line per MCP request with the JSON-RPC method, tool
   name, route (bare / workspace / actor), HTTP status, `is_error`, duration, a 12-hex hash of the
