@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.14.0]
+
+### Changed
+- [SEC-1916] bump golang.org/x/net to v0.62.0 (CVE-2023-44487) [claude] (#168)
+- view is not implied on a system form's actors access (#166)
+- teach agents the rules for actors access of system forms (#165)
+
 ## [2.13.0]
 
 ### Added
