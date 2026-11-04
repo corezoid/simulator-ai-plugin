@@ -5,7 +5,8 @@ import "strings"
 // privsDesc documents the per-rule `privs` object shared by every save operation.
 const privsDesc = "Privilege flags: " +
 	"{view, modify, remove (all booleans, required), sign, ds, execute (optional booleans)}. " +
-	"`view` is implied when any other privilege is set."
+	"`view` is implied when any other privilege is set, except in the actors access of a system form " +
+	"(see saveTemplateActorsAccess), where `view` must be set explicitly."
 
 // ruleDesc documents one entry of the access-rule body array.
 const ruleDesc = "Array of rule operations. Each item = " +
@@ -41,7 +42,8 @@ var accessRuleOps = []Operation{
 	{
 		Name: "saveAccessRules", Method: "POST", Path: "/access_rules/{objType}/{objId}",
 		Summary: "Grant, change or revoke access on an object (actor, form, account, template). " +
-			"Applied asynchronously — returns a taskId. Use action=create/update/delete per grantee.",
+			"Applied asynchronously — returns a taskId. Use action=create/update/delete per grantee. " +
+			"objType=templateActors is the same call as saveTemplateActorsAccess, so a system form's rules apply.",
 		Params: []Param{
 			{Name: "objType", In: InPath, Type: "string", Required: true, Enum: accessObjTypes, Desc: "Object kind."},
 			{Name: "objId", In: InPath, Type: "string", Required: true, Desc: "Object id (actor UUID, or numeric form/account id as a string)."},
@@ -65,7 +67,13 @@ var accessRuleOps = []Operation{
 	{
 		Name: "saveTemplateActorsAccess", Method: "POST", Path: "/access_rules/templateActors/{objId}",
 		Summary: "Grant/revoke access to the actors of a form template (objId = form-template id). " +
-			"Applied asynchronously — returns a taskId.",
+			"Applied asynchronously — returns a taskId. " +
+			"System forms (type=system, e.g. Events): only workspace users with the system_actors:management " +
+			"permission (owner/admin) may call it, others incl. API keys get 403; only API keys can be added " +
+			"(a user or group → 400), existing rules of any grantee can be updated or deleted; only privs.view/" +
+			"modify are applied (other privileges of an existing rule are kept, view=false drops them all, modify " +
+			"needs view, and view is not implied: set privs.view=true explicitly or the rule grants nothing); " +
+			"the form owner's rule (system user, userId 0) can not be changed or deleted (400).",
 		Params: []Param{
 			{Name: "objId", In: InPath, Type: "string", Required: true, Desc: "Form-template id."},
 			{Name: "rules", In: InBodyRoot, Type: "array", Required: true, Desc: ruleDesc},
@@ -98,7 +106,9 @@ var accessRuleOps = []Operation{
 	{
 		Name: "bulkSaveAccessRules", Method: "POST", Path: "/access_rules/bulk",
 		Summary: "Apply access-rule changes to many objects in one call (up to 50). " +
-			"Each item targets one object by (objType, objId) and carries its own rules.",
+			"Each item targets one object by (objType, objId) and carries its own rules, checked like its single-object " +
+			"call (templateActors items of a system form follow saveTemplateActorsAccess). Every item is validated " +
+			"before the first one is saved: one invalid item fails the whole call and nothing is applied.",
 		Params: []Param{
 			{Name: "items", In: InBodyRoot, Type: "array", Required: true, Desc: "Array (max 50) of " +
 				"{objId, objType (one of: " + strings.Join(accessObjTypes, ", ") + "), recursive?:boolean, " +

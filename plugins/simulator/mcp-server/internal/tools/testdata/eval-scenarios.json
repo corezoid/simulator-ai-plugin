@@ -728,6 +728,22 @@
     ]
   },
   {
+    "name": "Give an API key access to all events of a system form",
+    "prompt": "Let API key 7001 read all events: give it view access to the actors of the Events system form template 12.",
+    "tools": [
+      "saveTemplateActorsAccess"
+    ],
+    "argChecks": [
+      {
+        "tool": "saveTemplateActorsAccess",
+        "mustContain": [
+          "7001",
+          "\"view\""
+        ]
+      }
+    ]
+  },
+  {
     "name": "List access on a tree layer",
     "prompt": "Show who has access to the actors on tree layer 9f3c0000-0000-0000-0000-000000000001.",
     "tools": [

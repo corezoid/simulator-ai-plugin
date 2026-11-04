@@ -11678,6 +11678,7 @@
         "tags": [
           "Access rules"
         ],
+        "description": "Actors access of a system form is managed by the workspace users with the system_actors:management permission (owner and admin roles): only API keys can be added, only view/modify privileges change (a rule without view keeps no other privileges), the system user's rule can not be changed or removed",
         "requestBody": {
           "content": {
             "application/json": {
