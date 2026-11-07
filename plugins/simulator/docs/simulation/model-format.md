@@ -53,7 +53,7 @@ Rules:
 | Value type | `kind: integer` (scale 0) or `decimal` with `scale` places; `conserved`; optional `min`, `max`. |
 | Storing | a value written to an account is rounded to the type's scale, half to even. An integer type rejects a non-integer value. |
 | Bounds | a stored value outside `min`/`max` fails the step. |
-| Conserved | a conserved type only moves with `transfer`. At the end of every step the sum of each conserved type over all accounts must equal the sum at the start of the step, otherwise the step fails. `add` and `set_account` on a conserved type fail. |
+| Conserved | a conserved type only moves with `transfer`. At the end of every step the sum of each conserved type over all accounts must equal the sum at the start of the step, otherwise the step fails; a type without accounts sums to 0, so a new account at 0 keeps the total. `add` and `set_account` on a conserved type fail. |
 | Unknown type | an account whose type is not declared uses decimal, scale 2, not conserved. The model's `value_types` override types from the graph file. |
 
 ## 3. Time and the event queue
@@ -87,7 +87,7 @@ actors:                                  # helper actors added to the graph (not
   - {title: Loan officers, type: team, data: {}, accounts: [{name: slots, value_type: slots, value: "=params.officers"}]}
 initial_events:
   - {event: offer, for_type: client, at: 0, priority: 30, payload: {}}
-  - {event: sell, target: shop, at: 30m, every: 30m}      # target = ref name or actor
+  - {event: sell, target: shop, at: 30m, every: 30m}      # target = ref name, or an actor reference as in refs
 behaviors:
   <actor type>:
     <event kind>: [<action>, ...]
