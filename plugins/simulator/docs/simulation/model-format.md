@@ -42,6 +42,7 @@ Rules:
 - Actors keep their order from the file. Every "for each actor" in this spec uses this order.
 - A snapshot of a live layer lists actors and links sorted by id, so the result does not depend on the order the Simulator API returns them in. An actor or edge placed twice appears once.
 - A snapshot reads layer pages until an empty page (a page can be short because deleted elements are dropped from it) and account values with high precision. An actor whose accounts the caller may not read stays in the graph without accounts and is listed in `source.accounts_not_readable`.
+- Without a graph file or layer, the graph is empty and only the model's `actors` exist.
 - A file without `sim:` sections (straight from `pullGraphFile`) is valid: types come from `formName` or `formId`, there are no accounts.
 - An edge whose source or target is not an actor in the file is dropped.
 
@@ -101,7 +102,7 @@ goals:   {<name>: <expression over metric names>}
 
 ## 6. Actions
 
-Every action is a one-key mapping. Unless noted, values of `data`, `payload`, `fields` and `set` are literals, and a string starting with `=` is an expression. The fields `if`, `rule`, `amount`, `value`, `target`, `actor`, `resource`, `from`/`to` of `link` are always expressions. `after` and `at` are a duration literal (`15m`, `30`) or an expression that yields one.
+Every action is a one-key mapping. Unless noted, values of `data`, `payload`, `fields` and `set` are literals, and a string starting with `=` is an expression. The fields `if`, `rule`, `amount`, `value`, `target`, `actor`, `resource`, `from`/`to` of `link` are always expressions. `after` and `at` are a duration literal (`15m`, `30`) or an expression that yields one. Account names (`account`, the `account` of `from`/`to`, `name` in `accounts`) are always literal: a name starting with `=` is an error, not an expression.
 
 | Action | Fields | Effect |
 |---|---|---|
@@ -185,3 +186,4 @@ Each directory in `testdata/conformance/` holds `graph.yaml`, `model.yaml`, `sce
 - A `graphPath` file straight from `pullGraphFile` names forms only by `formId`. When logged in, `simulationRun` and `simulationCheck` replace such types with the form titles from Simulator, so a model can say `type: Shops` for either input.
 - `simulationRun` has a wall-clock budget (`timeLimit`, default 2 minutes, at most 15): a single run that exceeds it ends with status `stopped_by_time`, and many runs report the runs made so far with a `note`. The event log in a result is capped at 10,000 entries per scenario.
 - `simulationSnapshot` does not replace an existing `<layerId>.sim.yaml` unless `overwrite: true` is passed, so hand edits are not lost.
+- Each `simulationRun` call writes one log line `simulation {...}`: graph size, check error and warning counts, scenarios, runs by status, steps, duration and outcome (including a refusal for lack of a free slot). It never holds the model, the graph or their values. `SIMULATOR_SIMULATION_LOG=off` disables it.
