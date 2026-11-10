@@ -132,7 +132,10 @@ osintActivityRecord(itemsPath="cases/acme/channel.items.json", actorId="<the cha
 - One account for the number of items and one for each metric the source gives, in the
   currency `units`.
 - One entry per day, week (default) or month, dated at the start of that period, so the
-  account's turnover by period is the activity of that period. `createChart` draws it.
+  account's turnover by period is the activity of that period. `createChart` draws it: use
+  the chart type `line` or `stackedBar` with the account's `credit` side — a `bar` chart shows
+  one total, not the periods — and place the chart beside the graph, not among its nodes,
+  where it would cover the links.
 - Entries are found again by their ref: recording the same collection again, or a later one
   that overlaps it, adds only what is new. This is how a twin is kept current — collect
   again, record again.
