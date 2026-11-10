@@ -178,7 +178,7 @@ without writing anything.
 | Case | Simulator |
 |---|---|
 | the case | a graph and a layer titled `OSINT · <case title>`, refs `osint:<caseId>:graph` / `:layer` |
-| entity | an actor of the form `OSINT <Type>` (form ref `osint-<type>`), ref `osint:<caseId>:<entityId>`, placed on the layer in a column per type. Its fields (`item_osint_<key>`) hold the case id, the id in the case, the evidence grade, aliases, source titles and the attributes listed under `entities`; its description holds all attributes, the sources with their grades and the note. A `location` also gets its title as the actor's place name |
+| entity | an actor of the form `OSINT <Type>` (form ref `osint-<type>`), ref `osint:<caseId>:<entityId>`, placed on the layer beside what it is connected to (see "Layout"). Its fields (`item_osint_<key>`) hold the case id, the id in the case, the evidence grade, aliases, source titles and the attributes listed under `entities`; its description holds all attributes, the sources with their grades and the note. A `location` also gets its title as the actor's place name |
 | picture | the actor's picture: the entity's `picture`, or a generated placeholder (`pictures: auto`, the default; `given` sets only the case's pictures, `none` leaves pictures alone). The actor remembers which picture it has, so a repeated build uploads nothing |
 | relation | a link named after the relation type (`owns 60%`). Simulator keeps one link between two actors, so several relations between the same two become one link named after all of them (`owns 100% · director`) |
 | account | an account on its owner's actor, named `OSINT <kind>` (`#2` for a second one of the same kind and currency). In Simulator it has a debit side and a credit side |
@@ -198,6 +198,13 @@ without writing anything.
 - **Currencies.** A transaction between accounts in different currencies is not recorded;
   the build reports it.
 - **Forms.** A form that already exists keeps its own fields and gets the ones it lacks.
+- **Layout.** Each connected group is drawn as a tree growing to the right from its most
+  connected entity: an entity's neighbours stand one column on, a parent level with the
+  middle of its children. Links and payments both count as connections. Groups are stacked
+  one under another; entities linked to nothing fill rows at the bottom. An actor already on
+  the layer keeps where it stands, since the user may have arranged it; `relayout: true`
+  moves the case's actors to their planned places and leaves everything else on the layer
+  (a chart, a note) alone.
 - **Limits.** One call builds up to 1000 entities and 3000 transactions.
 
 ## Analysing a live layer

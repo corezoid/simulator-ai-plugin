@@ -11,6 +11,9 @@
   any layer; one built by `osintCaseBuild` keeps its ids, dates and grades. `osintCaseBuild`
   dates each transfer with the payment's own date (`originalDate`), so turnover by period in
   Simulator follows the case, not the day of the build.
+- `osintCaseBuild` lays a case out by its connections — a tree from the most connected entity,
+  groups stacked, unlinked entities in rows — instead of a column per entity type, and with
+  `relayout: true` moves the case's actors already on a layer to their planned places.
 - `osintActivityRecord` writes a collected file onto an actor as accounts (items and each
   metric) with a dated entry per day, week or month, so charts and triggers work on collected
   data; recording again adds only what is new.

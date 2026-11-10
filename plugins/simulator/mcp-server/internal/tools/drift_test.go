@@ -90,6 +90,7 @@ var engineEndpoints = []struct{ tool, method, path string }{
 	{"osintCaseBuild", "GET", "/accounts/{actorId}"},
 	{"osintCaseBuild", "GET", "/transfers/{accId}/{ref}"},
 	{"osintCaseBuild", "POST", "/transfers/{accId}"},
+	{"osintCaseBuild", "PUT", "/graph_layers/actors/{actorId}"},
 	{"osintCaseAnalyze", "GET", "/graph_layers/paginated/{actorId}"},
 	{"osintCaseAnalyze", "GET", "/accounts/{actorId}"},
 	{"osintCaseAnalyze", "GET", "/transactions/list/{accountId}"},

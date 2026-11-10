@@ -103,8 +103,8 @@ type PlanTransfer struct {
 	when int64 // Date in unix milliseconds, 0 when not known
 }
 
-// Planned positions: one column per entity type, one row per entity. Both
-// steps are multiples of the layer's grid cell.
+// Planned positions are laid out by layoutOf; a column and a row are this far
+// apart. Both steps are multiples of the layer's grid cell.
 const (
 	planColStep = 400
 	planRowStep = 150
@@ -179,8 +179,8 @@ func BuildPlan(c *Case) *Plan {
 		Transfers: []PlanTransfer{}}
 
 	formTitle := func(t string) string { return "OSINT " + strings.ToUpper(t[:1]) + t[1:] }
-	rows := map[string]int{}
-	for col, t := range entityTypes {
+	at := layoutOf(c, ix)
+	for _, t := range entityTypes {
 		used := false
 		for _, e := range c.Entities {
 			if e.Type != t {
@@ -190,12 +190,11 @@ func BuildPlan(c *Case) *Plan {
 			a := PlanActor{Ref: prefix + e.ID, CaseID: e.ID, Form: formTitle(t), Title: e.Title,
 				Description: describeEntity(c, ix, &e), Color: formColors[t], Grade: claimGrade(ix, e.Sources, e.Credibility),
 				Data: actorData(c, ix, &e), Picture: e.Picture, EntityType: t,
-				X: col * planColStep, Y: rows[t] * planRowStep}
+				X: at[e.ID][0], Y: at[e.ID][1]}
 			if t == "location" {
 				a.GeoName = e.Title
 			}
 			p.Actors = append(p.Actors, a)
-			rows[t]++
 		}
 		if used {
 			p.Forms = append(p.Forms, PlanForm{Title: formTitle(t), Ref: "osint-" + t, EntityType: t, Color: formColors[t], Fields: formFieldsOf(t)})

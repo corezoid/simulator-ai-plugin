@@ -136,7 +136,7 @@ neither people nor organizations are not seen by the ownership and conflict rule
 
     osintCasePlan(case | casePath)                      # what will be created: counts, forms, pairs
     osintCasePlan(case | casePath, part, offset, limit)  # actors | links | accounts | transfers | chronology
-    osintCaseBuild(case | casePath, accId?, layerId?, pictures?)   # creates it
+    osintCaseBuild(case | casePath, accId?, layerId?, pictures?, relayout?)   # creates it
 
 1. **Confirm with the user before building**: the workspace, the counts from `osintCasePlan`,
    and — for a real case — who can see that workspace. `osintCaseBuild` writes many objects and
@@ -145,6 +145,8 @@ neither people nor organizations are not seen by the ownership and conflict rule
    fields filled and a picture, named links, accounts and transfers, and returns what it
    created and what it found already there. Give `layerId` to build on an existing layer
    instead; `pictures: given` sets only the pictures the case names, `none` leaves them alone.
+   Actors are laid out as a tree from the most connected one; those already on the layer stay
+   where the user put them unless `relayout: true` is given.
 3. It is repeatable: everything is found again by its ref (`osint:<caseId>:<id>`). If it stops
    with an error, fix the cause and run it again — it continues. After the case file changes,
    run it again to add what is new; it never deletes.

@@ -91,6 +91,7 @@ func Register(s *server.MCPServer) {
 		mcp.WithString("case", mcp.Description("Case YAML text.")),
 		mcp.WithString("accId", mcp.Description("Workspace id. Defaults to the configured workspace if omitted.")),
 		mcp.WithString("layerId", mcp.Description("Layer actor UUID to build on. Omit to give the case its own graph and layer.")),
+		mcp.WithBoolean("relayout", mcp.Description("Move the case's actors that are already on the layer to their planned places (default false: actors keep where they stand, since the user may have arranged them). Other things on the layer are not moved.")),
 		mcp.WithString("pictures", mcp.Description("Actor pictures: auto (default: the case's pictures, a generated placeholder for the rest), given (only the case's pictures), none.")),
 		mcp.WithReadOnlyHintAnnotation(false),
 		mcp.WithDestructiveHintAnnotation(true),
@@ -365,7 +366,8 @@ func handleBuild(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 	if pictures != "" && pictures != PicturesAuto && pictures != PicturesGiven && pictures != PicturesNone {
 		return fail("pictures %q is not one of auto, given, none", pictures), nil
 	}
-	result, err := Build(ctx, c, ws, BuildOptions{LayerID: layerID, Pictures: pictures})
+	relayout, _ := args["relayout"].(bool)
+	result, err := Build(ctx, c, ws, BuildOptions{LayerID: layerID, Pictures: pictures, Relayout: relayout})
 	out := map[string]any{"ok": err == nil, "build": result}
 	if err != nil {
 		out["error"] = err.Error()

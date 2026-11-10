@@ -32,6 +32,7 @@ type fakeSimulator struct {
 	bodies     map[string]map[string]any    // actor id → what it holds
 	sections   map[string]any               // form ref → sections
 	formPuts   int
+	moves      int
 	formTitle  map[string]string           // form id → title
 	names      map[string]string           // account name id → name
 	rows       map[string][]map[string]any // account id → its transactions
@@ -144,7 +145,8 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// a node carries what the actor holds, as the real API returns it
 			for _, n := range f.nodes {
 				b := f.bodies[n["id"].(string)]
-				items = append(items, map[string]any{"id": n["id"], "laId": n["laId"], "title": b["title"], "formTitle": b["formTitle"], "data": b["data"]})
+				items = append(items, map[string]any{"id": n["id"], "laId": n["laId"], "title": b["title"], "formTitle": b["formTitle"], "data": b["data"],
+					"position": n["position"]})
 			}
 		}
 		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -153,6 +155,23 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(items[offset:min(offset+50, len(items))])
+	case path == "PUT graph_layers/actors":
+		// the layer refuses a node a cell another node still holds
+		for _, it := range list {
+			for _, n := range f.nodes {
+				if strconv.Itoa(n["laId"].(int)) != it["id"] && fmt.Sprint(n["position"]) == fmt.Sprint(it["position"]) {
+					http.Error(w, `{"statusCode":400,"message":"Occupied cells"}`, http.StatusBadRequest)
+					return
+				}
+			}
+			for _, n := range f.nodes {
+				if strconv.Itoa(n["laId"].(int)) == it["id"] {
+					n["position"] = it["position"]
+					f.moves++
+				}
+			}
+		}
+		reply("ok")
 	case path == "POST graph_layers/actors":
 		var nodesMap []map[string]any
 		for _, it := range list {
@@ -160,7 +179,7 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if data["type"] == "node" {
 				f.posts["node"]++
 				la := f.id()
-				f.nodes = append(f.nodes, map[string]any{"id": data["id"], "laId": la})
+				f.nodes = append(f.nodes, map[string]any{"id": data["id"], "laId": la, "position": data["position"]})
 				nodesMap = append(nodesMap, map[string]any{"laId": la, "actorId": data["id"]})
 				continue
 			}
@@ -545,5 +564,101 @@ func TestRecordActivityWritesDatedEntriesOnce(t *testing.T) {
 	}
 	if res, _ = RecordActivity(ctx, "ws", "actor-1", &Collection{Source: "x", Target: "y"}, ""); res.Skipped == "" {
 		t.Error("an empty collection was not reported as skipped")
+	}
+}
+
+func TestLayoutKeepsConnectedEntitiesTogether(t *testing.T) {
+	for _, name := range []string{"procurement-kickback", "investment-fraud-cashout", "trade-overinvoicing", "minimal"} {
+		c := loadExample(t, name)
+		p := BuildPlan(c)
+		at := map[string][2]int{}
+		cells := map[[2]int]string{}
+		for _, a := range p.Actors {
+			if a.X%layerCell != 0 || a.Y%layerCell != 0 {
+				t.Errorf("%s: %s is off the grid at %d,%d", name, a.CaseID, a.X, a.Y)
+			}
+			if other, taken := cells[[2]int{a.X, a.Y}]; taken {
+				t.Errorf("%s: %s and %s share a cell", name, a.CaseID, other)
+			}
+			cells[[2]int{a.X, a.Y}] = a.CaseID
+			at[a.CaseID] = [2]int{a.X, a.Y}
+		}
+		// everyone but the root of a group stands one column to the right of
+		// someone it is linked to or pays
+		ix := buildIndex(c)
+		linked := map[string][]string{}
+		for _, r := range c.Relations {
+			linked[r.From], linked[r.To] = append(linked[r.From], r.To), append(linked[r.To], r.From)
+		}
+		for _, tr := range c.Transactions {
+			from, to := ix.accounts[tr.From].Owner, ix.accounts[tr.To].Owner
+			linked[from], linked[to] = append(linked[from], to), append(linked[to], from)
+		}
+		roots := 0
+		for id, xy := range at {
+			if xy[0] == 0 {
+				roots++
+				continue
+			}
+			ok := false
+			for _, n := range linked[id] {
+				if at[n][0] == xy[0]-planColStep {
+					ok = true
+				}
+			}
+			if !ok {
+				t.Errorf("%s: %s stands in a column with nobody it is connected to on its left", name, id)
+			}
+		}
+		if roots != 1 {
+			t.Errorf("%s: %d entities in the first column of a connected case", name, roots)
+		}
+	}
+	// entities linked to nothing fill rows under the groups, six to a row
+	src := "case: {id: l, title: L}\nentities:\n"
+	for i := range 8 {
+		src += fmt.Sprintf("  - {id: e%d, type: other, title: E%d}\n", i, i)
+	}
+	p := BuildPlan(mustLoad(t, src))
+	if p.Actors[5].X != 5*planColStep || p.Actors[6].X != 0 || p.Actors[6].Y != p.Actors[0].Y+planRowStep {
+		t.Errorf("unlinked entities: %v %v %v", p.Actors[0], p.Actors[5], p.Actors[6])
+	}
+}
+
+// A layer built with one arrangement is re-arranged on request, and left as
+// it stands otherwise; what else is on the layer keeps its place.
+func TestBuildRelayoutMovesOnlyOnRequest(t *testing.T) {
+	fake := newFakeSimulator()
+	srv := httptest.NewServer(fake)
+	defer srv.Close()
+	ctx := apiclient.WithBaseURL(context.Background(), srv.URL)
+	c := loadExample(t, "procurement-kickback")
+	res, err := Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// someone moves two actors into each other's cells and adds a note where a third belongs
+	fake.nodes[0]["position"], fake.nodes[1]["position"] = fake.nodes[1]["position"], fake.nodes[0]["position"]
+	want := fmt.Sprint(fake.nodes[2]["position"])
+	fake.nodes[2]["position"] = map[string]any{"x": float64(9000), "y": float64(9000)}
+	fake.nodes = append(fake.nodes, map[string]any{"id": "note", "laId": 999999, "position": map[string]any{"x": float64(9050), "y": float64(9050)}})
+	fake.bodies["note"] = map[string]any{"title": "note"}
+
+	if res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone}); err != nil || res.Moved != 0 || fake.moves != 0 {
+		t.Fatalf("a plain build moved actors: %v, moved %d", err, res.Moved)
+	}
+	res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone, Relayout: true})
+	if err != nil {
+		t.Fatalf("relayout: %v", err)
+	}
+	if res.Moved != 3 || fmt.Sprint(fake.nodes[2]["position"]) != want {
+		t.Errorf("moved %d actors; the third is at %v, want %s", res.Moved, fake.nodes[2]["position"], want)
+	}
+	if got := fmt.Sprint(fake.nodes[len(fake.nodes)-1]["position"]); !strings.Contains(got, "9050") {
+		t.Errorf("the note was moved to %s", got)
+	}
+	// and again: everything is where it belongs
+	if res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone, Relayout: true}); err != nil || res.Moved != 0 {
+		t.Errorf("a second relayout moved %d actors: %v", res.Moved, err)
 	}
 }
