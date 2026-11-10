@@ -93,6 +93,13 @@
       "name": "simulator-meetings"
     },
     {
+      "description": "Simulator.Company investigation (OSINT) specialist. Use when the user wants to model an investigation as a digital twin: collect the people, companies, assets, accounts, transactions and relations of a case, record where each claim comes from, analyse the graph and the money flows, and build it all as actors, links, accounts and transfers in Simulator. Works on real cases from open sources and on synthetic cases generated for training or for testing an analysis.",
+      "files": [
+        "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-osint/SKILL.md"
+      ],
+      "name": "simulator-osint"
+    },
+    {
       "description": "Simulator.Company reactions specialist — comments, events, approvals, ratings and other feedback attached under an actor. Use when the user wants to comment on an actor, reply in a thread, read/like/pin the discussion, mark comments read, or get reaction stats. Activate when the user says \"comment on this actor\", \"leave a note\", \"reply to\", \"show the comments/discussion\", \"pin this comment\", \"mark as read\", \"прокоментуй актор\", \"залиш коментар\", \"відповісти на коментар\", \"закріпи коментар\", \"оставь комментарий\", \"ответь в треде\", \"закрепи комментарий\". For attaching FILES to a reaction use `simulator-attachments`; for the actor's own fields use `simulator-actors`.",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-reactions/SKILL.md"

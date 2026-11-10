@@ -27,6 +27,7 @@ files and the [entity docs](../plugins/simulator/docs/entities/README.md).
 │   ├── simulator-finance        │                                      │
 │   ├── simulator-charts          │                                      │
 │   ├── simulator-simulate        │                                      │
+│   ├── simulator-osint           │                                      │
 │   ├── simulator-reactions       │                                      │
 │   ├── simulator-attachments     │                                      │
 │   └── simulator-access        ──┘                                      │
@@ -300,9 +301,15 @@ ported from the original implementation:
 | `simulationCheck`        | `sim/check.go`                | Static check of a behaviour model against a layer (errors/warnings) |
 | `simulationRun`          | `sim/engine.go` + `sim/montecarlo.go` | Discrete-event simulation of a layer per scenario; many-run medians, ranges, goals. Read-only |
 | `simulationSnapshot`     | `sim/snapshot.go`             | Layer + account values (optionally turnover of a period) to `<layerId>.sim.yaml` |
+| `osintCaseCheck`         | `osint/check.go`              | Validate an investigation case file (errors / warnings). Local, read-only |
+| `osintCaseAnalyze`       | `osint/analyze.go`            | Ownership, money-flow and connection analysis of a case; findings cite their evidence and its grade. Local, read-only |
+| `osintCasePlan`          | `osint/plan.go`               | Map a case onto forms, actors, links, accounts and transfers with stable refs, for the curated tools to build. Writes nothing |
+| `osintCaseBuild`         | `osint/build.go`              | Carry the plan out against the API: forms (created, or given the fields they lack), graph + layer, actors with their fields and a picture (the case's, or a placeholder drawn in `osint/avatar.go` and uploaded through `graph.UploadImage`), placements, links, accounts, transfers — each looked up by ref first, so the call is repeatable |
+| `osintCaseGenerate`      | `osint/generate.go`           | Seeded synthetic case with planted schemes and the known answer; optionally written to a `.yaml` file |
 
 Engines share a small runtime config (`engines.Configure`: base URL + TLS) and read the
-auth header / `WORKSPACE_ID` per call. The graph sync (`sync_graph.go` + `push_graph.go`,
+auth header / `WORKSPACE_ID` per call. The `osint` tools other than `osintCaseBuild` make no
+API call at all — they read a case file and compute — so they need neither. The graph sync (`sync_graph.go` + `push_graph.go`,
 ~1.5k LOC) is the most delicate logic: a bidirectional diff that minimises API calls and
 handles cascading deletes; its form name→id cache is per-workspace under a `sync.RWMutex`.
 

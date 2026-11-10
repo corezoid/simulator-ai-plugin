@@ -1811,5 +1811,70 @@
       "pushSmartForm"
     ],
     "liveOnly": true
+  },
+  {
+    "name": "Generate a synthetic investigation case",
+    "prompt": "Generate a synthetic investigation case with a layering scheme and a round trip, seed 7, and save it to cases/training.yaml.",
+    "tools": [
+      "osintCaseGenerate"
+    ],
+    "argChecks": [
+      {
+        "tool": "osintCaseGenerate",
+        "mustContain": [
+          "layering",
+          "round_trip",
+          "cases/training.yaml"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Check and analyse an investigation case",
+    "prompt": "Check the investigation case in cases/acme.yaml and then analyse it: who ultimately owns the companies, and how is the entity `director` connected to the entity `supplier`?",
+    "tools": [
+      "osintCaseCheck",
+      "osintCaseAnalyze"
+    ],
+    "argChecks": [
+      {
+        "tool": "osintCaseAnalyze",
+        "mustContain": [
+          "cases/acme.yaml",
+          "director",
+          "supplier"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Plan building an investigation case in Simulator",
+    "prompt": "I have an investigation case in cases/acme.yaml. Show me the plan for building it in Simulator as actors, links, accounts and transfers. Do not create anything yet.",
+    "tools": [
+      "osintCasePlan"
+    ],
+    "argChecks": [
+      {
+        "tool": "osintCasePlan",
+        "mustContain": [
+          "cases/acme.yaml"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Build an investigation case in Simulator",
+    "prompt": "I have reviewed the plan and confirm it: build the investigation case from cases/acme.yaml in Simulator, in the current workspace.",
+    "tools": [
+      "osintCaseBuild"
+    ],
+    "argChecks": [
+      {
+        "tool": "osintCaseBuild",
+        "mustContain": [
+          "cases/acme.yaml"
+        ]
+      }
+    ]
   }
 ]

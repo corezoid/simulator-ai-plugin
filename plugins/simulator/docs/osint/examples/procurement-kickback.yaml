@@ -1,0 +1,189 @@
+# Invented case. A road authority awards a contract; part of the money goes
+# through a "consultant" and a family holding to the spouse of the official
+# who ran the tender, and ends in a villa.
+case:
+  id: procurement-kickback
+  title: Road contract RA-2025-014
+  question: Did anyone connected to the road authority's procurement office benefit from contract RA-2025-014?
+  synthetic: true
+  currency: EUR
+  note: Every person, company, address, document and payment here is invented.
+
+sources:
+  - {id: s-registry, title: Company registry extracts, kind: registry, reliability: B, retrieved: 2025-06-02}
+  - {id: s-tender, title: Public procurement portal, kind: corporate, reliability: A, url: "https://procurement.example/tenders/RA-2025-014", retrieved: 2025-06-01}
+  - {id: s-bank, title: Bank statements obtained by the auditor, kind: bank, reliability: A}
+  - {id: s-land, title: Land registry extract, kind: registry, reliability: A, retrieved: 2025-06-05}
+  - {id: s-leak, title: Leaked corporate-services files, kind: leak, reliability: D}
+  - {id: s-press, title: Local press reports, kind: media, reliability: C}
+
+entities:
+  - id: authority
+    type: organization
+    title: Port Avel Roads Authority
+    attrs: {legal_form: public body, reg_number: PA-000118, country: Avelan Republic, incorporated: 1994-05-02, status: active,
+            industry: public administration, address: "1 Harbour Row, Port Avel", website: "https://roads.example"}
+    sources: [s-registry, s-tender]
+    credibility: 1
+  - id: official
+    type: person
+    title: Tobren Halvik
+    aliases: [T. Halvik]
+    attrs: {dob: 1974-09-12, nationality: Avelan Republic, occupation: head of procurement, phone: "+000 555 2101", email: t.halvik@roads.example}
+    sources: [s-tender, s-press]
+    credibility: 1
+  - id: spouse
+    type: person
+    title: Marenna Halvik
+    attrs: {dob: 1978-03-30, nationality: Avelan Republic, occupation: interior designer, address: "12 Cliff Road, Port Avel"}
+    sources: [s-registry, s-land]
+    credibility: 2
+  - id: contractor
+    type: organization
+    title: Kessel Bay Construct Ltd
+    attrs: {legal_form: Ltd, reg_number: KB-204417, country: Kessel Isles, incorporated: 2011-02-14, status: active,
+            industry: construction, address: "40 Foundry Road, Kessel Bay", website: "https://kbconstruct.example"}
+    sources: [s-registry, s-tender]
+    credibility: 1
+  - id: contractor-owner
+    type: person
+    title: Dorvan Estrel
+    attrs: {dob: 1969-11-02, nationality: Kessel Isles, occupation: company director}
+    sources: [s-registry]
+    credibility: 1
+  - id: consultant
+    type: organization
+    title: Greywater Consulting LP
+    attrs: {legal_form: LP, reg_number: NH-880231, country: Nordhaven Union, incorporated: 2024-11-18, status: active,
+            industry: consulting, registered_agent: Quill & Marsh Corporate Services}
+    sources: [s-registry]
+    credibility: 1
+    note: No employees, no website, incorporated three months before the tender.
+  - id: nominee
+    type: person
+    title: Ilsa Vorren
+    attrs: {dob: 1991-06-21, nationality: Nordhaven Union, occupation: corporate-services clerk}
+    sources: [s-registry]
+    credibility: 1
+  - id: holding
+    type: organization
+    title: Halden Family Holdings Ltd
+    attrs: {legal_form: Ltd, reg_number: NH-880407, country: Nordhaven Union, incorporated: 2024-12-02, status: active,
+            industry: holding company, registered_agent: Quill & Marsh Corporate Services}
+    sources: [s-registry, s-leak]
+    credibility: 2
+  - id: office
+    type: location
+    title: 9 Bridge End, Nordhaven
+    attrs: {address: "9 Bridge End, Nordhaven", city: Nordhaven, country: Nordhaven Union}
+    sources: [s-registry]
+    credibility: 1
+  - id: asphalt
+    type: organization
+    title: Thornwick Asphalt Supply Inc
+    attrs: {legal_form: Inc, reg_number: TW-311902, country: Thornwick Commonwealth, incorporated: 2003-07-09, status: active, industry: building materials}
+    sources: [s-registry, s-bank]
+    credibility: 1
+  - id: machinery
+    type: organization
+    title: Erro Heavy Machinery LLC
+    attrs: {legal_form: LLC, reg_number: SE-550120, country: Erro Federation, incorporated: 2008-01-22, status: active, industry: equipment rental}
+    sources: [s-registry, s-bank]
+    credibility: 1
+  - id: seller
+    type: person
+    title: Aldis Brennmoor
+    attrs: {dob: 1958-01-17, nationality: Avelan Republic, occupation: retired}
+    sources: [s-land]
+    credibility: 1
+  - id: tender
+    type: document
+    title: Tender RA-2025-014, coastal road resurfacing
+    attrs: {kind: public tender, number: RA-2025-014, date: 2025-01-20, issuer: Port Avel Roads Authority}
+    sources: [s-tender]
+    credibility: 1
+  - id: contract
+    type: document
+    title: Works contract RA-2025-014/C
+    attrs: {kind: works contract, number: RA-2025-014/C, date: 2025-02-24, issuer: Port Avel Roads Authority}
+    sources: [s-tender]
+    credibility: 1
+  - id: villa
+    type: asset
+    title: Villa, 12 Cliff Road, Port Avel
+    attrs: {kind: real estate, identifier: cadastre PA-7731-204, value: 540000 EUR, acquired: 2025-05-02, country: Avelan Republic, address: "12 Cliff Road, Port Avel"}
+    sources: [s-land]
+    credibility: 1
+
+relations:
+  - {id: r-official, from: official, to: authority, type: officer, since: 2019-03-01, sources: [s-tender], credibility: 1, note: Chaired the evaluation committee of the tender.}
+  - {id: r-family, from: official, to: spouse, type: family, sources: [s-press], credibility: 2, note: Married.}
+  - {id: r-owner, from: contractor-owner, to: contractor, type: owns, share: 100, sources: [s-registry], credibility: 1}
+  - {id: r-director, from: contractor-owner, to: contractor, type: director, sources: [s-registry], credibility: 1}
+  - {id: r-nominee, from: nominee, to: consultant, type: director, since: 2024-11-18, sources: [s-registry], credibility: 1}
+  - {id: r-nominee2, from: nominee, to: holding, type: director, since: 2024-12-02, sources: [s-registry], credibility: 1}
+  - {id: r-holding, from: holding, to: consultant, type: owns, share: 100, sources: [s-leak], credibility: 3}
+  - {id: r-spouse, from: spouse, to: holding, type: owns, share: 100, sources: [s-leak], credibility: 3}
+  - {id: r-office1, from: consultant, to: office, type: registered_at, sources: [s-registry], credibility: 1}
+  - {id: r-office2, from: holding, to: office, type: registered_at, sources: [s-registry], credibility: 1}
+  - {id: r-tender, from: tender, to: authority, type: mentions, sources: [s-tender], credibility: 1}
+  - {id: r-contract1, from: contract, to: authority, type: mentions, sources: [s-tender], credibility: 1}
+  - {id: r-contract2, from: contract, to: contractor, type: mentions, sources: [s-tender], credibility: 1}
+  - {id: r-villa, from: spouse, to: villa, type: owns, share: 100, since: 2025-05-02, sources: [s-land], credibility: 1}
+
+accounts:
+  - {id: acc-authority, owner: authority, kind: bank, number: AV10 0001 0000 0118, institution: Avelan State Treasury, sources: [s-bank], credibility: 1}
+  - {id: acc-contractor, owner: contractor, kind: bank, number: KI42 7700 2044 1701, institution: Kessel Commercial Bank, sources: [s-bank], credibility: 1}
+  - {id: acc-consultant, owner: consultant, kind: bank, number: NU07 3300 8802 3101, institution: Nordhaven Private Bank, opened: 2024-12-10, sources: [s-bank], credibility: 1}
+  - {id: acc-holding, owner: holding, kind: bank, number: NU07 3300 8804 0701, institution: Nordhaven Private Bank, opened: 2024-12-20, sources: [s-bank], credibility: 1}
+  - {id: acc-spouse, owner: spouse, kind: bank, number: AV10 2200 7803 3001, institution: Avelan Savings Bank, sources: [s-bank], credibility: 1}
+  - {id: acc-official, owner: official, kind: bank, number: AV10 2200 7409 1201, institution: Avelan Savings Bank, sources: [s-bank], credibility: 1}
+  - {id: acc-asphalt, owner: asphalt, kind: bank, sources: [s-bank], credibility: 2}
+  - {id: acc-machinery, owner: machinery, kind: bank, sources: [s-bank], credibility: 2}
+  - {id: acc-seller, owner: seller, kind: bank, sources: [s-bank], credibility: 2}
+
+transactions:
+  # the contract is paid in two stages
+  - {id: t01, from: acc-authority, to: acc-contractor, amount: 1200000, date: 2025-03-03, purpose: "RA-2025-014/C advance, 60%", sources: [s-bank, s-tender], credibility: 1}
+  - {id: t02, from: acc-authority, to: acc-contractor, amount: 800000, date: 2025-04-14, purpose: "RA-2025-014/C stage 2, 40%", sources: [s-bank, s-tender], credibility: 1}
+  # the contractor's real costs
+  - {id: t03, from: acc-contractor, to: acc-asphalt, amount: 420000, date: 2025-03-10, purpose: asphalt mix, sources: [s-bank], credibility: 1}
+  - {id: t04, from: acc-contractor, to: acc-machinery, amount: 310000, date: 2025-03-12, purpose: paver and roller rental, sources: [s-bank], credibility: 1}
+  - {id: t05, from: acc-contractor, to: acc-asphalt, amount: 280000, date: 2025-04-20, purpose: asphalt mix, sources: [s-bank], credibility: 1}
+  # 30 % of each stage goes to the "consultant" within two days
+  - {id: t06, from: acc-contractor, to: acc-consultant, amount: 360000, date: 2025-03-05, purpose: project management consulting, sources: [s-bank], credibility: 1}
+  - {id: t07, from: acc-contractor, to: acc-consultant, amount: 240000, date: 2025-04-16, purpose: project management consulting, sources: [s-bank], credibility: 1}
+  # and on to the holding and the spouse
+  - {id: t08, from: acc-consultant, to: acc-holding, amount: 352000, date: 2025-03-07, purpose: profit distribution, sources: [s-bank], credibility: 1}
+  - {id: t09, from: acc-consultant, to: acc-holding, amount: 235000, date: 2025-04-17, purpose: profit distribution, sources: [s-bank], credibility: 1}
+  - {id: t10, from: acc-holding, to: acc-spouse, amount: 345000, date: 2025-03-11, purpose: shareholder loan, sources: [s-bank], credibility: 1}
+  - {id: t11, from: acc-holding, to: acc-spouse, amount: 230000, date: 2025-04-22, purpose: shareholder loan, sources: [s-bank], credibility: 1}
+  # the villa
+  - {id: t12, from: acc-spouse, to: acc-seller, amount: 540000, date: 2025-05-02, purpose: purchase of 12 Cliff Road, sources: [s-bank, s-land], credibility: 1}
+  # the official's salary, for scale
+  - {id: t13, from: acc-authority, to: acc-official, amount: 4200, date: 2025-03-28, purpose: salary, sources: [s-bank], credibility: 1}
+  - {id: t14, from: acc-authority, to: acc-official, amount: 4200, date: 2025-04-28, purpose: salary, sources: [s-bank], credibility: 1}
+  - {id: t15, from: acc-authority, to: acc-official, amount: 4200, date: 2025-05-28, purpose: salary, sources: [s-bank], credibility: 1}
+
+events:
+  - {id: e1, date: 2024-11-18, title: Greywater Consulting LP is incorporated, entities: [consultant, nominee], sources: [s-registry], credibility: 1}
+  - {id: e2, date: 2025-01-20, title: Tender RA-2025-014 is announced, entities: [authority, tender], sources: [s-tender], credibility: 1}
+  - {id: e3, date: 2025-02-24, title: Contract is awarded to the only bidder that met the experience requirement, entities: [authority, contractor, contract, official], sources: [s-tender], credibility: 1}
+  - {id: e4, date: 2025-05-02, title: Marenna Halvik buys the villa at 12 Cliff Road, entities: [spouse, villa, seller], sources: [s-land], credibility: 1}
+  - {id: e5, date: 2025-05-19, title: Press asks how a designer afforded a seafront villa, entities: [spouse, official], sources: [s-press], credibility: 3}
+
+hypotheses:
+  - id: h1
+    statement: Thirty percent of each contract payment was returned through Greywater Consulting to the family of the official who ran the tender.
+    status: open
+    evidence: [t06, t07, t08, t09, t10, t11, r-family]
+    note: The payments are documented; the link to the family rests on the ownership chain below.
+  - id: h2
+    statement: Marenna Halvik is the beneficial owner of Greywater Consulting through Halden Family Holdings.
+    status: open
+    evidence: [r-holding, r-spouse, r-office1, r-office2]
+    note: Both ownership records come from a leak (D). A registry confirmation would raise this to B.
+  - id: h3
+    statement: The villa was paid for with the money received from the holding.
+    status: supported
+    evidence: [t10, t11, t12]

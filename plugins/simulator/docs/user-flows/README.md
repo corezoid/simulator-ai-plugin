@@ -10,6 +10,7 @@ The Simulator.Company platform provides a comprehensive API for managing busines
 2. **Graph Management** - Creating and managing actors, links, and layers
 3. **Financial Management** - Managing accounts, transactions, and transfers
 4. **Smart Forms (Applications)** - Building, versioning, deploying, and serving interactive apps
+5. **Investigations (OSINT)** - Modelling an investigation as a digital twin: entities, relations, accounts and payments with their sources
 
 ## User Flow Documentation
 
@@ -21,6 +22,10 @@ The Simulator.Company platform provides a comprehensive API for managing busines
 
 - [Graph Functionality](graph-functionality.md) - Creating and managing actors, links, and layers in graph structures
 - [Actor Graph Management](actor-graph-management.md) - Managing actors on graphs: creating links, organizing on layers, searching and filtering
+
+### Investigations (OSINT)
+
+- [Investigation as a digital twin](osint-investigation.md) - From a question to a graph: writing the case file with sources and grades, checking and analysing it (beneficial ownership, money-flow patterns, conflicts of interest, connections), and building it in Simulator as actors, links, accounts and transfers. Reference: [case format](../osint/case-format.md); complete cases: [examples](../osint/examples/README.md)
 
 ### Smart Forms (Applications / CDU)
 

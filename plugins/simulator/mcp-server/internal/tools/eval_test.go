@@ -44,6 +44,7 @@ func knownToolNames() map[string]bool {
 		"updateSmartFormEnv", "deploySmartForm", "listReleases",
 		"diffReleases", "rollbackRelease", "getFileHistory",
 		"getFileVersion", "rollbackFile", "listTrash", "restoreFromTrash",
+		"osintCaseCheck", "osintCaseAnalyze", "osintCasePlan", "osintCaseGenerate", "osintCaseBuild",
 	} {
 		m[n] = true
 	}

@@ -6,6 +6,23 @@
 - bump golang.org/x/net to v0.62.0 (CVE-2023-44487, HTTP/2 Rapid Reset; CISA KEV) — SEC-1916
 
 ### Added
+- Investigations (OSINT) as a digital twin: the `simulator-osint` skill and five engine
+  tools. A case is one YAML file of sources, entities, relations, accounts, transactions,
+  events and hypotheses, every claim with its source and an Admiralty grade
+  (`docs/osint/case-format.md`). `osintCaseCheck` validates it; `osintCaseAnalyze` reports
+  effective beneficial ownership, circular ownership, nominee directors, conflicts of interest,
+  shared addresses, pass-through and layering chains, round trips, structuring, funnels, connections between two
+  entities, a chronology and evidence quality — each finding with the case items it rests on;
+  `osintCasePlan` maps the case onto forms, actors, links, accounts and transfers with stable
+  refs and `osintCaseBuild` creates them in Simulator — everything is looked up by ref first, so
+  a repeated build creates nothing twice and finishes one that stopped; actors get their fields
+  filled from the case and a picture (the case's own, or a generated placeholder);
+  `osintCaseGenerate` makes seeded synthetic cases with planted schemes and the known
+  answer. Only `osintCaseBuild` calls the API, and nothing reaches an outside source:
+  collecting from open sources is optional and left to the host's tools. Four worked example cases (a procurement kickback,
+  an investment-fraud cash-out through crypto, trade over-invoicing, a minimal one) ship in
+  `docs/osint/examples/` and are asserted by the engine's tests; walkthrough in
+  `docs/user-flows/osint-investigation.md`.
 - Hosted access log: one `access {...}` JSON line per MCP request with the JSON-RPC method, tool
   name, route (bare / workspace / actor), HTTP status, `is_error`, duration, a 12-hex hash of the
   caller's Authorization and the User-Agent — never the token, arguments or results.
