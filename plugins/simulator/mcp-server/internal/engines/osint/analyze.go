@@ -16,6 +16,7 @@ type Options struct {
 	MinShare   *big.Rat // effective stake, in percent, that makes a beneficial owner (default 25)
 	Top        int      // rows in the ranked tables (default 10)
 	Timeline   int      // chronology entries (default 40)
+	Pack       *Pack    // what to look for; nil is every built-in pattern with the default thresholds
 }
 
 const (
@@ -231,7 +232,7 @@ func money(r *big.Rat, cur string) string {
 
 // Analyze reads a case that passed Check.
 func Analyze(c *Case, opt Options) *Analysis {
-	a := &analyzer{c: c, ix: buildIndex(c), opt: opt.withDefaults(), claims: map[string]claim{}, adj: map[string][]edge{},
+	a := &analyzer{c: c, ix: buildIndex(c), opt: opt.Pack.apply(opt).withDefaults(), claims: map[string]claim{}, adj: map[string][]edge{},
 		ultimate: map[string]map[string][]string{}}
 	a.out = &Analysis{Findings: []Finding{}, Assumptions: []string{}}
 	a.prepare()
@@ -249,6 +250,8 @@ func Analyze(c *Case, opt Options) *Analysis {
 	a.central()
 	a.connection()
 	a.timeline()
+	a.builtin(opt.Pack)
+	a.rules(opt.Pack)
 	a.finish()
 	return a.out
 }

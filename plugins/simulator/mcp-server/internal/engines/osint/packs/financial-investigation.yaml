@@ -1,0 +1,33 @@
+# The default look of a financial investigation: every built-in pattern, with
+# the thresholds stated, plus rules on what is poorly evidenced.
+pack:
+  id: financial-investigation
+  title: Financial investigation
+  note: Set threshold to the reporting threshold of the jurisdiction in question.
+
+settings:
+  threshold: 10000
+  window_days: 7
+  min_share: 25
+
+rules:
+  - id: large-payment-weak-evidence
+    for: transaction
+    when: "amount >= 100000 and weak(grade)"
+    severity: medium
+    title: "Payment {id} of {amount} {currency} rests on weak evidence ({grade})"
+    detail: "From {payer.title} to {payee.title}. A payment this size should be backed by a statement or a contract before conclusions are drawn from it."
+
+  - id: money-to-unowned-organization
+    for: entity
+    when: "type == 'organization' and owners == 0 and received >= 100000"
+    severity: medium
+    title: "{title} received {received} {currency} and has no recorded owner"
+    detail: "Paid by {payers} payer(s) in {payments_in} payment(s). Who stands behind it is not in the case."
+
+  - id: recently-incorporated-recipient
+    for: transaction
+    when: "payee.type == 'organization' and amount >= 100000 and year(date) > 0 and year(payee.attrs.get('incorporated', '')) >= year(date) - 1"
+    severity: medium
+    title: "{payee.title} was paid {amount} {currency} within about a year of being incorporated"
+    detail: "Payment {id} on {date}, from {payer.title}. A new company receiving a large sum is worth a look at what it delivered."

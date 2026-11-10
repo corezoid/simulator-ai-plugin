@@ -1,0 +1,44 @@
+# Checking a counterparty: who owns it, who runs it, how well that is
+# evidenced. The money-movement patterns that need a full set of statements
+# are left out; what remains is about structure.
+pack:
+  id: due-diligence
+  title: Counterparty due diligence
+
+settings:
+  min_share: 10
+
+builtin:
+  structuring: "off"
+  funnel: "off"
+  fan_out: "off"
+  pass_through: "off"
+  unknown_owner: medium
+  shared_anchor: medium
+
+rules:
+  - id: owner-not-evidenced
+    for: relation
+    when: "type == 'owns' and weak(grade)"
+    severity: high
+    title: "The stake of {source.title} in {target.title} rests on weak evidence ({grade})"
+    detail: "Ownership is what a counterparty check stands on. Confirm it in a registry before relying on it."
+
+  - id: offshore-owner
+    for: relation
+    when: "type == 'owns' and share >= 10 and source.attrs.get('country', '').lower() in ['offshore', 'kessel isles']"
+    severity: medium
+    title: "{source.title}, registered in {source.attrs.country}, holds {share}% of {target.title}"
+    detail: "The owner sits in a jurisdiction on this pack's list. Edit the list in the rule to the jurisdictions your policy names."
+
+  - id: director-of-many
+    for: entity
+    when: "type == 'person' and controls >= 2"
+    severity: low
+    title: "{title} has a controlling role in {controls} organizations of this case"
+
+  - id: entity-without-sources
+    for: entity
+    when: "sources == 0 and type in ['person', 'organization']"
+    severity: low
+    title: "{title} is in the case with no source"

@@ -11,6 +11,11 @@
   any layer; one built by `osintCaseBuild` keeps its ids, dates and grades. `osintCaseBuild`
   dates each transfer with the payment's own date (`originalDate`), so turnover by period in
   Simulator follows the case, not the day of the build.
+- Packs for `osintCaseAnalyze` (`pack` / `packPath`): a pack sets the thresholds of the built-in
+  patterns, chooses which to report and how severe, and adds the user's own rules — conditions
+  over entities, relations, accounts and transactions, in the simulation engine's expression
+  language. `financial-investigation` and `due-diligence` ship with the plugin
+  (`docs/osint/packs.md`).
 - `osintCaseBuild` lays a case out by its connections — a tree from the most connected entity,
   groups stacked, unlinked entities in rows — instead of a column per entity type, and with
   `relayout: true` moves the case's actors already on a layer to their planned places.
