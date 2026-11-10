@@ -199,8 +199,18 @@ getLayerActorsPaginated(actorId=<layerId>, type="edges")
 Two things to keep in mind when reading money in Simulator:
 
 - an account has a debit side and a credit side; its balance is credit minus debit;
-- a transfer is dated when it is made, so turnover-by-period reflects the day of the build.
-  The original date of each payment is in the transfer's comment.
+- a transfer is dated with the payment's own date, so turnover by period follows the case:
+  `getAccounts(actorId, from, to)` for March 2025 returns what moved in March 2025.
+
+The analysis runs on the twin too, without the file:
+
+```
+osintCaseAnalyze(layerId=<layerId>, from="official", to="consultant")
+```
+
+It reads the layer as it stands, so it also covers what was added to the graph by hand. A
+layer does not record sources, so findings that rest on its links are graded `F6` there; the
+case file keeps the grades.
 
 ## 7. Keep the log
 
@@ -228,6 +238,8 @@ case; every name in it is invented.
   "did not happen".
 - Thresholds are rules of thumb: set `threshold` to the reporting threshold of the
   jurisdiction in question, `windowDays` and `minShare` to what the case needs.
+- `osintActivityRecord` puts a collection's counts onto an actor's accounts with their dates,
+  so a channel's posts and views per month can be charted and watched like any account.
 - A payment between accounts in different currencies is analysed (in the transaction's
   currency) but not recorded as a transfer in Simulator; model a conversion as two payments
   with the exchange in the middle, as the fraud example does.

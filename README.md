@@ -322,7 +322,8 @@ the actor/node items.)
 | `simulationRun`          | Simulate a layer: run behaviour rules in model time per scenario and compare metrics; `runs` > 1 gives medians, ranges and goal shares. Read-only |
 | `simulationSnapshot`     | Read a layer with its account values into `<layerId>.sim.yaml` (plugin layer YAML + `sim:` sections) |
 | `osintCaseCheck`         | Check an investigation case file: ids that point nowhere, impossible amounts and dates, stakes above 100 %, unsourced claims, likely duplicates. Read-only |
-| `osintCaseAnalyze`       | Analyse a case: effective beneficial ownership, circular ownership, nominee directors, conflicts of interest, shared addresses, pass-through and layering chains, round trips, structuring, funnels, connections between two entities, chronology, evidence quality. Findings are leads with their evidence and its grade. Read-only |
+| `osintActivityRecord`    | Record a collected file onto an actor as accounts (items and each metric) with dated entries per day, week or month, so charts and triggers work on it; repeatable. Writes to the workspace. Local server only |
+| `osintCaseAnalyze`       | Analyse a case, or a live layer of the workspace read as one (`layerId`): effective beneficial ownership, circular ownership, nominee directors, conflicts of interest, shared addresses, pass-through and layering chains, round trips, structuring, funnels, connections between two entities, chronology, evidence quality. Findings are leads with their evidence and its grade. Read-only |
 | `osintCasePlan`          | Plan how to build a case in Simulator — forms, actors, named links, accounts, transfers, each with a stable ref — and the curated tools that carry it out. Writes nothing |
 | `osintCaseBuild`         | Build a case in Simulator: a graph and layer, an actor per entity with its fields filled and a picture, named links, accounts and transfers, found again by ref so a repeat creates nothing twice and finishes a stopped build. Writes to the workspace |
 | `osintSources`           | List the sources `osintCollect` can read: built-in (`telegram_channel`, `web_page`, `rss`) and the JSON APIs set up in `osint-sources.yaml`, with which key variables are set (never their values). Local server only |
@@ -345,7 +346,7 @@ Claude Code / Codex / Kiro
         │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, updateChart, buildLink,
         │               simulationCheck, simulationRun, simulationSnapshot,
         │               osintCaseCheck, osintCaseAnalyze, osintCasePlan, osintCaseBuild, osintCaseGenerate,
-        │               osintSources, osintCollect, osintActivity
+        │               osintSources, osintCollect, osintActivity, osintActivityRecord
         └── apiclient   HTTP → Simulator /papi/1.0 (local :9000 or mw gateway)
 ```
 

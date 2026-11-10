@@ -90,6 +90,14 @@ var engineEndpoints = []struct{ tool, method, path string }{
 	{"osintCaseBuild", "GET", "/accounts/{actorId}"},
 	{"osintCaseBuild", "GET", "/transfers/{accId}/{ref}"},
 	{"osintCaseBuild", "POST", "/transfers/{accId}"},
+	{"osintCaseBuild", "PUT", "/graph_layers/actors/{actorId}"},
+	{"osintCaseAnalyze", "GET", "/graph_layers/paginated/{actorId}"},
+	{"osintCaseAnalyze", "GET", "/accounts/{actorId}"},
+	{"osintCaseAnalyze", "GET", "/transactions/list/{accountId}"},
+	{"osintActivityRecord", "POST", "/accounts/pair/{accId}"},
+	{"osintActivityRecord", "POST", "/accounts/{actorId}"},
+	{"osintActivityRecord", "GET", "/transactions/ref/{accountId}/{ref}"},
+	{"osintActivityRecord", "POST", "/transactions/{accountId}"},
 }
 
 // TestEngineEndpointDrift checks that every engineEndpoints route still exists

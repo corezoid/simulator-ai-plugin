@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/corezoid/simulator-ai-plugin/plugins/simulator/mcp-server/internal/engines/ecore"
@@ -37,6 +38,7 @@ type BuildResult struct {
 	Actors    Tally          `json:"actors"`
 	Pictures  Tally          `json:"pictures"`
 	Nodes     Tally          `json:"nodesOnLayer"`
+	Moved     int            `json:"nodesMoved,omitempty"`
 	Links     Tally          `json:"links"`
 	Edges     Tally          `json:"edgesOnLayer"`
 	Accounts  int            `json:"accounts"`
@@ -58,6 +60,7 @@ type builder struct {
 	res      *BuildResult
 	pictures string
 	uploaded map[string]string // picture key → storage name, within this build
+	relayout bool
 }
 
 func (b *builder) get(path string, out any) error {
@@ -111,6 +114,7 @@ func notFound(err error) bool { return ecore.HTTPStatusOf(err) == http.StatusNot
 type BuildOptions struct {
 	LayerID  string // an existing layer to build on; empty gives the case its own graph and layer
 	Pictures string // PicturesAuto (default), PicturesGiven or PicturesNone
+	Relayout bool   // move the case's actors that are already on the layer to their planned places
 }
 
 // Build creates the case in Simulator as its plan says.
@@ -126,7 +130,7 @@ func Build(ctx context.Context, c *Case, workspaceID string, opt BuildOptions) (
 	}
 	b := &builder{ctx: ctx, base: ecore.BuildBaseURLForContext(ctx), ws: ecore.Seg(workspaceID),
 		res:      &BuildResult{Case: p.Case, Workspace: workspaceID, LayerID: layerID, Forms: map[string]int{}},
-		pictures: opt.Pictures, uploaded: map[string]string{}}
+		pictures: opt.Pictures, uploaded: map[string]string{}, relayout: opt.Relayout}
 
 	steps := []struct {
 		name string
@@ -530,16 +534,37 @@ func (b *builder) placeNodes(p *Plan) error {
 	at := func(x, y float64) cell { return cell{int(math.Round(x / layerCell)), int(math.Round(y / layerCell))} }
 	taken := map[cell]bool{}
 	laID := map[string]int{}
+	ours := map[string]bool{}
+	for _, a := range p.Actors {
+		ours[a.actorID] = true
+	}
+	was := map[string]cell{}
 	for _, n := range placed {
 		laID[n.ID] = n.LaID
-		taken[at(n.Position.X, n.Position.Y)] = true
+		was[n.ID] = at(n.Position.X, n.Position.Y)
+		// when the case's own actors are to be moved, only what else is on the
+		// layer (a chart, someone's note) holds its cell
+		if !b.relayout || !ours[n.ID] {
+			taken[was[n.ID]] = true
+		}
 	}
 	var items []layerItem
+	var moves []map[string]any
 	for i := range p.Actors {
 		a := &p.Actors[i]
 		if id, ok := laID[a.actorID]; ok {
 			a.laID = id
 			b.res.Nodes.Existing++
+			if b.relayout {
+				x, y := a.X, a.Y
+				for taken[at(float64(x), float64(y))] {
+					y += planRowStep
+				}
+				taken[at(float64(x), float64(y))] = true
+				if at(float64(x), float64(y)) != was[a.actorID] {
+					moves = append(moves, map[string]any{"id": strconv.Itoa(id), "position": map[string]int{"x": x, "y": y}})
+				}
+			}
 			continue
 		}
 		x, y := a.X, a.Y
@@ -569,6 +594,30 @@ func (b *builder) placeNodes(p *Plan) error {
 	for i := range p.Actors {
 		p.Actors[i].laID = laID[p.Actors[i].actorID]
 	}
+	return b.move(moves)
+}
+
+// move puts nodes that are already on the layer in new places. Two nodes may
+// be swapping cells, and the layer refuses a node a cell that is still taken,
+// so everything is first parked far outside the drawing and then set down.
+func (b *builder) move(moves []map[string]any) error {
+	if len(moves) == 0 {
+		return nil
+	}
+	const park = 1_000_000
+	parked := make([]map[string]any, len(moves))
+	for i, m := range moves {
+		parked[i] = map[string]any{"id": m["id"], "position": map[string]int{"x": park + i*planColStep, "y": park}}
+	}
+	for _, pass := range [][]map[string]any{parked, moves} {
+		for start := 0; start < len(pass); start += 100 {
+			batch := pass[start:min(start+100, len(pass))]
+			if err := b.send(http.MethodPut, "/graph_layers/actors/"+ecore.Seg(b.res.LayerID), batch, nil); err != nil {
+				return fmt.Errorf("move actors on the layer: %w", err)
+			}
+		}
+	}
+	b.res.Moved = len(moves)
 	return nil
 }
 
@@ -771,9 +820,15 @@ func (b *builder) transfers(p *Plan) error {
 			return fmt.Errorf("look up transfer %s: %w", t.Ref, err)
 		}
 		amount := json.Number(t.Amount)
+		debit := map[string]any{"accountId": from.sides.debit, "amount": amount}
+		credit := map[string]any{"accountId": to.sides.credit, "amount": amount}
+		if t.when > 0 {
+			// the payment's own date, so that turnover by period follows the case
+			debit["originalDate"], credit["originalDate"] = t.when, t.when
+		}
 		body := map[string]any{
-			"from":    []map[string]any{{"accountId": from.sides.debit, "amount": amount}},
-			"to":      []map[string]any{{"accountId": to.sides.credit, "amount": amount}},
+			"from":    []map[string]any{debit},
+			"to":      []map[string]any{credit},
 			"ref":     t.Ref,
 			"comment": t.Comment,
 		}

@@ -119,6 +119,31 @@ remember what a link count does and does not show: that the items pointed there,
 Sites that host everyone's pages (social networks, video and document hosts) are ranked but
 not drafted as organizations.
 
+### From a collection to accounts
+
+`osintActivityRecord` writes a collection onto an actor as accounts, so that Simulator's own
+charts and triggers work on it:
+
+```
+osintActivityRecord(itemsPath="cases/acme/channel.items.json", actorId="<the channel's actor>", bucket="month")
+→ accounts "Activity · items" (984) and "Activity · views" (3 108 970), 12 entries each
+```
+
+- One account for the number of items and one for each metric the source gives, in the
+  currency `units`.
+- One entry per day, week (default) or month, dated at the start of that period, so the
+  account's turnover by period is the activity of that period. `createChart` draws it: use
+  the chart type `line` or `stackedBar` with the account's `credit` side — a `bar` chart shows
+  one total, not the periods — and place the chart beside the graph, not among its nodes,
+  where it would cover the links.
+- Entries are found again by their ref: recording the same collection again, or a later one
+  that overlaps it, adds only what is new. This is how a twin is kept current — collect
+  again, record again.
+- A period still running when the collection was made is left out, and so is the earliest
+  period of a collection cut at its limit: both would be recorded short.
+
+It writes to the workspace; confirm the actor with the user first.
+
 ## Limits
 
 | | |

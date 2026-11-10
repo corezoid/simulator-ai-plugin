@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,26 +18,42 @@ import (
 
 // fakeSimulator is the part of the Simulator API a build uses, held in memory.
 type fakeSimulator struct {
-	mu        sync.Mutex
-	next      int
-	forms     map[string]int               // ref → id
-	actors    map[string]string            // form/ref → id
-	updates   int                          // PUTs to existing actors
-	nodes     []map[string]any             // layer nodes
-	edges     []map[string]any             // layer edges
-	links     map[string]map[string]string // source|target → link
-	accounts  map[string][]map[string]any  // actor → rows
-	transfers map[string]string            // ref → raw body
-	posts     map[string]int               // creating requests, by kind
-	bodies    map[string]map[string]any    // actor id → what it holds
-	sections  map[string]any               // form ref → sections
-	formPuts  int
+	mu         sync.Mutex
+	next       int
+	forms      map[string]int               // ref → id
+	actors     map[string]string            // form/ref → id
+	updates    int                          // PUTs to existing actors
+	nodes      []map[string]any             // layer nodes
+	edges      []map[string]any             // layer edges
+	links      map[string]map[string]string // source|target → link
+	accounts   map[string][]map[string]any  // actor → rows
+	transfers  map[string]string            // ref → raw body
+	posts      map[string]int               // creating requests, by kind
+	bodies     map[string]map[string]any    // actor id → what it holds
+	sections   map[string]any               // form ref → sections
+	formPuts   int
+	moves      int
+	formTitle  map[string]string           // form id → title
+	names      map[string]string           // account name id → name
+	rows       map[string][]map[string]any // account id → its transactions
+	refs       map[string]bool             // account id + ref of a plain transaction
+	currencies map[string]int              // currency name → id
+}
+
+func (f *fakeSimulator) currencyName(id float64) string {
+	for name, n := range f.currencies {
+		if float64(n) == id {
+			return name
+		}
+	}
+	return ""
 }
 
 func newFakeSimulator() *fakeSimulator {
 	return &fakeSimulator{forms: map[string]int{}, actors: map[string]string{}, links: map[string]map[string]string{},
 		accounts: map[string][]map[string]any{}, transfers: map[string]string{}, posts: map[string]int{},
-		bodies: map[string]map[string]any{}, sections: map[string]any{}}
+		bodies: map[string]map[string]any{}, sections: map[string]any{}, formTitle: map[string]string{"1": "Graphs", "2": "Layers"},
+		names: map[string]string{}, rows: map[string][]map[string]any{}, refs: map[string]bool{}, currencies: map[string]int{}}
 }
 
 func (f *fakeSimulator) id() int { f.next++; return 1000 + f.next }
@@ -81,6 +98,7 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.posts["form"]++
 		id := f.id()
 		f.forms[obj["ref"].(string)] = id
+		f.formTitle[strconv.Itoa(id)] = obj["title"].(string)
 		f.sections[obj["ref"].(string)] = obj["sections"]
 		reply(map[string]any{"id": id})
 	case path == "GET edge_types/ws":
@@ -95,6 +113,7 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.posts["actor"]++
 		id := fmt.Sprintf("actor-%d", f.id())
 		f.actors[seg[2]+"/"+obj["ref"].(string)] = id
+		obj["formTitle"] = f.formTitle[seg[2]]
 		f.bodies[id] = obj
 		reply(map[string]any{"id": id})
 	case path == "PUT actors/actor":
@@ -119,9 +138,16 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		reply(out)
 	case path == "GET graph_layers/paginated":
-		items := f.nodes
+		var items []map[string]any
 		if r.URL.Query().Get("type") == "edges" {
 			items = f.edges
+		} else {
+			// a node carries what the actor holds, as the real API returns it
+			for _, n := range f.nodes {
+				b := f.bodies[n["id"].(string)]
+				items = append(items, map[string]any{"id": n["id"], "laId": n["laId"], "title": b["title"], "formTitle": b["formTitle"], "data": b["data"],
+					"position": n["position"]})
+			}
 		}
 		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 		if offset >= len(items) {
@@ -129,6 +155,23 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		reply(items[offset:min(offset+50, len(items))])
+	case path == "PUT graph_layers/actors":
+		// the layer refuses a node a cell another node still holds
+		for _, it := range list {
+			for _, n := range f.nodes {
+				if strconv.Itoa(n["laId"].(int)) != it["id"] && fmt.Sprint(n["position"]) == fmt.Sprint(it["position"]) {
+					http.Error(w, `{"statusCode":400,"message":"Occupied cells"}`, http.StatusBadRequest)
+					return
+				}
+			}
+			for _, n := range f.nodes {
+				if strconv.Itoa(n["laId"].(int)) == it["id"] {
+					n["position"] = it["position"]
+					f.moves++
+				}
+			}
+		}
+		reply("ok")
 	case path == "POST graph_layers/actors":
 		var nodesMap []map[string]any
 		for _, it := range list {
@@ -136,7 +179,7 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if data["type"] == "node" {
 				f.posts["node"]++
 				la := f.id()
-				f.nodes = append(f.nodes, map[string]any{"id": data["id"], "laId": la})
+				f.nodes = append(f.nodes, map[string]any{"id": data["id"], "laId": la, "position": data["position"]})
 				nodesMap = append(nodesMap, map[string]any{"laId": la, "actorId": data["id"]})
 				continue
 			}
@@ -150,12 +193,23 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					dst = n["id"]
 				}
 			}
-			f.edges = append(f.edges, map[string]any{"id": data["id"], "source": src, "target": dst})
+			name := ""
+			for _, l := range f.links {
+				if l["id"] == data["id"] {
+					name = l["name"]
+				}
+			}
+			f.edges = append(f.edges, map[string]any{"id": data["id"], "source": src, "target": dst, "name": name})
 		}
 		reply(map[string]any{"nodesMap": nodesMap})
 	case path == "POST accounts/pair":
+		f.names["name-"+obj["accountName"].(string)] = obj["accountName"].(string)
+		cur := obj["currencyName"].(string)
+		if f.currencies[cur] == 0 {
+			f.currencies[cur] = 100 * (len(f.currencies) + 1)
+		}
 		reply(map[string]any{"accountName": map[string]any{"id": "name-" + obj["accountName"].(string)},
-			"currency": map[string]any{"id": len(obj["currencyName"].(string)) * 100}})
+			"currency": map[string]any{"id": f.currencies[cur]}})
 	case r.Method == "POST" && seg[0] == "accounts":
 		for _, row := range f.accounts[seg[1]] {
 			if row["nameId"] == obj["nameId"] && row["currencyId"] == obj["currencyId"] {
@@ -166,11 +220,36 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.posts["account"]++
 		for _, side := range []string{"debit", "credit"} {
 			f.accounts[seg[1]] = append(f.accounts[seg[1]], map[string]any{"id": fmt.Sprintf("acc-%d-%s", f.id(), side),
-				"nameId": obj["nameId"], "currencyId": obj["currencyId"], "incomeType": side, "type": "fact"})
+				"nameId": obj["nameId"], "currencyId": obj["currencyId"], "incomeType": side, "type": "fact",
+				"accountName": f.names[obj["nameId"].(string)], "currencyName": f.currencyName(obj["currencyId"].(float64)),
+				"isSystem": false, "counterType": "amount"})
 		}
 		reply(f.accounts[seg[1]])
 	case r.Method == "GET" && seg[0] == "accounts":
-		reply(f.accounts[seg[1]])
+		// the platform's own tallies sit beside the actor's accounts
+		rows := []map[string]any{{"id": "sys-" + seg[1], "nameId": "sys", "currencyId": 1, "incomeType": "credit", "type": "fact",
+			"accountName": "Total edges", "currencyName": "count", "isSystem": true, "counterType": "systemCounter"}}
+		reply(append(rows, f.accounts[seg[1]]...))
+	case path == "GET transactions/list":
+		offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+		rows := f.rows[seg[2]]
+		if offset >= len(rows) {
+			reply([]any{})
+			return
+		}
+		reply(rows[offset:min(offset+100, len(rows))])
+	case path == "GET transactions/ref":
+		if f.refs[seg[2]+"|"+seg[3]] {
+			reply(map[string]any{"ref": seg[3]})
+			return
+		}
+		missing()
+	case r.Method == "POST" && seg[0] == "transactions":
+		f.posts["entry"]++
+		f.refs[seg[1]+"|"+obj["ref"].(string)] = true
+		f.rows[seg[1]] = append(f.rows[seg[1]], map[string]any{"amount": obj["amount"], "comment": obj["comment"], "type": "completed",
+			"originalDate": obj["originalDate"], "createdAt": 1})
+		reply(map[string]any{"id": 1})
 	case r.Method == "GET" && seg[0] == "transfers":
 		if _, ok := f.transfers[seg[2]]; ok {
 			reply(map[string]any{"ref": seg[2]})
@@ -180,6 +259,18 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "POST" && seg[0] == "transfers":
 		f.posts["transfer"]++
 		f.transfers[obj["ref"].(string)] = string(body)
+		for _, side := range []string{"from", "to"} {
+			for _, l := range obj[side].([]any) {
+				leg := l.(map[string]any)
+				when := leg["originalDate"]
+				if when == nil {
+					when = float64(1794320000000)
+				}
+				acc := leg["accountId"].(string)
+				f.rows[acc] = append(f.rows[acc], map[string]any{"amount": leg["amount"], "comment": obj["comment"],
+					"transferId": "tr-" + obj["ref"].(string), "type": "completed", "originalDate": when, "createdAt": 1794320000000})
+			}
+		}
 		reply(map[string]any{"id": "tr"})
 	default:
 		http.Error(w, "unexpected "+r.Method+" "+r.URL.Path, http.StatusInternalServerError)
@@ -261,6 +352,10 @@ func TestBuildCreatesTheTwinOnceAndIsRepeatable(t *testing.T) {
 		strings.Index(t1, "-debit") > strings.Index(t1, "-credit") && strings.Index(t1, `"from"`) < strings.Index(t1, `"to"`) {
 		t.Errorf("transfer body: %s", t1)
 	}
+	// the payment's date travels as the transfer's original date: 2025-01-02 UTC in milliseconds
+	if strings.Count(t1, `"originalDate":1735776000000`) != 2 {
+		t.Errorf("original date: %s", t1)
+	}
 	if !strings.Contains(fake.transfers["osint:demo:t2"], `"amount":0.1`) {
 		t.Errorf("transfer body: %s", fake.transfers["osint:demo:t2"])
 	}
@@ -328,5 +423,242 @@ func TestBuildStopsWithWhatItDidAndRefusesLargeCases(t *testing.T) {
 	}
 	if _, err := Build(ctx, big, "ws", BuildOptions{}); err == nil || !strings.Contains(err.Error(), "at most") {
 		t.Errorf("a case over the limit: %v", err)
+	}
+}
+
+// A case built into Simulator and read back from its layer gives the same
+// analysis: the same findings on the same subjects, the same sums and dates.
+func TestLayerReadBackGivesTheSameAnalysis(t *testing.T) {
+	for _, name := range []string{"procurement-kickback", "trade-overinvoicing", "minimal"} {
+		fake := newFakeSimulator()
+		srv := httptest.NewServer(fake)
+		ctx := apiclient.WithBaseURL(context.Background(), srv.URL)
+		c := loadExample(t, name)
+		res, err := Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone})
+		if err != nil {
+			t.Fatalf("%s: build: %v", name, err)
+		}
+		back, notes, err := FromLayer(ctx, res.LayerID)
+		srv.Close()
+		if err != nil {
+			t.Fatalf("%s: read back: %v", name, err)
+		}
+		if rep := Check(back); !rep.OK() {
+			t.Fatalf("%s: the layer reads as an inconsistent case: %v", name, rep.Errors)
+		}
+		if len(back.Entities) != len(c.Entities) || len(back.Relations) != len(c.Relations) ||
+			len(back.Accounts) != len(c.Accounts) || len(back.Transactions) != len(c.Transactions) {
+			t.Errorf("%s: read back %d entities, %d relations, %d accounts, %d transactions; the case has %d, %d, %d, %d", name,
+				len(back.Entities), len(back.Relations), len(back.Accounts), len(back.Transactions),
+				len(c.Entities), len(c.Relations), len(c.Accounts), len(c.Transactions))
+		}
+		want, got := Analyze(c, Options{}), Analyze(back, Options{})
+		signature := func(a *Analysis) []string {
+			var out []string
+			for _, f := range a.Findings {
+				out = append(out, f.Severity+" "+f.Kind+" "+strings.Join(sortedCopy(f.Subjects), ","))
+			}
+			sort.Strings(out)
+			return out
+		}
+		if w, g := signature(want), signature(got); strings.Join(w, "\n") != strings.Join(g, "\n") {
+			t.Errorf("%s: findings differ.\ncase:\n%s\nlayer:\n%s", name, strings.Join(w, "\n"), strings.Join(g, "\n"))
+		}
+		if fmt.Sprint(want.Summary.Volume) != fmt.Sprint(got.Summary.Volume) || want.Summary.FirstDate != got.Summary.FirstDate ||
+			want.Summary.LastDate != got.Summary.LastDate {
+			t.Errorf("%s: sums or dates differ: %v %s–%s, layer %v %s–%s", name, want.Summary.Volume, want.Summary.FirstDate, want.Summary.LastDate,
+				got.Summary.Volume, got.Summary.FirstDate, got.Summary.LastDate)
+		}
+		// ids, dates and grades of what the build wrote come back; a relation's source does not
+		ix := buildIndex(back)
+		for _, tr := range c.Transactions {
+			b := ix.txs[tr.ID]
+			if b == nil || b.Date.String() != tr.Date.String() || b.Purpose != tr.Purpose || b.Amount.String() != tr.Amount.String() {
+				t.Errorf("%s: transaction %s came back as %+v", name, tr.ID, b)
+			}
+		}
+		if len(notes) == 0 || !strings.Contains(strings.Join(notes, " "), "does not record sources") {
+			t.Errorf("%s: notes: %v", name, notes)
+		}
+	}
+}
+
+// Any layer is read, not only one a case was built into.
+func TestLayerOfForeignActorsIsRead(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		switch {
+		case strings.Contains(r.URL.Path, "/graph_layers/paginated/") && q.Get("offset") != "0":
+			_, _ = w.Write([]byte(`{"data":[]}`))
+		case q.Get("type") == "nodes":
+			_, _ = w.Write([]byte(`{"data":[{"id":"u1","title":"Ann","formTitle":"Human"},{"id":"u2","title":"Shop","formTitle":"Store"},{"id":"u3","title":"","formTitle":"Store"}]}`))
+		case q.Get("type") == "edges":
+			_, _ = w.Write([]byte(`{"data":[{"source":"u1","target":"u2","name":"runs"},{"source":"u2","target":"u1","name":"owns 40%"},{"source":"u1","target":"gone","name":"x"}]}`))
+		case strings.HasPrefix(r.URL.Path, "/accounts/"):
+			_, _ = w.Write([]byte(`{"data":[{"id":"x","isSystem":true,"counterType":"systemCounter","incomeType":"credit"}]}`))
+		default:
+			http.Error(w, "unexpected "+r.URL.String(), http.StatusInternalServerError)
+		}
+	}))
+	defer srv.Close()
+	c, notes, err := FromLayer(apiclient.WithBaseURL(context.Background(), srv.URL), "0123456789abcdef")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep := Check(c); !rep.OK() {
+		t.Fatalf("errors: %v", rep.Errors)
+	}
+	if len(c.Entities) != 3 || c.Entities[0].Type != "person" || c.Entities[1].Type != "other" || c.Entities[1].Attrs["kind"] != "Store" || c.Entities[2].Title != "n3" {
+		t.Errorf("entities: %+v", c.Entities)
+	}
+	// a name that is not a relation type is a plain link that keeps it; a person is not owned
+	if len(c.Relations) != 2 || c.Relations[0].Type != "other" || c.Relations[0].Note != "runs" || c.Relations[1].Type != "other" || c.Relations[1].Share != nil {
+		t.Errorf("relations: %+v", c.Relations)
+	}
+	if len(c.Accounts) != 0 || !strings.Contains(strings.Join(notes, " "), "Store") {
+		t.Errorf("accounts %d, notes %v", len(c.Accounts), notes)
+	}
+}
+
+func TestRecordActivityWritesDatedEntriesOnce(t *testing.T) {
+	fake := newFakeSimulator()
+	srv := httptest.NewServer(fake)
+	defer srv.Close()
+	ctx := apiclient.WithBaseURL(context.Background(), srv.URL)
+	c := &Collection{Source: KindTelegram, Target: "demo_channel", Retrieved: "2026-03-10T12:00:00Z"}
+	for _, it := range []struct {
+		date  string
+		views float64
+	}{{"2026-01-05T10:00:00Z", 100}, {"2026-01-20T10:00:00Z", 50}, {"2026-02-03T10:00:00Z", 70}, {"2026-03-09T10:00:00Z", 999}, {"", 5}} {
+		c.Items = append(c.Items, Item{ID: it.date, Date: it.date, Metrics: map[string]float64{"views": it.views}})
+	}
+	res, err := RecordActivity(ctx, "ws", "actor-1", c, BucketMonth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// March had not ended when the collection was made, and an undated item has no bucket
+	if len(res.Accounts) != 2 || res.From != "2026-01-01" || res.To != "2026-02-01" || fake.posts["entry"] != 4 {
+		t.Fatalf("recorded: %+v, entries %d", res, fake.posts["entry"])
+	}
+	items, views := res.Accounts[0], res.Accounts[1]
+	if items.Name != "Activity · items" || items.Total != 3 || views.Name != "Activity · views" || views.Total != 220 || views.Entries.Created != 2 {
+		t.Errorf("series: %+v %+v", items, views)
+	}
+	rows := fake.rows[views.Account]
+	if len(rows) != 2 || rows[0]["amount"] != float64(150) || rows[0]["originalDate"] != float64(1767225600000) {
+		t.Errorf("entries of views: %v", rows)
+	}
+	// again: nothing new
+	res, err = RecordActivity(ctx, "ws", "actor-1", c, BucketMonth)
+	if err != nil || fake.posts["entry"] != 4 || res.Accounts[1].Entries.Existing != 2 || res.Accounts[1].Entries.Created != 0 {
+		t.Errorf("second recording: %v, entries %d, %+v", err, fake.posts["entry"], res.Accounts)
+	}
+	// a collection cut at its limit starts mid-bucket: its first bucket is left out
+	c.Truncated = true
+	res, _ = RecordActivity(ctx, "ws", "actor-2", c, BucketMonth)
+	if res.From != "2026-02-01" || res.Accounts[0].Total != 1 {
+		t.Errorf("truncated collection: %+v", res)
+	}
+	if _, err = RecordActivity(ctx, "ws", "actor-1", c, "fortnight"); err == nil {
+		t.Error("an unknown bucket was accepted")
+	}
+	if res, _ = RecordActivity(ctx, "ws", "actor-1", &Collection{Source: "x", Target: "y"}, ""); res.Skipped == "" {
+		t.Error("an empty collection was not reported as skipped")
+	}
+}
+
+func TestLayoutKeepsConnectedEntitiesTogether(t *testing.T) {
+	for _, name := range []string{"procurement-kickback", "investment-fraud-cashout", "trade-overinvoicing", "minimal"} {
+		c := loadExample(t, name)
+		p := BuildPlan(c)
+		at := map[string][2]int{}
+		cells := map[[2]int]string{}
+		for _, a := range p.Actors {
+			if a.X%layerCell != 0 || a.Y%layerCell != 0 {
+				t.Errorf("%s: %s is off the grid at %d,%d", name, a.CaseID, a.X, a.Y)
+			}
+			if other, taken := cells[[2]int{a.X, a.Y}]; taken {
+				t.Errorf("%s: %s and %s share a cell", name, a.CaseID, other)
+			}
+			cells[[2]int{a.X, a.Y}] = a.CaseID
+			at[a.CaseID] = [2]int{a.X, a.Y}
+		}
+		// everyone but the root of a group stands one column to the right of
+		// someone it is linked to or pays
+		ix := buildIndex(c)
+		linked := map[string][]string{}
+		for _, r := range c.Relations {
+			linked[r.From], linked[r.To] = append(linked[r.From], r.To), append(linked[r.To], r.From)
+		}
+		for _, tr := range c.Transactions {
+			from, to := ix.accounts[tr.From].Owner, ix.accounts[tr.To].Owner
+			linked[from], linked[to] = append(linked[from], to), append(linked[to], from)
+		}
+		roots := 0
+		for id, xy := range at {
+			if xy[0] == 0 {
+				roots++
+				continue
+			}
+			ok := false
+			for _, n := range linked[id] {
+				if at[n][0] == xy[0]-planColStep {
+					ok = true
+				}
+			}
+			if !ok {
+				t.Errorf("%s: %s stands in a column with nobody it is connected to on its left", name, id)
+			}
+		}
+		if roots != 1 {
+			t.Errorf("%s: %d entities in the first column of a connected case", name, roots)
+		}
+	}
+	// entities linked to nothing fill rows under the groups, six to a row
+	src := "case: {id: l, title: L}\nentities:\n"
+	for i := range 8 {
+		src += fmt.Sprintf("  - {id: e%d, type: other, title: E%d}\n", i, i)
+	}
+	p := BuildPlan(mustLoad(t, src))
+	if p.Actors[5].X != 5*planColStep || p.Actors[6].X != 0 || p.Actors[6].Y != p.Actors[0].Y+planRowStep {
+		t.Errorf("unlinked entities: %v %v %v", p.Actors[0], p.Actors[5], p.Actors[6])
+	}
+}
+
+// A layer built with one arrangement is re-arranged on request, and left as
+// it stands otherwise; what else is on the layer keeps its place.
+func TestBuildRelayoutMovesOnlyOnRequest(t *testing.T) {
+	fake := newFakeSimulator()
+	srv := httptest.NewServer(fake)
+	defer srv.Close()
+	ctx := apiclient.WithBaseURL(context.Background(), srv.URL)
+	c := loadExample(t, "procurement-kickback")
+	res, err := Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// someone moves two actors into each other's cells and adds a note where a third belongs
+	fake.nodes[0]["position"], fake.nodes[1]["position"] = fake.nodes[1]["position"], fake.nodes[0]["position"]
+	want := fmt.Sprint(fake.nodes[2]["position"])
+	fake.nodes[2]["position"] = map[string]any{"x": float64(9000), "y": float64(9000)}
+	fake.nodes = append(fake.nodes, map[string]any{"id": "note", "laId": 999999, "position": map[string]any{"x": float64(9050), "y": float64(9050)}})
+	fake.bodies["note"] = map[string]any{"title": "note"}
+
+	if res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone}); err != nil || res.Moved != 0 || fake.moves != 0 {
+		t.Fatalf("a plain build moved actors: %v, moved %d", err, res.Moved)
+	}
+	res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone, Relayout: true})
+	if err != nil {
+		t.Fatalf("relayout: %v", err)
+	}
+	if res.Moved != 3 || fmt.Sprint(fake.nodes[2]["position"]) != want {
+		t.Errorf("moved %d actors; the third is at %v, want %s", res.Moved, fake.nodes[2]["position"], want)
+	}
+	if got := fmt.Sprint(fake.nodes[len(fake.nodes)-1]["position"]); !strings.Contains(got, "9050") {
+		t.Errorf("the note was moved to %s", got)
+	}
+	// and again: everything is where it belongs
+	if res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone, Relayout: true}); err != nil || res.Moved != 0 {
+		t.Errorf("a second relayout moved %d actors: %v", res.Moved, err)
 	}
 }

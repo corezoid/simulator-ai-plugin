@@ -1910,5 +1910,21 @@
     "tools": [
       "osintSources"
     ]
+  },
+  {
+    "name": "Analyse a live layer for suspicious patterns",
+    "prompt": "Look at layer 11111111-2222-3333-4444-555555555555 and tell me whether there are any suspicious ownership or payment patterns on it.",
+    "tools": [
+      "osintCaseAnalyze"
+    ],
+    "argChecks": [
+      {
+        "tool": "osintCaseAnalyze",
+        "mustContain": [
+          "layerId",
+          "11111111-2222-3333-4444-555555555555"
+        ]
+      }
+    ]
   }
 ]

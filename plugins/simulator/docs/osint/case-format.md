@@ -178,18 +178,18 @@ without writing anything.
 | Case | Simulator |
 |---|---|
 | the case | a graph and a layer titled `OSINT · <case title>`, refs `osint:<caseId>:graph` / `:layer` |
-| entity | an actor of the form `OSINT <Type>` (form ref `osint-<type>`), ref `osint:<caseId>:<entityId>`, placed on the layer in a column per type. Its fields (`item_osint_<key>`) hold the case id, the id in the case, the evidence grade, aliases, source titles and the attributes listed under `entities`; its description holds all attributes, the sources with their grades and the note. A `location` also gets its title as the actor's place name |
+| entity | an actor of the form `OSINT <Type>` (form ref `osint-<type>`), ref `osint:<caseId>:<entityId>`, placed on the layer beside what it is connected to (see "Layout"). Its fields (`item_osint_<key>`) hold the case id, the id in the case, the evidence grade, aliases, source titles and the attributes listed under `entities`; its description holds all attributes, the sources with their grades and the note. A `location` also gets its title as the actor's place name |
 | picture | the actor's picture: the entity's `picture`, or a generated placeholder (`pictures: auto`, the default; `given` sets only the case's pictures, `none` leaves pictures alone). The actor remembers which picture it has, so a repeated build uploads nothing |
 | relation | a link named after the relation type (`owns 60%`). Simulator keeps one link between two actors, so several relations between the same two become one link named after all of them (`owns 100% · director`) |
 | account | an account on its owner's actor, named `OSINT <kind>` (`#2` for a second one of the same kind and currency). In Simulator it has a debit side and a credit side |
-| transaction | a transfer from the payer's debit side to the payee's credit side, ref `osint:<caseId>:<transactionId>`, with the original date and purpose in its comment |
+| transaction | a transfer from the payer's debit side to the payee's credit side, ref `osint:<caseId>:<transactionId>`, dated with the payment's own date (the transfer's original date), with the date, purpose, id and grade also in its comment |
 | event, finding | a comment reaction on the layer or on the case's event actor (posted by hand, not by the build) |
 
 - **Balances.** An account's balance is its credit side minus its debit side — what it
   received minus what it paid. Nothing has to be funded first.
-- **Dates.** Simulator stamps a transfer with the time it is made, so the date of the
-  original payment lives in the comment: balances are right, turnover-by-period in Simulator
-  reflects the day of the build.
+- **Dates.** A transfer carries the date of the original payment as its original date, so
+  turnover by period in Simulator follows the case: a payment of March 2025 counts in March
+  2025 whenever the case is built. A payment with no date is dated when it is built.
 - **Repeatable.** Everything is found again by its ref. Building the same case twice creates
   nothing the second time; a build that stopped half-way is finished by running it again;
   after the case file changes, a new build adds what is new and brings the existing actors'
@@ -198,4 +198,38 @@ without writing anything.
 - **Currencies.** A transaction between accounts in different currencies is not recorded;
   the build reports it.
 - **Forms.** A form that already exists keeps its own fields and gets the ones it lacks.
+- **Layout.** Each connected group is drawn as a tree growing to the right from its most
+  connected entity: an entity's neighbours stand one column on, a parent level with the
+  middle of its children. Links and payments both count as connections. Groups are stacked
+  one under another; entities linked to nothing fill rows at the bottom. An actor already on
+  the layer keeps where it stands, since the user may have arranged it; `relayout: true`
+  moves the case's actors to their planned places and leaves everything else on the layer
+  (a chart, a note) alone.
 - **Limits.** One call builds up to 1000 entities and 3000 transactions.
+
+## Analysing a live layer
+
+`osintCaseAnalyze(layerId=…)` reads a layer of the workspace as a case and analyses it — no
+file. Its actors become entities, its links relations, the accounts on its actors accounts,
+and the transfers between those accounts transactions.
+
+| On the layer | Read as |
+|---|---|
+| an actor of an `OSINT <Type>` form | an entity of that type, with its id in the case, attributes and grade |
+| an actor of a form named Human, User, Person, Employee | a `person` |
+| an actor of a form named Company, Organization | an `organization` |
+| any other actor | an entity of type `other`, with the form's name as its `kind` |
+| a link named after relations (`owns 60% · director`) | those relations |
+| a link with any other name, or none | a plain link that keeps the name |
+| an account (not one of the platform's own tallies) | an account of its actor; its debit and credit sides are one account |
+| a transfer between two accounts on the layer | a transaction, dated by its original date |
+
+It works on any layer, built from a case or by hand. What a layer cannot tell is said in the
+result's `layer.notes`:
+
+- A layer does not record where a claim came from. Entities and transfers built from a case
+  keep their grade; relations do not, so findings that rest on them are graded `F6`. For
+  graded findings analyse the case file.
+- Rules that need to know a person from an organization (beneficial owners, directorships,
+  conflicts of interest) do not see actors read as `other`.
+- A transfer with one side outside the layer is left out.
