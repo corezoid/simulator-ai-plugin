@@ -1577,7 +1577,9 @@ func (a *analyzer) finish() {
 			ev.WeakFindings++
 		}
 	}
-	a.out.Findings = a.findings
+	if a.findings != nil {
+		a.out.Findings = a.findings // otherwise it stays the empty list, not null
+	}
 	a.out.Evidence = ev
 	a.out.Assumptions = append(a.out.Assumptions,
 		"Findings are leads to check, not conclusions: each pattern also has innocent explanations, and the analysis sees only what is in the case.")

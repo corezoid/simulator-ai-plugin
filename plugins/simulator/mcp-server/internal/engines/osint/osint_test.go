@@ -669,3 +669,12 @@ func TestAnalyzeScalesToTheLargestCase(t *testing.T) {
 		t.Errorf("no structuring found in %d payments under the threshold: %v", maxTransactions, kinds(an))
 	}
 }
+
+// A case with nothing to find reports an empty list of findings, not null.
+func TestNoFindingsIsAnEmptyList(t *testing.T) {
+	c := mustLoad(t, "case: {id: quiet, title: Quiet}\nentities:\n  - {id: a, type: person, title: A}\n")
+	out, _ := json.Marshal(Analyze(c, Options{}))
+	if !strings.Contains(string(out), `"findings":[]`) {
+		t.Errorf("findings: %s", out)
+	}
+}
