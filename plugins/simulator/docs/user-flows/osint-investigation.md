@@ -4,8 +4,9 @@ This flow takes an investigation from a question to a graph in Simulator: who th
 and companies are, how they are connected, which accounts they hold and how the money moved
 between them — with the source of every claim kept beside it.
 
-It uses the `simulator-osint` skill and five tools: `osintCaseCheck`, `osintCaseAnalyze`,
-`osintCasePlan`, `osintCaseBuild` and `osintCaseGenerate`. The reference for the file format
+It uses the `simulator-osint` skill and the tools `osintCaseCheck`, `osintCaseAnalyze`,
+`osintCasePlan`, `osintCaseBuild` and `osintCaseGenerate`, plus `osintSources`,
+`osintCollect` and `osintActivity` for collecting from open sources. The reference for the file format
 and for every finding is [`../osint/case-format.md`](../osint/case-format.md); complete
 cases are in [`../osint/examples/`](../osint/examples/README.md).
 
@@ -26,9 +27,9 @@ cases are in [`../osint/examples/`](../osint/examples/README.md).
                           Simulator workspace: the digital twin
 ```
 
-The case file is the source of truth. The engine never collects anything: facts come from
-the investigator — from documents they have, from the host's own search tools, or, for
-training, from `osintCaseGenerate`. Only `osintCaseBuild` writes to Simulator.
+The case file is the source of truth. Facts come from the investigator: from documents they
+have, from the host's own search tools, from `osintCollect` (open sources the user names),
+or, for training, from `osintCaseGenerate`. Only `osintCaseBuild` writes to Simulator.
 
 ## 1. Frame it
 
@@ -90,6 +91,22 @@ hypotheses:
     status: open
     evidence: [r-holding, r-spouse]
 ```
+
+### Collecting from open sources
+
+For sources that publish a stream — a channel, a feed, a search API — collect into a file
+and let the tool add it up:
+
+```
+osintCollect(source="telegram_channel", target="some_channel", outPath="cases/acme/channel.items.json", limit=1000)
+→ 1000 items, 2025-11-14 to 2026-11-10
+
+osintActivity(itemsPath="cases/acme/channel.items.json", subject="channel")
+→ 80 posts a month; a post is seen 2 870 times; the most linked sites; a draft of case entries
+```
+
+The draft goes into the case after review. Sources, keys and limits:
+[`../osint/sources.md`](../osint/sources.md).
 
 ## 3. Check
 

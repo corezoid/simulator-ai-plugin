@@ -6,6 +6,13 @@
 - bump golang.org/x/net to v0.62.0 (CVE-2023-44487, HTTP/2 Rapid Reset; CISA KEV) — SEC-1916
 
 ### Added
+- OSINT collection from open sources, on the local server: `osintSources`, `osintCollect` and
+  `osintActivity`. Built-in sources need no key — the posts of a public Telegram channel, a web
+  page's own description, an RSS/Atom feed — and any JSON API can be added in
+  `osint-sources.yaml` with the user's own key, read only from an `OSINT_…` environment
+  variable. A collection is written to a file; the tools return counts, rankings and a draft of
+  case entries, never the text of an item. A redirect to another host is not followed
+  (`docs/osint/sources.md`).
 - Investigations (OSINT) as a digital twin: the `simulator-osint` skill and five engine
   tools. A case is one YAML file of sources, entities, relations, accounts, transactions,
   events and hypotheses, every claim with its source and an Admiralty grade

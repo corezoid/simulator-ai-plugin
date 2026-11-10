@@ -7,7 +7,8 @@ collect nothing themselves and write nothing to Simulator.
 
 Complete cases, each with what the analysis finds in it: [`examples/`](examples/README.md).
 A walkthrough from question to digital twin:
-[`../user-flows/osint-investigation.md`](../user-flows/osint-investigation.md).
+[`../user-flows/osint-investigation.md`](../user-flows/osint-investigation.md). Collecting
+from open sources into a case: [`sources.md`](sources.md).
 
 ## Rules that hold everywhere
 

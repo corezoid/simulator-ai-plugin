@@ -76,6 +76,8 @@ var hintsByName = map[string]toolHints{
 	"osintCaseCheck":        hintRead,
 	"osintCaseAnalyze":      hintRead,
 	"osintCasePlan":         hintRead,
+	"osintSources":          hintRead,
+	"osintActivity":         hintRead,
 
 	// not Operations: additive
 	"getAgent":           hintAdditive, // get-or-creates a user twin
@@ -89,6 +91,7 @@ var hintsByName = map[string]toolHints{
 	"simulationSnapshot": hintAdditive,
 	"pullGraphFile":      hintAdditive, // writes a local file only
 	"osintCaseGenerate":  hintAdditive, // may write a local file; nothing in Simulator
+	"osintCollect":       hintAdditive, // reads an outside source, writes a local file
 	"pullSmartForm":      hintAdditive,
 
 	// not Operations: destructive
@@ -109,6 +112,7 @@ var openWorldTools = map[string]bool{
 	"uploadActorPictureBulk": true, // imageUrl per item
 	"uploadGraphFile":        true, // fileUrl
 	"generatePublicLink":     true, // public, unauthenticated link
+	"osintCollect":           true, // the source the caller names
 }
 
 // hintsFor returns the hints of a tool, or false when it is not classified

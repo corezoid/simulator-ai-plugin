@@ -325,6 +325,9 @@ the actor/node items.)
 | `osintCaseAnalyze`       | Analyse a case: effective beneficial ownership, circular ownership, nominee directors, conflicts of interest, shared addresses, pass-through and layering chains, round trips, structuring, funnels, connections between two entities, chronology, evidence quality. Findings are leads with their evidence and its grade. Read-only |
 | `osintCasePlan`          | Plan how to build a case in Simulator — forms, actors, named links, accounts, transfers, each with a stable ref — and the curated tools that carry it out. Writes nothing |
 | `osintCaseBuild`         | Build a case in Simulator: a graph and layer, an actor per entity with its fields filled and a picture, named links, accounts and transfers, found again by ref so a repeat creates nothing twice and finishes a stopped build. Writes to the workspace |
+| `osintSources`           | List the sources `osintCollect` can read: built-in (`telegram_channel`, `web_page`, `rss`) and the JSON APIs set up in `osint-sources.yaml`, with which key variables are set (never their values). Local server only |
+| `osintCollect`           | Collect items from one open source into a file — a public Telegram channel's posts, a page's description, a feed, or a user-defined JSON API with the user's key. Returns counts, not text. Local server only |
+| `osintActivity`          | Summarise a collected file: items per month/weekday/hour, metric spreads, most linked sites, mentions and tags, and a draft of case entries. Local server only |
 | `osintCaseGenerate`      | Generate a synthetic case (layering, round trip, smurfing, nominee director) with background activity and the known answer; same seed, same case |
 | `buildLink`              | Build an absolute web-app deep-link (actor / event / chat / layer / transaction / …) for the user to click; resolves the web base + workspace automatically, and defaults to the user's open actor/layer from the UI context when present |
 
@@ -341,7 +344,8 @@ Claude Code / Codex / Kiro
         │               uploadGraphFile, getTaskStatus, compactGraphLayout,
         │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, updateChart, buildLink,
         │               simulationCheck, simulationRun, simulationSnapshot,
-        │               osintCaseCheck, osintCaseAnalyze, osintCasePlan, osintCaseBuild, osintCaseGenerate
+        │               osintCaseCheck, osintCaseAnalyze, osintCasePlan, osintCaseBuild, osintCaseGenerate,
+        │               osintSources, osintCollect, osintActivity
         └── apiclient   HTTP → Simulator /papi/1.0 (local :9000 or mw gateway)
 ```
 
@@ -432,8 +436,11 @@ and an Admiralty grade. `osintCaseCheck` validates it; `osintCaseAnalyze` reads 
 ownership, money-flow patterns and connections out of it, each finding with the evidence it
 rests on; `osintCasePlan` maps it onto actors, links, accounts and transfers and
 `osintCaseBuild` creates them, repeatably; `osintCaseGenerate` makes synthetic cases with a
-known answer for training and testing. The engine collects nothing from outside sources:
-that is optional and done with the host's own tools. Walkthrough:
+known answer for training and testing. Collecting is optional: `osintCollect` reads open
+sources the user names — built in for public Telegram channels, web pages and feeds, and any
+JSON API described in `osint-sources.yaml` with the user's own key — and `osintActivity`
+turns a collection into counts and a draft of case entries
+(`plugins/simulator/docs/osint/sources.md`). Walkthrough:
 `plugins/simulator/docs/user-flows/osint-investigation.md`; case format:
 `plugins/simulator/docs/osint/case-format.md`; complete example cases:
 `plugins/simulator/docs/osint/examples/`.

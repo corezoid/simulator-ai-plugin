@@ -42,6 +42,8 @@ The plugin bundles a Go MCP server that wraps the Simulator REST API:
 - **osintCaseCheck**: Check an investigation case file before analysing or building it (read-only)
 - **osintCasePlan**: Plan how to build an investigation case as actors, links, accounts and transfers
 - **osintCaseBuild**: Build an investigation case in Simulator: actors, links, accounts, transfers (repeatable)
+- **osintCollect**: Collect items from an open source (public Telegram channel, page, feed, user-defined JSON API) into a file
+- **osintActivity**: Summarise a collected file: activity, most linked sites, a draft of case entries (read-only)
 - **osintCaseGenerate**: Generate a synthetic investigation case with planted schemes and the known answer
 - **createActor**: Create a single actor (node) in a layer
 - **createActors**: Bulk-create up to 50 actors in a single call

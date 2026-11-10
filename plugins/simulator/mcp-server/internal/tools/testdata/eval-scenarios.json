@@ -1876,5 +1876,39 @@
         ]
       }
     ]
+  },
+  {
+    "name": "Collect a public channel for an investigation",
+    "prompt": "For my investigation, collect the last 500 posts of the public Telegram channel some_public_channel into cases/acme/channel.items.json, then summarise the activity; the channel is the entity `channel` in my case.",
+    "tools": [
+      "osintCollect",
+      "osintActivity"
+    ],
+    "argChecks": [
+      {
+        "tool": "osintCollect",
+        "mustContain": [
+          "telegram_channel",
+          "some_public_channel",
+          "cases/acme/channel.items.json"
+        ]
+      },
+      {
+        "tool": "osintActivity",
+        "mustContain": [
+          "cases/acme/channel.items.json",
+          "channel"
+        ],
+        "dryOnly": true
+      }
+    ],
+    "dryOnlyTools": []
+  },
+  {
+    "name": "List OSINT sources",
+    "prompt": "Which open sources can you collect from for an investigation, and are my API keys for them set?",
+    "tools": [
+      "osintSources"
+    ]
   }
 ]
