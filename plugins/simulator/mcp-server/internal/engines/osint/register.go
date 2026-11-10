@@ -57,7 +57,8 @@ func Register(s *server.MCPServer) {
 			"Each finding lists the case items it rests on and the grade of its weakest evidence. Findings are leads "+
 			"to check, not conclusions. With `from` and `to` it also returns the shortest chains of relations and "+
 			"payments between two entities. A case with errors is not analysed. A synthetic case is scored against "+
-			"its known answer. "+desc),
+			"its known answer. Give a case, or `layerId` to analyse a live layer. "+desc),
+		mcp.WithString("layerId", mcp.Description("Analyse a layer of the workspace as it stands, instead of a case file: its actors, links, accounts and the transfers between them. Works on any layer; one built by osintCaseBuild keeps its ids, dates and grades.")),
 		mcp.WithString("from", mcp.Description("Entity or account id: find how it is connected to `to`.")),
 		mcp.WithString("to", mcp.Description("Entity or account id: the other end of the connection.")),
 		mcp.WithString("threshold", mcp.Description(fmt.Sprintf("Reporting threshold that structuring stays under, as a number in the case's currency (default %d).", defaultThreshold))),
@@ -223,9 +224,31 @@ func intArg(args map[string]any, key string, limit int) int {
 	return min(int(n), limit)
 }
 
-func handleAnalyze(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+// caseOrLayer loads the case a call names: a case file or text, or a live
+// layer read as a case. For a layer it also returns what the layer could not
+// tell.
+func caseOrLayer(ctx context.Context, args map[string]any) (*Case, []string, *mcp.CallToolResult) {
+	layerID, _ := args["layerId"].(string)
+	if layerID == "" {
+		c, res := loadCase(args)
+		return c, nil, res
+	}
+	if r := ecore.RequireUUID("layerId", layerID); r != nil {
+		return nil, nil, r
+	}
+	if r := ecore.EnsureAuth(ctx); r != nil {
+		return nil, nil, r
+	}
+	c, notes, err := FromLayer(ctx, layerID)
+	if err != nil {
+		return nil, nil, fail("%v", err)
+	}
+	return c, notes, nil
+}
+
+func handleAnalyze(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args := req.GetArguments()
-	c, res := loadCase(args)
+	c, layerNotes, res := caseOrLayer(ctx, args)
 	if res != nil {
 		return res, nil
 	}
@@ -246,6 +269,10 @@ func handleAnalyze(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 	out := map[string]any{"ok": true, "analysis": Analyze(c, opt)}
 	if len(rep.Warnings) > 0 {
 		out["checkWarnings"] = rep.Warnings
+	}
+	if layerNotes != nil {
+		out["layer"] = map[string]any{"notes": layerNotes, "entities": len(c.Entities), "relations": len(c.Relations),
+			"accounts": len(c.Accounts), "transactions": len(c.Transactions)}
 	}
 	return jsonText(out), nil
 }

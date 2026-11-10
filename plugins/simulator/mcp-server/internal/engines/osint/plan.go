@@ -97,6 +97,10 @@ type PlanTransfer struct {
 	To      string `json:"toAccount"`
 	Amount  string `json:"amount"`
 	Comment string `json:"comment"`
+	// Date is when the payment was made; it becomes the transfer's original date.
+	Date string `json:"date,omitempty"`
+
+	when int64 // Date in unix milliseconds, 0 when not known
 }
 
 // Planned positions: one column per entity type, one row per entity. Both
@@ -274,9 +278,12 @@ func BuildPlan(c *Case) *Plan {
 		if from, to := ix.entities[ix.accounts[t.From].Owner], ix.entities[ix.accounts[t.To].Owner]; from != nil && to != nil {
 			parts = append(parts, from.Title+" → "+to.Title)
 		}
-		parts = append(parts, "case tx "+t.ID)
-		p.Transfers = append(p.Transfers, PlanTransfer{Ref: prefix + t.ID, From: t.From, To: t.To, Amount: t.Amount.String(),
-			Comment: strings.Join(parts, " · ")})
+		parts = append(parts, "case tx "+t.ID, "grade "+claimGrade(ix, t.Sources, t.Credibility))
+		tr := PlanTransfer{Ref: prefix + t.ID, From: t.From, To: t.To, Amount: t.Amount.String(), Comment: strings.Join(parts, " · ")}
+		if !t.Date.IsZero() {
+			tr.Date, tr.when = t.Date.String(), t.Date.Time().UnixMilli()
+		}
+		p.Transfers = append(p.Transfers, tr)
 		if ix.accountCurrency(c, ix.accounts[t.From]) != ix.accountCurrency(c, ix.accounts[t.To]) {
 			crossCurrency++
 		}
@@ -294,12 +301,12 @@ func BuildPlan(c *Case) *Plan {
 		"Placement: manageLayerActors on the layer with one create item per actor that is not on it yet, at its x/y.",
 		"Links: massLink in batches of up to 50, each {source, target, name}; one edge per pair of actors, named after all the relations between them. Then place the edges on the layer.",
 		"Accounts: createAccountPair for each entry of accountPairs, then createAccount(actorId, nameId, currencyId, ignoreIfExist=true) for each entry of accounts. It gives each account a debit side and a credit side.",
-		"Transfers: for each entry of transfers, in order, skip it when getTransferByRef finds it; otherwise createTransfer(from=[{accountId: the payer's debit side, amount}], to=[{accountId: the payee's credit side, amount}], ref, comment).",
+		"Transfers: for each entry of transfers, in order, skip it when getTransferByRef finds it; otherwise createTransfer(from=[{accountId: the payer's debit side, amount, originalDate}], to=[{accountId: the payee's credit side, amount, originalDate}], ref, comment), with originalDate = the payment's date in unix milliseconds.",
 		"Chronology and findings: post them as comment reactions on the layer or on the case's event actor (see the simulator-reactions skill).",
 	}
 	p.Notes = []string{
 		"An account's balance in Simulator is its credit side minus its debit side: what it received minus what it paid.",
-		"Simulator stamps a transfer with the time it is made. The date of the original payment is kept in the transfer comment, so balances are right but turnover-by-period in Simulator reflects the day of the build.",
+		"A transfer carries the date of the original payment as its original date (and in its comment), so turnover by period in Simulator follows the case's dates. A payment with no date is dated when it is built.",
 		"Refs start with " + prefix + " — search by that prefix to find everything this case created.",
 	}
 	if crossCurrency > 0 {

@@ -6,6 +6,14 @@
 - bump golang.org/x/net to v0.62.0 (CVE-2023-44487, HTTP/2 Rapid Reset; CISA KEV) — SEC-1916
 
 ### Added
+- `osintCaseAnalyze` takes `layerId`: it reads a layer of the workspace as a case — actors,
+  links, accounts and the transfers between them — and analyses it without a file. It works on
+  any layer; one built by `osintCaseBuild` keeps its ids, dates and grades. `osintCaseBuild`
+  dates each transfer with the payment's own date (`originalDate`), so turnover by period in
+  Simulator follows the case, not the day of the build.
+- `osintActivityRecord` writes a collected file onto an actor as accounts (items and each
+  metric) with a dated entry per day, week or month, so charts and triggers work on collected
+  data; recording again adds only what is new.
 - OSINT collection from open sources, on the local server: `osintSources`, `osintCollect` and
   `osintActivity`. Built-in sources need no key — the posts of a public Telegram channel, a web
   page's own description, an RSS/Atom feed — and any JSON API can be added in

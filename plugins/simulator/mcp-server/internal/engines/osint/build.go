@@ -771,9 +771,15 @@ func (b *builder) transfers(p *Plan) error {
 			return fmt.Errorf("look up transfer %s: %w", t.Ref, err)
 		}
 		amount := json.Number(t.Amount)
+		debit := map[string]any{"accountId": from.sides.debit, "amount": amount}
+		credit := map[string]any{"accountId": to.sides.credit, "amount": amount}
+		if t.when > 0 {
+			// the payment's own date, so that turnover by period follows the case
+			debit["originalDate"], credit["originalDate"] = t.when, t.when
+		}
 		body := map[string]any{
-			"from":    []map[string]any{{"accountId": from.sides.debit, "amount": amount}},
-			"to":      []map[string]any{{"accountId": to.sides.credit, "amount": amount}},
+			"from":    []map[string]any{debit},
+			"to":      []map[string]any{credit},
 			"ref":     t.Ref,
 			"comment": t.Comment,
 		}

@@ -302,7 +302,8 @@ ported from the original implementation:
 | `simulationRun`          | `sim/engine.go` + `sim/montecarlo.go` | Discrete-event simulation of a layer per scenario; many-run medians, ranges, goals. Read-only |
 | `simulationSnapshot`     | `sim/snapshot.go`             | Layer + account values (optionally turnover of a period) to `<layerId>.sim.yaml` |
 | `osintCaseCheck`         | `osint/check.go`              | Validate an investigation case file (errors / warnings). Local, read-only |
-| `osintCaseAnalyze`       | `osint/analyze.go`            | Ownership, money-flow and connection analysis of a case; findings cite their evidence and its grade. Local, read-only |
+| `osintActivityRecord`    | `osint/record.go`             | Write a collection onto an actor as accounts with an entry per period, dated by `originalDate` and found again by ref. Local only |
+| `osintCaseAnalyze`       | `osint/analyze.go`, `osint/layer.go` | Ownership, money-flow and connection analysis of a case, or of a live layer read as one (`layerId`: nodes, edges, accounts, transactions); findings cite their evidence and its grade. Local, read-only |
 | `osintCasePlan`          | `osint/plan.go`               | Map a case onto forms, actors, links, accounts and transfers with stable refs, for the curated tools to build. Writes nothing |
 | `osintCaseBuild`         | `osint/build.go`              | Carry the plan out against the API: forms (created, or given the fields they lack), graph + layer, actors with their fields and a picture (the case's, or a placeholder drawn in `osint/avatar.go` and uploaded through `graph.UploadImage`), placements, links, accounts, transfers — each looked up by ref first, so the call is repeatable |
 | `osintSources`           | `osint/sources.go`            | The built-in sources and the user's `osint-sources.yaml` (http_json sources); reports which `OSINT_…` key variables are set. Local only |

@@ -80,19 +80,20 @@ var hintsByName = map[string]toolHints{
 	"osintActivity":         hintRead,
 
 	// not Operations: additive
-	"getAgent":           hintAdditive, // get-or-creates a user twin
-	"getSystemActor":     hintAdditive, // get-or-creates a user twin
-	"appGetPage":         hintAdditive, // rendering runs the app's Corezoid process
-	"exportGraph":        hintAdditive,
-	"uploadGraphFile":    hintAdditive,
-	"createChart":        hintAdditive,
-	"createSmartForm":    hintAdditive,
-	"restoreFromTrash":   hintAdditive,
-	"simulationSnapshot": hintAdditive,
-	"pullGraphFile":      hintAdditive, // writes a local file only
-	"osintCaseGenerate":  hintAdditive, // may write a local file; nothing in Simulator
-	"osintCollect":       hintAdditive, // reads an outside source, writes a local file
-	"pullSmartForm":      hintAdditive,
+	"getAgent":            hintAdditive, // get-or-creates a user twin
+	"getSystemActor":      hintAdditive, // get-or-creates a user twin
+	"appGetPage":          hintAdditive, // rendering runs the app's Corezoid process
+	"exportGraph":         hintAdditive,
+	"uploadGraphFile":     hintAdditive,
+	"createChart":         hintAdditive,
+	"createSmartForm":     hintAdditive,
+	"restoreFromTrash":    hintAdditive,
+	"simulationSnapshot":  hintAdditive,
+	"pullGraphFile":       hintAdditive, // writes a local file only
+	"osintCaseGenerate":   hintAdditive, // may write a local file; nothing in Simulator
+	"osintCollect":        hintAdditive, // reads an outside source, writes a local file
+	"osintActivityRecord": hintAdditive, // adds metric entries to an actor's accounts
+	"pullSmartForm":       hintAdditive,
 
 	// not Operations: destructive
 	"importGraph":        hintDestructive, // "reuse" strategy merges into existing objects

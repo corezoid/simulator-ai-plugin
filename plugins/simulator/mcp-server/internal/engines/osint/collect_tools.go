@@ -69,6 +69,75 @@ func registerCollect(s *server.MCPServer) {
 		mcp.WithDestructiveHintAnnotation(false),
 		mcp.WithIdempotentHintAnnotation(true),
 	), handleActivity)
+
+	s.AddTool(mcp.NewTool("osintActivityRecord",
+		mcp.WithDescription("Record a file written by osintCollect onto an actor as accounts: one for the number of items and one "+
+			"for each metric (views, …), with an entry per day, week or month dated at its start. With the dates in place the "+
+			"accounts chart over time (createChart) and can carry triggers. WRITES to the workspace. Entries are found again by "+
+			"their ref, so recording the same collection again, or a later one that overlaps it, adds only what is new. A "+
+			"bucket still running when the collection was made is left out."),
+		mcp.WithString("itemsPath", mcp.Description("File written by osintCollect, relative to the working directory."), mcp.Required()),
+		mcp.WithString("actorId", mcp.Description("UUID of the actor the collection is about."), mcp.Required()),
+		mcp.WithString("bucket", mcp.Description("day, week (default) or month.")),
+		mcp.WithString("accId", mcp.Description("Workspace id. Defaults to the configured workspace if omitted.")),
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithIdempotentHintAnnotation(true),
+	), handleActivityRecord)
+}
+
+func handleActivityRecord(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := req.GetArguments()
+	c, res := loadItems(args)
+	if res != nil {
+		return res, nil
+	}
+	actorID, _ := args["actorId"].(string)
+	if r := ecore.RequireUUID("actorId", actorID); r != nil {
+		return r, nil
+	}
+	if r := ecore.EnsureAuth(ctx); r != nil {
+		return r, nil
+	}
+	ws := ecore.WorkspaceIDForContext(ctx)
+	if acc, _ := args["accId"].(string); acc != "" && ws == "" {
+		ws = acc
+	}
+	if ws == "" {
+		return mcp.NewToolResultError(ecore.NoWorkspaceError), nil
+	}
+	if r := ecore.RequireUUID("accId", ws); r != nil {
+		return r, nil
+	}
+	bucket, _ := args["bucket"].(string)
+	result, err := RecordActivity(ctx, ws, actorID, c, bucket)
+	out := map[string]any{"ok": err == nil, "recorded": result}
+	if err != nil {
+		out["error"] = err.Error()
+		out["message"] = "recording stopped; what was written stays, and running it again continues from there"
+	}
+	return jsonText(out), nil
+}
+
+// loadItems reads a file written by osintCollect.
+func loadItems(args map[string]any) (*Collection, *mcp.CallToolResult) {
+	name, _ := args["itemsPath"].(string)
+	path, err := localPath(name)
+	if err != nil {
+		return nil, fail("itemsPath: %v", err)
+	}
+	if info, err := os.Stat(path); err == nil && info.Size() > maxItemsFileBytes {
+		return nil, fail("itemsPath: file is %d bytes; the limit is %d", info.Size(), maxItemsFileBytes)
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fail("itemsPath: %v", err)
+	}
+	var c Collection
+	if err := json.Unmarshal(src, &c); err != nil || c.Source == "" {
+		return nil, fail("itemsPath: not a file written by osintCollect")
+	}
+	return &c, nil
 }
 
 // loadSources reads the sources file: the one named, or the default one when
@@ -180,25 +249,13 @@ func handleCollect(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolR
 
 func handleActivity(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args := req.GetArguments()
-	name, _ := args["itemsPath"].(string)
-	path, err := localPath(name)
-	if err != nil {
-		return fail("itemsPath: %v", err), nil
-	}
-	if info, err := os.Stat(path); err == nil && info.Size() > maxItemsFileBytes {
-		return fail("itemsPath: file is %d bytes; the limit is %d", info.Size(), maxItemsFileBytes), nil
-	}
-	src, err := os.ReadFile(path)
-	if err != nil {
-		return fail("itemsPath: %v", err), nil
-	}
-	var c Collection
-	if err := json.Unmarshal(src, &c); err != nil || c.Source == "" {
-		return fail("itemsPath: not a file written by osintCollect"), nil
+	c, res := loadItems(args)
+	if res != nil {
+		return res, nil
 	}
 	subject, _ := args["subject"].(string)
 	if subject != "" && !idRe.MatchString(subject) {
 		return fail("subject %q is not a case id", subject), nil
 	}
-	return jsonText(map[string]any{"ok": true, "activity": Summarise(&c, subject, intArg(args, "top", 50))}), nil
+	return jsonText(map[string]any{"ok": true, "activity": Summarise(c, subject, intArg(args, "top", 50))}), nil
 }

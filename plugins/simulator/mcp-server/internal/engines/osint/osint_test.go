@@ -343,7 +343,7 @@ transactions:
 	if strings.Join(order, ",") != "t1,t2,t3" {
 		t.Errorf("transfer order: %v", order)
 	}
-	if !strings.Contains(p.Transfers[0].Comment, "2025-01-01 · refund · O → A · case tx t1") {
+	if !strings.Contains(p.Transfers[0].Comment, "2025-01-01 · refund · O → A · case tx t1 · grade unsourced") {
 		t.Errorf("comment: %q", p.Transfers[0].Comment)
 	}
 	if !strings.Contains(strings.Join(p.Notes, "\n"), "real people or organizations") ||

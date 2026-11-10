@@ -12,7 +12,7 @@ import (
 // (stateless) server shares that disk between callers, so it must not offer
 // them; a local (stdio) server keeps them — that is where they belong.
 var fileTools = []string{"pullGraphFile", "pushGraphFile", "pullSmartForm", "pushSmartForm", "simulationSnapshot",
-	"osintSources", "osintCollect", "osintActivity"}
+	"osintSources", "osintCollect", "osintActivity", "osintActivityRecord"}
 
 func TestHostedServerOmitsFileTools(t *testing.T) {
 	t.Setenv(APISecretEnv, "")
