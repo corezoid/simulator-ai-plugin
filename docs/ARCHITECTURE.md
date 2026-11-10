@@ -305,11 +305,16 @@ ported from the original implementation:
 | `osintCaseAnalyze`       | `osint/analyze.go`            | Ownership, money-flow and connection analysis of a case; findings cite their evidence and its grade. Local, read-only |
 | `osintCasePlan`          | `osint/plan.go`               | Map a case onto forms, actors, links, accounts and transfers with stable refs, for the curated tools to build. Writes nothing |
 | `osintCaseBuild`         | `osint/build.go`              | Carry the plan out against the API: forms (created, or given the fields they lack), graph + layer, actors with their fields and a picture (the case's, or a placeholder drawn in `osint/avatar.go` and uploaded through `graph.UploadImage`), placements, links, accounts, transfers — each looked up by ref first, so the call is repeatable |
+| `osintSources`           | `osint/sources.go`            | The built-in sources and the user's `osint-sources.yaml` (http_json sources); reports which `OSINT_…` key variables are set. Local only |
+| `osintCollect`           | `osint/collect.go`            | Read one source into an items file: Telegram public preview, a page's meta tags, RSS/Atom, or a user-defined JSON API. Goes through `ecore.UserURLClient`, refuses cross-host redirects, expands keys only from `OSINT_…` variables. Local only |
+| `osintActivity`          | `osint/activity.go`           | Counts and rankings over an items file, and a draft of case entries. Never returns item text. Local only |
 | `osintCaseGenerate`      | `osint/generate.go`           | Seeded synthetic case with planted schemes and the known answer; optionally written to a `.yaml` file |
 
 Engines share a small runtime config (`engines.Configure`: base URL + TLS) and read the
 auth header / `WORKSPACE_ID` per call. The `osint` tools other than `osintCaseBuild` make no
-API call at all — they read a case file and compute — so they need neither. The graph sync (`sync_graph.go` + `push_graph.go`,
+API call at all — they read a case file and compute — so they need neither. `osintCollect`
+is the one engine tool that reaches hosts other than the API: the ones the user names. It
+and its two companions are registered on the local server only. The graph sync (`sync_graph.go` + `push_graph.go`,
 ~1.5k LOC) is the most delicate logic: a bidirectional diff that minimises API calls and
 handles cascading deletes; its form name→id cache is per-workspace under a `sync.RWMutex`.
 

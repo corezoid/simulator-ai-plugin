@@ -45,6 +45,7 @@ func knownToolNames() map[string]bool {
 		"diffReleases", "rollbackRelease", "getFileHistory",
 		"getFileVersion", "rollbackFile", "listTrash", "restoreFromTrash",
 		"osintCaseCheck", "osintCaseAnalyze", "osintCasePlan", "osintCaseGenerate", "osintCaseBuild",
+		"osintSources", "osintCollect", "osintActivity",
 	} {
 		m[n] = true
 	}

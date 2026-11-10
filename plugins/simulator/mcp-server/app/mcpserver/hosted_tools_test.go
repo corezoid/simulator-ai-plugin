@@ -11,7 +11,8 @@ import (
 // fileTools read or write the server's working directory. A hosted
 // (stateless) server shares that disk between callers, so it must not offer
 // them; a local (stdio) server keeps them — that is where they belong.
-var fileTools = []string{"pullGraphFile", "pushGraphFile", "pullSmartForm", "pushSmartForm", "simulationSnapshot"}
+var fileTools = []string{"pullGraphFile", "pushGraphFile", "pullSmartForm", "pushSmartForm", "simulationSnapshot",
+	"osintSources", "osintCollect", "osintActivity"}
 
 func TestHostedServerOmitsFileTools(t *testing.T) {
 	t.Setenv(APISecretEnv, "")

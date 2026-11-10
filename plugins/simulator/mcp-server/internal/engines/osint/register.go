@@ -125,6 +125,7 @@ func Register(s *server.MCPServer) {
 		)
 	}
 	s.AddTool(mcp.NewTool("osintCaseGenerate", genOpts...), handleGenerate)
+	registerCollect(s)
 }
 
 // localPath resolves a user-given relative path inside the working directory.
