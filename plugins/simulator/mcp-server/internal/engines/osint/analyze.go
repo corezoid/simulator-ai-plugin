@@ -738,7 +738,11 @@ func (a *analyzer) relatedParties() {
 // circleTypes link a person to the people close to them.
 var circleTypes = map[string]bool{"family": true, "associate": true, "same_as": true}
 
-const conflictDepth = 4 // payments between the organization and the beneficiary
+const (
+	conflictDepth    = 4         // payments between the organization and the beneficiary
+	maxConflictSteps = 2_000_000 // work the search may do over the whole case
+	maxCircle        = 50        // people counted as close to one person
+)
 
 // conflicts finds money that leaves an organization and reaches someone close
 // to a person who has a say in that organization without owning it: an
@@ -782,7 +786,11 @@ func (a *analyzer) conflicts() {
 		}
 	}
 	flagged := false
+	steps, truncated := 0, false
 	for _, org := range sortedKeys(insiders) {
+		if truncated {
+			break
+		}
 		// everyone the organization's money reaches within conflictDepth payments
 		type reach struct {
 			depth int
@@ -797,6 +805,11 @@ func (a *analyzer) conflicts() {
 				continue
 			}
 			for _, h := range out[at] {
+				steps++
+				if steps > maxConflictSteps {
+					truncated = true
+					break
+				}
 				if _, ok := reached[h.to]; !ok {
 					reached[h.to] = reach{reached[at].depth + 1, append(append([]string{}, reached[at].via...), h.tx)}
 					queue = append(queue, h.to)
@@ -814,7 +827,15 @@ func (a *analyzer) conflicts() {
 			done[in.owner] = true
 			near := map[string]string{in.owner: ""} // person → the relation that makes them close
 			for _, c := range circle[in.owner] {
+				if len(near) > maxCircle {
+					break
+				}
 				near[c.owner] = c.ref
+			}
+			steps += len(reached) * len(near)
+			if steps > maxConflictSteps {
+				truncated = true
+				break
 			}
 			var subjects, evidence, lines []string
 			for _, got := range sortedKeys(reached) {
@@ -854,6 +875,9 @@ func (a *analyzer) conflicts() {
 				strings.Join(lines, "; ")+". Whoever decides for an organization should not be where its money ends up; check whether the role had a say in these payments and whether the interest was declared.",
 				append([]string{org, in.owner}, subjects...), append([]string{in.ref}, evidence...))
 		}
+	}
+	if truncated {
+		a.out.Notes = append(a.out.Notes, "The search for conflicts of interest stopped at its limit; more may exist.")
 	}
 	if flagged {
 		a.out.Assumptions = append(a.out.Assumptions, fmt.Sprintf(
@@ -899,15 +923,16 @@ func (a *analyzer) passThrough() {
 		if new(big.Rat).Mul(f.out, big.NewRat(10, 1)).Cmp(new(big.Rat).Mul(f.in, big.NewRat(11, 1))) > 0 {
 			continue
 		}
+		// incoming payments are in date order, dated ones first (a.txs is), so
+		// the latest one not after an outgoing payment is found by bisection
+		dated := sort.Search(len(f.ins), func(i int) bool { return !f.ins[i].dated })
 		for _, o := range f.outs {
 			if !o.dated {
 				continue
 			}
-			for _, in := range f.ins {
-				if in.dated && !o.when.Before(in.when) && o.when.Sub(in.when) <= window {
-					f.matched.Add(f.matched, o.amount)
-					break
-				}
+			i := sort.Search(dated, func(i int) bool { return f.ins[i].when.After(o.when) })
+			if i > 0 && o.when.Sub(f.ins[i-1].when) <= window {
+				f.matched.Add(f.matched, o.amount)
 			}
 		}
 		// at least 90 % of what came in left again within the window
@@ -1198,9 +1223,10 @@ func (a *analyzer) structuring() {
 	flagged := false
 	for _, k := range keys {
 		list := groups[k]
+		// the longest run that fits the window: both ends only move forward
 		best, bestFrom := 0, 0
-		for i := range list {
-			j := i
+		for i, j := 0, 0; i < len(list); i++ {
+			j = max(j, i)
 			for j+1 < len(list) && list[j+1].when.Sub(list[i].when) <= window {
 				j++
 			}
@@ -1263,15 +1289,15 @@ func (a *analyzer) funnels() {
 		}
 		return keys[i].cur < keys[j].cur
 	})
-	evidence := func(entity, cur string) []string {
-		var ids []string
-		for _, t := range a.txs {
-			if t.cur == cur && t.from != t.to && (t.from == entity || t.to == entity) {
-				ids = append(ids, t.t.ID)
-			}
+	// the payments of each entity, gathered in one pass
+	paid := map[flowKey][]string{}
+	for _, t := range a.txs {
+		if t.from != t.to {
+			paid[flowKey{t.from, t.cur}] = append(paid[flowKey{t.from, t.cur}], t.t.ID)
+			paid[flowKey{t.to, t.cur}] = append(paid[flowKey{t.to, t.cur}], t.t.ID)
 		}
-		return ids
 	}
+	evidence := func(entity, cur string) []string { return paid[flowKey{entity, cur}] }
 	for _, k := range keys {
 		f := flows[k]
 		if f.in.Sign() == 0 || f.out.Sign() == 0 {

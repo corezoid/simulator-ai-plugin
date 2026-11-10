@@ -3,11 +3,13 @@ package osint
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -623,5 +625,47 @@ func TestExampleTradeOverinvoicing(t *testing.T) {
 	}
 	if stake != "28" {
 		t.Errorf("owner's effective stake in the trader = %q, want 28", stake)
+	}
+}
+
+// The largest case the loader accepts is analysed in seconds: no pattern
+// search grows with the square of the number of payments.
+func TestAnalyzeScalesToTheLargestCase(t *testing.T) {
+	c := &Case{Meta: Meta{ID: "big", Title: "Big", Currency: "USD"}}
+	const people = 2000
+	for i := range people {
+		id := fmt.Sprintf("p%d", i)
+		c.Entities = append(c.Entities, Entity{ID: id, Type: "person", Title: id})
+		c.Accounts = append(c.Accounts, Account{ID: "a" + id, Owner: id})
+		if i > 0 {
+			c.Relations = append(c.Relations, Relation{From: id, To: "p0", Type: "family"})
+		}
+	}
+	c.Entities = append(c.Entities, Entity{ID: "org", Type: "organization", Title: "Org"})
+	c.Accounts = append(c.Accounts, Account{ID: "aorg", Owner: "org"})
+	c.Relations = append(c.Relations, Relation{From: "p0", To: "org", Type: "director"})
+	day := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	// everything through two accounts, all in one week, all just under the threshold
+	for i := range maxTransactions {
+		from, to := "aorg", fmt.Sprintf("ap%d", i%people)
+		if i%2 == 1 {
+			from, to = to, "ap0"
+			if from == to {
+				to = "aorg"
+			}
+		}
+		c.Transactions = append(c.Transactions, Transaction{ID: fmt.Sprintf("t%d", i), From: from, To: to,
+			Amount: mustDecimal("9500"), Date: dayDate(day.AddDate(0, 0, i%7))})
+	}
+	if rep := Check(c); !rep.OK() {
+		t.Fatal(rep.Errors)
+	}
+	start := time.Now()
+	an := Analyze(c, Options{})
+	if d := time.Since(start); d > 20*time.Second {
+		t.Errorf("analysis of %d payments took %s", maxTransactions, d)
+	}
+	if count(an, "structuring") == 0 {
+		t.Errorf("no structuring found in %d payments under the threshold: %v", maxTransactions, kinds(an))
 	}
 }
