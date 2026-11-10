@@ -49,7 +49,11 @@ func Register(s *server.MCPServer) {
 			"(weak spots to know about). "+desc),
 	)...), handleCheck)
 
-	s.AddTool(mcp.NewTool("osintCaseAnalyze", common(
+	var packFile []mcp.ToolOption
+	if !ecore.IsStateless() {
+		packFile = append(packFile, mcp.WithString("packPath", mcp.Description("A pack file, relative to the working directory.")))
+	}
+	s.AddTool(mcp.NewTool("osintCaseAnalyze", common(append(packFile,
 		mcp.WithDescription("Analyse an investigation case: effective beneficial ownership through chains of companies, "+
 			"circular ownership, one person fronting many companies, shared addresses and identifiers, pass-through "+
 			"accounts and layering chains, round trips, structuring under a threshold, funnels and payout networks, "+
@@ -59,6 +63,7 @@ func Register(s *server.MCPServer) {
 			"payments between two entities. A case with errors is not analysed. A synthetic case is scored against "+
 			"its known answer. Give a case, or `layerId` to analyse a live layer. "+desc),
 		mcp.WithString("layerId", mcp.Description("Analyse a layer of the workspace as it stands, instead of a case file: its actors, links, accounts and the transfers between them. Works on any layer; one built by osintCaseBuild keeps its ids, dates and grades.")),
+		mcp.WithString("pack", mcp.Description("What to look for: the id of a pack that comes with the plugin ("+strings.Join(ShippedPacks(), ", ")+"), or the YAML text of your own pack — thresholds, which built-in findings to report, and your own rules. Format: docs/osint/packs.md. Without one, every built-in pattern with the default thresholds.")),
 		mcp.WithString("from", mcp.Description("Entity or account id: find how it is connected to `to`.")),
 		mcp.WithString("to", mcp.Description("Entity or account id: the other end of the connection.")),
 		mcp.WithString("threshold", mcp.Description(fmt.Sprintf("Reporting threshold that structuring stays under, as a number in the case's currency (default %d).", defaultThreshold))),
@@ -66,7 +71,7 @@ func Register(s *server.MCPServer) {
 		mcp.WithString("minShare", mcp.Description(fmt.Sprintf("Effective stake, in percent, from which an indirect owner is reported (default %d).", defaultMinShare))),
 		mcp.WithNumber("top", mcp.Description(fmt.Sprintf("Rows in the ranked tables (default %d, max 100).", defaultTop))),
 		mcp.WithNumber("timeline", mcp.Description(fmt.Sprintf("Chronology entries (default %d, max 500).", defaultTimeline))),
-	)...), handleAnalyze)
+	)...)...), handleAnalyze)
 
 	s.AddTool(mcp.NewTool("osintCasePlan", common(
 		mcp.WithDescription("Plan how to build an investigation case as a digital twin in Simulator: forms, actors with "+
@@ -194,6 +199,30 @@ func refused(what string, rep *Report) *mcp.CallToolResult {
 		"errors": rep.Errors, "warnings": rep.Warnings})
 }
 
+// packArg loads the pack a call names: one that comes with the plugin, the
+// text of the user's own, or a file of it.
+func packArg(args map[string]any) (*Pack, error) {
+	if text, _ := args["pack"].(string); text != "" {
+		if idRe.MatchString(text) {
+			return ShippedPack(text)
+		}
+		return LoadPack([]byte(text))
+	}
+	name, _ := args["packPath"].(string)
+	if name == "" {
+		return nil, nil
+	}
+	path, err := localPath(name)
+	if err != nil {
+		return nil, fmt.Errorf("packPath: %v", err)
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("packPath: %v", err)
+	}
+	return LoadPack(src)
+}
+
 func ratArg(args map[string]any, key string) (*big.Rat, error) {
 	switch v := args[key].(type) {
 	case nil:
@@ -261,6 +290,9 @@ func handleAnalyze(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolR
 	opt.From, _ = args["from"].(string)
 	opt.To, _ = args["to"].(string)
 	var err error
+	if opt.Pack, err = packArg(args); err != nil {
+		return fail("%v", err), nil
+	}
 	if opt.Threshold, err = ratArg(args, "threshold"); err != nil {
 		return fail("%v", err), nil
 	}
@@ -268,6 +300,9 @@ func handleAnalyze(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolR
 		return fail("%v", err), nil
 	}
 	out := map[string]any{"ok": true, "analysis": Analyze(c, opt)}
+	if opt.Pack != nil {
+		out["pack"] = opt.Pack.Meta.ID
+	}
 	if len(rep.Warnings) > 0 {
 		out["checkWarnings"] = rep.Warnings
 	}

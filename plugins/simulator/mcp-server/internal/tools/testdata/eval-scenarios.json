@@ -1926,5 +1926,21 @@
         ]
       }
     ]
+  },
+  {
+    "name": "Analyse a case with a shipped pack",
+    "prompt": "Run a counterparty due-diligence check on the investigation case in cases/acme.yaml, using the due-diligence pack.",
+    "tools": [
+      "osintCaseAnalyze"
+    ],
+    "argChecks": [
+      {
+        "tool": "osintCaseAnalyze",
+        "mustContain": [
+          "cases/acme.yaml",
+          "due-diligence"
+        ]
+      }
+    ]
   }
 ]

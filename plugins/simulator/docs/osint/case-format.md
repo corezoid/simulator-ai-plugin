@@ -144,7 +144,9 @@ with the same accounts, amount and date.
 Every finding has a `kind`, a `severity` (`high`, `medium`, `low`), the `subjects` it is
 about, the `evidence` (case ids) it rests on and `weakestEvidence`. **A finding is a lead to
 check, not a conclusion**: each pattern has innocent explanations too, and the analysis sees
-only what is in the case. The `assumptions` list states the rule behind each pattern found.
+only what is in the case. The `assumptions` list states the rule behind each pattern found. Which patterns are
+reported, with what thresholds, and any rules of your own, is set by a pack:
+[`packs.md`](packs.md).
 
 | Kind | Pattern |
 |---|---|

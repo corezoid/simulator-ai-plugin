@@ -109,7 +109,15 @@ other MCP servers), and from `osintCollect`, which reads open sources into a fil
 Fix every error — a case with errors is not analysed or planned. Read the warnings to the
 user in plain words: unsourced claims and ungraded sources are the weak spots of the case.
 
-    osintCaseAnalyze(case | casePath | layerId, from?, to?, threshold?, windowDays?, minShare?, top?, timeline?)
+    osintCaseAnalyze(case | casePath | layerId, pack?, from?, to?, threshold?, windowDays?, minShare?, top?, timeline?)
+
+A **pack** decides what the analysis looks for: thresholds, which built-in findings to
+report, and the user's own rules written as conditions (`$CLAUDE_PLUGIN_ROOT/docs/osint/packs.md`).
+Two come with the plugin — `financial-investigation` (following money) and `due-diligence`
+(checking a counterparty). Pick the one that fits the question, or none for every built-in
+pattern. When the user states a policy or a pattern of their own ("flag any supplier
+incorporated in the last year", "anything over 50 000 to a person"), write it as a rule in a
+pack of theirs, show them the rule, and run it — do not eyeball the case for it.
 
 With `layerId` the analysis reads a layer of the workspace as it stands — any layer, built
 from a case or by hand — so the user can ask about the graph they are looking at (the UI
