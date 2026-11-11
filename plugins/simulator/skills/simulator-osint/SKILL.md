@@ -98,6 +98,9 @@ other MCP servers), and from `osintCollect`, which reads open sources into a fil
   registration number, address, …): they become the actor's fields in Simulator. Record who
   is close to whom (`family`, `associate`) and who has a say where (`director`, `officer`,
   `controls`) — conflicts of interest are found from these.
+- Numbers that describe an entity on a date — employees, followers, stars, revenue — go in its
+  `metrics`, with `case.as_of` set to the day they were read. In Simulator each becomes an
+  account; building the case again later with new figures draws them over time.
 - `picture` is optional: an https URL or an image file. Use only a picture the user may
   lawfully use, and never add a photo of a private person without a reason the question
   needs. An entity without one gets a neutral generated placeholder.
@@ -113,8 +116,9 @@ user in plain words: unsourced claims and ungraded sources are the weak spots of
 
 A **pack** decides what the analysis looks for: thresholds, which built-in findings to
 report, and the user's own rules written as conditions (`$CLAUDE_PLUGIN_ROOT/docs/osint/packs.md`).
-Two come with the plugin — `financial-investigation` (following money) and `due-diligence`
-(checking a counterparty). Pick the one that fits the question, or none for every built-in
+Three come with the plugin — `financial-investigation` (following money), `due-diligence`
+(checking a counterparty) and `market-map` (a company and its competitors, customers and
+partners; no payments needed). Pick the one that fits the question, or none for every built-in
 pattern. When the user states a policy or a pattern of their own ("flag any supplier
 incorporated in the last year", "anything over 50 000 to a person"), write it as a rule in a
 pack of theirs, show them the rule, and run it — do not eyeball the case for it.

@@ -13,6 +13,8 @@ cannot drift from what the analysis does.
 | [`investment-fraud-cashout.yaml`](investment-fraud-cashout.yaml) | Victims of a fake investment site pay three money mules in amounts under 10 000; the mules buy a stablecoin, the coins move through three wallets to an OTC desk, and the desk pays for a car. | 18 entities of 5 types, 17 accounts in USD and USDT, 22 payments | `structuring` ×3, `pass_through` ×3, `layering_chain` over the wallets, shared phone and domain |
 | [`trade-overinvoicing.yaml`](trade-overinvoicing.yaml) | An importer pays wheat invoices 50 % above the market; the excess goes through two offshore companies and comes back as a "loan". The trader and the lender own each other. | 12 entities of 4 types, 6 accounts, 12 payments | `round_trip` (one finding for all the trips), `circular_ownership`, `layering_chain`, `indirect_beneficial_owner` (28 % through the loop), `related_party_payments` |
 
+| [`market-map.yaml`](market-map.yaml) | A software company, its two products, three competitors, three customers, a partner and an investor, with headcount and code-hosting figures. No payments. | 12 entities, 15 relations, 9 metrics | With the `market-map` pack: `larger-competitor`, `more-visible-competitor`, `claim-from-one-side-only` ×3, `relationship-not-evidenced` (a competitor named only on a forum) |
+
 ## What each one is for
 
 - **minimal** — the smallest case that still has a finding on weak evidence. Start here to
@@ -27,6 +29,10 @@ cannot drift from what the analysis does.
 - **trade-overinvoicing** — the same money going round. The price evidence is in the
   documents and events, not in the payments: the analysis shows the loop, the investigator
   supplies why the invoices are inflated.
+
+- **market-map** — not an investigation at all: the same case format and tools describing a
+  company's market. What a "finding" is comes from the pack; here it is a claim that needs
+  confirming, or a competitor worth watching.
 
 ## Try them
 

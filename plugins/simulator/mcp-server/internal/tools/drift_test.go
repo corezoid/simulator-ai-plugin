@@ -75,6 +75,8 @@ var engineEndpoints = []struct{ tool, method, path string }{
 	{"osintCaseBuild", "GET", "/forms/ref/{accId}/{ref}"},
 	{"osintCaseBuild", "POST", "/forms/{accId}/{isTemplate}"},
 	{"osintCaseBuild", "PUT", "/forms/{formId}"},
+	{"osintCaseBuild", "GET", "/forms/search/{accId}/{q}"},
+	{"osintCaseBuild", "GET", "/forms/{formId}"},
 	{"osintCaseBuild", "POST", "/upload/{accId}"},
 	{"osintCaseBuild", "GET", "/forms/templates/system/{accId}"},
 	{"osintCaseBuild", "GET", "/edge_types/{accId}"},

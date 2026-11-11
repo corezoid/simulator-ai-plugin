@@ -20,6 +20,8 @@ Without a pack the analysis reports every built-in pattern with the default thre
 | `financial-investigation` | following money | Every built-in pattern, thresholds stated (`threshold: 10000`, `window_days: 7`, `min_share: 25`). Rules: `large-payment-weak-evidence` (a payment of 100 000 or more resting on a D–F or missing source), `money-to-unowned-organization` (an organization that received 100 000 or more and has no recorded owner), `recently-incorporated-recipient` (an organization paid 100 000 or more within about a year of being incorporated). |
 | `due-diligence` | checking a counterparty | Ownership from 10 % (`min_share: 10`). Leaves out `structuring`, `funnel`, `fan_out`, `pass_through`, which need a full set of statements; raises `unknown_owner` and `shared_anchor` to medium. Rules: `owner-not-evidenced` (a stake resting on weak evidence), `offshore-owner` (an owner of 10 % or more registered in a listed jurisdiction — edit the list to your policy's), `director-of-many`, `entity-without-sources`. |
 
+| `market-map` | a company and the market around it | Leaves out the money-movement findings (a market map has no statements behind it). Rules: `claim-from-one-side-only` (a customer, partner or supplier stated by a single source), `relationship-not-evidenced` (resting on a D–F or missing source), `larger-competitor` (five times the headcount, from the `employees` metric), `more-visible-competitor` (twice the `github_stars`), `key-account` (an organization linked to three or more others), `organization-without-sources`. |
+
 Their files are in the plugin source, `mcp-server/internal/engines/osint/packs/`; copy one
 as the start of your own.
 
@@ -94,6 +96,7 @@ entities at its ends (`source`, `target`, `owner`, `payer`, `payee`).
 |---|---|
 | `id`, `type`, `title`, `note` | as in the case |
 | `attrs` | the entity's attributes: `attrs.get('country', '')` |
+| `metrics` | the entity's metrics, as numbers: `metrics.get('employees', 0)` |
 | `sources`, `grade` | number of sources; the grade, e.g. `B2` or `unsourced` |
 | `owners`, `owned` | `owns` relations pointing at it; pointing from it |
 | `controllers`, `controls` | `controls` / `director` / `officer` / `agent` relations pointing at it; from it |

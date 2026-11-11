@@ -44,6 +44,7 @@ claim with no source is `unsourced`. A finding is as strong as its weakest evide
 | `question` | What the investigation has to answer. |
 | `synthetic` | `true` for a generated case with invented data. |
 | `currency` | Default currency for accounts and transactions that name none. |
+| `as_of` | The day the case describes: the date its `metrics` were read. |
 | `note` | Free text. |
 
 ### `sources`
@@ -55,8 +56,13 @@ warning); `url`; `retrieved` (date); `reliability`; `note`.
 ### `entities`
 
 `id`, `title` (required); `type` (required) — `person`, `organization`, `asset`, `location`,
-`document`, `digital`, `other`; `aliases` (list); `attrs` (map of text values); `picture`;
-`sources`; `credibility`; `note`.
+`document`, `digital`, `other`; `aliases` (list); `attrs` (map of text values); `metrics`
+(map of numbers); `picture`; `sources`; `credibility`; `note`.
+
+`metrics` are quantities of the entity as of `case.as_of` — employees, followers, stars,
+revenue: `metrics: {employees: 120, github_stars: 840}`. A name is lower-case letters,
+digits and `_`. Rules of a pack can compare them (`target.metrics.get('employees', 0)`), and
+in Simulator each becomes an account of the actor, so it can be charted and watched.
 
 `picture` is an `https://` URL or a path to an image file (`.png`, `.jpg`, `.jpeg`, `.gif`,
 `.webp`, `.svg`) relative to the working directory. Use only a picture you may lawfully use.
@@ -94,7 +100,8 @@ relation as evidence); `share` (percent, on `owns` only); `since`, `until`; `sou
 | `owns` | from owns `share` % of to | beneficial ownership, circular ownership, related parties |
 | `controls`, `director`, `officer`, `agent` | from has a say over to | one person fronting many organizations |
 | `registered_at`, `located_at`, `uses` | from is at / uses to | shared addresses and identifiers |
-| `employee`, `family`, `associate`, `mentions`, `same_as`, `other` | plain link | connections between entities |
+| `employee`, `family`, `associate`, `mentions`, `same_as`, `other` | plain link | connections between entities; `family`, `associate` and `same_as` also say who is close to whom, for conflicts of interest |
+| `founder`, `invests_in`, `partner`, `customer`, `supplier`, `competitor`, `product_of`, `part_of` | from founded / invests in / is a partner, customer, supplier or competitor of / is a product or part of to | connections between entities; rules of a pack, e.g. the `market-map` pack |
 
 Any other word is accepted with a warning and treated as a plain link.
 
@@ -184,6 +191,7 @@ without writing anything.
 | picture | the actor's picture: the entity's `picture`, or a generated placeholder (`pictures: auto`, the default; `given` sets only the case's pictures, `none` leaves pictures alone). The actor remembers which picture it has, so a repeated build uploads nothing |
 | relation | a link named after the relation type (`owns 60%`). Simulator keeps one link between two actors, so several relations between the same two become one link named after all of them (`owns 100% · director`) |
 | account | an account on its owner's actor, named `OSINT <kind>` (`#2` for a second one of the same kind and currency). In Simulator it has a debit side and a credit side |
+| metric | an account `Metric · <name>` (currency `units`) on the entity's actor, whose balance is the value. A build records the change since the last one, dated `case.as_of`: nothing when the value is the same, a rise on the credit side, a fall on the debit side — so building the case again with later figures draws the metric over time |
 | transaction | a transfer from the payer's debit side to the payee's credit side, ref `osint:<caseId>:<transactionId>`, dated with the payment's own date (the transfer's original date), with the date, purpose, id and grade also in its comment |
 | event, finding | a comment reaction on the layer or on the case's event actor (posted by hand, not by the build) |
 
@@ -223,7 +231,8 @@ and the transfers between those accounts transactions.
 | any other actor | an entity of type `other`, with the form's name as its `kind` |
 | a link named after relations (`owns 60% · director`) | those relations |
 | a link with any other name, or none | a plain link that keeps the name |
-| an account (not one of the platform's own tallies) | an account of its actor; its debit and credit sides are one account |
+| an account `Metric · <name>` | the entity's metric of that name, at its current balance |
+| any other account (not one of the platform's own tallies, nor recorded activity) | an account of its actor; its debit and credit sides are one account |
 | a transfer between two accounts on the layer | a transaction, dated by its original date |
 
 It works on any layer, built from a case or by hand. What a layer cannot tell is said in the

@@ -73,18 +73,51 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case path == "GET forms/ref":
 		if id, ok := f.forms[seg[3]]; ok {
-			reply(map[string]any{"id": id, "title": "form " + seg[3], "form": map[string]any{"sections": f.sections[seg[3]]}})
+			reply(map[string]any{"id": id, "title": "form " + seg[3], "ref": seg[3], "form": map[string]any{"sections": f.sections[seg[3]]}})
 			return
 		}
 		missing()
 	case r.Method == "PUT" && seg[0] == "forms":
+		// an update replaces the form: a ref that is not sent is lost
 		f.formPuts++
 		for ref, id := range f.forms {
-			if strconv.Itoa(id) == seg[1] {
-				f.sections[ref] = obj["sections"]
+			if strconv.Itoa(id) != seg[1] {
+				continue
 			}
+			sent, _ := obj["ref"].(string)
+			delete(f.forms, ref)
+			if sent == "" {
+				sent = "lost-" + seg[1]
+			}
+			f.forms[sent] = id
+			f.sections[sent] = obj["sections"]
+			break
 		}
 		reply(map[string]any{"id": seg[1]})
+	case path == "GET forms/search":
+		var hits []map[string]any
+		for ref, id := range f.forms {
+			if f.formTitle[strconv.Itoa(id)] == seg[3] {
+				r := ref
+				if strings.HasPrefix(r, "lost-") {
+					r = ""
+				}
+				hits = append(hits, map[string]any{"id": id, "title": seg[3], "ref": r})
+			}
+		}
+		reply(hits)
+	case r.Method == "GET" && seg[0] == "forms" && len(seg) == 2:
+		for ref, id := range f.forms {
+			if strconv.Itoa(id) == seg[1] {
+				r := ref
+				if strings.HasPrefix(r, "lost-") {
+					r = ""
+				}
+				reply(map[string]any{"id": id, "title": f.formTitle[seg[1]], "ref": r, "form": map[string]any{"sections": f.sections[ref]}})
+				return
+			}
+		}
+		missing()
 	case r.Method == "POST" && seg[0] == "upload":
 		f.posts["upload"]++
 		reply(map[string]any{"fileName": fmt.Sprintf("stored-%d.png", f.id())})
@@ -246,6 +279,14 @@ func (f *fakeSimulator) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		missing()
 	case r.Method == "POST" && seg[0] == "transactions":
 		f.posts["entry"]++
+		for _, rows := range f.accounts {
+			for _, row := range rows {
+				if row["id"] == seg[1] {
+					have, _ := row["amount"].(float64)
+					row["amount"] = have + obj["amount"].(float64)
+				}
+			}
+		}
 		f.refs[seg[1]+"|"+obj["ref"].(string)] = true
 		f.rows[seg[1]] = append(f.rows[seg[1]], map[string]any{"amount": obj["amount"], "comment": obj["comment"], "type": "completed",
 			"originalDate": obj["originalDate"], "createdAt": 1})
@@ -400,6 +441,21 @@ func TestBuildCreatesTheTwinOnceAndIsRepeatable(t *testing.T) {
 	if fake.posts["upload"] != uploads {
 		t.Error("pictures: none still uploaded")
 	}
+	// the update kept the form's ref: the next build finds the same form and makes no second one
+	forms := fake.posts["form"]
+	if res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone}); err != nil || fake.posts["form"] != forms || fake.formPuts != 1 {
+		t.Errorf("after a form update: %v, forms created %d → %d, updates %d", err, forms, fake.posts["form"], fake.formPuts)
+	}
+	// a form that lost its ref some other way is found by its title and gets the ref back
+	personID := fake.forms["osint-person"]
+	delete(fake.forms, "osint-person")
+	fake.forms["lost-"+strconv.Itoa(personID)] = personID
+	fake.sections["lost-"+strconv.Itoa(personID)] = fake.sections["osint-person"]
+	res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone})
+	if err != nil || fake.posts["form"] != forms || fake.forms["osint-person"] != personID || !strings.Contains(strings.Join(res.Notes, " "), "got its ref back") {
+		t.Errorf("a form without its ref: %v, forms created %d → %d, notes %v", err, forms, fake.posts["form"], res.Notes)
+	}
+	fake.updates -= 10
 	fake.updates -= 5
 	if fake.updates != 5 {
 		t.Errorf("existing actors were updated %d times, want 5 (graph, layer, 3 entities)", fake.updates)
@@ -532,7 +588,7 @@ func TestRecordActivityWritesDatedEntriesOnce(t *testing.T) {
 	}{{"2026-01-05T10:00:00Z", 100}, {"2026-01-20T10:00:00Z", 50}, {"2026-02-03T10:00:00Z", 70}, {"2026-03-09T10:00:00Z", 999}, {"", 5}} {
 		c.Items = append(c.Items, Item{ID: it.date, Date: it.date, Metrics: map[string]float64{"views": it.views}})
 	}
-	res, err := RecordActivity(ctx, "ws", "actor-1", c, BucketMonth)
+	res, err := RecordActivity(ctx, "ws", "actor-1", c, BucketMonth, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,20 +605,20 @@ func TestRecordActivityWritesDatedEntriesOnce(t *testing.T) {
 		t.Errorf("entries of views: %v", rows)
 	}
 	// again: nothing new
-	res, err = RecordActivity(ctx, "ws", "actor-1", c, BucketMonth)
+	res, err = RecordActivity(ctx, "ws", "actor-1", c, BucketMonth, "")
 	if err != nil || fake.posts["entry"] != 4 || res.Accounts[1].Entries.Existing != 2 || res.Accounts[1].Entries.Created != 0 {
 		t.Errorf("second recording: %v, entries %d, %+v", err, fake.posts["entry"], res.Accounts)
 	}
 	// a collection cut at its limit starts mid-bucket: its first bucket is left out
 	c.Truncated = true
-	res, _ = RecordActivity(ctx, "ws", "actor-2", c, BucketMonth)
+	res, _ = RecordActivity(ctx, "ws", "actor-2", c, BucketMonth, "")
 	if res.From != "2026-02-01" || res.Accounts[0].Total != 1 {
 		t.Errorf("truncated collection: %+v", res)
 	}
-	if _, err = RecordActivity(ctx, "ws", "actor-1", c, "fortnight"); err == nil {
+	if _, err = RecordActivity(ctx, "ws", "actor-1", c, "fortnight", ""); err == nil {
 		t.Error("an unknown bucket was accepted")
 	}
-	if res, _ = RecordActivity(ctx, "ws", "actor-1", &Collection{Source: "x", Target: "y"}, ""); res.Skipped == "" {
+	if res, _ = RecordActivity(ctx, "ws", "actor-1", &Collection{Source: "x", Target: "y"}, "", ""); res.Skipped == "" {
 		t.Error("an empty collection was not reported as skipped")
 	}
 }
@@ -660,5 +716,63 @@ func TestBuildRelayoutMovesOnlyOnRequest(t *testing.T) {
 	// and again: everything is where it belongs
 	if res, err = Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone, Relayout: true}); err != nil || res.Moved != 0 {
 		t.Errorf("a second relayout moved %d actors: %v", res.Moved, err)
+	}
+}
+
+// A metric is kept as the balance of an account: the first build records the
+// value, a build with the same value records nothing, a later value records
+// the change — up on the credit side, down on the debit side.
+func TestMetricsAreKeptAsAccountBalances(t *testing.T) {
+	fake := newFakeSimulator()
+	srv := httptest.NewServer(fake)
+	defer srv.Close()
+	ctx := apiclient.WithBaseURL(context.Background(), srv.URL)
+	build := func(asOf, stars string) *BuildResult {
+		t.Helper()
+		c := mustLoad(t, fmt.Sprintf("case: {id: m, title: M, as_of: %s}\nentities:\n  - {id: co, type: organization, title: Co, metrics: {github_stars: %s, employees: 40}}\n", asOf, stars))
+		res, err := Build(ctx, c, "ws", BuildOptions{Pictures: PicturesNone})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+	if res := build("2026-01-31", "100"); res.Metrics.Created != 2 || fake.posts["entry"] != 2 {
+		t.Fatalf("first build: %+v, entries %d", res.Metrics, fake.posts["entry"])
+	}
+	if res := build("2026-01-31", "100"); res.Metrics.Created != 0 || res.Metrics.Existing != 2 || fake.posts["entry"] != 2 {
+		t.Errorf("same values again: %+v, entries %d", res.Metrics, fake.posts["entry"])
+	}
+	if res := build("2026-02-28", "130"); res.Metrics.Created != 1 || res.Metrics.Existing != 1 {
+		t.Errorf("stars up: %+v", res.Metrics)
+	}
+	res := build("2026-03-31", "90")
+	if res.Metrics.Created != 1 {
+		t.Errorf("stars down: %+v", res.Metrics)
+	}
+	// the entries: +100 and +30 on the credit side, 40 on the debit side, each dated as of its case
+	var credit, debit []map[string]any
+	for acc, rows := range fake.rows {
+		for _, r := range rows {
+			if !strings.Contains(r["comment"].(string), "github_stars") {
+				continue
+			}
+			if strings.HasSuffix(acc, "credit") {
+				credit = append(credit, r)
+			} else {
+				debit = append(debit, r)
+			}
+		}
+	}
+	if len(credit) != 2 || credit[0]["amount"] != float64(100) || credit[1]["amount"] != float64(30) ||
+		len(debit) != 1 || debit[0]["amount"] != float64(40) || debit[0]["originalDate"] != float64(1774915200000) {
+		t.Errorf("entries: credit %v, debit %v", credit, debit)
+	}
+	// read back from the layer, the metric is its balance, and it is not listed as an account
+	back, _, err := FromLayer(ctx, res.LayerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := back.Entities[0].Metrics; got["github_stars"].String() != "90" || got["employees"].String() != "40" || len(back.Accounts) != 0 {
+		t.Errorf("read back: metrics %v, %d accounts", got, len(back.Accounts))
 	}
 }

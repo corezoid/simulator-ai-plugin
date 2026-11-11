@@ -225,8 +225,10 @@ func LoadPack(src []byte) (*Pack, error) {
 		for _, m := range fieldRe.FindAllStringSubmatch(r.Title+" "+r.Detail, -1) {
 			// an attribute is whatever the case gave the entity: any name may follow attrs
 			path := m[1]
-			if i := strings.Index("."+path, ".attrs."); i >= 0 {
-				path = ("." + path)[1 : i+len(".attrs")]
+			for _, open := range []string{".attrs.", ".metrics."} {
+				if i := strings.Index("."+path, open); i >= 0 {
+					path = ("." + path)[1 : i+len(open)-1]
+				}
 			}
 			if _, ok := lookup(blankFields(r.For), path); !ok {
 				return nil, fmt.Errorf("%s: {%s} is not a field of a %s", where, m[1], r.For)
@@ -265,6 +267,14 @@ func record(fields map[string]any) *sim.OMap {
 	return o
 }
 
+func metricMap(m map[string]Decimal) *sim.OMap {
+	o := sim.NewOMap()
+	for _, k := range sortedKeys(m) {
+		o.Set(k, m[k].Rat())
+	}
+	return o
+}
+
 func textMap(m map[string]string) *sim.OMap {
 	o := sim.NewOMap()
 	for _, k := range sortedKeys(m) {
@@ -292,7 +302,7 @@ func (a *analyzer) entityFields(id string, st *entityStats) map[string]any {
 		return r
 	}
 	return map[string]any{
-		"id": id, "type": e.Type, "title": e.Title, "attrs": textMap(e.Attrs), "note": e.Note,
+		"id": id, "type": e.Type, "title": e.Title, "attrs": textMap(e.Attrs), "metrics": metricMap(e.Metrics), "note": e.Note,
 		"sources": num(len(e.Sources)), "grade": grade,
 		"owners": num(st.owners), "owned": num(st.owned), "controls": num(st.controls), "controllers": num(st.controllers),
 		"relations": num(st.relations), "neighbours": num(st.neighbours), "accounts": num(st.accounts),

@@ -1,0 +1,127 @@
+# Invented case. A software company and the market around it: products,
+# competitors, customers, a partner, an investor — with a few numbers for each.
+# No payments: a market map is built from what companies say in public.
+case:
+  id: market-map
+  title: Market map of Lumen Flow Inc
+  question: Who does Lumen Flow compete with and sell to, and how well is each of those evidenced?
+  synthetic: true
+  as_of: 2026-06-30
+  note: Every company, product, number and source here is invented.
+
+sources:
+  - {id: s-site, title: Lumen Flow website and customer stories, kind: corporate, reliability: C, url: "https://lumenflow.example", retrieved: 2026-06-30}
+  - {id: s-registry, title: Company registry extracts, kind: registry, reliability: B, retrieved: 2026-06-28}
+  - {id: s-analyst, title: Analyst report on workflow platforms, kind: corporate, reliability: B, retrieved: 2026-06-20}
+  - {id: s-press, title: Trade press, kind: media, reliability: C}
+  - {id: s-code, title: Public code hosting statistics, kind: other, reliability: A, retrieved: 2026-06-30}
+  - {id: s-rumour, title: Forum thread, kind: social, reliability: E}
+
+entities:
+  - id: lumen
+    type: organization
+    title: Lumen Flow Inc
+    attrs: {legal_form: Inc, country: Avelan Republic, incorporated: 2017-03-14, status: active, industry: workflow automation software, website: "https://lumenflow.example"}
+    metrics: {employees: 120, github_stars: 840, customers_named: 3}
+    sources: [s-registry, s-site]
+    credibility: 1
+  - id: founder
+    type: person
+    title: Kessa Norvald
+    attrs: {occupation: founder and chief executive}
+    sources: [s-registry, s-press]
+    credibility: 1
+  - id: engine
+    type: asset
+    title: Lumen Engine
+    attrs: {kind: software product, identifier: workflow engine}
+    metrics: {github_stars: 840}
+    sources: [s-site, s-code]
+    credibility: 1
+  - id: studio
+    type: asset
+    title: Lumen Studio
+    attrs: {kind: software product, identifier: visual process designer}
+    sources: [s-site]
+    credibility: 2
+  - id: rival-big
+    type: organization
+    title: Northgate Process Systems Ltd
+    attrs: {country: Nordhaven Union, industry: business process management software}
+    metrics: {employees: 2400, github_stars: 310}
+    sources: [s-analyst]
+    credibility: 2
+  - id: rival-open
+    type: organization
+    title: Tessel Works
+    attrs: {country: Erro Federation, industry: open-source workflow engine}
+    metrics: {employees: 85, github_stars: 9200}
+    sources: [s-analyst, s-code]
+    credibility: 2
+  - id: rival-rumoured
+    type: organization
+    title: Calder Automation
+    attrs: {industry: robotic process automation}
+    sources: [s-rumour]
+    credibility: 4
+  - id: bank
+    type: organization
+    title: Harbour Savings Bank
+    attrs: {country: Avelan Republic, industry: retail banking}
+    sources: [s-site, s-press]
+    credibility: 2
+  - id: retailer
+    type: organization
+    title: Thornwick Home Stores
+    attrs: {country: Thornwick Commonwealth, industry: retail}
+    sources: [s-site]
+    credibility: 3
+  - id: telco
+    type: organization
+    title: Kessel Mobile
+    attrs: {country: Kessel Isles, industry: telecommunications}
+    sources: [s-site]
+    credibility: 3
+  - id: integrator
+    type: organization
+    title: Bridgeline Consulting LLC
+    attrs: {country: Avelan Republic, industry: systems integration}
+    metrics: {employees: 600}
+    sources: [s-site, s-press]
+    credibility: 2
+  - id: fund
+    type: organization
+    title: Quay Street Ventures
+    attrs: {country: Avelan Republic, industry: venture capital}
+    sources: [s-press, s-registry]
+    credibility: 1
+
+relations:
+  - {id: r-founder, from: founder, to: lumen, type: founder, since: 2017-03-14, sources: [s-registry], credibility: 1}
+  - {id: r-ceo, from: founder, to: lumen, type: director, sources: [s-registry], credibility: 1}
+  - {id: r-founder-stake, from: founder, to: lumen, type: owns, share: 55, sources: [s-registry], credibility: 2}
+  - {id: r-fund-stake, from: fund, to: lumen, type: owns, share: 30, sources: [s-registry, s-press], credibility: 2}
+  - {id: r-fund, from: fund, to: lumen, type: invests_in, since: 2021-09-01, sources: [s-press], credibility: 2, note: Led the Series A.}
+  - {id: r-engine, from: engine, to: lumen, type: product_of, sources: [s-site], credibility: 1}
+  - {id: r-studio, from: studio, to: lumen, type: product_of, sources: [s-site], credibility: 1}
+  - {id: r-rival-big, from: lumen, to: rival-big, type: competitor, sources: [s-analyst], credibility: 2}
+  - {id: r-rival-open, from: lumen, to: rival-open, type: competitor, sources: [s-analyst], credibility: 2}
+  - {id: r-rival-rumoured, from: lumen, to: rival-rumoured, type: competitor, sources: [s-rumour], credibility: 4}
+  - {id: r-bank, from: bank, to: lumen, type: customer, since: 2019-05-01, sources: [s-site, s-press], credibility: 2}
+  - {id: r-retailer, from: retailer, to: lumen, type: customer, sources: [s-site], credibility: 3}
+  - {id: r-telco, from: telco, to: lumen, type: customer, sources: [s-site], credibility: 3}
+  - {id: r-integrator, from: integrator, to: lumen, type: partner, sources: [s-site, s-press], credibility: 2}
+  - {id: r-integrator-bank, from: integrator, to: bank, type: supplier, sources: [s-press], credibility: 3, note: Delivered the bank's rollout.}
+
+events:
+  - {id: e1, date: 2017-03-14, title: Lumen Flow is incorporated, entities: [lumen, founder], sources: [s-registry], credibility: 1}
+  - {id: e2, date: 2019-05-01, title: Harbour Savings Bank goes live on Lumen Engine, entities: [bank, lumen, engine], sources: [s-press], credibility: 2}
+  - {id: e3, date: 2021-09-01, title: Series A led by Quay Street Ventures, entities: [fund, lumen], sources: [s-press], credibility: 2}
+  - {id: e4, date: 2024-02-10, title: Lumen Engine is released as open source, entities: [engine, lumen], sources: [s-site, s-code], credibility: 1}
+
+hypotheses:
+  - id: h1
+    statement: Lumen Flow's named customers are real, paying customers.
+    status: open
+    evidence: [r-bank, r-retailer, r-telco]
+    note: Only the bank is confirmed outside the vendor's own website.

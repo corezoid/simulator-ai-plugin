@@ -558,7 +558,11 @@ func collectHTTPJSON(ctx context.Context, c *Collection, cfg *SourceConfig, opt 
 		if err := dec.Decode(&reply); err != nil {
 			return fmt.Errorf("source %s: the reply is not JSON", cfg.ID)
 		}
-		list, ok := dig(reply, cfg.Items).([]any)
+		itemsPath := cfg.Items
+		if itemsPath == "." {
+			itemsPath = "" // the reply itself is the list
+		}
+		list, ok := dig(reply, itemsPath).([]any)
 		if !ok {
 			return fmt.Errorf("source %s: the reply has no list at %q", cfg.ID, cfg.Items)
 		}
@@ -580,6 +584,16 @@ func collectHTTPJSON(ctx context.Context, c *Collection, cfg *SourceConfig, opt 
 					it.Title = plain(v)
 				case "text":
 					it.Text = plain(v)
+				}
+			}
+			for name, path := range cfg.Metrics {
+				if n, ok := dig(raw, path).(json.Number); ok {
+					if v, err := n.Float64(); err == nil {
+						if it.Metrics == nil {
+							it.Metrics = map[string]float64{}
+						}
+						it.Metrics[name] = v
+					}
 				}
 			}
 			if it.ID == "" {

@@ -17,7 +17,7 @@ func titles(a *Analysis, kind string) []string {
 }
 
 func TestShippedPacksLoadAndFindWhatTheySay(t *testing.T) {
-	if got := ShippedPacks(); !slices.Equal(got, []string{"due-diligence", "financial-investigation"}) {
+	if got := ShippedPacks(); !slices.Equal(got, []string{"due-diligence", "financial-investigation", "market-map"}) {
 		t.Fatalf("shipped packs: %v", got)
 	}
 	fin, err := ShippedPack("financial-investigation")
@@ -169,4 +169,59 @@ func must[T any](v T, err error) T {
 		panic(err)
 	}
 	return v
+}
+
+// A market map has no payments: the pack reads relations, sources and metrics.
+func TestMarketMapPackOnTheExample(t *testing.T) {
+	pack, err := ShippedPack("market-map")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := loadExample(t, "market-map")
+	an := Analyze(c, Options{Pack: pack, From: "bank", To: "rival-open"})
+	if got := titles(an, "larger-competitor"); len(got) != 1 || !strings.Contains(got[0], "Northgate Process Systems Ltd is a competitor at least five times the size of Lumen Flow Inc") {
+		t.Errorf("larger competitor: %v", got)
+	}
+	big := finding(t, an, "larger-competitor")
+	if !strings.Contains(big.Detail, "2400 employees") || !strings.Contains(big.Detail, "Lumen Flow Inc: 120") {
+		t.Errorf("metrics in the detail: %q", big.Detail)
+	}
+	if got := titles(an, "more-visible-competitor"); len(got) != 1 || !strings.Contains(got[0], "Tessel Works") {
+		t.Errorf("more visible competitor: %v", got)
+	}
+	// the two customers named only on the vendor's site, and the supplier named by one article
+	if got := titles(an, "claim-from-one-side-only"); len(got) != 3 {
+		t.Errorf("one-sided claims: %v", got)
+	}
+	if got := titles(an, "relationship-not-evidenced"); len(got) != 1 || !strings.Contains(got[0], "Calder Automation") || !strings.Contains(got[0], "E4") {
+		t.Errorf("not evidenced: %v", got)
+	}
+	// no money-movement findings on a map with no payments; ownership still read
+	for _, k := range []string{"structuring", "pass_through", "layering_chain", "round_trip", "unknown_owner"} {
+		if count(an, k) != 0 {
+			t.Errorf("%s reported on a market map", k)
+		}
+	}
+	if !an.Connection.Found || an.Connection.Hops != 2 {
+		t.Errorf("bank → open-source rival: %+v", an.Connection)
+	}
+	// the plan carries each metric as an account of its actor, dated as of the case
+	p := BuildPlan(c)
+	var stars *PlanMetric
+	for i, m := range p.Metrics {
+		if m.Entity == "rival-open" && m.Name == "github_stars" {
+			stars = &p.Metrics[i]
+		}
+	}
+	if len(p.Metrics) != 9 || stars == nil || stars.Value != "9200" || stars.AccountName != "Metric · github_stars" || stars.Date != "2026-06-30" {
+		t.Errorf("planned metrics: %d, %+v", len(p.Metrics), stars)
+	}
+	for _, a := range p.Actors {
+		if a.CaseID == "lumen" && (!strings.Contains(a.Description, "| employees | 120 |") || !strings.Contains(a.Description, "Metrics as of 2026-06-30")) {
+			t.Errorf("description:\n%s", a.Description)
+		}
+	}
+	if rep := Check(mustLoad(t, "case: {id: m, title: M}\nentities:\n  - {id: a, type: other, title: A, metrics: {Bad-Name: 1}}\n")); rep.OK() {
+		t.Error("a malformed metric name was accepted")
+	}
 }
