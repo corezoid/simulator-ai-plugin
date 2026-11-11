@@ -28,6 +28,7 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 | `simulator-finance`  | "record transaction", "account balance", "transfer funds"| Accounts, transactions, transfers, currencies, counters |
 | `simulator-charts`   | "chart", "dashboard", "visualise on layer"               | Dashboard charts & time-series visualisation on layers  |
 | `simulator-simulate` | "what if", "simulate", "forecast", "compare scenarios"   | Behaviour simulation: rules in model time over any layer, scenario comparison, ranges over many runs |
+| `simulator-osint`    | "investigation", "OSINT", "who owns", "follow the money", "how are X and Y connected" | Investigations as a digital twin: a case file with sources and grades, ownership and money-flow analysis, a build plan for Simulator, synthetic training cases |
 | `simulator-reactions`| "comment on this actor", "reply", "pin comment"          | Reactions: comments / events / approvals / ratings (threaded) |
 | `simulator-chat`     | "write a message to user N", "DM", "open a chat with"    | Messaging: send a message to a user, p2p/group chats (Events-form actors; messages are comment reactions) |
 | `simulator-tasks`    | "create a task", "assign to", "who approves", "needs signature" | Tasks/assignments: an Events-form actor + executor (`execute`) / approver (`sign`) / legal signer (`ds`) roles |
@@ -320,6 +321,11 @@ the actor/node items.)
 | `simulationCheck`        | Check a behaviour model (and scenarios) against a layer before running: unknown actions, typos in params, unresolved refs, unhandled events |
 | `simulationRun`          | Simulate a layer: run behaviour rules in model time per scenario and compare metrics; `runs` > 1 gives medians, ranges and goal shares. Read-only |
 | `simulationSnapshot`     | Read a layer with its account values into `<layerId>.sim.yaml` (plugin layer YAML + `sim:` sections) |
+| `osintCaseCheck`         | Check an investigation case file: ids that point nowhere, impossible amounts and dates, stakes above 100 %, unsourced claims, likely duplicates. Read-only |
+| `osintCaseAnalyze`       | Analyse a case: effective beneficial ownership, circular ownership, nominee directors, conflicts of interest, shared addresses, pass-through and layering chains, round trips, structuring, funnels, connections between two entities, chronology, evidence quality. Findings are leads with their evidence and its grade. Read-only |
+| `osintCasePlan`          | Plan how to build a case in Simulator — forms, actors, named links, accounts, transfers, each with a stable ref — and the curated tools that carry it out. Writes nothing |
+| `osintCaseBuild`         | Build a case in Simulator: a graph and layer, an actor per entity with its fields filled and a picture, named links, accounts and transfers, found again by ref so a repeat creates nothing twice and finishes a stopped build. Writes to the workspace |
+| `osintCaseGenerate`      | Generate a synthetic case (layering, round trip, smurfing, nominee director) with background activity and the known answer; same seed, same case |
 | `buildLink`              | Build an absolute web-app deep-link (actor / event / chat / layer / transaction / …) for the user to click; resolves the web base + workspace automatically, and defaults to the user's open actor/layer from the UI context when present |
 
 ## Architecture
@@ -334,7 +340,8 @@ Claude Code / Codex / Kiro
         ├── engines     pullGraphFile, pushGraphFile, exportGraph, importGraph,
         │               uploadGraphFile, getTaskStatus, compactGraphLayout,
         │               pruneLongEdges, getAllLayerPlacements, uploadActorPicture(Bulk), createChart, updateChart, buildLink,
-        │               simulationCheck, simulationRun, simulationSnapshot
+        │               simulationCheck, simulationRun, simulationSnapshot,
+        │               osintCaseCheck, osintCaseAnalyze, osintCasePlan, osintCaseBuild, osintCaseGenerate
         └── apiclient   HTTP → Simulator /papi/1.0 (local :9000 or mw gateway)
 ```
 
@@ -417,6 +424,19 @@ Behaviour simulation ("what if") on any layer: describe how actors behave in a Y
 change parameters per scenario, play model time forward and compare metrics — with ranges and
 goal shares over many random runs. Uses `simulationCheck` / `simulationRun` /
 `simulationSnapshot`; read-only. Model format: `plugins/simulator/docs/simulation/model-format.md`.
+
+### `/simulator-osint`
+Investigations (OSINT) as a digital twin. A case is one YAML file — sources, entities,
+relations, accounts, transactions, events, hypotheses — where every claim carries its source
+and an Admiralty grade. `osintCaseCheck` validates it; `osintCaseAnalyze` reads beneficial
+ownership, money-flow patterns and connections out of it, each finding with the evidence it
+rests on; `osintCasePlan` maps it onto actors, links, accounts and transfers and
+`osintCaseBuild` creates them, repeatably; `osintCaseGenerate` makes synthetic cases with a
+known answer for training and testing. The engine collects nothing from outside sources:
+that is optional and done with the host's own tools. Walkthrough:
+`plugins/simulator/docs/user-flows/osint-investigation.md`; case format:
+`plugins/simulator/docs/osint/case-format.md`; complete example cases:
+`plugins/simulator/docs/osint/examples/`.
 
 ## Project structure
 

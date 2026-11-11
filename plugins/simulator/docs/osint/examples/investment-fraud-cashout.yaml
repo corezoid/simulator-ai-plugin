@@ -1,0 +1,167 @@
+# Invented case. A fake investment site takes deposits through money mules,
+# converts them to a stablecoin, moves the coins through three wallets and
+# cashes out through an over-the-counter desk into a car.
+case:
+  id: investment-fraud-cashout
+  title: Brightvale Invest deposits
+  question: Where did the money paid to Brightvale Invest go, and who ended up with it?
+  synthetic: true
+  currency: USD
+  note: Every person, company, wallet, domain and payment here is invented.
+
+sources:
+  - {id: s-victims, title: Victim statements and payment receipts, kind: human, reliability: B}
+  - {id: s-bank, title: Bank statements of the mule accounts, kind: bank, reliability: A}
+  - {id: s-exchange, title: Exchange account records, kind: corporate, reliability: B}
+  - {id: s-chain, title: Public blockchain explorer, kind: blockchain, reliability: A, url: "https://explorer.example", retrieved: 2025-07-01}
+  - {id: s-whois, title: Domain registration records, kind: registry, reliability: C, retrieved: 2025-06-28}
+  - {id: s-dealer, title: Car dealer sales ledger, kind: corporate, reliability: B}
+  - {id: s-tip, title: Messages from a former mule, kind: human, reliability: D}
+
+entities:
+  - id: platform
+    type: organization
+    title: Brightvale Invest
+    attrs: {legal_form: none found, country: unknown, status: not registered, industry: "investment platform (unlicensed)", website: "https://brightvale-invest.example"}
+    sources: [s-victims, s-whois]
+    credibility: 2
+    note: No company of this name is registered anywhere it claims to operate.
+  - id: site
+    type: digital
+    title: brightvale-invest.example
+    attrs: {kind: domain, value: brightvale-invest.example, registered: 2025-01-09, provider: Privacy Shield Registrar}
+    sources: [s-whois]
+    credibility: 1
+  - id: support-phone
+    type: digital
+    title: "+000 555 7700"
+    attrs: {kind: phone number, value: "+000 555 7700", provider: prepaid SIM}
+    sources: [s-victims, s-tip]
+    credibility: 2
+  - id: organizer
+    type: person
+    title: Kessan Drohl
+    aliases: [Mr. Kay, "kdrohl"]
+    attrs: {dob: 1988-04-04, nationality: Kessel Isles, occupation: unknown, email: kdrohl@mail.example}
+    sources: [s-exchange, s-dealer, s-tip]
+    credibility: 3
+  - {id: v1, type: person, title: Alren Sildane, attrs: {dob: 1961-02-11, nationality: Avelan Republic, occupation: retired teacher}, sources: [s-victims], credibility: 1}
+  - {id: v2, type: person, title: Brenia Tormoor, attrs: {dob: 1957-08-23, nationality: Avelan Republic, occupation: retired nurse}, sources: [s-victims], credibility: 1}
+  - {id: v3, type: person, title: Coris Wenlund, attrs: {dob: 1970-12-05, nationality: Nordhaven Union, occupation: shop owner}, sources: [s-victims], credibility: 1}
+  - {id: v4, type: person, title: Davek Ulholt, attrs: {dob: 1965-05-19, nationality: Nordhaven Union, occupation: engineer}, sources: [s-victims], credibility: 1}
+  - {id: v5, type: person, title: Elia Garwick, attrs: {dob: 1979-10-30, nationality: Erro Federation, occupation: accountant}, sources: [s-victims], credibility: 1}
+  - {id: v6, type: person, title: Fenor Yarsten, attrs: {dob: 1954-07-07, nationality: Erro Federation, occupation: retired}, sources: [s-victims], credibility: 1}
+  - {id: mule1, type: person, title: Jorin Pelrak, attrs: {dob: 2001-03-14, nationality: Avelan Republic, occupation: student, phone: "+000 555 3141"}, sources: [s-bank, s-tip], credibility: 2}
+  - {id: mule2, type: person, title: Luma Nevgarde, attrs: {dob: 2000-09-02, nationality: Nordhaven Union, occupation: courier, phone: "+000 555 3141"}, sources: [s-bank], credibility: 2}
+  - {id: mule3, type: person, title: Orek Quinmere, attrs: {dob: 1999-11-27, nationality: Erro Federation, occupation: unemployed}, sources: [s-bank], credibility: 2}
+  - id: exchange
+    type: organization
+    title: Northpoint Exchange Ltd
+    attrs: {legal_form: Ltd, reg_number: NH-401990, country: Nordhaven Union, incorporated: 2018-06-01, status: active, industry: virtual asset exchange, website: "https://northpoint.example"}
+    sources: [s-exchange]
+    credibility: 1
+  - id: unknown-holder
+    type: other
+    title: Unidentified holder of wallets W1 and W2
+    attrs: {kind: unidentified wallet holder}
+    sources: [s-chain]
+    credibility: 1
+    note: Both wallets were funded for fees from the same address; who controls them is not known.
+  - id: otc
+    type: organization
+    title: Harbourline OTC Desk LLC
+    attrs: {legal_form: LLC, reg_number: KI-660045, country: Kessel Isles, incorporated: 2021-09-13, status: active, industry: over-the-counter crypto trading}
+    sources: [s-chain, s-dealer]
+    credibility: 2
+  - id: dealer
+    type: organization
+    title: Kessel Bay Motors Inc
+    attrs: {legal_form: Inc, reg_number: KI-120877, country: Kessel Isles, incorporated: 1999-04-20, status: active, industry: car dealership}
+    sources: [s-dealer]
+    credibility: 1
+  - id: car
+    type: asset
+    title: Sports coupe, registration KB-7 DROHL
+    attrs: {kind: vehicle, identifier: "VIN SYNTH00000000KD1", value: 132000 USD, acquired: 2025-04-03, country: Kessel Isles}
+    sources: [s-dealer]
+    credibility: 1
+
+relations:
+  - {id: r-site, from: platform, to: site, type: uses, sources: [s-victims, s-whois], credibility: 1}
+  - {id: r-site-org, from: organizer, to: site, type: uses, sources: [s-tip], credibility: 3, note: The former mule says Drohl logged in to the site's admin panel.}
+  - {id: r-phone1, from: platform, to: support-phone, type: uses, sources: [s-victims], credibility: 1}
+  - {id: r-phone2, from: organizer, to: support-phone, type: uses, sources: [s-tip], credibility: 3}
+  - {id: r-controls, from: organizer, to: platform, type: controls, sources: [s-tip], credibility: 3}
+  - {id: r-mule1, from: mule1, to: organizer, type: associate, sources: [s-tip], credibility: 3, note: Recruited through a job advert for "payment agents".}
+  - {id: r-mule2, from: mule2, to: mule1, type: associate, sources: [s-bank], credibility: 2}
+  - {id: r-car, from: organizer, to: car, type: owns, share: 100, since: 2025-04-03, sources: [s-dealer], credibility: 1}
+
+accounts:
+  - {id: acc-v1, owner: v1, kind: bank, sources: [s-victims], credibility: 1}
+  - {id: acc-v2, owner: v2, kind: bank, sources: [s-victims], credibility: 1}
+  - {id: acc-v3, owner: v3, kind: bank, sources: [s-victims], credibility: 1}
+  - {id: acc-v4, owner: v4, kind: bank, sources: [s-victims], credibility: 1}
+  - {id: acc-v5, owner: v5, kind: bank, sources: [s-victims], credibility: 1}
+  - {id: acc-v6, owner: v6, kind: bank, sources: [s-victims], credibility: 1}
+  - {id: acc-mule1, owner: mule1, kind: bank, number: AV10 5500 0103 1401, opened: 2025-02-20, sources: [s-bank], credibility: 1}
+  - {id: acc-mule2, owner: mule2, kind: bank, number: NU07 5500 0009 0201, opened: 2025-02-21, sources: [s-bank], credibility: 1}
+  - {id: acc-mule3, owner: mule3, kind: bank, number: EF31 5500 9911 2701, opened: 2025-02-24, sources: [s-bank], credibility: 1}
+  - {id: acc-exchange-usd, owner: exchange, kind: bank, title: client money account, sources: [s-exchange], credibility: 1}
+  - {id: acc-exchange-usdt, owner: exchange, kind: crypto, title: hot wallet, number: TXexchange0000hot, currency: USDT, sources: [s-chain], credibility: 1}
+  - {id: w-org, owner: organizer, kind: crypto, title: withdrawal wallet, number: TXdrohl0000a1, currency: USDT, sources: [s-exchange, s-chain], credibility: 2}
+  - {id: w1, owner: unknown-holder, kind: crypto, title: wallet W1, number: TXhop00000001, currency: USDT, sources: [s-chain], credibility: 1}
+  - {id: w2, owner: unknown-holder, kind: crypto, title: wallet W2, number: TXhop00000002, currency: USDT, sources: [s-chain], credibility: 1}
+  - {id: w-otc, owner: otc, kind: crypto, title: deposit wallet, number: TXotc00000desk, currency: USDT, sources: [s-chain], credibility: 2}
+  - {id: acc-otc, owner: otc, kind: bank, sources: [s-dealer], credibility: 2}
+  - {id: acc-dealer, owner: dealer, kind: bank, sources: [s-dealer], credibility: 1}
+
+transactions:
+  # deposits: each victim pays twice, every payment just under 10 000
+  - {id: d01, from: acc-v1, to: acc-mule1, amount: 9500, date: 2025-03-03, purpose: investment deposit, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d02, from: acc-v1, to: acc-mule1, amount: 9800, date: 2025-03-05, purpose: investment top-up, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d03, from: acc-v2, to: acc-mule1, amount: 9200, date: 2025-03-04, purpose: investment deposit, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d04, from: acc-v2, to: acc-mule1, amount: 9700, date: 2025-03-06, purpose: investment top-up, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d05, from: acc-v3, to: acc-mule2, amount: 9900, date: 2025-03-03, purpose: investment deposit, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d06, from: acc-v3, to: acc-mule2, amount: 9400, date: 2025-03-06, purpose: investment top-up, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d07, from: acc-v4, to: acc-mule2, amount: 9600, date: 2025-03-04, purpose: investment deposit, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d08, from: acc-v4, to: acc-mule2, amount: 9300, date: 2025-03-07, purpose: investment top-up, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d09, from: acc-v5, to: acc-mule3, amount: 9800, date: 2025-03-05, purpose: investment deposit, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d10, from: acc-v5, to: acc-mule3, amount: 9100, date: 2025-03-07, purpose: investment top-up, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d11, from: acc-v6, to: acc-mule3, amount: 9700, date: 2025-03-06, purpose: investment deposit, sources: [s-victims, s-bank], credibility: 1}
+  - {id: d12, from: acc-v6, to: acc-mule3, amount: 9500, date: 2025-03-08, purpose: investment top-up, sources: [s-victims, s-bank], credibility: 1}
+  # the mules keep 5 % and buy stablecoin at the exchange
+  - {id: m1, from: acc-mule1, to: acc-exchange-usd, amount: 36290, date: 2025-03-07, purpose: purchase of USDT, sources: [s-bank, s-exchange], credibility: 1}
+  - {id: m2, from: acc-mule2, to: acc-exchange-usd, amount: 36290, date: 2025-03-08, purpose: purchase of USDT, sources: [s-bank, s-exchange], credibility: 1}
+  - {id: m3, from: acc-mule3, to: acc-exchange-usd, amount: 36195, date: 2025-03-09, purpose: purchase of USDT, sources: [s-bank, s-exchange], credibility: 1}
+  # the exchange sends the coins to one withdrawal address
+  - {id: x1, from: acc-exchange-usdt, to: w-org, amount: 36100, date: 2025-03-07, purpose: withdrawal, sources: [s-exchange, s-chain], credibility: 1}
+  - {id: x2, from: acc-exchange-usdt, to: w-org, amount: 36100, date: 2025-03-08, purpose: withdrawal, sources: [s-exchange, s-chain], credibility: 1}
+  - {id: x3, from: acc-exchange-usdt, to: w-org, amount: 36000, date: 2025-03-09, purpose: withdrawal, sources: [s-exchange, s-chain], credibility: 1}
+  # three hops on chain
+  - {id: c1, from: w-org, to: w1, amount: 108000, date: 2025-03-10, sources: [s-chain], credibility: 1}
+  - {id: c2, from: w1, to: w2, amount: 107900, date: 2025-03-10, sources: [s-chain], credibility: 1}
+  - {id: c3, from: w2, to: w-otc, amount: 107800, date: 2025-03-11, sources: [s-chain], credibility: 1}
+  # cash-out: the desk pays the dealer on the buyer's behalf
+  - {id: o1, from: acc-otc, to: acc-dealer, amount: 105000, date: 2025-04-02, purpose: "payment for K. Drohl, sales order 2025-0412", sources: [s-dealer], credibility: 2}
+
+events:
+  - {id: e1, date: 2025-01-09, title: The domain brightvale-invest.example is registered, entities: [site], sources: [s-whois], credibility: 1}
+  - {id: e2, date: 2025-02-20, title: The first of three mule accounts is opened, entities: [mule1], sources: [s-bank], credibility: 1}
+  - {id: e3, date: 2025-03-12, title: The site stops answering and withdrawals are refused, entities: [platform, site], sources: [s-victims], credibility: 1}
+  - {id: e4, date: 2025-04-03, title: Kessan Drohl takes delivery of a sports coupe, entities: [organizer, car, dealer], sources: [s-dealer], credibility: 1}
+
+hypotheses:
+  - id: h1
+    statement: The deposits were split to stay under the 10 000 reporting threshold and collected through three recruited account holders.
+    status: supported
+    evidence: [d01, d02, d03, d04, d05, d06, d07, d08, d09, d10, d11, d12, m1, m2, m3]
+  - id: h2
+    statement: Kessan Drohl controls Brightvale Invest.
+    status: open
+    evidence: [r-controls, r-site-org, r-phone2, w-org]
+    note: Rests on one former mule (D) and on the exchange naming Drohl as holder of the withdrawal wallet.
+  - id: h3
+    statement: The car was bought with the victims' money.
+    status: open
+    evidence: [c1, c2, c3, o1, r-car]
+    note: The chain is unbroken on the blockchain, but who holds wallets W1 and W2 is not established.

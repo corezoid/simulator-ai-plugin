@@ -17,6 +17,7 @@
 - [simulator-graph](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-graph/SKILL.md): Simulator.Company graph structure specialist
 - [simulator-init](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-init/SKILL.md): Simulator.Company environment setup specialist
 - [simulator-meetings](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-meetings/SKILL.md): Simulator.Company meeting specialist — scheduling and configuring meetings / video / SIP rooms
+- [simulator-osint](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-osint/SKILL.md): Simulator.Company investigation (OSINT) specialist
 - [simulator-reactions](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-reactions/SKILL.md): Simulator.Company reactions specialist — comments, events, approvals, ratings and other feedback attached under an actor
 - [simulator-simulate](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-simulate/SKILL.md): Simulator.Company behaviour simulation specialist ("what if" on a graph)
 - [simulator-skills](https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-skills/SKILL.md): Simulator.Company skill registry specialist — the data-driven analogue of these built-in skills
@@ -37,6 +38,11 @@ The plugin bundles a Go MCP server that wraps the Simulator REST API:
 - **simulationRun**: Simulate a layer: behaviour rules in model time, compare scenarios (read-only)
 - **simulationCheck**: Check a behaviour model against a layer before running it (read-only)
 - **simulationSnapshot**: Save a layer with account values to <layerId>.sim.yaml for offline simulation
+- **osintCaseAnalyze**: Analyse an investigation case: beneficial ownership, money-flow patterns, connections (read-only)
+- **osintCaseCheck**: Check an investigation case file before analysing or building it (read-only)
+- **osintCasePlan**: Plan how to build an investigation case as actors, links, accounts and transfers
+- **osintCaseBuild**: Build an investigation case in Simulator: actors, links, accounts, transfers (repeatable)
+- **osintCaseGenerate**: Generate a synthetic investigation case with planted schemes and the known answer
 - **createActor**: Create a single actor (node) in a layer
 - **createActors**: Bulk-create up to 50 actors in a single call
 - **updateActor**: Update actor properties (title, description, status)

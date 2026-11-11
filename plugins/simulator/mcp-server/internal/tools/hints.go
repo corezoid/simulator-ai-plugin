@@ -73,6 +73,9 @@ var hintsByName = map[string]toolHints{
 	"readAttachment":        hintRead,
 	"simulationCheck":       hintRead,
 	"simulationRun":         hintRead,
+	"osintCaseCheck":        hintRead,
+	"osintCaseAnalyze":      hintRead,
+	"osintCasePlan":         hintRead,
 
 	// not Operations: additive
 	"getAgent":           hintAdditive, // get-or-creates a user twin
@@ -85,6 +88,7 @@ var hintsByName = map[string]toolHints{
 	"restoreFromTrash":   hintAdditive,
 	"simulationSnapshot": hintAdditive,
 	"pullGraphFile":      hintAdditive, // writes a local file only
+	"osintCaseGenerate":  hintAdditive, // may write a local file; nothing in Simulator
 	"pullSmartForm":      hintAdditive,
 
 	// not Operations: destructive
@@ -95,6 +99,7 @@ var hintsByName = map[string]toolHints{
 	"compactGraphLayout": hintDestructive, // rewrites node positions
 	"pruneLongEdges":     hintDestructive, // deletes edges
 	"updateChart":        hintDestructive, // overwrites the chart config; re-placing gives a new laId
+	"osintCaseBuild":     hintDestructive, // creates actors, links, accounts and transfers; transfers move value
 }
 
 // openWorldTools fetch an arbitrary URL the caller names, or publish

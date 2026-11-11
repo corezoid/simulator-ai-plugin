@@ -1,0 +1,46 @@
+# A small invented case: a supplier is paid through an intermediary that
+# belongs, through a holding, to the buyer's own director.
+case:
+  id: example-minimal
+  title: Supplier payments of Northfield Works
+  question: Who received the money paid to the intermediary, and is it connected to the buyer?
+  synthetic: true
+  currency: EUR
+  note: All names are invented.
+
+sources:
+  - {id: s-registry, title: Company registry extract, kind: registry, reliability: B, retrieved: 2025-04-10}
+  - {id: s-bank, title: Bank statements provided by the buyer, kind: bank, reliability: A}
+  - {id: s-tip, title: Former employee, kind: human, reliability: D}
+
+entities:
+  - {id: buyer, type: organization, title: Northfield Works Ltd, sources: [s-registry], credibility: 1,
+     attrs: {address: "4 Canal Yard, Port Avel"}}
+  - {id: director, type: person, title: Maren Tolvek, sources: [s-registry], credibility: 1}
+  - {id: holding, type: organization, title: Tolvek Holding LP, sources: [s-registry], credibility: 2}
+  - {id: broker, type: organization, title: Quayside Agency LLC, sources: [s-registry], credibility: 1,
+     attrs: {address: "4 Canal Yard, Port Avel"}}
+  - {id: supplier, type: organization, title: Ostrand Metals Inc, sources: [s-bank], credibility: 2}
+
+relations:
+  - {id: r-director, from: director, to: buyer, type: director, since: 2021-06-01, sources: [s-registry], credibility: 1}
+  - {id: r-holding, from: director, to: holding, type: owns, share: 100, sources: [s-registry], credibility: 2}
+  - {id: r-broker, from: holding, to: broker, type: owns, share: 80, sources: [s-tip], credibility: 3}
+
+accounts:
+  - {id: acc-buyer, owner: buyer, kind: bank, sources: [s-bank], credibility: 1}
+  - {id: acc-broker, owner: broker, kind: bank, sources: [s-bank], credibility: 1}
+  - {id: acc-supplier, owner: supplier, kind: bank, sources: [s-bank], credibility: 2}
+  - {id: acc-director, owner: director, kind: bank, sources: [s-tip], credibility: 3}
+
+transactions:
+  - {id: t1, from: acc-buyer, to: acc-broker, amount: 240000, date: 2025-02-03, purpose: steel supply contract 17, sources: [s-bank], credibility: 1}
+  - {id: t2, from: acc-broker, to: acc-supplier, amount: 150000, date: 2025-02-05, purpose: steel, sources: [s-bank], credibility: 1}
+  - {id: t3, from: acc-broker, to: acc-director, amount: 86000, date: 2025-02-06, purpose: consulting, sources: [s-tip], credibility: 3}
+
+events:
+  - {id: e1, date: 2025-01-20, title: Buyer signs a supply contract with the intermediary, entities: [buyer, broker], sources: [s-bank], credibility: 2}
+
+hypotheses:
+  - {id: h1, statement: The intermediary is controlled by the buyer's director and keeps part of the price for him., status: open,
+     evidence: [r-broker, t3]}

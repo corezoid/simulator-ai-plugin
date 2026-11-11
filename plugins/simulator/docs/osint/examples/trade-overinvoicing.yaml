@@ -1,0 +1,154 @@
+# Invented case. An importer pays inflated invoices to a foreign trader; the
+# excess moves through two offshore companies and returns to the importer as
+# a "loan". The trader and one offshore company own each other.
+case:
+  id: trade-overinvoicing
+  title: Grain imports of Sant Erro Agro Import
+  question: Why does Sant Erro Agro Import pay well above the market for grain, and where does the difference go?
+  synthetic: true
+  currency: USD
+  note: Every person, company, vessel, document and payment here is invented.
+
+sources:
+  - {id: s-customs, title: Customs declarations, kind: registry, reliability: A, retrieved: 2025-08-04}
+  - {id: s-bank, title: Bank statements of the importer, kind: bank, reliability: A}
+  - {id: s-corr, title: Correspondent bank payment records, kind: bank, reliability: B}
+  - {id: s-registry, title: Company registry extracts, kind: registry, reliability: B, retrieved: 2025-08-01}
+  - {id: s-leak, title: Leaked offshore incorporation files, kind: leak, reliability: C}
+  - {id: s-market, title: Commodity price index, kind: corporate, reliability: A, url: "https://prices.example/wheat"}
+
+entities:
+  - id: importer
+    type: organization
+    title: Sant Erro Agro Import LLC
+    attrs: {legal_form: LLC, reg_number: SE-770310, tax_id: EF-TAX-4410077, country: Erro Federation, incorporated: 2012-10-08, status: active,
+            industry: grain trade, address: "22 Market Hill, Sant Erro", website: "https://seagro.example"}
+    sources: [s-registry, s-customs]
+    credibility: 1
+  - id: owner
+    type: person
+    title: Velko Marand
+    attrs: {dob: 1971-07-26, nationality: Erro Federation, occupation: company owner, tax_id: EF-TAX-1971072}
+    sources: [s-registry]
+    credibility: 1
+  - id: trader
+    type: organization
+    title: Thornwick Commodities Ltd
+    attrs: {legal_form: Ltd, reg_number: TW-905512, country: Thornwick Commonwealth, incorporated: 2022-03-15, status: active,
+            industry: commodity trading, address: "5 Station Square, Thornwick"}
+    sources: [s-registry, s-customs]
+    credibility: 1
+  - id: trader-director
+    type: person
+    title: Pelis Ormoor
+    attrs: {dob: 1985-01-09, nationality: Thornwick Commonwealth, occupation: company director}
+    sources: [s-registry]
+    credibility: 1
+  - id: reef
+    type: organization
+    title: Calder Reef Holdings Inc
+    attrs: {legal_form: Inc, reg_number: KI-OFF-30117, country: Kessel Isles, incorporated: 2021-11-30, status: active, industry: holding company,
+            registered_agent: Tidewater Trust Company}
+    sources: [s-leak]
+    credibility: 2
+  - id: quillon
+    type: organization
+    title: Quillon Trade Finance LP
+    attrs: {legal_form: LP, reg_number: KI-OFF-30552, country: Kessel Isles, incorporated: 2022-02-01, status: active, industry: lending,
+            registered_agent: Tidewater Trust Company}
+    sources: [s-leak, s-corr]
+    credibility: 2
+  - id: farm
+    type: organization
+    title: Nordhaven Grain Cooperative
+    attrs: {legal_form: cooperative, reg_number: NH-100233, country: Nordhaven Union, incorporated: 1987-09-01, status: active, industry: agriculture}
+    sources: [s-corr]
+    credibility: 2
+  - id: shipping
+    type: organization
+    title: Avel Line Shipping Inc
+    attrs: {legal_form: Inc, reg_number: PA-330871, country: Avelan Republic, incorporated: 2001-05-12, status: active, industry: sea freight}
+    sources: [s-customs, s-corr]
+    credibility: 1
+  - id: vessel
+    type: asset
+    title: MV Avel Tern, bulk carrier
+    attrs: {kind: vessel, identifier: IMO SYN0004417, country: Avelan Republic}
+    sources: [s-customs]
+    credibility: 1
+  - id: inv1
+    type: document
+    title: Invoice TC-2025-031, 1 500 t milling wheat
+    attrs: {kind: commercial invoice, number: TC-2025-031, date: 2025-03-04, issuer: Thornwick Commodities Ltd}
+    sources: [s-customs]
+    credibility: 1
+    note: Invoiced at 320 USD per tonne; the index for the week was 205.
+  - id: inv2
+    type: document
+    title: Invoice TC-2025-047, 1 500 t milling wheat
+    attrs: {kind: commercial invoice, number: TC-2025-047, date: 2025-04-08, issuer: Thornwick Commodities Ltd}
+    sources: [s-customs]
+    credibility: 1
+    note: Invoiced at 320 USD per tonne; the index for the week was 210.
+  - id: loan-doc
+    type: document
+    title: Loan agreement QTF-L-09
+    attrs: {kind: loan agreement, number: QTF-L-09, date: 2025-03-17, issuer: Quillon Trade Finance LP}
+    sources: [s-bank]
+    credibility: 2
+    note: Unsecured, no repayment schedule, 1 % interest.
+
+relations:
+  - {id: r-own-importer, from: owner, to: importer, type: owns, share: 100, sources: [s-registry], credibility: 1}
+  - {id: r-dir-importer, from: owner, to: importer, type: director, sources: [s-registry], credibility: 1}
+  - {id: r-own-reef, from: owner, to: reef, type: owns, share: 100, sources: [s-leak], credibility: 3}
+  - {id: r-reef-quillon, from: reef, to: quillon, type: owns, share: 70, sources: [s-leak], credibility: 3}
+  - {id: r-trader-quillon, from: trader, to: quillon, type: owns, share: 30, sources: [s-leak], credibility: 3}
+  - {id: r-quillon-trader, from: quillon, to: trader, type: owns, share: 40, sources: [s-registry], credibility: 2}
+  - {id: r-dir-trader-own, from: trader-director, to: trader, type: owns, share: 60, sources: [s-registry], credibility: 2}
+  - {id: r-dir-trader, from: trader-director, to: trader, type: director, sources: [s-registry], credibility: 1}
+  - {id: r-inv1, from: inv1, to: importer, type: mentions, sources: [s-customs], credibility: 1}
+  - {id: r-inv2, from: inv2, to: importer, type: mentions, sources: [s-customs], credibility: 1}
+  - {id: r-loan, from: loan-doc, to: importer, type: mentions, sources: [s-bank], credibility: 2}
+  - {id: r-vessel, from: shipping, to: vessel, type: owns, share: 100, sources: [s-customs], credibility: 1}
+
+accounts:
+  - {id: acc-importer, owner: importer, kind: bank, number: EF31 0100 7703 1001, institution: Erro Trade Bank, sources: [s-bank], credibility: 1}
+  - {id: acc-trader, owner: trader, kind: bank, number: TC88 2200 9055 1201, institution: Thornwick Merchant Bank, sources: [s-corr], credibility: 2}
+  - {id: acc-reef, owner: reef, kind: bank, number: KI42 9900 3011 7001, institution: Kessel Offshore Bank, sources: [s-corr], credibility: 2}
+  - {id: acc-quillon, owner: quillon, kind: bank, number: KI42 9900 3055 2001, institution: Kessel Offshore Bank, sources: [s-corr, s-bank], credibility: 2}
+  - {id: acc-farm, owner: farm, kind: bank, sources: [s-corr], credibility: 2}
+  - {id: acc-shipping, owner: shipping, kind: bank, sources: [s-corr], credibility: 2}
+
+transactions:
+  # first shipment: 480 000 invoiced, about 307 500 at the market price
+  - {id: p1, from: acc-importer, to: acc-trader, amount: 480000, date: 2025-03-06, purpose: invoice TC-2025-031, sources: [s-bank], credibility: 1}
+  - {id: g1, from: acc-trader, to: acc-farm, amount: 180000, date: 2025-03-07, purpose: wheat purchase, sources: [s-corr], credibility: 2}
+  - {id: f1, from: acc-trader, to: acc-shipping, amount: 38000, date: 2025-03-07, purpose: freight MV Avel Tern, sources: [s-corr], credibility: 2}
+  - {id: k1, from: acc-trader, to: acc-reef, amount: 250000, date: 2025-03-08, purpose: agency commission, sources: [s-corr], credibility: 2}
+  - {id: q1, from: acc-reef, to: acc-quillon, amount: 245000, date: 2025-03-11, purpose: capital contribution, sources: [s-corr], credibility: 2}
+  - {id: l1, from: acc-quillon, to: acc-importer, amount: 240000, date: 2025-03-18, purpose: loan QTF-L-09 tranche 1, sources: [s-bank], credibility: 1}
+  # second shipment, the same pattern
+  - {id: p2, from: acc-importer, to: acc-trader, amount: 480000, date: 2025-04-10, purpose: invoice TC-2025-047, sources: [s-bank], credibility: 1}
+  - {id: g2, from: acc-trader, to: acc-farm, amount: 184000, date: 2025-04-11, purpose: wheat purchase, sources: [s-corr], credibility: 2}
+  - {id: f2, from: acc-trader, to: acc-shipping, amount: 38000, date: 2025-04-11, purpose: freight MV Avel Tern, sources: [s-corr], credibility: 2}
+  - {id: k2, from: acc-trader, to: acc-reef, amount: 248000, date: 2025-04-12, purpose: agency commission, sources: [s-corr], credibility: 2}
+  - {id: q2, from: acc-reef, to: acc-quillon, amount: 243000, date: 2025-04-15, purpose: capital contribution, sources: [s-corr], credibility: 2}
+  - {id: l2, from: acc-quillon, to: acc-importer, amount: 238000, date: 2025-04-22, purpose: loan QTF-L-09 tranche 2, sources: [s-bank], credibility: 1}
+
+events:
+  - {id: e1, date: 2022-03-15, title: "Thornwick Commodities is incorporated, six weeks after Quillon Trade Finance", entities: [trader, quillon], sources: [s-registry, s-leak], credibility: 2}
+  - {id: e2, date: 2025-03-04, title: First wheat invoice at 56 % above the price index, entities: [importer, trader, inv1], sources: [s-customs, s-market], credibility: 1}
+  - {id: e3, date: 2025-03-17, title: Importer signs an unsecured loan with Quillon Trade Finance, entities: [importer, quillon, loan-doc], sources: [s-bank], credibility: 2}
+  - {id: e4, date: 2025-04-08, title: Second wheat invoice at 52 % above the price index, entities: [importer, trader, inv2], sources: [s-customs, s-market], credibility: 1}
+
+hypotheses:
+  - id: h1
+    statement: The invoices are inflated to move money out of the importer, and the excess returns to it as a loan.
+    status: supported
+    evidence: [p1, k1, q1, l1, p2, k2, q2, l2, inv1, inv2]
+  - id: h2
+    statement: Velko Marand controls both ends of the trade through Calder Reef Holdings.
+    status: open
+    evidence: [r-own-reef, r-reef-quillon, r-quillon-trader]
+    note: The offshore ownership comes from a leak (C); only the 40 % stake of Quillon in the trader is in a public registry.
