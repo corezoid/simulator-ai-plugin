@@ -50,6 +50,7 @@ type SourceConfig struct {
 	Headers     map[string]string `yaml:"headers,omitempty"`
 	Items       string            `yaml:"items,omitempty"`
 	Fields      map[string]string `yaml:"fields,omitempty"`
+	Metrics     map[string]string `yaml:"metrics,omitempty"`
 	Cursor      string            `yaml:"cursor,omitempty"`
 	FirstPage   *int              `yaml:"first_page,omitempty"`
 	SourceKind  string            `yaml:"source_kind,omitempty"`
@@ -112,7 +113,12 @@ func LoadSources(src []byte) (*Sources, error) {
 			return nil, fmt.Errorf("%s: a source that sends a key must use https", where)
 		}
 		if c.Items == "" {
-			return nil, fmt.Errorf("%s: items (the path to the list in the reply) is missing", where)
+			return nil, fmt.Errorf("%s: items (the path to the list in the reply, or \".\" when the reply is the list) is missing", where)
+		}
+		for name := range c.Metrics {
+			if !metricRe.MatchString(name) {
+				return nil, fmt.Errorf("%s: metrics.%s: use lower-case letters, digits and '_'", where, name)
+			}
 		}
 		for k := range c.Fields {
 			if !slices.Contains(itemFields, k) {

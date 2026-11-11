@@ -187,6 +187,11 @@ func Check(c *Case) *Report {
 		if strings.TrimSpace(e.Title) == "" {
 			r.errf("%s: title is empty", w)
 		}
+		for _, name := range sortedKeys(e.Metrics) {
+			if !metricRe.MatchString(name) {
+				r.errf("%s: metric %q: use lower-case letters, digits and '_' (1-40 chars)", w, name)
+			}
+		}
 		if e.Picture != "" && !pictureOK(e.Picture) {
 			r.errf("%s: picture %q must be an https:// URL or a relative path to an image file (%s)", w, e.Picture, strings.Join(pictureExts, ", "))
 		}

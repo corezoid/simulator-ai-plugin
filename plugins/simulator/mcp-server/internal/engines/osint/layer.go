@@ -66,6 +66,7 @@ func FromLayer(ctx context.Context, layerID string) (*Case, []string, error) {
 	}
 
 	entityOf := map[string]string{} // actor uuid → entity id
+	nodeIndex := map[string]int{}   // actor uuid → index in c.Entities
 	typeOf := map[string]string{}   // entity id → type
 	used := map[string]bool{}
 	unknownForms := map[string]bool{}
@@ -98,6 +99,7 @@ func FromLayer(ctx context.Context, layerID string) (*Case, []string, error) {
 			e.Attrs = nil
 		}
 		typeOf[id] = e.Type
+		nodeIndex[n.ID] = len(c.Entities)
 		c.Entities = append(c.Entities, e)
 	}
 	if len(unknownForms) > 0 {
@@ -133,15 +135,16 @@ func FromLayer(ctx context.Context, layerID string) (*Case, []string, error) {
 	accountN := 0
 	for _, n := range nodes {
 		var rows []struct {
-			ID           string `json:"id"`
-			NameID       string `json:"nameId"`
-			AccountName  string `json:"accountName"`
-			CurrencyID   int    `json:"currencyId"`
-			CurrencyName string `json:"currencyName"`
-			IncomeType   string `json:"incomeType"`
-			Type         string `json:"type"`
-			IsSystem     bool   `json:"isSystem"`
-			CounterType  string `json:"counterType"`
+			ID           string      `json:"id"`
+			NameID       string      `json:"nameId"`
+			AccountName  string      `json:"accountName"`
+			CurrencyID   int         `json:"currencyId"`
+			CurrencyName string      `json:"currencyName"`
+			IncomeType   string      `json:"incomeType"`
+			Type         string      `json:"type"`
+			IsSystem     bool        `json:"isSystem"`
+			Amount       jsonDecimal `json:"amount"`
+			CounterType  string      `json:"counterType"`
 		}
 		if err := b.get("/accounts/"+ecore.Seg(n.ID)+"?limit=100", &rows); err != nil {
 			return nil, nil, fmt.Errorf("read the accounts of %q: %w", n.Title, err)
@@ -150,6 +153,25 @@ func FromLayer(ctx context.Context, layerID string) (*Case, []string, error) {
 		for _, r := range rows {
 			// the platform's own tallies (edges, reactions, …) are not the actor's money
 			if r.IsSystem || r.CounterType != "amount" || (r.Type != "" && r.Type != "fact") {
+				continue
+			}
+			// a metric of the entity is a level kept on an account of its own;
+			// recorded activity is a count, not money: neither is an account of the case
+			if name, isMetric := strings.CutPrefix(r.AccountName, "Metric · "); isMetric && metricRe.MatchString(name) {
+				e := &c.Entities[nodeIndex[n.ID]]
+				if e.Metrics == nil {
+					e.Metrics = map[string]Decimal{}
+				}
+				v := e.Metrics[name].Rat()
+				if r.IncomeType == "debit" {
+					v = new(big.Rat).Sub(v, r.Amount.d.Rat())
+				} else {
+					v = new(big.Rat).Add(v, r.Amount.d.Rat())
+				}
+				e.Metrics[name] = Decimal{v}
+				continue
+			}
+			if r.CurrencyName == metricCurrency {
 				continue
 			}
 			pair := fmt.Sprintf("%s|%d", r.NameID, r.CurrencyID)

@@ -22,6 +22,7 @@ type Plan struct {
 	AccountPairs []PlanPair     `json:"accountPairs"`
 	Accounts     []PlanAccount  `json:"accounts"`
 	Transfers    []PlanTransfer `json:"transfers"`
+	Metrics      []PlanMetric   `json:"metrics,omitempty"`
 	Chronology   []string       `json:"chronology,omitempty"`
 	Steps        []string       `json:"steps"`
 	Notes        []string       `json:"notes"`
@@ -89,6 +90,25 @@ type PlanAccount struct {
 
 	sides sides // the Simulator accounts, set while the plan is being built
 }
+
+// PlanMetric is one quantity of an entity as an account on its actor. The
+// account's balance is the value; what it gained or lost since the last build
+// is its turnover for that day.
+type PlanMetric struct {
+	ActorRef    string `json:"actorRef"`
+	Entity      string `json:"entity"`
+	Name        string `json:"name"`
+	AccountName string `json:"accountName"`
+	Value       string `json:"value"`
+	Date        string `json:"date,omitempty"`
+
+	when int64
+}
+
+// metricAccount names the account a metric is kept on; metricCurrency is its unit.
+func metricAccount(name string) string { return "Metric · " + name }
+
+const metricCurrency = "units"
 
 // PlanTransfer is one transaction as a transfer between two planned accounts.
 type PlanTransfer struct {
@@ -195,6 +215,13 @@ func BuildPlan(c *Case) *Plan {
 				a.GeoName = e.Title
 			}
 			p.Actors = append(p.Actors, a)
+			for _, name := range sortedKeys(e.Metrics) {
+				m := PlanMetric{ActorRef: prefix + e.ID, Entity: e.ID, Name: name, AccountName: metricAccount(name), Value: e.Metrics[name].String()}
+				if !c.Meta.AsOf.IsZero() {
+					m.Date, m.when = c.Meta.AsOf.String(), c.Meta.AsOf.Time().UnixMilli()
+				}
+				p.Metrics = append(p.Metrics, m)
+			}
 		}
 		if used {
 			p.Forms = append(p.Forms, PlanForm{Title: formTitle(t), Ref: "osint-" + t, EntityType: t, Color: formColors[t], Fields: formFieldsOf(t)})
@@ -301,6 +328,7 @@ func BuildPlan(c *Case) *Plan {
 		"Links: massLink in batches of up to 50, each {source, target, name}; one edge per pair of actors, named after all the relations between them. Then place the edges on the layer.",
 		"Accounts: createAccountPair for each entry of accountPairs, then createAccount(actorId, nameId, currencyId, ignoreIfExist=true) for each entry of accounts. It gives each account a debit side and a credit side.",
 		"Transfers: for each entry of transfers, in order, skip it when getTransferByRef finds it; otherwise createTransfer(from=[{accountId: the payer's debit side, amount, originalDate}], to=[{accountId: the payee's credit side, amount, originalDate}], ref, comment), with originalDate = the payment's date in unix milliseconds.",
+		"Metrics: for each entry of metrics, createAccountPair(accountName, \"units\"), createAccount on the actor, then one createTransaction for the difference between the value and the account's balance (on the credit side for a rise, the debit side for a fall), dated by the entry's date.",
 		"Chronology and findings: post them as comment reactions on the layer or on the case's event actor (see the simulator-reactions skill).",
 	}
 	p.Notes = []string{
@@ -346,6 +374,15 @@ func describeEntity(c *Case, ix *index, e *Entity) string {
 	fmt.Fprintf(&b, "**Case:** %s · **id:** %s · **type:** %s\n", c.Meta.ID, e.ID, e.Type)
 	if len(e.Aliases) > 0 {
 		fmt.Fprintf(&b, "\n**Also known as:** %s\n", plainText(strings.Join(e.Aliases, "; ")))
+	}
+	if len(e.Metrics) > 0 {
+		b.WriteString("\n| metric | value |\n|---|---|\n")
+		for _, k := range sortedKeys(e.Metrics) {
+			fmt.Fprintf(&b, "| %s | %s |\n", cell(k), e.Metrics[k])
+		}
+		if !c.Meta.AsOf.IsZero() {
+			fmt.Fprintf(&b, "\nMetrics as of %s.\n", c.Meta.AsOf)
+		}
 	}
 	if len(e.Attrs) > 0 {
 		b.WriteString("\n| attribute | value |\n|---|---|\n")

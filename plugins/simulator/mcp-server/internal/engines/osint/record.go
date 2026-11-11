@@ -128,7 +128,10 @@ func series(c *Collection, bucket string) (map[string]map[time.Time]float64, tim
 // can carry triggers. Entries are found again by their ref, so recording the
 // same collection twice, or a later one that overlaps it, adds only what is
 // new.
-func RecordActivity(ctx context.Context, workspaceID, actorID string, c *Collection, bucket string) (*RecordResult, error) {
+func RecordActivity(ctx context.Context, workspaceID, actorID string, c *Collection, bucket, label string) (*RecordResult, error) {
+	if label == "" {
+		label = "Activity"
+	}
 	if bucket == "" {
 		bucket = BucketWeek
 	}
@@ -150,9 +153,9 @@ func RecordActivity(ctx context.Context, workspaceID, actorID string, c *Collect
 	if entries > maxRecordEntries {
 		return nil, fmt.Errorf("%d entries to record; at most %d — use a wider bucket", entries, maxRecordEntries)
 	}
-	label := c.Source + " " + c.Target
+	origin := c.Source + " " + c.Target
 	for _, name := range sortedKeys(data) {
-		accountName := "Activity · " + name
+		accountName := label + " · " + name
 		var pair struct {
 			AccountName struct {
 				ID string `json:"id"`
@@ -196,7 +199,7 @@ func RecordActivity(ctx context.Context, workspaceID, actorID string, c *Collect
 		for _, at := range starts {
 			v := data[name][at]
 			rec.Total += v
-			ref := fmt.Sprintf("osint:activity:%s:%s:%s:%s:%s", c.Source, slug(c.Target), name, bucket, at.Format("2006-01-02"))
+			ref := fmt.Sprintf("osint:activity:%s:%s:%s:%s:%s:%s", slug(label), c.Source, slug(c.Target), name, bucket, at.Format("2006-01-02"))
 			err := b.get("/transactions/ref/"+ecore.Seg(credit)+"/"+ecore.Seg(ref), nil)
 			if err == nil {
 				rec.Entries.Existing++
@@ -206,7 +209,7 @@ func RecordActivity(ctx context.Context, workspaceID, actorID string, c *Collect
 				return res, fmt.Errorf("look up entry %s: %w", ref, err)
 			}
 			entry := map[string]any{"amount": json.Number(strconv.FormatFloat(v, 'f', -1, 64)), "ref": ref, "originalDate": at.UnixMilli(),
-				"comment": fmt.Sprintf("%s · %s of %s · %s", name, bucket, at.Format("2006-01-02"), label)}
+				"comment": fmt.Sprintf("%s · %s of %s · %s", name, bucket, at.Format("2006-01-02"), origin)}
 			if err := b.send(http.MethodPost, "/transactions/"+ecore.Seg(credit), entry, nil); err != nil {
 				return res, fmt.Errorf("entry %s: %w", ref, err)
 			}

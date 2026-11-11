@@ -1,0 +1,60 @@
+# A company and the market around it: who it competes with, sells to and
+# works with, and how well each of those is evidenced. The money-movement
+# patterns are left out — a market map has no statements behind it.
+pack:
+  id: market-map
+  title: Company and market map
+  note: >-
+    Metrics are whatever the case records under `metrics` (stars, followers, employees, …);
+    the rules below use github_stars and employees when they are there.
+
+builtin:
+  structuring: "off"
+  funnel: "off"
+  fan_out: "off"
+  pass_through: "off"
+  layering_chain: "off"
+  round_trip: "off"
+  unknown_owner: "off"
+  shared_attribute: low
+
+rules:
+  - id: claim-from-one-side-only
+    for: relation
+    when: "type in ['customer', 'partner', 'supplier'] and sources == 1"
+    severity: low
+    title: "{source.title} — {type} — {target.title} is stated by one source only"
+    detail: "A customer or partner named only by one of the two sides, or by one article, is a claim to confirm from the other side."
+
+  - id: relationship-not-evidenced
+    for: relation
+    when: "type in ['customer', 'partner', 'supplier', 'competitor', 'invests_in'] and weak(grade)"
+    severity: medium
+    title: "{source.title} — {type} — {target.title} rests on weak evidence ({grade})"
+
+  - id: larger-competitor
+    for: relation
+    when: "type == 'competitor' and source.metrics.get('employees', 0) > 0 and target.metrics.get('employees', 0) >= 5 * source.metrics.get('employees', 0)"
+    severity: medium
+    title: "{target.title} is a competitor at least five times the size of {source.title} by headcount"
+    detail: "{target.title}: {target.metrics.employees} employees; {source.title}: {source.metrics.employees}."
+
+  - id: more-visible-competitor
+    for: relation
+    when: "type == 'competitor' and target.metrics.get('github_stars', 0) > 2 * source.metrics.get('github_stars', 0) and target.metrics.get('github_stars', 0) >= 100"
+    severity: low
+    title: "{target.title} has more than twice the GitHub stars of {source.title}"
+    detail: "{target.title}: {target.metrics.github_stars}; {source.title}: {source.metrics.github_stars}. Stars measure developer attention, not revenue."
+
+  - id: key-account
+    for: entity
+    when: "type == 'organization' and relations >= 3"
+    severity: low
+    title: "{title} is linked to {relations} others on this map"
+    detail: "The hubs of a market map: check each is who the map says it is."
+
+  - id: organization-without-sources
+    for: entity
+    when: "type == 'organization' and sources == 0"
+    severity: low
+    title: "{title} is on the map with no source"

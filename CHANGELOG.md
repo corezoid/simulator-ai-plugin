@@ -11,6 +11,13 @@
   any layer; one built by `osintCaseBuild` keeps its ids, dates and grades. `osintCaseBuild`
   dates each transfer with the payment's own date (`originalDate`), so turnover by period in
   Simulator follows the case, not the day of the build.
+- A case can describe a market, not only an investigation: entities carry `metrics` (numbers as
+  of `case.as_of`) that a build keeps as account balances — recording only the change, so a
+  later build draws them over time — and rules can compare; the relation types `founder`,
+  `invests_in`, `partner`, `customer`, `supplier`, `competitor`, `product_of`, `part_of`; a
+  `market-map` pack and example. User-defined sources can read numbers into item metrics
+  (`metrics:`) and a reply that is itself the list (`items: "."`); `osintActivityRecord` takes
+  a `label` so several collections fit on one actor.
 - Packs for `osintCaseAnalyze` (`pack` / `packPath`): a pack sets the thresholds of the built-in
   patterns, chooses which to report and how severe, and adds the user's own rules — conditions
   over entities, relations, accounts and transactions, in the simulation engine's expression

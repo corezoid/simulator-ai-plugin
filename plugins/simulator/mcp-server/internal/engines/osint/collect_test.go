@@ -139,6 +139,12 @@ sources:
     fields: {id: url, url: url, date: publishedAt, title: title, text: description, author: source.name}
     source_kind: media
     reliability: C
+  - id: repos
+    kind: http_json
+    url: "https://api.example/orgs/{target}/repos?page={page}"
+    items: "."
+    fields: {id: full_name, url: html_url, date: pushed_at, title: name}
+    metrics: {stars: stargazers_count, forks: forks}
   - id: feedx
     kind: http_json
     url: "https://api.example/feed?user={target}&after={cursor}"
@@ -175,6 +181,18 @@ func TestCollectFromAUserDefinedJSONSource(t *testing.T) {
 	c, err = Collect(context.Background(), sources, "feedx", "u1", CollectOptions{}, s.fetch)
 	if err != nil || len(c.Items) != 2 || c.Items[1].ID != "2" {
 		t.Errorf("cursor paging: %v %+v", err, c)
+	}
+
+	// a reply that is itself the list, with numbers read as metrics
+	s.pages["https://api.example/orgs/acme/repos?page=1"] = `[{"full_name":"acme/a","html_url":"https://code.example/acme/a","pushed_at":"2026-03-01T00:00:00Z","name":"a","stargazers_count":120,"forks":7},
+ {"full_name":"acme/b","name":"b","stargazers_count":3,"forks":"n/a"}]`
+	s.pages["https://api.example/orgs/acme/repos?page=2"] = `[]`
+	c, err = Collect(context.Background(), sources, "repos", "acme", CollectOptions{}, s.fetch)
+	if err != nil || len(c.Items) != 2 || c.Items[0].Metrics["stars"] != 120 || c.Items[0].Metrics["forks"] != 7 || len(c.Items[1].Metrics) != 1 {
+		t.Errorf("root list with metrics: %v %+v", err, c)
+	}
+	if v := Summarise(c, "", 0).Metrics["stars"]; v.Sum != 123 || v.Max != 120 {
+		t.Errorf("stars: %+v", v)
 	}
 
 	// a key that is not set is named, and nothing is requested
@@ -323,7 +341,7 @@ func TestCollectToolsWorkFromFiles(t *testing.T) {
 	out, isErr := call(t, handleSources, map[string]any{})
 	raw, _ := json.Marshal(out)
 	if isErr || !strings.Contains(string(raw), `"OSINT_NEWS_KEY":true`) || strings.Contains(string(raw), "s3cret") ||
-		!strings.Contains(string(raw), `"host":"api.example"`) || len(out["sources"].([]any)) != 5 {
+		!strings.Contains(string(raw), `"host":"api.example"`) || len(out["sources"].([]any)) != 6 {
 		t.Fatalf("sources: %s", raw)
 	}
 	out, isErr = call(t, handleCollect, map[string]any{"source": KindTelegram, "target": "demo_channel", "outPath": "items/demo.json"})

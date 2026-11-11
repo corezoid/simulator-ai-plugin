@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 )
 
 const maxItemsFileBytes = 64 << 20
+
+var labelRe = regexp.MustCompile(`^[\p{L}\p{N}][\p{L}\p{N} ]{0,39}$`)
 
 // collectFetch is how osintCollect reaches a source; tests replace it.
 var collectFetch fetcher = httpFetch
@@ -79,6 +82,7 @@ func registerCollect(s *server.MCPServer) {
 		mcp.WithString("itemsPath", mcp.Description("File written by osintCollect, relative to the working directory."), mcp.Required()),
 		mcp.WithString("actorId", mcp.Description("UUID of the actor the collection is about."), mcp.Required()),
 		mcp.WithString("bucket", mcp.Description("day, week (default) or month.")),
+		mcp.WithString("label", mcp.Description("What the accounts are named after: \"<label> · items\", \"<label> · views\" (default Activity). Give one when several collections are recorded on the same actor, e.g. Press, GitHub.")),
 		mcp.WithString("accId", mcp.Description("Workspace id. Defaults to the configured workspace if omitted.")),
 		mcp.WithReadOnlyHintAnnotation(false),
 		mcp.WithDestructiveHintAnnotation(false),
@@ -110,7 +114,11 @@ func handleActivityRecord(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 		return r, nil
 	}
 	bucket, _ := args["bucket"].(string)
-	result, err := RecordActivity(ctx, ws, actorID, c, bucket)
+	label, _ := args["label"].(string)
+	if label != "" && !labelRe.MatchString(label) {
+		return fail("label: use letters, digits and spaces (1-40 chars)"), nil
+	}
+	result, err := RecordActivity(ctx, ws, actorID, c, bucket, label)
 	out := map[string]any{"ok": err == nil, "recorded": result}
 	if err != nil {
 		out["error"] = err.Error()

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -43,6 +44,7 @@ type BuildResult struct {
 	Edges     Tally          `json:"edgesOnLayer"`
 	Accounts  int            `json:"accounts"`
 	Transfers Tally          `json:"transfers"`
+	Metrics   Tally          `json:"metrics"`
 	Notes     []string       `json:"notes,omitempty"`
 }
 
@@ -143,6 +145,7 @@ func Build(ctx context.Context, c *Case, workspaceID string, opt BuildOptions) (
 		{"links", b.links},
 		{"accounts", b.accounts},
 		{"transfers", b.transfers},
+		{"metrics", b.metrics},
 	}
 	for _, s := range steps {
 		if err := ctx.Err(); err != nil {
@@ -206,22 +209,38 @@ func withMissingFields(sections []map[string]any, fields []PlanField) ([]map[str
 
 func (b *builder) forms(p *Plan) error {
 	for _, f := range p.Forms {
-		var found struct {
-			ID    int    `json:"id"`
-			Title string `json:"title"`
-			Form  struct {
-				Sections []map[string]any `json:"sections"`
-			} `json:"form"`
-		}
+		var found formReply
 		err := b.get("/forms/ref/"+b.ws+"/"+ecore.Seg(f.Ref), &found)
+		if err == nil && found.ID == 0 || notFound(err) {
+			// A form can lose its ref (an update that did not carry it clears
+			// it). Rather than make a second form of the same name, take the
+			// one that is there and give it its ref back.
+			var byTitle *formReply
+			if byTitle, err = b.formByTitle(f.Title); err == nil && byTitle != nil {
+				found, found.Ref = *byTitle, ""
+			}
+		}
 		switch {
 		case err == nil && found.ID != 0:
-			if sections, changed := withMissingFields(found.Form.Sections, f.Fields); changed {
-				body := map[string]any{"title": found.Title, "sections": sections}
-				if err := b.send(http.MethodPut, fmt.Sprintf("/forms/%d", found.ID), body, nil); err != nil {
-					return fmt.Errorf("add fields to form %q: %w", f.Title, err)
+			sections, changed := withMissingFields(found.Form.Sections, f.Fields)
+			if changed || found.Ref != f.Ref {
+				// an update replaces the form: everything it should keep is sent
+				body := map[string]any{"title": found.Title, "sections": sections, "ref": f.Ref}
+				if found.Color != "" {
+					body["color"] = found.Color
 				}
-				b.res.Notes = append(b.res.Notes, fmt.Sprintf("form %q got the fields it lacked", f.Title))
+				if found.Description != "" {
+					body["description"] = found.Description
+				}
+				if err := b.send(http.MethodPut, fmt.Sprintf("/forms/%d", found.ID), body, nil); err != nil {
+					return fmt.Errorf("update form %q: %w", f.Title, err)
+				}
+				if changed {
+					b.res.Notes = append(b.res.Notes, fmt.Sprintf("form %q got the fields it lacked", f.Title))
+				}
+				if found.Ref != f.Ref {
+					b.res.Notes = append(b.res.Notes, fmt.Sprintf("form %q got its ref back", f.Title))
+				}
 			}
 		case err == nil || notFound(err):
 			body := map[string]any{"title": f.Title, "ref": f.Ref, "color": f.Color, "sections": formSections(f.Fields),
@@ -238,6 +257,45 @@ func (b *builder) forms(p *Plan) error {
 		b.res.Forms[f.Title] = found.ID
 	}
 	return nil
+}
+
+// formReply is a form as the API returns it.
+type formReply struct {
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	Ref         string `json:"ref"`
+	Color       string `json:"color"`
+	Description string `json:"description"`
+	Form        struct {
+		Sections []map[string]any `json:"sections"`
+	} `json:"form"`
+}
+
+// formByTitle finds a form of the workspace by its exact title, the oldest
+// when there are several.
+func (b *builder) formByTitle(title string) (*formReply, error) {
+	var hits []formReply
+	if err := b.get("/forms/search/"+b.ws+"/"+ecore.Seg(title), &hits); err != nil {
+		if notFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var best *formReply
+	for i := range hits {
+		if hits[i].Title == title && (best == nil || hits[i].ID < best.ID) {
+			best = &hits[i]
+		}
+	}
+	if best == nil {
+		return nil, nil
+	}
+	// the search lists forms without their fields
+	var full formReply
+	if err := b.get(fmt.Sprintf("/forms/%d", best.ID), &full); err != nil {
+		return nil, err
+	}
+	return &full, nil
 }
 
 // systemForm resolves a system form (Graphs, Layers) by its title.
@@ -792,6 +850,103 @@ func (b *builder) accounts(p *Plan) error {
 			return fmt.Errorf("account %s: Simulator did not return its debit and credit sides", a.CaseID)
 		}
 		b.res.Accounts++
+	}
+	return nil
+}
+
+// metrics keeps each metric of an entity on an account of its actor. A metric
+// is a level, not a flow: what is recorded is the change since the account's
+// balance, so the balance is the value and the turnover of a day is what
+// changed that day. A value that has not changed records nothing.
+func (b *builder) metrics(p *Plan) error {
+	if len(p.Metrics) == 0 {
+		return nil
+	}
+	actor := map[string]string{}
+	for _, a := range p.Actors {
+		actor[a.Ref] = a.actorID
+	}
+	type ids struct {
+		name     string
+		currency int
+	}
+	pairs := map[string]ids{}
+	for _, m := range p.Metrics {
+		pair, ok := pairs[m.AccountName]
+		if !ok {
+			var reply struct {
+				AccountName struct {
+					ID string `json:"id"`
+				} `json:"accountName"`
+				Currency struct {
+					ID int `json:"id"`
+				} `json:"currency"`
+			}
+			body := map[string]any{"accountName": m.AccountName, "currencyName": metricCurrency, "precision": 0}
+			if err := b.send(http.MethodPost, "/accounts/pair/"+b.ws, body, &reply); err != nil {
+				return fmt.Errorf("account pair %s: %w", m.AccountName, err)
+			}
+			pair = ids{reply.AccountName.ID, reply.Currency.ID}
+			pairs[m.AccountName] = pair
+		}
+		actorID := actor[m.ActorRef]
+		if err := b.send(http.MethodPost, "/accounts/"+ecore.Seg(actorID)+"?ignoreIfExist=true",
+			map[string]any{"nameId": pair.name, "currencyId": pair.currency}, nil); err != nil {
+			return fmt.Errorf("metric %s of %s: %w", m.Name, m.Entity, err)
+		}
+		var rows []struct {
+			ID         string      `json:"id"`
+			NameID     string      `json:"nameId"`
+			CurrencyID int         `json:"currencyId"`
+			IncomeType string      `json:"incomeType"`
+			Amount     jsonDecimal `json:"amount"`
+		}
+		q := url.Values{"limit": {"100"}, "query": {m.AccountName}}
+		if err := b.get("/accounts/"+ecore.Seg(actorID)+"?"+q.Encode(), &rows); err != nil {
+			return fmt.Errorf("read metric %s of %s: %w", m.Name, m.Entity, err)
+		}
+		var credit, debit string
+		balance := new(big.Rat)
+		for _, r := range rows {
+			if r.NameID != pair.name || r.CurrencyID != pair.currency {
+				continue
+			}
+			switch r.IncomeType {
+			case "credit":
+				credit = r.ID
+				balance.Add(balance, r.Amount.d.Rat())
+			case "debit":
+				debit = r.ID
+				balance.Sub(balance, r.Amount.d.Rat())
+			}
+		}
+		if credit == "" || debit == "" {
+			return fmt.Errorf("metric %s of %s: Simulator did not return the account's two sides", m.Name, m.Entity)
+		}
+		value, _ := newDecimal(m.Value)
+		delta := new(big.Rat).Sub(value.Rat(), balance)
+		if delta.Sign() == 0 {
+			b.res.Metrics.Existing++
+			continue
+		}
+		side := credit
+		if delta.Sign() < 0 {
+			side = debit
+			delta.Neg(delta)
+		}
+		day := m.Date
+		if day == "" {
+			day = "undated"
+		}
+		entry := map[string]any{"amount": json.Number(ratString(delta)), "comment": fmt.Sprintf("%s = %s · %s", m.Name, m.Value, day),
+			"ref": fmt.Sprintf("%smetric:%s:%s:%s:%s", p.RefPrefix, m.Entity, m.Name, day, m.Value)}
+		if m.when > 0 {
+			entry["originalDate"] = m.when
+		}
+		if err := b.send(http.MethodPost, "/transactions/"+ecore.Seg(side), entry, nil); err != nil {
+			return fmt.Errorf("metric %s of %s: %w", m.Name, m.Entity, err)
+		}
+		b.res.Metrics.Created++
 	}
 	return nil
 }

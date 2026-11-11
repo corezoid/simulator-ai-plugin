@@ -50,8 +50,9 @@ sources:
 | `kind` | `http_json`. |
 | `url` | An http(s) URL. `{target}` is replaced with the `target` argument (URL-escaped), `{page}` with the page number, `{cursor}` with the cursor from the previous reply. Without `{page}` or `{cursor}` one request is made. |
 | `headers` | Request headers. |
-| `items` | Dotted path to the list in the reply (`data.items`). Required. |
+| `items` | Dotted path to the list in the reply (`data.items`), or `"."` when the reply itself is the list. Required. |
 | `fields` | Dotted paths, inside one element, to `id`, `url`, `date`, `title`, `text`, `author`. All optional; an RFC 3339 `date` lets `since` and the activity summary work. |
+| `metrics` | Numbers to read from each element, as `name: path` — `metrics: {stars: stargazers_count, forks: forks_count}`. They are summed and ranked by `osintActivity` and recorded by `osintActivityRecord`. |
 | `cursor` | Dotted path, in the reply, to the cursor for the next page; needs `{cursor}` in the url. Paging stops when it is empty. |
 | `first_page` | The first value of `{page}` (default 1). |
 | `source_kind`, `reliability` | Carried into the draft of the case source entry. |
@@ -136,6 +137,8 @@ osintActivityRecord(itemsPath="cases/acme/channel.items.json", actorId="<the cha
   the chart type `line` or `stackedBar` with the account's `credit` side — a `bar` chart shows
   one total, not the periods — and place the chart beside the graph, not among its nodes,
   where it would cover the links.
+- `label` names the accounts (`<label> · items`, default `Activity`). Give one — `Press`,
+  `GitHub` — when several collections are recorded on the same actor.
 - Entries are found again by their ref: recording the same collection again, or a later one
   that overlaps it, adds only what is new. This is how a twin is kept current — collect
   again, record again.
@@ -162,3 +165,6 @@ It writes to the workspace; confirm the actor with the user first.
 - A source's terms of use are the user's to respect: the tools read what is open, at a slow
   pace, and identify themselves in the `User-Agent`.
 - Counts cover what was collected. `truncated: true` means the source had more than the limit.
+- A search API returns what it thinks matches, which is not always what was asked: a search
+  for a company's name can return pages about similarly spelled words. Before trusting a
+  count from a search source, look at `publishedOn` and at a sample of titles in the file.

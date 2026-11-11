@@ -47,7 +47,9 @@ type Meta struct {
 	Question  string `yaml:"question,omitempty"`
 	Synthetic bool   `yaml:"synthetic,omitempty"`
 	Currency  string `yaml:"currency,omitempty"`
-	Note      string `yaml:"note,omitempty"`
+	// AsOf is the day the case describes: the date its metrics were read.
+	AsOf Date   `yaml:"as_of,omitempty"`
+	Note string `yaml:"note,omitempty"`
 }
 
 // Source is where a claim comes from. Reliability is the Admiralty grade of
@@ -68,15 +70,18 @@ type Source struct {
 // judged). Picture is an https URL or an image file in the working directory;
 // without one the twin gets a generated placeholder.
 type Entity struct {
-	ID          string            `yaml:"id"`
-	Type        string            `yaml:"type"`
-	Title       string            `yaml:"title"`
-	Aliases     []string          `yaml:"aliases,omitempty"`
-	Attrs       map[string]string `yaml:"attrs,omitempty"`
-	Picture     string            `yaml:"picture,omitempty"`
-	Sources     []string          `yaml:"sources,omitempty"`
-	Credibility int               `yaml:"credibility,omitempty"`
-	Note        string            `yaml:"note,omitempty"`
+	ID      string            `yaml:"id"`
+	Type    string            `yaml:"type"`
+	Title   string            `yaml:"title"`
+	Aliases []string          `yaml:"aliases,omitempty"`
+	Attrs   map[string]string `yaml:"attrs,omitempty"`
+	// Metrics are quantities of the entity as of case.as_of: followers,
+	// employees, stars, revenue. In Simulator each becomes an account.
+	Metrics     map[string]Decimal `yaml:"metrics,omitempty"`
+	Picture     string             `yaml:"picture,omitempty"`
+	Sources     []string           `yaml:"sources,omitempty"`
+	Credibility int                `yaml:"credibility,omitempty"`
+	Note        string             `yaml:"note,omitempty"`
 }
 
 // Relation is a directed, typed link between two entities. Share is the
@@ -163,7 +168,8 @@ var (
 	accountKinds    = []string{"bank", "crypto", "cash", "emoney", "other"}
 	hypothesisState = []string{"open", "supported", "refuted"}
 	relationTypes   = []string{"owns", "controls", "director", "officer", "agent", "employee", "family", "associate",
-		"registered_at", "located_at", "uses", "mentions", "same_as", "other"}
+		"registered_at", "located_at", "uses", "mentions", "same_as",
+		"founder", "invests_in", "partner", "customer", "supplier", "competitor", "product_of", "part_of", "other"}
 	sourceKinds = []string{"registry", "court", "sanctions", "corporate", "bank", "blockchain", "media", "social",
 		"leak", "human", "synthetic", "other"}
 )
@@ -174,6 +180,9 @@ var controlTypes = map[string]bool{"controls": true, "director": true, "officer"
 
 // anchorTypes link an entity to a shared address or identifier.
 var anchorTypes = map[string]bool{"registered_at": true, "located_at": true, "uses": true}
+
+// metricRe is the shape of a metric's name.
+var metricRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,39}$`)
 
 var idRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
 
