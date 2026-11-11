@@ -1,5 +1,10 @@
 # Changelog
 
+## [2.15.0]
+
+### Changed
+- bump Go to 1.27.4 (GO-2026-6859) (#177)
+
 ## [2.14.0]
 
 ### Changed
