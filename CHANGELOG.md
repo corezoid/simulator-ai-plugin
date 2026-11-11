@@ -4,6 +4,7 @@
 
 ### Security
 - bump golang.org/x/net to v0.62.0 (CVE-2023-44487, HTTP/2 Rapid Reset; CISA KEV) — SEC-1916
+- bump Go to 1.27.4 (`go.mod`; GO-2026-6859 in `net/http`) — the `go run` start now needs Go 1.27.4 or a toolchain download
 
 ### Added
 - Hosted access log: one `access {...}` JSON line per MCP request with the JSON-RPC method, tool
