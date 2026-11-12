@@ -94,9 +94,13 @@ current snapshot of all field values — read the changed value from there.**
 `body.buttonData` holds `{ action, value }` only for `select` (and a few components);
 `radio`, `check`, and most fields send `{}`.
 
-A `radio` is the exception to "immediately": walking through its options with the arrow keys
-sends **one** `/send`, about 500 ms after the last arrow press, with the option the user stopped
-on. A click or the Space key sends at once. Do not expect a request per option.
+Two components wait before sending. An `edit` sends about 500 ms after the last keystroke. A
+`radio` walked with the arrow keys sends **one** `/send`, about 500 ms after the last arrow
+press, with the option the user stopped on; a click or the Space key sends at once.
+
+Only one `/send` of a page runs at a time. While it is pending, a new one — a button click or a
+`submitOnChange` — is dropped, not queued; the process then sees that value only in the next
+request's `body.data`.
 
 Other status codes: `205` re-render whole page; `302` redirect to another page
 (`data.nextPage`); `4xx`/`5xx` surfaces an error toast.

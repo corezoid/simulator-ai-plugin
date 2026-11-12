@@ -361,7 +361,8 @@ Pick each button's `type` by what the renderer does with it, not only by looks (
 `simulator-smart-forms`, "Action components"):
 
 - **`default`** — the form's main action. It shows a spinner while its request runs, and the
-  renderer disables it by itself while a visible `required` field of the form is empty or invalid.
+  renderer disables it by itself while a `required` field of the form is empty or invalid — from
+  the first change in the form on, so set the initial `"visibility": "disabled"` yourself.
   When the process decides whether the button is available (it enables "Next" after a server-side
   check), or the button must stay clickable on an incomplete form ("Back", "Cancel", "Skip"), set
   `extra.ignoreFormValidity: true` — or give that button another type.
