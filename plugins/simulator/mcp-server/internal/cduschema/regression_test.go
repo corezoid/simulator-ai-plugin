@@ -107,6 +107,7 @@ func TestValidatePageConfig_DocumentedShapesAccepted(t *testing.T) {
 		"upload.extra.compression":  `{"id":"up","class":"upload","value":"x","type":"default","extra":{"compression":0.5}}`,
 		"attachment.extra url (§5)": `{"id":"at","class":"attachment","value":"x","extra":{"downloadUrl":"https://x"}}`,
 		"base fields on any class":  `{"id":"l","class":"label","value":"x","required":false,"error":false,"errorMsg":"e","submitOnChange":true}`,
+		"button.extra.ignoreFormValidity": `{"id":"b","class":"button","type":"default","title":"Next","extra":{"ignoreFormValidity":true}}`,
 	}
 	for name, item := range cases {
 		t.Run(name, func(t *testing.T) {

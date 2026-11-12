@@ -35,6 +35,11 @@
 - Drift gate: `TestEngineEndpointDrift` checks the `/papi` routes `createChart` and `updateChart` call
   against the backend spec.
 
+- Smart Form skills cover control-cdu v0.53.2: `extra.ignoreFormValidity` on a `default` button
+  (and the automatic disabling by form validity it turns off), `[h1]`…`[h6]` heading tags for
+  labels and form titles, `autoFocus`, keyboard focus of `modal` sections, and the single
+  `submitOnChange` request a `radio` sends after arrow keys.
+
 ### Changed
 - simulator-attachments skill: documents pong-server's new linking rule — `addAttachments` and a
   reaction's `attachments` take only a file of the target actor's workspace that the caller uploaded
@@ -50,6 +55,9 @@
   is the same call as `saveTemplateActorsAccess`, so the system-form rules apply.
 
 ### Fixed
+- `pushSmartForm` rejected page configs that use components and keys added to the renderer since
+  June (`extra.ignoreFormValidity` on a button, `progressBar`, the `graph` and `reactions` widgets):
+  the bundled CDU swagger is refreshed from control-cdu-doc.
 - createChart and the pushGraphFile Dashboards guard cached system form ids by title only, so after
   `set-workspace` / `set-environment` in the same session createChart built the dashboard on the previous
   workspace's Dashboards form and the push guard compared against that foreign id and let a hand-built
