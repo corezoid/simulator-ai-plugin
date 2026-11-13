@@ -34,6 +34,66 @@ var required = map[string][]string{
 	"decide": {"options"}, "log": {},
 }
 
+// fields lists the keys each action takes (model format §6); others are ignored and warned about.
+var fields = map[string][]string{
+	"set_on": {"actor", "fields"}, "create": {"type", "title", "data", "as", "link_from", "edge_type", "accounts"},
+	"link": {"from", "to", "edge_type"}, "transfer": {"from", "to", "amount"},
+	"add": {"actor", "account", "amount", "value_type"}, "set_account": {"actor", "account", "value", "value_type"},
+	"schedule": {"event", "target", "after", "at", "priority", "payload"},
+	"enqueue":  {"resource", "account", "target", "event", "amount", "priority", "payload"},
+	"release":  {"target"}, "dequeue": {"resource", "target"}, "decide": {"options", "rule", "var", "jev"},
+}
+
+// sectionKeys lists the keys of the entries of nested model sections (model format §5).
+var sectionKeys = map[string][]string{
+	"actors":         {"id", "title", "type", "data", "accounts"},
+	"initial_events": {"event", "for_type", "target", "at", "every", "priority", "payload"},
+	"value_types":    {"kind", "scale", "conserved", "min", "max"},
+}
+
+// FormatURL is where the model format is published, for callers without the plugin docs.
+const FormatURL = "https://github.com/corezoid/simulator-ai-plugin/blob/main/plugins/simulator/docs/simulation/model-format.md"
+
+// formatHint is a minimal model shown when the input is not a model at all.
+const formatHint = "a model is a YAML mapping, e.g.\n" +
+	"value_types: {USD: {kind: decimal, scale: 2, conserved: true}}\n" +
+	"refs: {shop: {title: Shop}}\n" +
+	"params: {price: 100}\n" +
+	"horizon: 30d\n" +
+	"initial_events: [{event: sell, target: shop, at: 0, every: 1d}]\n" +
+	"behaviors: {<actor type>: {sell: [{add: {account: sales, amount: params.price, value_type: USD}}]}}\n" +
+	"metrics: {sales: actor(refs.shop).acc('sales')}\n" +
+	"Full format: " + FormatURL
+
+func allowed(keys []string) map[string]bool {
+	m := map[string]bool{}
+	for _, k := range keys {
+		m[k] = true
+	}
+	return m
+}
+
+// unknownKeys warns about keys of spec that are not in keys; they would be ignored.
+func (c *checker) unknownKeys(where string, spec *OMap, keys []string) {
+	ok := allowed(keys)
+	for _, k := range spec.Keys() {
+		if !ok[k] {
+			c.r.warnf(where, "unknown field %q (ignored); fields: %s", k, strings.Join(keys, ", "))
+		}
+	}
+}
+
+// literalAccount fails an account name written as an expression: account names are not
+// evaluated, so "='k_' + x" would name an account literally and its reads stay 0.
+func (c *checker) literalAccount(where string, v any) {
+	if s, ok := v.(string); ok {
+		if strings.HasPrefix(strings.TrimSpace(s), "=") {
+			c.r.errf(where, "account names are literal, %q is not evaluated; branch with if/else to pick an account", s)
+		}
+		c.writtenAccounts[s] = true
+	}
+}
+
 var exprFields = map[string]bool{"if": true, "rule": true, "amount": true, "after": true, "at": true, "target": true,
 	"actor": true, "value": true, "resource": true}
 
@@ -55,11 +115,15 @@ type checker struct {
 	handled      map[string][]string
 	emitted      map[string][]string
 	createdTypes map[string]bool
+	// account names written by actions or given to model actors, and the literal names that
+	// expressions read with .acc('x') / total('x'), for the unknown-account warning
+	writtenAccounts map[string]bool
+	readAccounts    map[string]string // name -> where it is first read
 }
 
 // walk collects names, calls, params.X, params.get('X'), refs.X from an expression tree.
 type exprUse struct {
-	names, calls, params, optional, refs map[string]bool
+	names, calls, params, optional, refs, accounts map[string]bool
 }
 
 func collect(n node, u *exprUse) {
@@ -80,6 +144,16 @@ func collect(n node, u *exprUse) {
 		collect(x.obj, u)
 		collect(x.key, u)
 	case nCall:
+		if len(x.args) > 0 {
+			if name, ok := x.args[0].(nConst); ok {
+				if f, ok := x.fn.(nAttr); ok && f.attr == "acc" {
+					u.accounts[show(name.v)] = true
+				}
+				if f, ok := x.fn.(nName); ok && f.id == "total" {
+					u.accounts[show(name.v)] = true
+				}
+			}
+		}
 		switch f := x.fn.(type) {
 		case nName:
 			u.calls[f.id] = true
@@ -134,7 +208,7 @@ func collect(n node, u *exprUse) {
 }
 
 func newUse() *exprUse {
-	return &exprUse{map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}}
+	return &exprUse{map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}}
 }
 
 func sortedKeys(m map[string]bool) []string {
@@ -180,6 +254,11 @@ func (c *checker) expr(where string, src any, local map[string]bool) {
 	}
 	for k := range u.optional {
 		c.optional[k] = true
+	}
+	for a := range u.accounts {
+		if _, seen := c.readAccounts[a]; !seen {
+			c.readAccounts[a] = where
+		}
 	}
 }
 
@@ -266,6 +345,31 @@ func (c *checker) action(w, name string, raw any, local map[string]bool) {
 	for _, req := range required[name] {
 		if !spec.Has(req) {
 			c.r.errf(w, "missing field %q", req)
+		}
+	}
+	if keys, ok := fields[name]; ok {
+		c.unknownKeys(w, spec, keys)
+	}
+	switch name {
+	case "add", "set_account":
+		c.literalAccount(w+".account", spec.m["account"])
+	case "enqueue":
+		if acc, ok := spec.Get("account"); ok {
+			c.literalAccount(w+".account", acc)
+		} else {
+			c.writtenAccounts["capacity"] = true
+		}
+	case "transfer":
+		for _, side := range []string{"from", "to"} {
+			if m, ok := spec.m[side].(*OMap); ok {
+				c.literalAccount(w+"."+side+".account", m.m["account"])
+			}
+		}
+	case "create":
+		for i, it := range getList(spec, "accounts") {
+			if m, ok := it.(*OMap); ok {
+				c.literalAccount(fmt.Sprintf("%s.accounts[%d].name", w, i), m.m["name"])
+			}
 		}
 	}
 	if name == "set" {
@@ -389,6 +493,78 @@ func (c *checker) resolve(where string, spec any, model *Model) {
 	}
 }
 
+func describe(v any) string {
+	switch x := v.(type) {
+	case nil:
+		return "nothing"
+	case string:
+		return fmt.Sprintf("the text %q", x)
+	case []any:
+		return "a list"
+	}
+	return "a " + fmt.Sprintf("%T", v)
+}
+
+// sections checks the shape of the nested sections: lists and mappings where the format
+// has them, and the keys of their entries.
+func (c *checker) sections(d *OMap) {
+	for _, sec := range []string{"actors", "initial_events"} {
+		v, ok := d.Get(sec)
+		if !ok || v == nil {
+			continue
+		}
+		list, isList := v.([]any)
+		if !isList {
+			c.r.errf(sec, "must be a list of entries, got %s", describe(v))
+			continue
+		}
+		for i, it := range list {
+			if m, ok := it.(*OMap); ok {
+				c.unknownKeys(fmt.Sprintf("%s[%d]", sec, i), m, sectionKeys[sec])
+				if sec == "actors" {
+					for j, acc := range getList(m, "accounts") {
+						if am, ok := acc.(*OMap); ok {
+							c.literalAccount(fmt.Sprintf("actors[%d].accounts[%d].name", i, j), am.m["name"])
+						}
+					}
+				}
+			} else {
+				c.r.errf(fmt.Sprintf("%s[%d]", sec, i), "must be a mapping, got %s", describe(it))
+			}
+		}
+	}
+	vts := getMap(d, "value_types")
+	for _, name := range vts.Keys() {
+		if m, ok := vts.m[name].(*OMap); ok {
+			c.unknownKeys("value_types."+name, m, sectionKeys["value_types"])
+		}
+	}
+}
+
+// unreadAccounts warns about accounts that expressions read but that no actor of the graph
+// has and no action or model actor creates: such a read is always 0.
+func (c *checker) unreadAccounts() {
+	if c.graph == nil {
+		return
+	}
+	for _, a := range c.graph.accounts {
+		c.writtenAccounts[a.Name] = true
+	}
+	for _, name := range sortedKeys(keysOf2(c.readAccounts)) {
+		if !c.writtenAccounts[name] {
+			c.r.warnf(c.readAccounts[name], "account %q is read but no actor has it and no action creates it: it reads as 0", name)
+		}
+	}
+}
+
+func keysOf2(m map[string]string) map[string]bool {
+	out := make(map[string]bool, len(m))
+	for k := range m {
+		out[k] = true
+	}
+	return out
+}
+
 // stepLimit is the engine's default MaxSteps.
 const stepLimit = 1_000_000
 
@@ -461,10 +637,13 @@ func Check(modelSrc []byte, graph *Graph, scenarios []*OMap) *CheckReport {
 	}
 	d, _ := raw.(*OMap)
 	if d == nil {
-		d = NewOMap()
+		// "help", a number or an empty text would otherwise pass as an empty model
+		r.errf("model", "not a model (got %s): %s", describe(raw), formatHint)
+		return r
 	}
 	c := &checker{raw: d, graph: graph, scenarios: scenarios, r: r, params: map[string]bool{}, optional: map[string]bool{},
-		refs: map[string]bool{}, handled: map[string][]string{}, emitted: map[string][]string{}, createdTypes: map[string]bool{}}
+		refs: map[string]bool{}, handled: map[string][]string{}, emitted: map[string][]string{}, createdTypes: map[string]bool{},
+		writtenAccounts: map[string]bool{}, readAccounts: map[string]string{}}
 	for _, k := range getMap(d, "params").Keys() {
 		c.params[k] = true
 	}
@@ -485,6 +664,7 @@ func Check(modelSrc []byte, graph *Graph, scenarios []*OMap) *CheckReport {
 			r.warnf("model", "unknown top-level key %q (ignored)", k)
 		}
 	}
+	c.sections(d)
 	model, err := LoadModel(modelSrc)
 	if err != nil {
 		r.errf("model", "cannot load: %v", err)
@@ -619,6 +799,7 @@ func Check(modelSrc []byte, graph *Graph, scenarios []*OMap) *CheckReport {
 			}
 		}
 	}
+	c.unreadAccounts()
 	return r
 }
 

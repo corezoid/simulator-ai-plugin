@@ -20,7 +20,10 @@ var systemForms = map[string]bool{"Layers": true, "Graphs": true}
 // noAccess matches the API errors for an actor whose accounts the caller cannot read.
 var noAccess = regexp.MustCompile(`HTTP (403|404)\b`)
 
-const pageLimit = 50 // /graph_layers/paginated rejects limit > 50
+const pageLimit = 50
+
+// maxPages bounds a paged read (500k layer elements at 50 per page).
+var maxPages = 10_000 // /graph_layers/paginated rejects limit > 50
 
 type layerNode struct {
 	ID        string         `json:"id"`
@@ -81,7 +84,11 @@ func papiGet(ctx context.Context, path string, q url.Values, out any) error {
 // endpoints apply LIMIT before dropping deleted elements, so a short page is not the last.
 func readPaged[T any](ctx context.Context, path string, q url.Values, limit int, untilEmpty bool) ([]T, error) {
 	var all []T
-	for offset := 0; ; offset += limit {
+	for offset, pages := 0, 0; ; offset, pages = offset+limit, pages+1 {
+		if pages >= maxPages {
+			// only a server that ignores offset gets here; fail loudly instead of looping
+			return nil, fmt.Errorf("GET %s: more than %d pages; the server may be ignoring offset", path, maxPages)
+		}
 		qq := url.Values{}
 		for k, v := range q {
 			qq[k] = v

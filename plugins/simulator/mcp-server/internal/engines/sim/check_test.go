@@ -24,7 +24,7 @@ func caseFiles(t *testing.T, name string) ([]byte, *Graph, []*OMap) {
 }
 
 func TestConformanceModelsPassTheCheck(t *testing.T) {
-	for _, name := range []string{"sample01", "warehouse", "process_flow"} {
+	for _, name := range []string{"sample01", "warehouse", "process_flow", "edge_cases"} {
 		m, g, sc := caseFiles(t, name)
 		r := Check(m, g, sc)
 		if !r.OK() || len(r.Warnings) > 0 {

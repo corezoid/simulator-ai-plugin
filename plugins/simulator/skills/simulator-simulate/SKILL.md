@@ -57,6 +57,15 @@ Rules of thumb:
 - Processes drawn as graphs: steps are actors, transitions are links; an application walks
   with `pick(where(actor(self.at).children(), …))` (see examples/process_flow).
 - Never write a key named `on:` (YAML reads it as true); use `actor:`.
+- Account names are literal. To pick an account by a condition, branch with `if`/`else`; a
+  name like `"='k_' + self.kind"` is refused by the check.
+- Metrics are read once, at the horizon. For values per period (cash at the end of each year),
+  run one scenario per period horizon, or `add` to a per-period account in the event that
+  closes the period.
+- No layer needed for a model made only of helper `actors` (an economy, a plan): pass just
+  `model` (and `scenarios`).
+- Without the plugin docs (hosted connector), the format is at the URL in the tool description;
+  read it rather than guessing keys.
 
 ## 3. Check, then run
 
