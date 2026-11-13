@@ -4,12 +4,13 @@ MCP := plugins/simulator/mcp-server
 # line, e.g. `make inspect PROFILE=prod`.
 PROFILE ?= local
 
-.PHONY: help discovery build vet lint test run-local run-prod inspect eval eval-skills eval-live release
+.PHONY: help discovery build vet lint test vuln run-local run-prod inspect eval eval-skills eval-live release
 
 help:
 	@echo "Targets:"
 	@echo "  build/vet/test  Go build / vet / test the MCP server."
 	@echo "  lint            golangci-lint the MCP server (config: $(MCP)/.golangci.yml)."
+	@echo "  vuln            govulncheck the MCP server (reachable known vulnerabilities fail; CI and Release run it)."
 	@echo "  discovery       Regenerate public/.well-known/skills/index.json and public/llms.txt."
 	@echo "  run-local       Run the MCP server against a local pong-server (:9000)."
 	@echo "  run-prod        Run the MCP server against the public gateway."
@@ -36,6 +37,13 @@ lint:
 
 test:
 	cd $(MCP) && go test ./...
+
+# govulncheck reports only vulnerabilities the code can reach and exits non-zero on any.
+# Pinned so a tool release cannot change the result; the vulnerability DB is always current,
+# so a new advisory can turn this red without a code change — bump Go / the module then.
+GOVULNCHECK_VERSION ?= v1.9.0
+vuln:
+	cd $(MCP) && go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
 
 run-local:
 	cd $(MCP) && go run ./cmd/server --profile local

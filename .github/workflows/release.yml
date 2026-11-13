@@ -29,6 +29,20 @@ jobs:
       - name: Test
         run: make test
 
+      # A tag ships only without known reachable vulnerabilities; the report is
+      # attached to the release as evidence of the check on this exact commit.
+      - name: govulncheck
+        run: |
+          set -o pipefail
+          make vuln 2>&1 | tee govulncheck.txt
+
+      - name: Upload govulncheck report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: govulncheck-report
+          path: govulncheck.txt
+
   build-binaries:
     name: Build MCP server binaries
     needs: test
@@ -66,7 +80,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: build-binaries
+    needs: [test, build-binaries]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -86,6 +100,12 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: mcp-binaries
+          path: dist/
+
+      - name: Download govulncheck report
+        uses: actions/download-artifact@v8
+        with:
+          name: govulncheck-report
           path: dist/
 
       - name: Generate checksums
@@ -125,6 +145,7 @@ jobs:
           files: |
             dist/simulator-mcp-*
             dist/checksums.txt
+            dist/govulncheck.txt
             public/llms.txt
             public/.well-known/skills/index.json
             POWER.md

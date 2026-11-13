@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/corezoid/simulator-ai-plugin?sort=semver)](https://github.com/corezoid/simulator-ai-plugin/releases)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-D97757)](https://claude.ai/code)
 
-> **Status:** stable — released, actively maintained. Supported clients: Claude Code ≥ 1.x, Codex, AWS Kiro. Go 1.27.4+ required. macOS and Linux tested.
+> **Status:** stable — released, actively maintained. Supported clients: Claude Code ≥ 1.x, Codex, AWS Kiro. Prebuilt binaries for macOS/Linux; Go 1.27.4+ only to build from source. macOS and Linux tested.
 
 A plugin for [Claude Code](https://claude.ai/code), [Codex](https://codex.openai.com) and [AWS Kiro](https://kiro.dev) that connects the [Simulator.Company](https://simulator.company) platform to Claude via MCP (Model Context Protocol). Claude gets direct access to the Simulator REST API and domain knowledge to manage actors, graphs, forms, and financial accounts through natural conversation.
 
@@ -39,13 +39,36 @@ The plugin bundles a Go MCP server that exposes the full Simulator.Company publi
 ## Requirements
 
 - [Claude Code](https://claude.ai/code), [Codex](https://codex.openai.com) or [AWS Kiro](https://kiro.dev) installed
-- [Go 1.27.4+](https://go.dev/dl/) available in `PATH` (the MCP server runs via `go run`, no build step needed)
+- A Simulator.Company account
+- [Go 1.27.4+](https://go.dev/dl/) in `PATH` — **only** if the server is built from source (see
+  [How the MCP server starts](#how-the-mcp-server-starts)). On macOS and Linux (amd64/arm64) the
+  plugin downloads a prebuilt binary and needs no Go at all.
   ```bash
   brew install golang        # macOS
   sudo apt install golang    # Ubuntu/Debian
   ```
   Verify with `go version`.
-- A Simulator.Company account
+
+### How the MCP server starts
+
+Hosts launch `plugins/simulator/mcp-server/run.sh`, which picks the first of:
+
+1. **`SIMULATOR_MCP_DEV=1`** — compiles and runs the source (`go run ./cmd/server`). Use this while
+   you edit the Go code.
+2. **A locally built `mcp-server/simulator-mcp`** (gitignored) — run as is. The script does not
+   compare its version with the manifest, so after you pull new sources a stale hand-built binary
+   keeps running: rebuild it (`cd plugins/simulator/mcp-server && go build -o simulator-mcp
+   ./cmd/server`) or delete it.
+3. **The prebuilt release binary** (macOS/Linux, amd64/arm64) — `simulator-mcp-<os>-<arch>` of the
+   manifest's version, downloaded from the GitHub release once, checked against the release's
+   `checksums.txt` (SHA-256) and cached in `~/.cache/simulator-mcp/<version>/`. A plugin update
+   therefore brings a binary built with the release's Go toolchain — users of this path get Go
+   security fixes without installing Go.
+4. **Fallback** — `go run ./cmd/server` when no binary could be used (Windows, another
+   architecture, no network, checksum mismatch). This path needs Go 1.27.4+.
+
+The hosted server (`--http`, e.g. `mcp.simulator.company`) is deployed separately: after a release
+that fixes a Go or dependency vulnerability, redeploy it with the new binary or image and restart it.
 
 ## Installation
 
@@ -326,7 +349,7 @@ the actor/node items.)
 
 ```
 Claude Code / Codex / Kiro
-  └── simulator MCP server (go run ./cmd/server --profile local|prod)
+  └── simulator MCP server (mcp-server/run.sh → prebuilt binary or go run ./cmd/server)
         ├── config      cloud presets + local / prod profiles (API base + account URL)
         ├── auth        set-environment (public config → account URL), login (OAuth2 PKCE → .env), set-workspace
         ├── tools       curated typed operations (forms, actors, accounts,
@@ -444,7 +467,7 @@ simulator-ai-plugin/
     │   └── plugin.json          # Codex plugin manifest
     ├── .kiro-plugin/
     │   └── plugin.json          # AWS Kiro plugin manifest
-    ├── .mcp.json                # MCP server configuration (go run ./cmd/server)
+    ├── .mcp.json                # MCP server configuration (launches mcp-server/run.sh)
     ├── .mcp.kiro.json           # Kiro MCP entry (copied to .kiro/settings/mcp.json by install-kiro.sh)
     ├── steering/                # Kiro steering file (Kiro's always-on repo guide)
     ├── scripts/
@@ -568,8 +591,9 @@ Edited Go code, a tool, `.env`, `.mcp.json`, or a skill? Reload — **no reinsta
 /reload-plugins
 ```
 
-This kills and relaunches the Go MCP server (`go run ./cmd/server`), re-reading the source
-and `.env`. Check `/mcp` again if a server shows as failed (see its **Errors** tab in
+This kills and relaunches the Go MCP server and re-reads `.env`. It re-compiles your Go changes
+only with `SIMULATOR_MCP_DEV=1` set (or after you rebuild a local `simulator-mcp`); otherwise
+`run.sh` starts the cached release binary — see [How the MCP server starts](#how-the-mcp-server-starts). Check `/mcp` again if a server shows as failed (see its **Errors** tab in
 `/plugin`).
 
 ### Run / test outside Claude Code
@@ -580,6 +604,7 @@ make run-prod       # against the public gateway
 make inspect        # MCP Inspector web UI wrapping the server (PROFILE=local|prod)
 make test           # unit + scenario + drift + eval tests
 make lint           # golangci-lint v2 (gosec clean; style backlog)
+make vuln           # govulncheck: known vulnerabilities reachable from the server
 make eval           # behavioural eval, dry (needs ANTHROPIC_API_KEY)
 make eval-live      # behavioural eval executing tools against the backend
 ```
@@ -616,7 +641,7 @@ go test ./...
 | Claude Code       | ≥ 1.x                         | MCP protocol 2025-03-26                     |
 | Codex             | current stable                | Same MCP server, same skills                |
 | AWS Kiro          | current stable                | Same MCP server, same skills; install via `scripts/install-kiro.sh` (no marketplace) |
-| Go toolchain      | 1.27.4+ (`go.mod` declares it) | Required to run the MCP server via `go run`; an older Go ≥ 1.21 downloads 1.27.4 itself unless `GOTOOLCHAIN=local` |
+| Go toolchain      | 1.27.4+ (`go.mod` declares it) | Needed only to build from source (`SIMULATOR_MCP_DEV=1`, a local `simulator-mcp`, or the `go run` fallback); an older Go ≥ 1.21 downloads 1.27.4 itself unless `GOTOOLCHAIN=local` |
 | macOS             | 13 Ventura and later          | Tested on arm64 and amd64                   |
 | Linux             | Ubuntu 22.04+, Debian 12+     | amd64 tested                                |
 | Windows           | not tested                    | Likely works; PRs welcome                   |

@@ -34,7 +34,7 @@ files and the [entity docs](../plugins/simulator/docs/entities/README.md).
                                          │ MCP (stdio)
                                          ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Go MCP server  (`go run ./cmd/server` from plugins/simulator/mcp-server) │
+│  Go MCP server  (run.sh → release binary, or go run ./cmd/server)     │
 │                                                                       │
 │   cmd/server ── resolve profile · load .env · wire deps · serve stdio │
 │      │                                                                │
@@ -88,7 +88,7 @@ simulator-ai-plugin/
 └── plugins/simulator/                # CLAUDE_PLUGIN_ROOT — what gets installed
     ├── .claude-plugin/plugin.json    # Claude Code manifest
     ├── .codex-plugin/plugin.json     # Codex manifest
-    ├── .mcp.json                     # Plugin MCP launcher (go run ./cmd/server)
+    ├── .mcp.json                     # Plugin MCP launcher (mcp-server/run.sh)
     ├── docs/                         # Plugin-shipped reference (entities, user-flows)
     ├── skills/                       # 14 skills (markdown only)
     └── mcp-server/                   # Go MCP server (see §3)
@@ -97,7 +97,9 @@ simulator-ai-plugin/
 The plugin is published in **two manifests** (Claude Code and Codex) that both point at
 `plugins/simulator/`. The root `.mcp.json` is used when the plugin is installed from a
 marketplace; the plugin-level `.mcp.json` is used when running from a local clone. Both
-launch the same `go run ./cmd/server` command — there is no build step.
+launch the same `mcp-server/run.sh`, which starts the release binary of the manifest version
+(downloaded from GitHub Releases, SHA-256 checked, cached) and falls back to `go run ./cmd/server`;
+`SIMULATOR_MCP_DEV=1` forces `go run`.
 
 > **Why docs live in two places.** Top-level `docs/` holds contributor/architecture docs
 > for people working *on* the repo. The entity and user-flow reference under
@@ -375,7 +377,10 @@ config) and falls back to the resolved profile's account URL when it is unset.
 
 ## 6. Build & tooling
 
-There is **no build step to run the plugin** — hosts launch it with `go run ./cmd/server`.
+Users need no build step: hosts launch `mcp-server/run.sh`, which runs, in order, `go run ./cmd/server`
+when `SIMULATOR_MCP_DEV=1`, a local `simulator-mcp` (not version-checked), the release binary of the
+manifest version (SHA-256 checked against `checksums.txt`, cached in `~/.cache/simulator-mcp/`), and
+`go run ./cmd/server` as the fallback. The Release workflow builds the binaries for every tag.
 `Makefile` targets (run from the repo root; recipes `cd` into the module):
 
 | Target          | What it does                                                                |
