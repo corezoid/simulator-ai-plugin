@@ -3,6 +3,11 @@
 ## [Unreleased]
 
 ### Added
+- Simulation conformance case `edge_cases` (numbers in actor data, an actor reference as an
+  initial-event target, the first account of a conserved type at 0, many runs with chance),
+  shared with the reference engine sim-morrow, which now also holds the 2.9.1 semantics. The
+  model format says both rules explicitly; `TestWrongCallFailsTheRun` pins that a bad call
+  fails the run.
 - Smart Form skills cover control-cdu v0.53.2: `extra.ignoreFormValidity` on a `default` button
   (and the automatic disabling by form validity it turns off), `[h1]`…`[h6]` heading tags for
   labels and form titles, `autoFocus`, keyboard focus of `modal` sections, and the single
