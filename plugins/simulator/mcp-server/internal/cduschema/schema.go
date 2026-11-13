@@ -8,6 +8,10 @@ import (
 	"sync"
 )
 
+// smart-forms-swagger.json is the control-cdu-doc OpenAPI bundle as JSON. To refresh it, run
+// `node inline-images.js --output <dir>` in control-cdu-doc and convert <dir>/index.yaml to JSON
+// (2-space indent, no trailing newline).
+//
 //go:embed smart-forms-swagger.json
 var swaggerJSON []byte
 

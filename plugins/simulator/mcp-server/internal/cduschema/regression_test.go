@@ -99,14 +99,17 @@ func TestValidatePageConfig_NoFalsePositives(t *testing.T) {
 // and TestProbeDocumentedKeysPresentInUnion keeps the two in step.
 func TestValidatePageConfig_DocumentedShapesAccepted(t *testing.T) {
 	cases := map[string]string{
-		"mainMenu.options (§5)":     `{"id":"m","class":"mainMenu","value":"a","options":[{"value":"a","title":"A"}]}`,
-		"carousel.items (§5)":       `{"id":"c","class":"carousel","value":"0","items":[{"id":"a","class":"image","value":"https://x/y.png"}],"extra":{"autoplay":true,"interval":3}}`,
-		"comments.title (§5)":       `{"id":"cm","class":"comments","value":"x","title":"Chat"}`,
-		"timer.extra.duration (§5)": `{"id":"tm","class":"timer","value":"1000","extra":{"duration":10}}`,
-		"file.extra urls (§5)":      `{"id":"fl","class":"file","value":"x","extra":{"downloadUrl":"https://x","uploadUrl":"https://y","auth":"t"}}`,
-		"upload.extra.compression":  `{"id":"up","class":"upload","value":"x","type":"default","extra":{"compression":0.5}}`,
-		"attachment.extra url (§5)": `{"id":"at","class":"attachment","value":"x","extra":{"downloadUrl":"https://x"}}`,
-		"base fields on any class":  `{"id":"l","class":"label","value":"x","required":false,"error":false,"errorMsg":"e","submitOnChange":true}`,
+		"mainMenu.options (§5)":           `{"id":"m","class":"mainMenu","value":"a","options":[{"value":"a","title":"A"}]}`,
+		"carousel.items (§5)":             `{"id":"c","class":"carousel","value":"0","items":[{"id":"a","class":"image","value":"https://x/y.png"}],"extra":{"autoplay":true,"interval":3}}`,
+		"comments.title (§5)":             `{"id":"cm","class":"comments","value":"x","title":"Chat"}`,
+		"timer.extra.duration (§5)":       `{"id":"tm","class":"timer","value":"1000","extra":{"duration":10}}`,
+		"file.extra urls (§5)":            `{"id":"fl","class":"file","value":"x","extra":{"downloadUrl":"https://x","uploadUrl":"https://y","auth":"t"}}`,
+		"upload.extra.compression":        `{"id":"up","class":"upload","value":"x","type":"default","extra":{"compression":0.5}}`,
+		"attachment.extra url (§5)":       `{"id":"at","class":"attachment","value":"x","extra":{"downloadUrl":"https://x"}}`,
+		"base fields on any class":        `{"id":"l","class":"label","value":"x","required":false,"error":false,"errorMsg":"e","submitOnChange":true}`,
+		"button.extra.ignoreFormValidity": `{"id":"b","class":"button","type":"default","title":"Next","extra":{"ignoreFormValidity":true}}`,
+		"progressBar class":               `{"id":"pb","class":"progressBar","value":"40","type":"line","extra":{"max":100}}`,
+		"graph widget extra":              `{"id":"g","class":"widget","type":"graph","extra":{"graphId":"x","layerId":"y"}}`,
 	}
 	for name, item := range cases {
 		t.Run(name, func(t *testing.T) {

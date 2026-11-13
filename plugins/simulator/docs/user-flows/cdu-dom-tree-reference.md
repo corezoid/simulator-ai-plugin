@@ -200,7 +200,8 @@ Step state: active → `.active__…`, the rest → `.disabled__…`.
 ```
 - `align` → suffix class `left__`/`center__`/`right__` (each with its own hash).
 - **BBCode renders to real tags** inside `<span>`: `[b]`→`<b>`, `[i]`→`<i>`, `[u]`→`<u>`,
-  `[color=#x]`→`<span style="color:#x">`, `[br]`→`<br>`.
+  `[color=#x]`→`<span style="color:#x">`, `[br]`→`<br>`, `[h1]`…`[h6]`→`<h1>`…`<h6>` (reset to
+  `font: inherit; margin: 0` inside a label).
 
 ### divider
 ```

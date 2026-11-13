@@ -236,7 +236,7 @@ Every entry in a section's `header`/`content` is an **Item**, dispatched by its 
 | `class` | enum (see §5) | which component to render |
 | `value` | string \| object \| array | current value (type depends on component) |
 | `visibility` | `visible`\|`disabled`\|`hidden` or a pure `{{viewModelKey}}` placeholder | render state after server-side resolution |
-| `required` | boolean | required for submit (drives auto-disable of submit buttons) |
+| `required` | boolean | required for submit (drives auto-disable of `default` buttons on each change in the form; a button with `extra.ignoreFormValidity: true` is left out) |
 | `error` | boolean | error state (server- or client-set) |
 | `errorMsg` | string | message shown when `error` |
 | `styleClass` | string | extra CSS class (scoped under `.cdu-page`) |
@@ -282,7 +282,7 @@ All component `class` values (renderer `ComponentClasses`). Most are content/inp
 
 | `class` | Kind | Key fields (beyond base) | Notes / `type` enum |
 |---|---|---|---|
-| `button` | action | `title` (bbcode), `type`, `tooltip`, `extra.{url,target,action,icon,rounded,mobileVisible,request,autoSubmit,options}` | `type`: `default` `text` `secondary` `tertiary` `quaternary` `quinary` `error`. Submits its form; **`extra.url` opens that URL instead of submitting** (`extra.target` `_self`(default)\|`_blank` — honoured by newer renderers; older ones ignore `target` and open in the **same tab** via `window.location.assign`); `extra.action:'logout'`; `extra.request` runs a bare `fetch` first and submits **only if it resolves**; `extra.autoSubmit` `{interval,maxCount}` polls (**interval clamped 5–60s**, default 30; `maxCount` 1–500, default 6); `extra.options[]` opens a click menu **and bypasses `url`/`request`/`action`/submit**. `default`/`secondary` show a spinner while submitting; the CDU schema also has `default` reflect required-validation (disabled while a required field is empty) — verify against your renderer version. |
+| `button` | action | `title` (bbcode), `type`, `tooltip`, `extra.{url,target,action,icon,rounded,mobileVisible,request,autoSubmit,options,ignoreFormValidity}` | `type`: `default` `text` `secondary` `tertiary` `quaternary` `quinary` `error`. Submits its form; **`extra.url` opens that URL instead of submitting** (`extra.target` `_self`(default)\|`_blank` — honoured by newer renderers; older ones ignore `target` and open in the **same tab** via `window.location.assign`); `extra.action:'logout'`; `extra.request` runs a bare `fetch` first and submits **only if it resolves**; `extra.autoSubmit` `{interval,maxCount}` polls (**interval clamped 5–60s**, default 30; `maxCount` 1–500, default 6); `extra.options[]` opens a click menu **and bypasses `url`/`request`/`action`/submit**. `default`/`secondary` show a spinner while submitting; `default` is auto-disabled while a required field is empty/invalid (recomputed on each change in the form, not at first render); `extra.ignoreFormValidity: true` opts a button out. Only `default` and `secondary` show a spinner while their request runs. |
 | `edit` | input | `value`, `type`, `placeholder`, `regexp`, `mask`, `errorMsg`, `helpMsg`, `submitOnEnter`, `resettable`, `extra.{length,lineNumbers}` | `type`: `text` `email` `int` `float` `phone` `multiline` `date` `password` `colorPicker` |
 | `select` | input | `value`, `options[]`, `type`, `submitOnChange`, `submitOnScroll` | `type`: `default` `autocomplete`; scroll-paginated options |
 | `multiselect` | input | `value[]`, `options[]`, `extra.length` | chip multi-select with search |
@@ -405,7 +405,8 @@ shape the page **before** it reaches the renderer. All are resolved server-side
   `"body": "{{rows}}"`; verify once against a live render before relying on it.
 - **`bbcode`** — `label`/`button`/`edit`/`check` titles support BBCode, rendered to HTML by the
   client (`Utils.bbCodeToHtml`). Supported tags (verified live): `[b]` `[i]` `[u]` `[color=#rgb]`
-  `[size=N]` `[br]`, and **`[url=https://…]text[/url]`** which renders a **clickable
+  `[size=N]` `[br]`, headings `[h1]`…`[h6]` (source-verified: real heading elements;
+  in a `label` and a form `title` they keep the look of the surrounding text), and **`[url=https://…]text[/url]`** which renders a **clickable
   `<a target="_blank">`** — the idiomatic way to put an inline text link in a form. Raw HTML in a
   value (e.g. `<a href>`) is **escaped** and shown as literal text, so use `[url]`, not `<a>`. (`[url]`
   opens a new tab; the renderer also supports `[iurl=…]…[/iurl]` for a same-tab link, plus more tags such
@@ -467,7 +468,8 @@ The renderer validates inputs before allowing submit; the server is the final au
 sets `error`/`errorMsg` that the client only displays.
 
 - **required** — a visible, value-bearing, required item with an empty/invalid value
-  auto-disables the form's submit buttons (`isSubmitAllowedToAutoToggle`).
+  auto-disables the form's `type: "default"` buttons that are not `hidden` and have no
+  `extra.ignoreFormValidity` (`isSubmitAllowedToAutoToggle`); recomputed on each change in the form.
 - **regexp** — `edit` and `phone` validate against the item's `regexp`.
 - **phone** — error if the `regexp` fails on `countryCode+number`, or if required parts are
   empty.
