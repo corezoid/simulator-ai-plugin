@@ -49,11 +49,22 @@ func TestSkillDescriptions(t *testing.T) {
 	}
 }
 
-// A blank line inside a folded description used to end the match, so the
-// length check above saw only the first paragraph.
-func TestParseDescriptionSpansBlankLines(t *testing.T) {
-	fm := "name: x\ndescription: >\n  First paragraph.\n\n  Second paragraph.\nlicense: MIT"
-	if got, want := parseDescription(fm), "First paragraph. Second paragraph."; got != want {
-		t.Errorf("parseDescription = %q, want %q", got, want)
+// The length check is only as good as the parser: a regexp parser read
+// `description: >-` as the two characters ">-" and a multi-line plain scalar
+// as its first line, so a long description in either form passed the check.
+func TestParseFrontmatterScalarForms(t *testing.T) {
+	const want = "First line. Second line."
+	for name, fm := range map[string]string{
+		"folded":          "description: >\n  First line.\n  Second line.\n",
+		"folded strip":    "description: >-\n  First line.\n  Second line.\n",
+		"literal strip":   "description: |-\n  First line.\n  Second line.\n",
+		"plain multiline": "description: First line.\n  Second line.\n",
+		"blank line":      "description: >\n  First line.\n\n  Second line.\n",
+		"double quoted":   "description: \"First line. Second line.\"\n",
+	} {
+		_, got := parseFrontmatterBytes([]byte("---\nname: x\n" + fm + "license: MIT\n---\nbody\n"))
+		if got != want {
+			t.Errorf("%s: description = %q, want %q", name, got, want)
+		}
 	}
 }

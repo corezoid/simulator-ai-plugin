@@ -62,9 +62,11 @@
   its directory.
 
 ### Fixed
-- `make discovery` stopped reading a folded `description:` at its first blank line, so `public/`
-  carried only the first paragraph of the `simulator-graph`, `simulator-charts` and
-  `simulator-simulate` descriptions.
+- `make discovery` read SKILL.md frontmatter with regular expressions: a folded `description:` ended
+  at its first blank line, so `public/` carried only the first paragraph of the `simulator-graph`,
+  `simulator-charts` and `simulator-simulate` descriptions, and `>-` / `|-` or a multi-line plain
+  description came out as `>-` or its first line, which the 200-character check would have passed.
+  It now parses the frontmatter as YAML, like the hosts do.
 - `pushSmartForm` rejected page configs that use components and keys added to the renderer since
   June (`extra.ignoreFormValidity` on a button, the `progressBar` class, the `extra` keys of the
   `graph`/`reactions` widgets, `table.extra.showScrollToTop`): the bundled CDU swagger is refreshed

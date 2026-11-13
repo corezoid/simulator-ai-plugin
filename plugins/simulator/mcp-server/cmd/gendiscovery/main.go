@@ -16,6 +16,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const repoRaw = "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main"
@@ -24,12 +26,7 @@ var (
 	skillsRaw = repoRaw + "/plugins/simulator/skills"
 	docsRaw   = repoRaw + "/plugins/simulator/docs"
 
-	fmBlockRe  = regexp.MustCompile(`(?s)^---\n(.*?)\n---`)
-	nameRe     = regexp.MustCompile(`(?m)^name:\s*(.+)$`)
-	descFolded = regexp.MustCompile(`(?m)^description:\s*[>|]\s*\n((?:[ \t]+[^\n]*\n?|\n)+)`) // a blank line continues the block
-	descDQ     = regexp.MustCompile(`(?m)^description:\s*"(.*)"`)
-	descSQ     = regexp.MustCompile(`(?m)^description:\s*'(.*)'`)
-	descPlain  = regexp.MustCompile(`(?m)^description:\s*(.+)$`)
+	fmBlockRe = regexp.MustCompile(`(?s)^---\n(.*?)\n---`)
 )
 
 // mcpTools is a curated highlight list for llms.txt. llms.txt is meant to be a
@@ -78,42 +75,30 @@ type skill struct {
 	Files       []string
 }
 
-func parseDescription(fm string) string {
-	if m := descFolded.FindStringSubmatch(fm); m != nil {
-		var parts []string
-		for _, ln := range strings.Split(m[1], "\n") {
-			if s := strings.TrimSpace(ln); s != "" {
-				parts = append(parts, s)
-			}
-		}
-		return strings.Join(parts, " ")
-	}
-	if m := descDQ.FindStringSubmatch(fm); m != nil {
-		return strings.TrimSpace(strings.ReplaceAll(m[1], `\"`, `"`))
-	}
-	if m := descSQ.FindStringSubmatch(fm); m != nil {
-		return strings.TrimSpace(strings.ReplaceAll(m[1], "''", "'"))
-	}
-	if m := descPlain.FindStringSubmatch(fm); m != nil {
-		return strings.TrimSpace(m[1])
-	}
-	return ""
-}
-
+// parseFrontmatter reads name and description with a YAML parser, as the hosts
+// do, so every scalar form (>, |, >-, |-, quoted, multi-line plain, blank lines
+// inside) yields the text a host loads. Whitespace is collapsed to one line.
 func parseFrontmatter(path string) (name, desc string) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", ""
 	}
+	return parseFrontmatterBytes(data)
+}
+
+func parseFrontmatterBytes(data []byte) (name, desc string) {
 	block := fmBlockRe.FindSubmatch(data)
 	if block == nil {
 		return "", ""
 	}
-	fm := string(block[1])
-	if m := nameRe.FindStringSubmatch(fm); m != nil {
-		name = strings.TrimSpace(m[1])
+	var fm struct {
+		Name        string `yaml:"name"`
+		Description string `yaml:"description"`
 	}
-	return name, parseDescription(fm)
+	if err := yaml.Unmarshal(block[1], &fm); err != nil {
+		return "", ""
+	}
+	return strings.TrimSpace(fm.Name), strings.Join(strings.Fields(fm.Description), " ")
 }
 
 func collectSkills(skillsDir string) ([]skill, error) {
