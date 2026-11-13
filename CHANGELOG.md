@@ -2,20 +2,65 @@
 
 ## [Unreleased]
 
+### Added
+- Smart Form skills cover control-cdu v0.53.2: `extra.ignoreFormValidity` on a `default` button
+  (and the automatic disabling by form validity it turns off), `[h1]`…`[h6]` heading tags for
+  labels and form titles, `autoFocus`, keyboard focus of `modal` sections, and the single
+  `submitOnChange` request a `radio` sends after arrow keys; which button types show a spinner and
+  that a page sends one `/send` at a time.
+
+### Fixed
+- `pushSmartForm` rejected page configs that use components and keys added to the renderer since
+  June (`extra.ignoreFormValidity` on a button, the `progressBar` class, the `extra` keys of the
+  `graph`/`reactions` widgets, `table.extra.showScrollToTop`): the bundled CDU swagger is refreshed
+  from control-cdu-doc.
+
+### Changed
+- `make vuln` runs govulncheck (pinned v1.9.0) on the MCP server. CI runs it as its own job; the
+  Release workflow runs it before building binaries, refuses to publish a tag with a reachable
+  known vulnerability, and attaches `govulncheck.txt` to the release.
+- README / AGENTS / ARCHITECTURE / CONTRIBUTING describe how `run.sh` really starts the server
+  (`SIMULATOR_MCP_DEV=1` → local `simulator-mcp` → checksum-verified release binary → `go run`):
+  Go is needed only to build from source, `/reload-plugins` picks up Go changes only with
+  `SIMULATOR_MCP_DEV=1`, and a stale hand-built `simulator-mcp` must be rebuilt after a pull.
+- CHANGELOG: the entries of 2.11.0–2.15.0, which stayed under `[Unreleased]`, are moved to their
+  versions; a duplicated 2.9.1–2.8.0 block and a second empty `[Unreleased]` are removed.
+
+## [2.15.0] - 2026-11-11
+
+### Security
+- Go 1.27.4 (`go.mod`, CI and release builds): fixes GO-2026-6859 in `net/http` — an HTTP/1 server
+  could crash when a request exceeds the body limit while the handler reads that body and changes
+  the response headers. The exposed path is the hosted server (`--http`, bodies capped by
+  `http.MaxBytesHandler` at 32 MiB); the local stdio server only opens a short-lived localhost
+  listener for the OAuth login callback, with no body limit. No crash was reproduced against this
+  server; the release removes the vulnerable toolchain. What to do:
+  - **Plugin users (prebuilt binary, macOS/Linux):** update the plugin — `run.sh` downloads the 2.15.0
+    binary, built with Go 1.27.4.
+  - **Hosted server operators (`mcp.simulator.company`):** redeploy with the 2.15.0 binary or image
+    and restart.
+  - **Built from source** (`SIMULATOR_MCP_DEV=1`, a local `simulator-mcp`, or the `go run`
+    fallback): install Go 1.27.4+ (or let the toolchain download it) and rebuild a local
+    `simulator-mcp` — `run.sh` does not check its version.
+
+## [2.14.0] - 2026-11-04
+
 ### Security
 - bump golang.org/x/net to v0.62.0 (CVE-2023-44487, HTTP/2 Rapid Reset; CISA KEV) — SEC-1916
-- bump Go to 1.27.4 (`go.mod`; GO-2026-6859 in `net/http`) — the `go run` start now needs Go 1.27.4 or a toolchain download
+
+### Changed
+- `saveTemplateActorsAccess` / simulator-access skill: documents pong-server's actors access of
+  system forms — only users with `system_actors:management` (owner/admin) manage it,
+  only API keys can be added, only view/modify are applied (view=false drops the rule's privileges),
+  the system user's rule is read-only. `bulkSaveAccessRules` validates every item before saving any.
+  Drift-gate spec carries the route's new description.
+- Access-rule `privs` description: on a system form's actors access `view` is not implied by
+  `modify` and must be set explicitly; `saveAccessRules` with `objType=templateActors` notes that it
+  is the same call as `saveTemplateActorsAccess`, so the system-form rules apply.
+
+## [2.13.0] - 2026-10-28
 
 ### Added
-- Hosted access log: one `access {...}` JSON line per MCP request with the JSON-RPC method, tool
-  name, route (bare / workspace / actor), HTTP status, `is_error`, duration, a 12-hex hash of the
-  caller's Authorization and the User-Agent — never the token, arguments or results.
-  `SIMULATOR_ACCESS_LOG=off` disables it.
-- Hosted mode gives every tool without one a human-readable title derived from its name
-  (`getWorkspaces` → "Get workspaces"), as connector directories require.
-- Hosted mode serves the OpenAI plugin-directory domain-verification token at
-  `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
-  token; 404 otherwise).
 - `updateChart` reconfigures an existing Dashboards chart in place — same actor id, layer and account
   inheritance — closing CE-15957 known limitation (2): since v2.12.0 updateActor blocks a hand-written
   `data.source`, so a chart could only be recreated. Pass only what changes (chart type, range,
@@ -34,31 +79,19 @@
   pong-server item.
 - Drift gate: `TestEngineEndpointDrift` checks the `/papi` routes `createChart` and `updateChart` call
   against the backend spec.
-- Smart Form skills cover control-cdu v0.53.2: `extra.ignoreFormValidity` on a `default` button
-  (and the automatic disabling by form validity it turns off), `[h1]`…`[h6]` heading tags for
-  labels and form titles, `autoFocus`, keyboard focus of `modal` sections, and the single
-  `submitOnChange` request a `radio` sends after arrow keys; which button types show a spinner and
-  that a page sends one `/send` at a time.
 
 ### Changed
 - simulator-attachments skill: documents pong-server's new linking rule — `addAttachments` and a
   reaction's `attachments` take only a file of the target actor's workspace that the caller uploaded
   or can already see on an actor (an anonymous visitor's unlinked upload is linkable by a member or
   API key); anything else is refused with 400 / 403.
-- `saveTemplateActorsAccess` / simulator-access skill: documents pong-server's actors access of
-  system forms — only users with `system_actors:management` (owner/admin) manage it,
-  only API keys can be added, only view/modify are applied (view=false drops the rule's privileges),
-  the system user's rule is read-only. `bulkSaveAccessRules` validates every item before saving any.
-  Drift-gate spec carries the route's new description.
-- Access-rule `privs` description: on a system form's actors access `view` is not implied by
-  `modify` and must be set explicitly; `saveAccessRules` with `objType=templateActors` notes that it
-  is the same call as `saveTemplateActorsAccess`, so the system-form rules apply.
+- The version test checks every file `scripts/release.sh` bumps (the root `plugin.json` stayed at 2.10.0
+  through the 2.11.0 and 2.12.0 releases), not only the Claude manifest.
+- Release: Windows binaries (amd64/arm64) are published, and every binary is built with `-trimpath`
+  so a rebuild of the tag gives the same bytes (#150).
+- `github.com/mark3labs/mcp-go` bumped (#161); Dependabot opens its PRs against `develop` (#160).
 
 ### Fixed
-- `pushSmartForm` rejected page configs that use components and keys added to the renderer since
-  June (`extra.ignoreFormValidity` on a button, the `progressBar` class, the `extra` keys of the
-  `graph`/`reactions` widgets, `table.extra.showScrollToTop`): the bundled CDU swagger is refreshed
-  from control-cdu-doc.
 - createChart and the pushGraphFile Dashboards guard cached system form ids by title only, so after
   `set-workspace` / `set-environment` in the same session createChart built the dashboard on the previous
   workspace's Dashboards form and the push guard compared against that foreign id and let a hand-built
@@ -72,6 +105,35 @@
   duplicate series (same `actorId` + `nameId` + `currencyId` + `incomeType`, which the UI silently
   drops) are rejected before anything is created. When series differ by `incomeType` the legend shows
   it, so they no longer render with the same label.
+- Hosted `/mcp` (no workspace in the connector URL): `findAgent`, `getAgent` (by `userId`), `findSkill`
+  and `getSkill` (by `ref`) now take `accId`, and `createActor` (with `formName`) and `getRelatedActors`
+  (default hierarchy edge type) take an optional `accId` — before, they failed with "no workspace set — run
+  set-workspace", a tool the hosted server does not have. On stdio `accId` overrides the configured
+  workspace. A test now calls every hosted tool without a workspace instead of trusting a hand-kept list.
+- The Dashboards guard (`createActor` / `updateActor`) and the `formName` cache keyed by the client's stored
+  base URL while a hosted request goes to the backend on its context, so a form id cached as "not
+  Dashboards" on one backend let a hand-built Dashboards actor through on another. Both now key by the
+  base URL the request is actually sent to (`Client.BaseURLForContext`).
+- Hosted access log: a request body over 64 KiB (an inline base64 image, a long description) logged no
+  `method` / `tool`, and the log read the body before `requireAuth` and the per-token limiter. The log no
+  longer reads the body; the JSON-RPC method and tool name come from the parsed MCP request, so an
+  anonymous request is refused unread (its line has no `method`).
+- The root `plugin.json` stayed at 2.10.0 through 2.11.0 and 2.12.0; it is back in the version
+  lockstep (#159).
+
+## [2.12.0] - 2026-10-14
+
+### Added
+- Hosted access log: one `access {...}` JSON line per MCP request with the JSON-RPC method, tool
+  name, route (bare / workspace / actor), HTTP status, `is_error`, duration, a 12-hex hash of the
+  caller's Authorization and the User-Agent — never the token, arguments or results.
+  `SIMULATOR_ACCESS_LOG=off` disables it.
+
+### Changed
+- Build: Go directive bumped to `1.27.2`; the documented golangci-lint is v2.14.0 (older releases cannot lint a `go 1.27` module).
+- Docs state the Go requirement as 1.27.2+ (README, CONTRIBUTING, AGENTS, ARCHITECTURE said 1.24+ / 1.25).
+
+### Fixed
 - Tool annotations: `openWorldHint` is now false for tools that only touch the user's own workspace
   and true only for `uploadActorPicture`, `uploadActorPictureBulk`, `uploadGraphFile` (fetch a
   caller-given URL) and `generatePublicLink` (publishes a public link). `massLink` is destructive
@@ -101,6 +163,35 @@
   models omitted it and calls failed. The hosted description now says to pass the id from
   `getWorkspaces`, "active workspace" wording is rewritten, and a missing `accId` error tells
   the model what to do.
+
+## [2.11.0] - 2026-10-07
+
+### Added
+- Hosted (remote) serving mode: `--http <addr>` (or `SIMULATOR_HTTP_ADDR`) serves MCP over
+  streamable HTTP for deployments such as `mcp.simulator.company`. Routes match the existing
+  hosted server: `/mcp`, `/mcp/workspaces/{id}`, `/mcp/workspaces/{id}/actors/{id}`, plus
+  `/healthz`. The server is stateless and multi-tenant: no sessions, no `.env`, and no
+  `login` / `set-workspace` / `set-environment`. Every request carries the caller's own token
+  (`Bearer`, `Simulator` or bare, normalised to `Simulator <token>`); requests without one get
+  401, with an RFC 9728 challenge pointing at `account.corezoid.com` when
+  `SIMULATOR_RESOURCE_URL` is set. Workspace and actor come from the path; the API base URL comes
+  from `--profile` or a per-workspace Account lookup that is cached per caller and accepted only
+  for https origins on an allowlist (the profile host, its sibling subdomains, and
+  `SIMULATOR_RESOLVER_ALLOWED_ORIGINS`). Request bodies are capped at 32 MiB. The reusable
+  handler is `app/hosted`. Without the flag/env the server starts in stdio mode exactly as before.
+- Hosted mode gives every tool without one a human-readable title derived from its name
+  (`getWorkspaces` → "Get workspaces"), as connector directories require.
+- Hosted mode serves the OpenAI plugin-directory domain-verification token at
+  `/.well-known/openai-apps-challenge` when `OPENAI_APPS_CHALLENGE` is set (plain text, the exact
+  token; 404 otherwise).
+- Build script for the hosted OpenAI submission ZIP (#135).
+
+### Changed
+- Listings: black From-API-to-KPI icon on an opaque white background, category "Developer Tools",
+  no BPM wording; manifests pass the OpenAI plugin-portal validation; privacy policy and terms URLs
+  without a trailing slash (#138).
+
+### Fixed
 - Every tool now declares accurate safety hints. `mcp.NewTool` defaulted all of them to
   `readOnlyHint: false, destructiveHint: true`, so reads like `getActor` looked as dangerous as
   `deleteActor`. Curated operations are classified by HTTP method (GET read-only; PUT and
@@ -108,25 +199,6 @@
 - Hosted mode no longer offers file arguments (`localPath`, `modelPath`, `scenariosPath`,
   `graphPath`) in tool schemas, and `getWorkspaces` / `rollbackFile` descriptions no longer
   point at `login`, `set-workspace` or local files.
-- Hosted `/mcp` (no workspace in the connector URL): `findAgent`, `getAgent` (by `userId`), `findSkill`
-  and `getSkill` (by `ref`) now take `accId`, and `createActor` (with `formName`) and `getRelatedActors`
-  (default hierarchy edge type) take an optional `accId` — before, they failed with "no workspace set — run
-  set-workspace", a tool the hosted server does not have. On stdio `accId` overrides the configured
-  workspace. A test now calls every hosted tool without a workspace instead of trusting a hand-kept list.
-- The Dashboards guard (`createActor` / `updateActor`) and the `formName` cache keyed by the client's stored
-  base URL while a hosted request goes to the backend on its context, so a form id cached as "not
-  Dashboards" on one backend let a hand-built Dashboards actor through on another. Both now key by the
-  base URL the request is actually sent to (`Client.BaseURLForContext`).
-- Hosted access log: a request body over 64 KiB (an inline base64 image, a long description) logged no
-  `method` / `tool`, and the log read the body before `requireAuth` and the per-token limiter. The log no
-  longer reads the body; the JSON-RPC method and tool name come from the parsed MCP request, so an
-  anonymous request is refused unread (its line has no `method`).
-
-### Changed
-- Build: Go directive bumped to `1.27.2`; the documented golangci-lint is v2.14.0 (older releases cannot lint a `go 1.27` module).
-- Docs state the Go requirement as 1.27.2+ (README, CONTRIBUTING, AGENTS, ARCHITECTURE said 1.24+ / 1.25).
-- The version test checks every file `scripts/release.sh` bumps (the root `plugin.json` stayed at 2.10.0
-  through the 2.11.0 and 2.12.0 releases), not only the Claude manifest.
 
 ### Security
 - Hosted mode caps in-flight requests per caller token (default 4, `SIMULATOR_MAX_CONCURRENT_PER_TOKEN`;
@@ -149,76 +221,6 @@
   file paths are refused, and the tools that read or write the server's working directory
   (`pullGraphFile`, `pushGraphFile`, `pullSmartForm`, `pushSmartForm`, `simulationSnapshot`)
   are not offered by a hosted server. The local (stdio) server is unchanged.
-
-### Added
-- Hosted (remote) serving mode: `--http <addr>` (or `SIMULATOR_HTTP_ADDR`) serves MCP over
-  streamable HTTP for deployments such as `mcp.simulator.company`. Routes match the existing
-  hosted server: `/mcp`, `/mcp/workspaces/{id}`, `/mcp/workspaces/{id}/actors/{id}`, plus
-  `/healthz`. The server is stateless and multi-tenant: no sessions, no `.env`, and no
-  `login` / `set-workspace` / `set-environment`. Every request carries the caller's own token
-  (`Bearer`, `Simulator` or bare, normalised to `Simulator <token>`); requests without one get
-  401, with an RFC 9728 challenge pointing at `account.corezoid.com` when
-  `SIMULATOR_RESOURCE_URL` is set. Workspace and actor come from the path; the API base URL comes
-  from `--profile` or a per-workspace Account lookup that is cached per caller and accepted only
-  for https origins on an allowlist (the profile host, its sibling subdomains, and
-  `SIMULATOR_RESOLVER_ALLOWED_ORIGINS`). Request bodies are capped at 32 MiB. The reusable
-  handler is `app/hosted`. Without the flag/env the server starts in stdio mode exactly as before.
-
-## [2.9.1]
-
-### Fixed
-- simulationSnapshot wrote numbers in actor `data` (and `formId`, positions, `sim.source`) to the graph
-  file as YAML strings, so a run from the saved file read them as text: `self.price + self.cost` gave
-  `"1020"` instead of `30` and `count(price=10)` found nothing, with status `completed`. Numbers are
-  now written as YAML numbers; strings such as `"10"` stay strings. A snapshot file written by 2.9.0
-  stays wrong: simulationCheck / simulationRun now warn about it — re-take it with
-  `simulationSnapshot(layerId, overwrite: true)`. simulationRun now returns the check's `warnings`.
-- simulationRun many-run mode counted runs stopped before the horizon (`stopped_by_time`,
-  `stopped_by_limit`) as successful: their partial metrics fed the statistics and goal shares, and the
-  table showed them as ok. Metrics and goals are now over completed runs only; the table shows
-  `completed/total (N stopped, M failed)`, the reason a run stopped is listed under the table, and a
-  goal no completed run could evaluate shows `no data` instead of dropping its column.
-- Opening the first account of a conserved type at 0 (e.g. `create … accounts: [{name: cash,
-  value_type: USD}]` when the graph has no USD account) failed the step with `conserved totals changed
-  within step:`. A type with no account now counts as total 0.
-- The Release workflow published a tag without running the tests (only the binaries build was
-  required); it now runs build / vet / test first and publishes only if they pass.
-
-## [2.9.0]
-
-### Added
-- behaviour simulation engine (simulationRun / simulationCheck / simulationSnapshot) (#111)
-
-### Changed
-- reactionOrders is optional; executors without an order still close the task (#117)
-- bump github.com/mark3labs/mcp-go from 0.58.0 to 1.1.0 (#114)
-- document the page-level focusVisible flag (#112)
-- document the page-level browser tab title (#106)
-
-### Fixed
-- read layer pages until an empty one, not a short one (#115)
-- make MCP startup work in Codex (#81)
-- place pushGraphFile edges without a position, send data on create (#110)
-
-## [2.8.0]
-
-### Added
-- authenticate with a workspace API key via SIMULATOR_API_SECRET (#103)
-- simulator-app-generator (#100)
-
-### Changed
-- make design quality an explicit deliverable (#104)
-- bump mcp-go from 0.57.0 to 0.58.0 (#96)
-
-### Fixed
-- address bug-finder issues #87, #88, #89 (#102)
-- recognize bare top-level style file as text/css in pushSmartForm (#97)
-- carry the page query through appGetPage / appSendForm (#98)
-- allow visibility placeholders (#95)
-- catch on push what only the browser caught before (#99)
-
-## [Unreleased]
-
 ## [2.10.0] - 2026-10-05
 
 ### Added
