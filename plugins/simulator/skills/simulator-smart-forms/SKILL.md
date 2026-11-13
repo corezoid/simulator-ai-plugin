@@ -1,9 +1,9 @@
 ---
 name: simulator-smart-forms
 description: >
-  Smart Form (CDU) pages: create, edit, deploy; viewModel, locale, widgets,
-  releases, rollback. Triggers: "smart form", "CDU", "edit page layout", "deploy
-  smart form", "смарт форма".
+  Simulator Smart Form (CDU) pages: create, edit, deploy; viewModel, locale,
+  widgets, releases, rollback. Triggers: "smart form", "CDU", "edit page
+  layout", "deploy smart form", "смарт форма".
 ---
 
 # Simulator.Company Smart Form Author

@@ -1,8 +1,9 @@
 ---
 name: simulator-attachments
 description: >
-  Files: upload, attach to an actor or comment, list, rename, detach. Triggers:
-  "upload a file", "attach this document", "прикріпи файл", "загрузи файл".
+  Simulator files: upload, attach to an actor or comment, list, rename, detach.
+  Triggers: "upload a file", "attach this document", "прикріпи файл", "загрузи
+  файл".
 ---
 
 > **Curated tool names (v2 server):** `uploadBase64`, `getAttachments`, `getActorAttachments`,

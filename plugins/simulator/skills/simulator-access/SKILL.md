@@ -1,9 +1,9 @@
 ---
 name: simulator-access
 description: >
-  Access to actors, forms, accounts, layers: share, grant, revoke, who has
-  access; request access after a 403. Triggers: "share with", "who has access",
-  "надай доступ", "нет доступа".
+  Access to Simulator actors, forms, accounts, layers: share, grant, revoke, who
+  has access; request access after a 403. Triggers: "share with", "who has
+  access", "надай доступ", "нет доступа".
 ---
 
 > **Curated tool names (v2 server):** `getAccessRules`, `saveAccessRules`,

@@ -1,9 +1,9 @@
 ---
 name: simulator-graph
 description: >
-  Graph structure: layers, links, flowcharts, push/pull graph, questions about a
-  graph. Triggers: "build a flowchart", "connect actors", "what is on this
-  layer", "побудуй граф".
+  Simulator graph structure: layers, links, flowcharts, push/pull graph,
+  questions about a graph. Triggers: "build a flowchart", "connect actors",
+  "what is on this layer", "побудуй граф".
 ---
 
 > **Curated tool names (v2 server).** Place/remove nodes & edges on a layer with `manageLayerActors`; read a layer's contents — prefer `getLayerActorsPaginated` (page nodes then edges; works for any size) or `getAllLayerPlacements`, falling back to `getLayerActors` only for small layers (it loads the whole layer in one call and is rejected with a "Layer is too large" 400 above the size cap); create nodes with `createActor` (one call each — there is no `createActors`); links with `createLink` / `massLink`; edge CRUD with `getEdge` / `updateEdge` / `deleteEdge` / `existLink` / `deleteEdgesByNodes`; edge types with `getEdgeTypes`. Traverse from an actor with `getRelatedActors` (type = linked | parents | children; hierarchy link type by default; paginated/filterable/sortable), `getLinkedActors` (directly-linked actors across edge types, with `edgeTypes`/`withSystem`/`pinned` filters), and `getActorLinks` (every edge of an actor). Layer ops: `layerStats` (node/edge counts), `existLayerElement` (is a node/edge on a layer — dedup before placing), `moveActors` (move ≤10 actors between layers), `cleanGraphLayer` (wipe a layer — destructive). See `/simulator` for the full list.

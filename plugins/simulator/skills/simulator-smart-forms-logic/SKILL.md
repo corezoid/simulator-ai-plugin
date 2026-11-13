@@ -1,9 +1,9 @@
 ---
 name: simulator-smart-forms-logic
 description: >
-  Corezoid backend of a Smart Form: page init, submit handlers, viewModel;
-  briefs corezoid-create/edit. Triggers: "smart form backend", "submit handler",
-  "логика смарт формы".
+  Corezoid backend of a Simulator Smart Form: page init, submit handlers,
+  viewModel; briefs corezoid-create/edit. Triggers: "smart form backend",
+  "submit handler", "логика смарт формы".
 ---
 
 # Smart Form Backend Logic

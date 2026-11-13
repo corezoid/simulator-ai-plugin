@@ -9,70 +9,70 @@
       "name": "simulator"
     },
     {
-      "description": "Access to actors, forms, accounts, layers: share, grant, revoke, who has access; request access after a 403. Triggers: \"share with\", \"who has access\", \"надай доступ\", \"нет доступа\".",
+      "description": "Access to Simulator actors, forms, accounts, layers: share, grant, revoke, who has access; request access after a 403. Triggers: \"share with\", \"who has access\", \"надай доступ\", \"нет доступа\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-access/SKILL.md"
       ],
       "name": "simulator-access"
     },
     {
-      "description": "Actors (records of a form): create, update, read, search, filter; the data field format; an actor's Corezoid processes and API keys. Triggers: \"add a record\", \"создай актор\".",
+      "description": "Simulator actors (records of a form): create, update, read, search, filter; the data field format; an actor's Corezoid processes and API keys. Triggers: \"add a record\", \"создай актор\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-actors/SKILL.md"
       ],
       "name": "simulator-actors"
     },
     {
-      "description": "Digital twins and agents: find who or what can do a task, delegate it, ask someone's agent. Triggers: \"delegate to\", \"can X do this\", \"who should do this\", \"делегируй\", \"хто це зробить\".",
+      "description": "Simulator digital twins and agents: find who or what can do a task, delegate it, ask someone's agent. Triggers: \"delegate to\", \"can X do this\", \"who should do this\", \"делегируй\", \"хто це зробить\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-agents/SKILL.md"
       ],
       "name": "simulator-agents"
     },
     {
-      "description": "Generate a multi-page web app (Smart Form plus Corezoid middleware) from existing Corezoid processes. Triggers: \"build an app from these processes\", \"сделай сайт на базе процессов\".",
+      "description": "Generate a multi-page web app (Simulator Smart Form plus Corezoid middleware) from existing Corezoid processes. Triggers: \"build an app from these processes\", \"сделай сайт на базе процессов\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-app-generator/SKILL.md"
       ],
       "name": "simulator-app-generator"
     },
     {
-      "description": "Files: upload, attach to an actor or comment, list, rename, detach. Triggers: \"upload a file\", \"attach this document\", \"прикріпи файл\", \"загрузи файл\".",
+      "description": "Simulator files: upload, attach to an actor or comment, list, rename, detach. Triggers: \"upload a file\", \"attach this document\", \"прикріпи файл\", \"загрузи файл\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-attachments/SKILL.md"
       ],
       "name": "simulator-attachments"
     },
     {
-      "description": "Charts and dashboards on a graph layer: create, reconfigure, read chart data. Triggers: \"create a chart\", \"add a dashboard\", \"change chart type\", \"дашборд\".",
+      "description": "Simulator charts and dashboards on a graph layer: create, reconfigure, read chart data. Triggers: \"create a chart\", \"add a dashboard\", \"change chart type\", \"дашборд\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-charts/SKILL.md"
       ],
       "name": "simulator-charts"
     },
     {
-      "description": "Messages and chats: write to a user, open or reuse a 1:1 or group chat. Triggers: \"send N a message\", \"open a chat with\", \"напиши користувачу\", \"отправь сообщение\".",
+      "description": "Simulator messages and chats: write to a user, open or reuse a 1:1 or group chat. Triggers: \"send N a message\", \"open a chat with\", \"напиши користувачу\", \"отправь сообщение\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-chat/SKILL.md"
       ],
       "name": "simulator-chat"
     },
     {
-      "description": "Accounts on actors: balances, transactions, transfers, currencies, counters, account triggers. Triggers: \"record a transaction\", \"account balance\", \"переказ коштів\", \"баланс счёта\".",
+      "description": "Accounts on Simulator actors: balances, transactions, transfers, currencies, counters, account triggers. Triggers: \"record a transaction\", \"account balance\", \"переказ коштів\", \"баланс счёта\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-finance/SKILL.md"
       ],
       "name": "simulator-finance"
     },
     {
-      "description": "Form templates (Account Templates, «Шаблон рахунків»): create, add fields, status, system forms. Triggers: \"create a form\", \"add fields to form\", \"створи форму\".",
+      "description": "Simulator form templates (Account Templates, «Шаблон рахунків»): create, add fields, status, system forms. Triggers: \"create a form\", \"add fields to form\", \"створи форму\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-forms/SKILL.md"
       ],
       "name": "simulator-forms"
     },
     {
-      "description": "Graph structure: layers, links, flowcharts, push/pull graph, questions about a graph. Triggers: \"build a flowchart\", \"connect actors\", \"what is on this layer\", \"побудуй граф\".",
+      "description": "Simulator graph structure: layers, links, flowcharts, push/pull graph, questions about a graph. Triggers: \"build a flowchart\", \"connect actors\", \"what is on this layer\", \"побудуй граф\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-graph/SKILL.md"
       ],
@@ -86,63 +86,63 @@
       "name": "simulator-init"
     },
     {
-      "description": "Meetings and video/SIP rooms: schedule, recurring, agenda, join link; call transcriptions. Triggers: \"schedule a meeting\", \"join link\", \"запланируй встречу\", \"транскрипція дзвінка\".",
+      "description": "Simulator meetings and video/SIP rooms: schedule, recurring, agenda, join link; call transcriptions. Triggers: \"schedule a meeting\", \"join link\", \"запланируй встречу\", \"транскрипція дзвінка\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-meetings/SKILL.md"
       ],
       "name": "simulator-meetings"
     },
     {
-      "description": "Comments and reactions on an actor: comment, reply, read the thread, pin, mark read, stats. Triggers: \"comment on this actor\", \"show the discussion\", \"залиш коментар\", \"ответь в треде\".",
+      "description": "Comments and reactions on a Simulator actor: comment, reply, read the thread, pin, mark read, stats. Triggers: \"comment on this actor\", \"show the discussion\", \"залиш коментар\", \"ответь в треде\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-reactions/SKILL.md"
       ],
       "name": "simulator-reactions"
     },
     {
-      "description": "What-if simulation on a graph layer: model behaviour, change parameters, forecast and compare scenarios. Triggers: \"simulate\", \"what if\", \"forecast\", \"что будет если\", \"змоделюй\".",
+      "description": "What-if simulation on a Simulator graph layer: model behaviour, change parameters, forecast and compare scenarios. Triggers: \"simulate\", \"what if\", \"forecast\", \"что будет если\", \"змоделюй\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-simulate/SKILL.md"
       ],
       "name": "simulator-simulate"
     },
     {
-      "description": "Workspace playbooks (Skills form): find and run a saved skill, or save a procedure as a new one. Triggers: \"run skill\", \"is there a skill for\", \"save as skill\", \"створи скіл\".",
+      "description": "Simulator workspace playbooks (Skills form): find and run a saved skill, or save a procedure as a new one. Triggers: \"run skill\", \"is there a skill for\", \"save as skill\", \"створи скіл\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-skills/SKILL.md"
       ],
       "name": "simulator-skills"
     },
     {
-      "description": "Smart Form (CDU) pages: create, edit, deploy; viewModel, locale, widgets, releases, rollback. Triggers: \"smart form\", \"CDU\", \"edit page layout\", \"deploy smart form\", \"смарт форма\".",
+      "description": "Simulator Smart Form (CDU) pages: create, edit, deploy; viewModel, locale, widgets, releases, rollback. Triggers: \"smart form\", \"CDU\", \"edit page layout\", \"deploy smart form\", \"смарт форма\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms/SKILL.md"
       ],
       "name": "simulator-smart-forms"
     },
     {
-      "description": "Corezoid backend of a Smart Form: page init, submit handlers, viewModel; briefs corezoid-create/edit. Triggers: \"smart form backend\", \"submit handler\", \"логика смарт формы\".",
+      "description": "Corezoid backend of a Simulator Smart Form: page init, submit handlers, viewModel; briefs corezoid-create/edit. Triggers: \"smart form backend\", \"submit handler\", \"логика смарт формы\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-logic/SKILL.md"
       ],
       "name": "simulator-smart-forms-logic"
     },
     {
-      "description": "Run an existing Smart Form for the user: fill it in, submit, walk a wizard, create a smart contract. Triggers: \"run the app\", \"fill the form\", \"пройди смартформу\", \"оформи договір\".",
+      "description": "Run an existing Simulator Smart Form for the user: fill it in, submit, walk a wizard, create a smart contract. Triggers: \"run the app\", \"fill the form\", \"пройди смартформу\", \"оформи договір\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-smart-forms-runtime/SKILL.md"
       ],
       "name": "simulator-smart-forms-runtime"
     },
     {
-      "description": "Less/CSS styling of a Smart Form: themes, layout, component look, design systems. Triggers: \"style the smart form\", \"CDU styles\", \"make it look like\", \"стили CDU\", \"тема для форми\".",
+      "description": "Less/CSS styling of a Simulator Smart Form: themes, layout, component look, design systems. Triggers: \"style the smart form\", \"CDU styles\", \"make it look like\", \"стили CDU\", \"тема для форми\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-styles/SKILL.md"
       ],
       "name": "simulator-styles"
     },
     {
-      "description": "Tasks and orders for people: create, assign to someone, add approvers or signers, mark done. Triggers: \"create a task\", \"assign this to\", \"needs approval\", \"створи наказ\", \"поставь задачу\".",
+      "description": "Simulator tasks and orders for people: create, assign to someone, add approvers or signers, mark done. Triggers: \"create a task\", \"assign this to\", \"needs approval\", \"створи наказ\", \"поставь задачу\".",
       "files": [
         "https://raw.githubusercontent.com/corezoid/simulator-ai-plugin/main/plugins/simulator/skills/simulator-tasks/SKILL.md"
       ],

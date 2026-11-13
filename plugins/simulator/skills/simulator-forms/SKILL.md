@@ -1,9 +1,9 @@
 ---
 name: simulator-forms
 description: >
-  Form templates (Account Templates, «Шаблон рахунків»): create, add fields,
-  status, system forms. Triggers: "create a form", "add fields to form", "створи
-  форму".
+  Simulator form templates (Account Templates, «Шаблон рахунків»): create, add
+  fields, status, system forms. Triggers: "create a form", "add fields to form",
+  "створи форму".
 ---
 
 > **Curated tool names (v2 server).** Call tools by the exact names below

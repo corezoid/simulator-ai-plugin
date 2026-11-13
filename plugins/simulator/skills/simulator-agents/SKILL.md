@@ -1,9 +1,9 @@
 ---
 name: simulator-agents
 description: >
-  Digital twins and agents: find who or what can do a task, delegate it, ask
-  someone's agent. Triggers: "delegate to", "can X do this", "who should do
-  this", "делегируй", "хто це зробить".
+  Simulator digital twins and agents: find who or what can do a task, delegate
+  it, ask someone's agent. Triggers: "delegate to", "can X do this", "who should
+  do this", "делегируй", "хто це зробить".
 ---
 
 > **Curated tool names (v2 server):** `findAgent`, `getAgent` (the agent registry — user twins

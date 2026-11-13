@@ -1,9 +1,9 @@
 ---
 name: simulator-skills
 description: >
-  Workspace playbooks (Skills form): find and run a saved skill, or save a
-  procedure as a new one. Triggers: "run skill", "is there a skill for", "save
-  as skill", "створи скіл".
+  Simulator workspace playbooks (Skills form): find and run a saved skill, or
+  save a procedure as a new one. Triggers: "run skill", "is there a skill for",
+  "save as skill", "створи скіл".
 ---
 
 # Simulator.Company Skill Registry

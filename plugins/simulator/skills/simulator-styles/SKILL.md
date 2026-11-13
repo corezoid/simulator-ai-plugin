@@ -1,9 +1,9 @@
 ---
 name: simulator-styles
 description: >
-  Less/CSS styling of a Smart Form: themes, layout, component look, design
-  systems. Triggers: "style the smart form", "CDU styles", "make it look like",
-  "стили CDU", "тема для форми".
+  Less/CSS styling of a Simulator Smart Form: themes, layout, component look,
+  design systems. Triggers: "style the smart form", "CDU styles", "make it look
+  like", "стили CDU", "тема для форми".
 ---
 
 # Simulator.Company Smart Form STYLING specialist

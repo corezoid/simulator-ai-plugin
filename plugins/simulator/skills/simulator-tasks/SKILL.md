@@ -1,9 +1,9 @@
 ---
 name: simulator-tasks
 description: >
-  Tasks and orders for people: create, assign to someone, add approvers or
-  signers, mark done. Triggers: "create a task", "assign this to", "needs
-  approval", "створи наказ", "поставь задачу".
+  Simulator tasks and orders for people: create, assign to someone, add
+  approvers or signers, mark done. Triggers: "create a task", "assign this to",
+  "needs approval", "створи наказ", "поставь задачу".
 ---
 
 > **Curated tool names (v2 server):** `getForms`, `searchUsers`, `getUsers`,

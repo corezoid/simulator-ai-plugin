@@ -1,9 +1,9 @@
 ---
 name: simulator-meetings
 description: >
-  Meetings and video/SIP rooms: schedule, recurring, agenda, join link; call
-  transcriptions. Triggers: "schedule a meeting", "join link", "запланируй
-  встречу", "транскрипція дзвінка".
+  Simulator meetings and video/SIP rooms: schedule, recurring, agenda, join
+  link; call transcriptions. Triggers: "schedule a meeting", "join link",
+  "запланируй встречу", "транскрипція дзвінка".
 ---
 
 > **Curated tool names (v2 server):** `getForms`, `searchUsers`, `createActor`, `updateActor`,

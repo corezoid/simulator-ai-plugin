@@ -1,9 +1,9 @@
 ---
 name: simulator-actors
 description: >
-  Actors (records of a form): create, update, read, search, filter; the data
-  field format; an actor's Corezoid processes and API keys. Triggers: "add a
-  record", "создай актор".
+  Simulator actors (records of a form): create, update, read, search, filter;
+  the data field format; an actor's Corezoid processes and API keys. Triggers:
+  "add a record", "создай актор".
 ---
 
 > **Curated tool names (v2 server):** `createActor`, `getActor`, `getActorByRef`,

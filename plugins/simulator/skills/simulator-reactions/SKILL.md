@@ -1,9 +1,9 @@
 ---
 name: simulator-reactions
 description: >
-  Comments and reactions on an actor: comment, reply, read the thread, pin, mark
-  read, stats. Triggers: "comment on this actor", "show the discussion", "залиш
-  коментар", "ответь в треде".
+  Comments and reactions on a Simulator actor: comment, reply, read the thread,
+  pin, mark read, stats. Triggers: "comment on this actor", "show the
+  discussion", "залиш коментар", "ответь в треде".
 ---
 
 > **Curated tool names (v2 server):** `createReaction`, `updateReaction`, `deleteReaction`,

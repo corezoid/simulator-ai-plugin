@@ -1,9 +1,9 @@
 ---
 name: simulator-smart-forms-runtime
 description: >
-  Run an existing Smart Form for the user: fill it in, submit, walk a wizard,
-  create a smart contract. Triggers: "run the app", "fill the form", "пройди
-  смартформу", "оформи договір".
+  Run an existing Simulator Smart Form for the user: fill it in, submit, walk a
+  wizard, create a smart contract. Triggers: "run the app", "fill the form",
+  "пройди смартформу", "оформи договір".
 ---
 
 # Simulator.Company Smart Form Runtime

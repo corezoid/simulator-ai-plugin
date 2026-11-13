@@ -1,8 +1,8 @@
 ---
 name: simulator-chat
 description: >
-  Messages and chats: write to a user, open or reuse a 1:1 or group chat.
-  Triggers: "send N a message", "open a chat with", "напиши користувачу",
+  Simulator messages and chats: write to a user, open or reuse a 1:1 or group
+  chat. Triggers: "send N a message", "open a chat with", "напиши користувачу",
   "отправь сообщение".
 ---
 

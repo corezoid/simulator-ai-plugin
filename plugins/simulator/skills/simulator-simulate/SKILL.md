@@ -1,9 +1,9 @@
 ---
 name: simulator-simulate
 description: >
-  What-if simulation on a graph layer: model behaviour, change parameters,
-  forecast and compare scenarios. Triggers: "simulate", "what if", "forecast",
-  "что будет если", "змоделюй".
+  What-if simulation on a Simulator graph layer: model behaviour, change
+  parameters, forecast and compare scenarios. Triggers: "simulate", "what if",
+  "forecast", "что будет если", "змоделюй".
 ---
 
 # Simulate a Simulator graph

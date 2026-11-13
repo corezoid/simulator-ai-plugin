@@ -1,9 +1,9 @@
 ---
 name: simulator-app-generator
 description: >
-  Generate a multi-page web app (Smart Form plus Corezoid middleware) from
-  existing Corezoid processes. Triggers: "build an app from these processes",
-  "сделай сайт на базе процессов".
+  Generate a multi-page web app (Simulator Smart Form plus Corezoid middleware)
+  from existing Corezoid processes. Triggers: "build an app from these
+  processes", "сделай сайт на базе процессов".
 ---
 
 # Simulator.Company App Generator

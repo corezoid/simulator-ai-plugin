@@ -1,8 +1,9 @@
 ---
 name: simulator-charts
 description: >
-  Charts and dashboards on a graph layer: create, reconfigure, read chart data.
-  Triggers: "create a chart", "add a dashboard", "change chart type", "дашборд".
+  Simulator charts and dashboards on a graph layer: create, reconfigure, read
+  chart data. Triggers: "create a chart", "add a dashboard", "change chart
+  type", "дашборд".
 ---
 
 > **Curated tool names (v2 server).** Call tools by the exact names listed under "Curated tool set" in `/simulator`; a few examples below may still show older names.

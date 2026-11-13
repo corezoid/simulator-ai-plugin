@@ -1,9 +1,9 @@
 ---
 name: simulator-finance
 description: >
-  Accounts on actors: balances, transactions, transfers, currencies, counters,
-  account triggers. Triggers: "record a transaction", "account balance",
-  "переказ коштів", "баланс счёта".
+  Accounts on Simulator actors: balances, transactions, transfers, currencies,
+  counters, account triggers. Triggers: "record a transaction", "account
+  balance", "переказ коштів", "баланс счёта".
 ---
 
 > **Curated tool names (v2 server) — call these EXACT names.**
