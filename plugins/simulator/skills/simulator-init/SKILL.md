@@ -1,11 +1,9 @@
 ---
 name: simulator-init
 description: >
-  Simulator.Company environment setup specialist. Use when the user wants to connect
-  to Simulator.Company, set up credentials, authenticate, configure the workspace,
-  or start working with Simulator for the first time.
-  Activate when the user says "init", "setup", "connect to simulator", "login to simulator",
-  "configure simulator", "get started with simulator", or "set workspace".
+  Connect to Simulator.Company: login (OAuth or API key), environment,
+  workspace. Triggers: "init", "login to simulator", "set workspace", "підключи
+  симулятор".
 ---
 
 # Initialize Simulator Environment

@@ -1,19 +1,9 @@
 ---
 name: simulator-charts
 description: >
-  Simulator.Company chart and dashboard specialist. Use when the user wants to
-  create, configure, or query charts (line, bar, stackedBar, pie, …), dashboards, or financial
-  time-series visualisations on a graph layer.
-
-  Trigger on any of these intents:
-  — Creating: "create chart", "add chart", "create dashboard", "add dashboard",
-    "build visualisation", "chart на графе", "график с данными", "дашборд",
-    "show metrics on graph", "visualise account data", "plot actor balances".
-  — Configuring: "change chart type", "switch to bar chart", "update chart range",
-    "use last week", "show transaction count", "sort descending", "change time range",
-    "filter chart actors", "reconfigure chart", "change chart series", "resize chart".
-  — Querying: "get chart data", "show dashboard", "what charts are on this layer",
-    "fetch chart metrics", "dashboard data".
+  Simulator charts and dashboards on a graph layer: create, reconfigure, read
+  chart data. Triggers: "create a chart", "add a dashboard", "change chart
+  type", "дашборд".
 ---
 
 > **Curated tool names (v2 server).** Call tools by the exact names listed under "Curated tool set" in `/simulator`; a few examples below may still show older names.

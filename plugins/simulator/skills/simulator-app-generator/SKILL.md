@@ -1,24 +1,9 @@
 ---
 name: simulator-app-generator
 description: >
-  Generates a complete, tested multi-page web application as a Simulator.Company Smart Form
-  from a set of EXISTING Corezoid processes plus a description of the desired product. Use
-  when the user has a working Corezoid backend (a folder or list of process ids) and wants it
-  turned into a usable web app / site / portal / mini-app — not when they want to edit one
-  page or one process. This skill owns the end-to-end pipeline: pull every process, derive
-  its real input/output contract from its `api_rpc_reply` nodes, design a page map that uses
-  ALL of the processes, build the Smart Form, generate the Corezoid middleware process that
-  bridges the form to those processes via `api_rpc`, bind it, then verify the whole thing
-  end-to-end and self-repair. It delegates page authoring to `simulator-smart-forms`, backend
-  briefs to `simulator-smart-forms-logic`, styling to `simulator-styles`, and page-driving to
-  `simulator-smart-forms-runtime`. Activate on: "build an app from these processes", "make a
-  web app out of these corezoid processes", "generate a site from process ids", "turn this
-  API into a smart form", "build a portal on top of these processes", "app from corezoid
-  processes", "generate smart form from processes", "middleware process for a smart form",
-  "згенеруй застосунок з цих процесів", "зроби сайт на основі процесів корезоїд", "побудуй
-  веб-додаток з процесів", "згенеруй смартформу з процесів", "сгенерируй приложение из этих
-  процессов", "сделай сайт на базе процессов корезоид", "построй веб-приложение из процессов",
-  "сгенерируй смарт форму из процессов", "мидлвара для смарт формы".
+  Generate a multi-page web app (Simulator Smart Form plus Corezoid middleware)
+  from existing Corezoid processes. Triggers: "build an app from these
+  processes", "сделай сайт на базе процессов".
 ---
 
 # Simulator.Company App Generator

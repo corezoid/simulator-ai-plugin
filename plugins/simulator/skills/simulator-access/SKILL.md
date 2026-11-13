@@ -1,17 +1,9 @@
 ---
 name: simulator-access
 description: >
-  Simulator.Company access-control specialist — who can view/modify/remove/sign/execute an
-  object (actor, form, account, template, tree layer). Use when the user wants to share or
-  unshare an object, grant or revoke permissions, list who has access, or bulk-share. Activate
-  when the user says "share this with", "give access to", "grant permission", "revoke access",
-  "who can see/edit this", "set permissions", "make read-only", "поділись з", "надай доступ",
-  "забери доступ", "хто має доступ", "права доступу", "дай доступ", "открой доступ",
-  "отзови доступ", "кто имеет доступ", "права доступа". Also activate when a tool fails because
-  the caller has NO access to an object — "request access", "I can't see this actor",
-  "access denied", "403", "no permission", "запроси доступ", "немає доступу", "немає прав",
-  "відмовлено в доступі", "запроси доступ", "нет доступа", "доступ запрещён". For the object's
-  own data use the domain skill (`simulator-actors` / `simulator-forms` / `simulator-finance`).
+  Access to Simulator actors, forms, accounts, layers: share, grant, revoke, who
+  has access; request access after a 403. Triggers: "share with", "who has
+  access", "надай доступ", "нет доступа".
 ---
 
 > **Curated tool names (v2 server):** `getAccessRules`, `saveAccessRules`,

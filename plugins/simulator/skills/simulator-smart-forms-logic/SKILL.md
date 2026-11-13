@@ -1,23 +1,9 @@
 ---
 name: simulator-smart-forms-logic
 description: >
-  Author and evolve the Corezoid backend that powers a Simulator.Company Smart Form.
-  Use whenever the user wants a Smart Form to do anything beyond a static layout —
-  load dynamic viewModel data, react to submits, drive page-level changes, trigger
-  notifications, write back to actors — OR wants to modify existing backend logic
-  (add a button branch, a new page handler, change submit behaviour, fix a bug in
-  the viewModel builder). This skill is an orchestrator: it prepares precise briefs
-  and hands the actual process authoring/editing off to the Corezoid plugin's
-  `corezoid-create` and `corezoid-edit` skills. Activate on: "add logic to a smart
-  form", "wire smart form to corezoid", "/get /send process", "smart form backend",
-  "viewModel from corezoid", "submit handler", "page initialization process", "back
-  end for CDU", "corezoidCredentials", "procId", "bind process to smart form",
-  "smart form callback", "callback_url", "edit smart form backend", "add a button
-  to smart form", "change submit logic", "add a page to smart form backend", "fix
-  viewModel builder", "додати логіку до смарт форми", "редагувати логіку смарт
-  форми", "бекенд смарт форми", "процес для смарт форми", "обработчик /send",
-  "логика смарт формы", "процесс инициализации страницы", "редактировать процесс
-  смарт формы".
+  Corezoid backend of a Simulator Smart Form: page init, submit handlers,
+  viewModel; briefs corezoid-create/edit. Triggers: "smart form backend",
+  "submit handler", "логика смарт формы".
 ---
 
 # Smart Form Backend Logic

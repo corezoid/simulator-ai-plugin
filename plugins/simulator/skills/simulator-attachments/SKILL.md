@@ -1,13 +1,9 @@
 ---
 name: simulator-attachments
 description: >
-  Simulator.Company files & attachments specialist. Use when the user wants to upload a
-  file, attach a document/image to an actor or comment, list/rename/detach workspace files.
-  Activate when the user says "upload a file", "attach this document", "add an attachment",
-  "rename the file", "detach the file", "list workspace files", "завантаж файл",
-  "прикріпи файл/документ", "відкріпи вкладення", "загрузи файл", "прикрепи документ".
-  For setting an actor's picture/avatar use the `uploadActorPicture` engine tool; for
-  comments that carry files use `simulator-reactions`.
+  Simulator files: upload, attach to an actor or comment, list, rename, detach.
+  Triggers: "upload a file", "attach this document", "прикріпи файл", "загрузи
+  файл".
 ---
 
 > **Curated tool names (v2 server):** `uploadBase64`, `getAttachments`, `getActorAttachments`,

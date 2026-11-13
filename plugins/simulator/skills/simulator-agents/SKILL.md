@@ -1,27 +1,9 @@
 ---
 name: simulator-agents
 description: >
-  Simulator.Company digital-twin & actor-agent specialist — talk to an agent AS an agent and
-  delegate work to it. An agent is ANY actor whose `description` holds an "# Agent" competency
-  profile (what it does, what it knows, whether it fits a task). The common case is a person:
-  every workspace user has a 1:1 twin actor (`systemObjType="user"`) carrying that profile. But
-  any actor can be an agent — a service/bot twin, a team or department, an organization, a
-  process. This skill discovers the agent (`findAgent`), loads its profile (`getAgent`), adopts
-  it as the persona, then either does the task, finds a better-suited agent, or hands the
-  decision to the user (for a person: a task or a p2p message; for a non-person: propose another
-  executor or run/trigger it as an actor). It is the actor-analog of `simulator-skills` (the
-  `Skills`-form registry), but the registry is the workspace's agent actors. Use when the user
-  wants to "delegate", "assign this to <someone/something>", "can <X> do this", "who/what should
-  do this", "find someone/something to …", "ask <X>'s agent/twin", or "what has <X> worked on".
-  Activate on: "delegate to", "assign this to", "can X do this", "who should do this",
-  "which team/service can do this", "find someone to", "ask X's agent", "talk to X's twin",
-  "what has X worked on",
-  "делегуй", "постав задачу X", "доручи X", "чи впорається X", "хто це зробить",
-  "яка команда/сервіс це зробить", "підбери виконавця", "запитай агента X", "над чим працював X",
-  "делегируй", "поставь задачу X", "поручи X", "справится ли X", "кто это сделает",
-  "какая команда/сервис это сделает", "подбери исполнителя", "спроси агента X", "над чем работал X".
-  For a plain 1:1/group message use `simulator-chat`; to only create/assign a task use
-  `simulator-tasks`; for workspace playbooks (not agents) use `simulator-skills`.
+  Simulator digital twins and agents: find who or what can do a task, delegate
+  it, ask someone's agent. Triggers: "delegate to", "can X do this", "who should
+  do this", "делегируй", "хто це зробить".
 ---
 
 > **Curated tool names (v2 server):** `findAgent`, `getAgent` (the agent registry — user twins

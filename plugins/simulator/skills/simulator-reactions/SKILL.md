@@ -1,14 +1,9 @@
 ---
 name: simulator-reactions
 description: >
-  Simulator.Company reactions specialist — comments, events, approvals, ratings and
-  other feedback attached under an actor. Use when the user wants to comment on an
-  actor, reply in a thread, read/like/pin the discussion, mark comments read, or get
-  reaction stats. Activate when the user says "comment on this actor", "leave a note",
-  "reply to", "show the comments/discussion", "pin this comment", "mark as read",
-  "прокоментуй актор", "залиш коментар", "відповісти на коментар", "закріпи коментар",
-  "оставь комментарий", "ответь в треде", "закрепи комментарий". For attaching FILES to a
-  reaction use `simulator-attachments`; for the actor's own fields use `simulator-actors`.
+  Comments and reactions on a Simulator actor: comment, reply, read the thread,
+  pin, mark read, stats. Triggers: "comment on this actor", "show the
+  discussion", "залиш коментар", "ответь в треде".
 ---
 
 > **Curated tool names (v2 server):** `createReaction`, `updateReaction`, `deleteReaction`,

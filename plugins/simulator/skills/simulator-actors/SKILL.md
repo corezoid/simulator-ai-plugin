@@ -1,21 +1,9 @@
 ---
 name: simulator-actors
 description: >
-  Simulator.Company actor (record) specialist. Use when the user wants to create,
-  update, read, search, or filter the *instances* of a form template (a.k.a.
-  Account Template records) — i.e. data-bearing actors — and needs the `data`
-  value protocol right. Activate when the user says "create an actor", "add a
-  record", "create a record from this template", "fill in a form", "update actor
-  data", "find actors where field = …", "filter actors by balance", "создай актор",
-  "заполни шаблон", or "добавь запись". ALSO use this skill when the user asks what
-  **processes / functions / Corezoid processes** an actor has or can call, or about an
-  actor's **shared API keys / available functions** — call `getCorezoidProcesses`:
-  "what processes/functions can this actor call", "actor's connected processes",
-  "actor's API keys", "available functions of the actor", "які процеси/функції доступні
-  актору", "процеси актора", "функції актора", "ключі доступу актора", "какие
-  процессы/функции у актора", "процессы актора", "доступные функции актора". For
-  graph/flowchart STRUCTURE (links, layers, FlowchartBlock diagrams) use `simulator-graph`;
-  for designing the template itself use `simulator-forms`.
+  Simulator actors (records of a form): create, update, read, search, filter;
+  the data field format; an actor's Corezoid processes and API keys. Triggers:
+  "add a record", "создай актор".
 ---
 
 > **Curated tool names (v2 server):** `createActor`, `getActor`, `getActorByRef`,
