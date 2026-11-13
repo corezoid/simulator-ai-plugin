@@ -1,5 +1,69 @@
 # Changelog
 
+## [2.15.0]
+
+### Changed
+- bump Go to 1.27.4 (GO-2026-6859) (#177)
+
+## [2.14.0]
+
+### Changed
+- [SEC-1916] bump golang.org/x/net to v0.62.0 (CVE-2023-44487) [claude] (#168)
+- view is not implied on a system form's actors access (#166)
+- teach agents the rules for actors access of system forms (#165)
+
+## [2.13.0]
+
+### Added
+- updateChart — reconfigure an existing chart in place (#162)
+
+### Changed
+- open bump PRs against develop (#160)
+- bump github.com/mark3labs/mcp-go (#161)
+- publish Windows binaries, and build them reproducibly (#150)
+- linking takes only files within the caller's reach (#157)
+
+### Fixed
+- sync root plugin.json to 2.12.0 (#159)
+- accId on /mcp, per-request cache keys, log after auth (#158)
+- scope dashboards form lookup per workspace; sourceType manual (#153)
+
+## [2.12.0]
+
+### Added
+- access log line per MCP request (#145)
+
+### Changed
+- bump Go directive to 1.27.2 (#146)
+
+### Fixed
+- openWorldHint only for external reach; massLink destructive (#147)
+- block hand-built Dashboards actors (CE-15957) (#141)
+- engine tools take accId on the bare /mcp route (#144)
+- accId guidance on the bare /mcp route (#143)
+
+## [2.11.0]
+
+### Added
+- per-token in-flight cap and per-replica simulation slots (#142)
+- give every tool a title (#136)
+- serve the OpenAI domain-verification token (#134)
+- serve MCP over HTTP for mcp.simulator.company (app/hosted) (#132)
+- black From-API-to-KPI icon; drop BPM wording from listings
+
+### Changed
+- privacy policy and terms URLs without trailing slash (#138)
+- build script for the hosted OpenAI submission ZIP (#135)
+
+### Fixed
+- no Smart Form runtime; form schemas without credential option (#140)
+- no credential-taking Smart Form tools; createLink, getSystemActor, appGetPage hints (#139)
+- accurate safety hints for every tool; hosted schemas without file arguments (#137)
+- restrict server-side URL fetches and file tools in stateless mode (#133)
+- category exact title 'Developer Tools'
+- opaque white icon background; category Developer tools
+- address OpenAI plugin-portal validation findings
+
 ## [Unreleased]
 
 ### Security
