@@ -1,20 +1,9 @@
 ---
 name: simulator-styles
 description: >
-  Simulator.Company Smart Form (CDU) STYLING specialist — authoring complex Less/CSS for
-  Smart Forms: theme tokens, page/form/section layout, component re-skinning, reusable style
-  patterns, responsive and design-system approaches. Use when the user wants to STYLE or
-  RESTYLE an existing Smart Form / CDU app — change its look, build a theme, style a table /
-  sidebar / modal / form, add a design system, fix spacing/colors/fonts, or apply a complex
-  visual design. This skill owns the `style` / `styles/` layer; it reuses the Smart Form tools
-  (pullSmartForm / pushSmartForm / deploySmartForm) but does NOT create form templates — for the
-  data-schema form template use `simulator-forms`, and for page layout / viewModel / backend
-  logic use `simulator-smart-forms` / `simulator-smart-forms-logic`. Activate on: "style a smart
-  form", "CDU styles", "theme the form", "restyle", "custom CSS/Less for the app", "style the
-  table/sidebar/modal/button", "design system for the smart form", "make it look like …",
-  "застилізувати смартформу", "стилі CDU", "тема для форми", "кастомний CSS", "оформити таблицю/
-  сайдбар/модалку", "застилизовать смартформу", "стили CDU", "тема формы", "кастомный CSS",
-  "оформить таблицу/сайдбар/модалку".
+  Less/CSS styling of a Smart Form: themes, layout, component look, design
+  systems. Triggers: "style the smart form", "CDU styles", "make it look like",
+  "стили CDU", "тема для форми".
 ---
 
 # Simulator.Company Smart Form STYLING specialist

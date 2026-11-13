@@ -1,21 +1,9 @@
 ---
 name: simulator-meetings
 description: >
-  Simulator.Company meeting specialist — scheduling and configuring meetings / video / SIP
-  rooms. In Simulator a meeting is an actor of the Events system form with
-  data.scheduleMeeting=true (no chatType); the actor IS the room. Use when the user wants to
-  "schedule a meeting", "create a call/video room", "set up a recurring meeting", "make a
-  persistent meeting room", "add an agenda", "set a moderator", "get a join link", "invite
-  people to a meeting", or work with SIP/video rooms. Activate on "schedule a meeting",
-  "create a meeting", "set up a call", "recurring meeting", "weekly meeting", "standing room",
-  "meeting agenda", "join link", "invite to the meeting", "запланувати зустріч", "створи
-  мітинг", "повторювана зустріч", "щотижнева зустріч", "постійна кімната", "агенда зустрічі",
-  "посилання на зустріч", "запроси на мітинг", "запланируй встречу", "создай митинг",
-  "повторяющаяся встреча", "постоянная комната", "агенда встречи", "ссылка на встречу". Also
-  for reading a call's transcription — "transcription", "what was said", "summarize the call",
-  "meeting notes from the call", "транскрипція дзвінка", "що казали на дзвінку", "підсумуй
-  дзвінок", "транскрипция звонка", "итоги звонка". For a 1:1/group chat use `simulator-chat`;
-  for a task use `simulator-tasks`; for general access use `simulator-access`.
+  Meetings and video/SIP rooms: schedule, recurring, agenda, join link; call
+  transcriptions. Triggers: "schedule a meeting", "join link", "запланируй
+  встречу", "транскрипція дзвінка".
 ---
 
 > **Curated tool names (v2 server):** `getForms`, `searchUsers`, `createActor`, `updateActor`,

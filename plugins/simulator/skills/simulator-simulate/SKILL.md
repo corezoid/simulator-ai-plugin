@@ -1,21 +1,9 @@
 ---
 name: simulator-simulate
 description: >
-  Simulator.Company behaviour simulation specialist ("what if" on a graph). Use when the
-  user wants to simulate, forecast or compare scenarios on a layer: describe how actors
-  behave, change parameters (price, capacity, delivery time, growth, AI share), play model
-  time forward and compare metrics. Any graph works — a company, a process, infrastructure,
-  a supply chain — and accounts can hold any quantity (money, items, hours, slots).
-
-  Trigger on any of these intents:
-  — "what if", "simulate", "forecast", "scenario", "compare scenarios", "how many will
-    we finish", "where is the bottleneck", "what will it cost in 3 months".
-  — "симуляция", "смоделируй", "прогони симуляцию", "что будет если", "прогноз",
-    "сравни сценарии", "проверь модель", "симуляція", "змоделюй", "що буде якщо".
-  — the user points at a behaviour model (`model.yaml`, `scenarios.yaml`) or a layer YAML
-    file and asks to run or check it. Use these tools for that, not other simulation CLIs.
-  Tools: simulationCheck, simulationRun, simulationSnapshot (read-only; nothing is written
-  to Simulator).
+  What-if simulation on a graph layer: model behaviour, change parameters,
+  forecast and compare scenarios. Triggers: "simulate", "what if", "forecast",
+  "что будет если", "змоделюй".
 ---
 
 # Simulate a Simulator graph

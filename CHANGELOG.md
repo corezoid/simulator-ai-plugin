@@ -53,8 +53,18 @@
 - Access-rule `privs` description: on a system form's actors access `view` is not implied by
   `modify` and must be set explicitly; `saveAccessRules` with `objType=templateActors` notes that it
   is the same call as `saveTemplateActorsAccess`, so the system-form rules apply.
+- Skill descriptions cut to at most 200 characters each (21 207 → 3 660 characters across the 21
+  skills): what the skill does plus a few EN/UK/RU trigger phrases. Hosts load every description into
+  every session that has the plugin, Simulator task or not; `claude plugin details` puts that at
+  ~1.65k tokens, down from ~7.8k. Once the skill listing overflows, Claude Code shows skills by name
+  only, so the long trigger lists often did not reach the model anyway. A new `cmd/gendiscovery`
+  test fails `make test` when a description is over 200 characters or a skill's `name` differs from
+  its directory.
 
 ### Fixed
+- `make discovery` stopped reading a folded `description:` at its first blank line, so `public/`
+  carried only the first paragraph of the `simulator-graph`, `simulator-charts` and
+  `simulator-simulate` descriptions.
 - `pushSmartForm` rejected page configs that use components and keys added to the renderer since
   June (`extra.ignoreFormValidity` on a button, the `progressBar` class, the `extra` keys of the
   `graph`/`reactions` widgets, `table.extra.showScrollToTop`): the bundled CDU swagger is refreshed

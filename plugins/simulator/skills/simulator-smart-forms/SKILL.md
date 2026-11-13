@@ -1,14 +1,9 @@
 ---
 name: simulator-smart-forms
 description: >
-  Simulator.Company Smart Form (CDU / Script / Application) specialist.
-  Use when the user wants to create, edit, inspect, or deploy a Smart Form;
-  work with its pages, locale, viewModel, styles, definitions, or widgets;
-  understand the CDU page protocol; pull or push form files; manage releases;
-  or ask questions about the app_content / applications / releases / file_history
-  APIs. Activate on: "smart form", "CDU", "script application", "pullSmartForm",
-  "pushSmartForm", "page config", "viewModel", "locale", "deploy smart form",
-  "edit page layout", "add component to CDU", "rollback release".
+  Smart Form (CDU) pages: create, edit, deploy; viewModel, locale, widgets,
+  releases, rollback. Triggers: "smart form", "CDU", "edit page layout", "deploy
+  smart form", "смарт форма".
 ---
 
 # Simulator.Company Smart Form Author

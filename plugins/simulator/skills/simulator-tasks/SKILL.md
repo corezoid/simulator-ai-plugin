@@ -1,24 +1,9 @@
 ---
 name: simulator-tasks
 description: >
-  Simulator.Company task & assignment specialist — creating a task and assigning who
-  does it, who approves it, and whose signature it needs. In Simulator a task is an
-  actor of the Events system form (no chatType), and the roles are access privileges,
-  not data fields: the executor gets `execute`, approvers get `sign`, and a legal
-  document's signers get `ds`. Completion and sign-off are then posted as `done` /
-  `sign` / `reject` reactions. Use when the user wants to "create a task", "assign a
-  task to", "set an executor/assignee", "add approvers", "require a signature", "who
-  signs this", "make a to-do". Also covers **order / directive documents** that tell a
-  specific person to do something — an "order/наказ addressed to X" is a task whose
-  addressee is the executor. Activate on "create a task", "assign to", "task for",
-  "needs approval", "who approves", "requires signature", "sign-off", "order", "decree",
-  "directive", "create an order for", "створи задачу", "постав задачу", "признач виконавця",
-  "додай погоджувача", "потрібен підпис", "хто погоджує", "хто підписує", "наказ",
-  "створи наказ", "склади наказ", "наказ на", "розпорядження", "доручення", "создай задачу",
-  "назначь исполнителя", "добавь согласующего", "нужна подпись", "кто подписывает",
-  "приказ", "создай приказ", "распоряжение", "поручение". For a 1:1/group chat use
-  `simulator-chat`; for the reaction mechanics use `simulator-reactions`; for access in
-  general use `simulator-access`.
+  Tasks and orders for people: create, assign to someone, add approvers or
+  signers, mark done. Triggers: "create a task", "assign this to", "needs
+  approval", "створи наказ", "поставь задачу".
 ---
 
 > **Curated tool names (v2 server):** `getForms`, `searchUsers`, `getUsers`,

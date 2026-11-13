@@ -1,18 +1,9 @@
 ---
 name: simulator-skills
 description: >
-  Simulator.Company skill registry specialist — the data-driven analogue of these
-  built-in skills. Use when the user wants to RUN a saved playbook ("run skill",
-  "use the … skill", "/skill <slug>", "is there a skill for …", "what skills do I
-  have"), or to AUTHOR one ("create a skill", "save this as a skill / playbook",
-  "teach simulator to …", "make a reusable procedure"). A skill is an actor of the
-  `Skills` system form whose `description` holds a step-by-step procedure (which
-  MCP tools to call, with concrete entity ids) for a workspace-specific task such
-  as "create a smart contract" or "onboard a client". Activate on: "run skill",
-  "use playbook", "is there a skill for", "what skills do I have", "save as skill",
-  "create a skill", "teach simulator", "запусти скіл", "використай скіл", "є скіл
-  для", "які скіли є", "збережи як скіл", "створи скіл", "навчи simulator",
-  "запусти навык", "используй навык", "сохрани как навык", "создай навык".
+  Workspace playbooks (Skills form): find and run a saved skill, or save a
+  procedure as a new one. Triggers: "run skill", "is there a skill for", "save
+  as skill", "створи скіл".
 ---
 
 # Simulator.Company Skill Registry

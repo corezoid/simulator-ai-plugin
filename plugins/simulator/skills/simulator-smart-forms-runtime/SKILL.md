@@ -1,16 +1,9 @@
 ---
 name: simulator-smart-forms-runtime
 description: >
-  Simulator.Company Smart Form RUNTIME driver — run/execute an existing Smart Form
-  (CDU / Script / mini-app) on the user's behalf, conversationally, instead of the
-  user clicking through its UI. Use when the user wants to GO THROUGH a smart-form
-  flow: create/submit something an app produces (e.g. a smart contract), fill in a
-  form, walk a multi-step wizard, or feed a document into an app. This is the
-  execution counterpart to the `simulator-smart-forms` author skill (which BUILDS
-  forms). Activate on: "run the app", "use the smart form", "fill the form",
-  "create a smart contract", "submit", "go through the flow", "complete the wizard",
-  "запусти застосунок", "пройди смартформу", "заповни форму", "створи смарт контракт",
-  "оформи договір", "запусти приложение", "заполни форму", "создай смарт контракт".
+  Run an existing Smart Form for the user: fill it in, submit, walk a wizard,
+  create a smart contract. Triggers: "run the app", "fill the form", "пройди
+  смартформу", "оформи договір".
 ---
 
 # Simulator.Company Smart Form Runtime

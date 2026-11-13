@@ -26,7 +26,7 @@ var (
 
 	fmBlockRe  = regexp.MustCompile(`(?s)^---\n(.*?)\n---`)
 	nameRe     = regexp.MustCompile(`(?m)^name:\s*(.+)$`)
-	descFolded = regexp.MustCompile(`(?m)^description:\s*[>|]\s*\n((?:[ \t]+[^\n]*\n?)+)`)
+	descFolded = regexp.MustCompile(`(?m)^description:\s*[>|]\s*\n((?:[ \t]+[^\n]*\n?|\n)+)`) // a blank line continues the block
 	descDQ     = regexp.MustCompile(`(?m)^description:\s*"(.*)"`)
 	descSQ     = regexp.MustCompile(`(?m)^description:\s*'(.*)'`)
 	descPlain  = regexp.MustCompile(`(?m)^description:\s*(.+)$`)

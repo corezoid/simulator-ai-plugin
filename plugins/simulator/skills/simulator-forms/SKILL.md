@@ -1,13 +1,9 @@
 ---
 name: simulator-forms
 description: >
-  Simulator.Company form designer specialist. Use when the user wants to create
-  or modify form templates (a.k.a. Account Templates / «Шаблон рахунків»), define
-  custom field structures, set up account definitions, explore system forms, work
-  with Smart Forms (CDU / Scripts), manage form status, or understand how forms
-  define actor structure. Activate when the user says "create a form", "design a
-  template", "add fields to form", "Account Template", "Шаблон рахунків", "define
-  actor schema", or "what system forms are available".
+  Form templates (Account Templates, «Шаблон рахунків»): create, add fields,
+  status, system forms. Triggers: "create a form", "add fields to form", "створи
+  форму".
 ---
 
 > **Curated tool names (v2 server).** Call tools by the exact names below

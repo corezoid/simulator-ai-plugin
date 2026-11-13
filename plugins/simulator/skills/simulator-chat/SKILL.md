@@ -1,18 +1,9 @@
 ---
 name: simulator-chat
 description: >
-  Simulator.Company chat & messaging specialist — sending messages to a user, and
-  creating or reusing p2p (1:1) and group chats. In Simulator a chat is an actor of
-  the Events system form (data.chatType = "p2p" | "group"), its participants are the
-  actor's access-rule members, and its messages are `comment` reactions. Use when the
-  user wants to "message", "write to", "DM", "send a message to" someone, "open a chat
-  with", "start a conversation", or "reply in the chat". Activate on
-  "write a message to user N", "send N a message", "open a chat with", "message someone",
-  "напиши повідомлення користувачу", "надішли повідомлення", "відкрий чат з",
-  "почни розмову з", "напиши юзеру", "напиши сообщение пользователю",
-  "отправь сообщение", "открой чат с", "напиши в чат". For comments/approvals on an
-  arbitrary actor (not a chat) use `simulator-reactions`; for files use
-  `simulator-attachments`; for sharing/access in general use `simulator-access`.
+  Messages and chats: write to a user, open or reuse a 1:1 or group chat.
+  Triggers: "send N a message", "open a chat with", "напиши користувачу",
+  "отправь сообщение".
 ---
 
 > **Curated tool names (v2 server):** `searchUsers`, `getUsers`, `getSystemActor`,

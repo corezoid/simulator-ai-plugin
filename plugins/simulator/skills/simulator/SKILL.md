@@ -1,13 +1,9 @@
 ---
 name: simulator
 description: >
-  Universal Simulator.Company platform assistant. Use when the user asks anything
-  about Simulator.Company, wants to work with the Simulator API, mentions actors,
-  forms, graphs, layers, accounts, transactions, or any other Simulator entity.
-  Also use when the user asks to "use simulator", "call the simulator API", or
-  needs to manage business processes in Simulator. This skill provides deep
-  knowledge of the platform model and guides you to use the simulator MCP tools
-  correctly.
+  Simulator.Company basics: entity model (actors, forms, layers, accounts), MCP
+  tools, workspace context. Use for any Simulator task no narrower simulator-*
+  skill covers.
 ---
 
 # Simulator.Company Assistant

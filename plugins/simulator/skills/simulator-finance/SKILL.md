@@ -1,19 +1,9 @@
 ---
 name: simulator-finance
 description: >
-  Simulator.Company financial management specialist. Use when the user wants to manage
-  financial and metric accounts on actors (balances, counters, plan vs fact), record
-  transactions, transfer value between accounts, work with currencies and account-name
-  categories, track non-financial metrics, read balances and turnover, tag accounts for
-  grouping, or set up account triggers (balance / transaction-count / data-field alerts).
-  Activate when the user mentions "record transaction", "transfer funds", "account balance", "financial
-  tracking", "depreciation", "expense", "budget", "counter", "mileage tracking", "account
-  tag", "account trigger", "balance alert", "запиши
-  транзакцію", "переказ коштів", "баланс рахунку", "лічильник", "пробіг", "тег рахунку",
-  "тригер на рахунок", "запиши транзакцию", "перевод средств", "баланс счёта", "счётчик",
-  "пробег", "тег счёта", "триггер на счёт". Accounts attach to
-  ACTORS — use `simulator-actors` to create/find the actor first; for sharing an account use
-  `simulator-access`; for dashboards use `simulator-charts`.
+  Accounts on actors: balances, transactions, transfers, currencies, counters,
+  account triggers. Triggers: "record a transaction", "account balance",
+  "переказ коштів", "баланс счёта".
 ---
 
 > **Curated tool names (v2 server) — call these EXACT names.**
