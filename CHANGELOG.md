@@ -16,6 +16,11 @@
   from control-cdu-doc.
 
 ### Changed
+- The papi drift-gate spec follows the pong-server pseudonym (CE-16100): `PUT
+  /users/pseudonym/{userId}` requires `originalUser`, which takes `nick`, `avatar` and the Widget
+  name `shortNick` (`nick` or `shortNick`, unknown keys dropped); the same `originalUser` schema
+  validates `metaInfo` of `POST /reactions/{type}/{actorId}` and its `ai_action` variant. No MCP
+  tool covers these fields, so no tool changes.
 - `make vuln` runs govulncheck (pinned v1.9.0) on the MCP server. CI runs it as its own job; the
   Release workflow runs it before building binaries, refuses to publish a tag with a reachable
   known vulnerability, and attaches `govulncheck.txt` to the release.

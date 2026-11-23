@@ -352,23 +352,52 @@
                 "type": "object",
                 "properties": {
                   "originalUser": {
-                    "type": "object",
-                    "properties": {
-                      "nick": {
-                        "type": "string"
+                    "allOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "nick": {
+                            "type": "string",
+                            "description": "Shown instead of the user nick"
+                          },
+                          "avatar": {
+                            "type": "string",
+                            "description": "Shown instead of the user avatar"
+                          },
+                          "shortNick": {
+                            "type": "string",
+                            "description": "Widget name: shown to clients in the Widget instead of the nick"
+                          }
+                        }
                       },
-                      "avatar": {
-                        "type": "string"
+                      {
+                        "type": "object",
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "nick"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "shortNick"
+                            ]
+                          }
+                        ]
                       }
-                    },
-                    "required": [
-                      "nick"
                     ]
                   }
-                }
+                },
+                "required": [
+                  "originalUser"
+                ]
               }
             }
-          }
+          },
+          "required": true
         },
         "parameters": [
           {
@@ -3727,17 +3756,41 @@
                     "type": "object",
                     "properties": {
                       "originalUser": {
-                        "type": "object",
-                        "properties": {
-                          "nick": {
-                            "type": "string"
+                        "allOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nick": {
+                                "type": "string",
+                                "description": "Shown instead of the user nick"
+                              },
+                              "avatar": {
+                                "type": "string",
+                                "description": "Shown instead of the user avatar"
+                              },
+                              "shortNick": {
+                                "type": "string",
+                                "description": "Widget name: shown to clients in the Widget instead of the nick"
+                              }
+                            }
                           },
-                          "avatar": {
-                            "type": "string"
+                          {
+                            "type": "object",
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "nick"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "shortNick"
+                                ]
+                              }
+                            ]
                           }
-                        },
-                        "required": [
-                          "nick"
                         ]
                       },
                       "context": {
@@ -4353,17 +4406,41 @@
                     "type": "object",
                     "properties": {
                       "originalUser": {
-                        "type": "object",
-                        "properties": {
-                          "nick": {
-                            "type": "string"
+                        "allOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nick": {
+                                "type": "string",
+                                "description": "Shown instead of the user nick"
+                              },
+                              "avatar": {
+                                "type": "string",
+                                "description": "Shown instead of the user avatar"
+                              },
+                              "shortNick": {
+                                "type": "string",
+                                "description": "Widget name: shown to clients in the Widget instead of the nick"
+                              }
+                            }
                           },
-                          "avatar": {
-                            "type": "string"
+                          {
+                            "type": "object",
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "nick"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "shortNick"
+                                ]
+                              }
+                            ]
                           }
-                        },
-                        "required": [
-                          "nick"
                         ]
                       },
                       "context": {
