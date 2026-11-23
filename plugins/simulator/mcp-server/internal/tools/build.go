@@ -84,7 +84,8 @@ func BuildUnified(s *server.MCPServer, c *apiclient.Client, includeActorMode boo
 	// ActorToolFilter hides it in actor sessions (it is absent from actorBindings).
 	registerBuildLink(s, c)
 	// getBbcodeTags is a local reference tool (fetches the env's bbcode-tags.json);
-	// like buildLink it's not a curated Operation and is workspace-mode only.
+	// like buildLink it's not a curated Operation, but it is also exposed in actor
+	// mode (see actorBindings) so the reaction-triggered agent can write markup.
 	registerBbcodeTags(s, c)
 	// readAttachment downloads a file's content; it's a local tool (not a curated
 	// Operation) because it must emit image / embedded-resource content. Unlike

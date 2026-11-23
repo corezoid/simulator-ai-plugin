@@ -55,7 +55,9 @@ func actorBindings() map[string]actorBinding {
 	// readAttachment takes a fileName (from getActorAttachments on this actor),
 	// not an actor id, so it needs no binding — just keep it visible so the
 	// reaction-triggered agent can read files attached to its reaction.
-	for _, name := range []string{"updateEdge", "deleteEdge", "uploadBase64", "readAttachment"} {
+	// getBbcodeTags takes no actor args and fetches only from the configured
+	// environment; the reaction-triggered agent needs it to write markup.
+	for _, name := range []string{"updateEdge", "deleteEdge", "uploadBase64", "readAttachment", "getBbcodeTags"} {
 		m[name] = actorBinding{}
 	}
 	// (5) Attachment link/unlink: inject actorId into every items[] element.
@@ -173,6 +175,9 @@ func BuildActorScoped(s *server.MCPServer, c *apiclient.Client, actorID string) 
 	// must be registered explicitly. It takes a fileName (no actor binding) — the
 	// agent gets it from getActorAttachments on this actor.
 	registerReadAttachment(s, c)
+	// getBbcodeTags (local, no actor args) lets the agent check which markup this
+	// environment accepts in the place it writes to.
+	registerBbcodeTags(s, c)
 }
 
 // registerCtxActor registers a curated op on the unified server with a handler

@@ -26,7 +26,7 @@ import (
 //
 // Registered as a local (non-Operation) tool because the generic Operation handler
 // only returns text; this one must emit image / embedded-resource content. Unlike
-// buildLink / getBbcodeTags it IS exposed in actor mode (see actorBindings) so the
+// buildLink it IS exposed in actor mode (see actorBindings) so the
 // reaction-triggered AI agent can read files attached to the reaction it handles.
 
 const (

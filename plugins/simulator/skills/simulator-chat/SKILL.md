@@ -160,7 +160,7 @@ conversation back: `getReactions(actorId="<chatId>", view="flat", orderValue="AS
   `filterActors(members="11:view,22:view,33:view", q="chatType=group")`.
 - **Reply in a thread.** Pass `parentId=<reactionId>` to `createReaction` (see
   `simulator-reactions`).
-- **Attach a file to a message.** Upload first (`uploadBase64` → `attachId`), then
+- **Attach a file to a message.** Upload first (`uploadBase64` → record `id`, the `attachId`), then
   `createReaction(..., attachments=[{attachId:<id>}])` — see `simulator-attachments`.
 - **Post quietly (no notification).** `createReaction(..., notify=false)`.
 - **Hand the message to the AI agent.** `createReaction(..., extra={mcp:true})` runs the
