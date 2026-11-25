@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.16.0]
+
+### Added
+- cover control-cdu 0.53.2, refresh CDU swagger (#179)
+
+### Changed
+- pseudonym shortNick (CE-16100) and papi spec from pong-server develop (#183)
+- hidden reactions stay out of the meeting transcript (CE-16234) (#180)
+
 ## [Unreleased]
 
 ### Added
