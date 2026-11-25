@@ -124,6 +124,30 @@ jobs:
         run: make lint
 
   # --------------------------------------------------------------------------
+  # Known vulnerabilities reachable from the MCP server (govulncheck). A separate
+  # job: the vulnerability DB changes independently of the code, so a new Go or
+  # module advisory can turn it red on an unchanged commit — fix by bumping Go
+  # (go.mod) or the module, as in 2.14.0 / 2.15.0. The Release workflow runs the
+  # same check as a hard gate and attaches its report to the release.
+  # --------------------------------------------------------------------------
+  govulncheck:
+    name: Vulnerabilities (govulncheck)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: plugins/simulator/mcp-server/go.mod
+          cache: true
+          cache-dependency-path: plugins/simulator/mcp-server/go.sum
+
+      - name: govulncheck
+        run: make vuln
+
+  # --------------------------------------------------------------------------
   # Behavioural eval. Opt-in, non-blocking, manual only — it spends Anthropic
   # API credits, so it must never run on push/PR. Runs only on workflow_dispatch.
   # If ANTHROPIC_API_KEY is absent, `make eval` self-skips and exits 0.

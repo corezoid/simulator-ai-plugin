@@ -357,6 +357,19 @@ For each page define: `id`, title, backing process(es), fields (`id` / `class` /
 `required`), buttons (`id` → action), viewModel keys, which hidden session carriers it
 needs, and its outgoing navigation edges.
 
+Pick each button's `type` by what the renderer does with it, not only by looks (details in
+`simulator-smart-forms`, "Action components"):
+
+- **`default`** — the form's main action. It shows a spinner while its request runs, and the
+  renderer disables it by itself while a `required` field of the form is empty or invalid — from
+  the first change in the form on, so set the initial `"visibility": "disabled"` yourself.
+  When the process decides whether the button is available (it enables "Next" after a server-side
+  check), or the button must stay clickable on an incomplete form ("Back", "Cancel", "Skip"), set
+  `extra.ignoreFormValidity: true` — or give that button another type.
+- **`secondary`** — also shows the spinner, but never follows form validity.
+- **Other types** (`tertiary`, `text`, `error`, …) — no spinner and no validity tracking; keep them
+  for instant, low-emphasis actions.
+
 Naming conventions that keep the layers in sync:
 
 - viewModel key ↔ `{{key}}` in `pages/<id>/config` — same name, no aliasing.

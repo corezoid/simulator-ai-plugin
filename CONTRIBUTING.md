@@ -19,7 +19,8 @@ is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Prerequisites
 
-- [Go 1.27.4+](https://go.dev/dl/) in `PATH` (the module declares `go 1.27.4`; the MCP server runs via `go run`)
+- [Go 1.27.4+](https://go.dev/dl/) in `PATH` (the module declares `go 1.27.4`). Plugin users get a prebuilt binary; to run your
+  source changes set `SIMULATOR_MCP_DEV=1` — see README → "How the MCP server starts"
 - `make`
 - Optionally [`golangci-lint`](https://golangci-lint.run/) v2 for `make lint`
 

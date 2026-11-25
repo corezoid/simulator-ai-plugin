@@ -272,10 +272,12 @@ see the **Toasts** entry in `cdu-dom-tree-reference.md`. A reusable skin:
 
 A component's text is expanded to HTML by the client (`Utils.bbCodeToHtml`) **only in some fields**.
 The smart-form BBCode set (swagger `bbcode` tag) is
-`[b] [i] [u] [ul][*] [iurl=…] [url=…] [div] [br] [color=…] [size=…] [bg=…]` — note `[div]` (the only
+`[b] [i] [u] [ul][*] [iurl=…] [url=…] [div] [br] [color=…] [size=…] [bg=…] [h1]…[h6]` — note `[div]` (the only
 block-level tag) and `[iurl]` (internal link); there is **no `[span style=…]`** here (that exists
 only in actor/reaction BBCode). Mapping: `[color]→<span style="color">`,
-`[bg]→<span style="background-color">`, `[div]→<div>`.
+`[bg]→<span style="background-color">`, `[div]→<div>`, `[h1]…[h6]→<h1>…<h6>` (inside
+a `label` and a form title the heading is reset to `font: inherit; margin: 0`, elsewhere it
+takes the browser's heading size).
 
 **Verified support matrix** (built by rendering a live probe string, not read off the swagger):
 

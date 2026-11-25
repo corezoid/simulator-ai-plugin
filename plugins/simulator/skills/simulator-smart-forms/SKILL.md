@@ -299,7 +299,10 @@ as written.
 }
 ```
 
-`block` renders as a grouped card; `modal`/`float` are overlays.
+`block` renders as a grouped card; `modal`/`float` are overlays. A `modal` section takes keyboard
+focus when it opens and returns it when it closes — no process logic is needed for that. Esc acts
+like the close button: it asks `modalCloseConfirmText` if set and hides the section in the browser
+only, without notifying the process.
 
 > ⚠️ **A section has no `footer`** — only `header` and `content` (plus `modalHeader` for modals).
 > Put bottom-of-form actions as the last items in `content`, or in a separate form bound to the
@@ -311,6 +314,12 @@ as written.
 
 Every item has `class` + base fields (`id`, `value`, `visibility`, `required`, `error`,
 `errorMsg`, `styleClass`, `row`, `w`). Below are the most common components:
+
+> **`autoFocus: true`** (`edit`, `select`, `multiselect`, `otp`) moves keyboard focus to the
+> component when it appears. Use it on at most one field per page; a `hidden` or `disabled`
+> component does not take focus, and a field enabled later does not take it either. Avoid it on a
+> field revealed by another field's `submitOnChange`: focus would jump away from the field the
+> user is typing in.
 
 > **Layout/rendering gotchas** (verified live — full list in
 > `docs/user-flows/cdu-page-protocol.md` §12): `row` renders as a CSS **table** so its items
@@ -328,7 +337,7 @@ Every item has `class` + base fields (`id`, `value`, `visibility`, `required`, `
 | `edit` | string | `type`: `text` `email` `int` `float` `phone` `multiline` `date` `password` `colorPicker`; `placeholder`, `regexp`, `mask`, `submitOnEnter` |
 | `select` | string | `options: [{title, value, visibility, icon, tooltip, avatar, badge, styleClass}]`; `type`: `default` `autocomplete`; `submitOnChange` |
 | `multiselect` | string[] | `options: [{title, value, visibility, tooltip}]`; `extra.length` (max) |
-| `radio` | string | `options: [{title, value, visibility}]`; `extra.direction`: `row`\|`column` |
+| `radio` | string | `options: [{title, value, visibility}]`; `extra.direction`: `row`\|`column`; `submitOnChange` (arrow keys send **one** request ~500 ms after the last arrow; a click or Space sends at once) |
 | `check` | boolean | checkbox |
 | `toggle` | boolean | `title` label on the switch |
 | `slider` | number | `extra: { min, max, step }` |
@@ -350,8 +359,33 @@ Every item has `class` + base fields (`id`, `value`, `visibility`, `required`, `
 
 | `class` | Notes |
 |---|---|
-| `button` | `title` (bbcode), `type`: `default` `secondary` `tertiary` `text` `error`; submits its form. `extra.url` opens the URL **instead of submitting** (`extra.target` `_self`\|`_blank` — newer renderers only; older open same-tab); `extra.action:'logout'`; `extra.request` (bare fetch first, submits only if it resolves); `extra.autoSubmit {interval,maxCount}` (interval clamped 5–60s); `extra.options[]` (menu — bypasses `url`/`request`/`action`/submit); `extra.icon`, `rounded`, `mobileVisible` |
+| `button` | `title` (bbcode), `type`: `default` `secondary` `tertiary` `text` `error`; submits its form. `extra.url` opens the URL **instead of submitting** (`extra.target` `_self`\|`_blank` — newer renderers only; older open same-tab); `extra.action:'logout'`; `extra.request` (bare fetch first, submits only if it resolves); `extra.autoSubmit {interval,maxCount}` (interval clamped 5–60s); `extra.options[]` (menu — bypasses `url`/`request`/`action`/submit); `extra.icon`, `rounded`, `mobileVisible`, `extra.ignoreFormValidity` (see below) |
 | `copy` | `value` = text to copy; `title` = button label |
+
+> **A `default` button follows form validity on its own.** On every change in the form (user
+> input, `changes` from a response, the start of a submit) the renderer switches each
+> `type: "default"` button of that form to `disabled` while a required field is empty or has an
+> error, and back to `visible` once the form is valid. It does **not** do this when the page first
+> renders: if the form opens with empty required fields, set `"visibility": "disabled"` on the
+> button in the config yourself. A required field counts as empty only while it has no `value`
+> at all (`"value": ""` counts as filled); a `disabled` required field counts too. A `hidden`
+> button is left alone, and a `visibility` sent for the button in `changes` holds only until the
+> next change in the form.
+>
+> Set **`extra.ignoreFormValidity: true`** on a button whose availability the process decides
+> (enabled only after a server-side check, or always clickable like "Back"/"Cancel"): it then
+> keeps exactly the `visibility` you give it, like every other button type. Do not build this
+> with two look-alike buttons (one disabled, one active) swapped by `changes` — use one button
+> with the flag.
+>
+> **Only `default` and `secondary` buttons show a spinner** while their own `/send` is in flight.
+> The other types (`tertiary`, `text`, `error`, …) give no built-in feedback — use
+> `default`/`secondary` for actions that call a slow process.
+>
+> **One `/send` at a time per page.** While a request is pending, every other submit — a click on
+> any button, a `submitOnChange` — is silently dropped, not queued. The button looks and acts
+> clickable, but no request is sent until the pending one answers. `extra.url` and
+> `extra.action:'logout'` do not submit, so they still work.
 
 ### Data & navigation components
 
@@ -407,7 +441,15 @@ All substitution is **server-side** — the renderer receives concrete values.
 | `{{key}}` | `viewModel` (default + Corezoid-supplied merged) | `"{{userName}}"` → `"Alice"` |
 | `"$ref": "#/button"` | `definitions/button` file | inlined at serve time |
 | `contentLoop` | section array expansion | one template → N rows |
-| BBCode | `label`/`button`/`edit`/`check` titles | `[b] [i] [u] [color=#f00] [size=N] [br]`, and `[url=https://…]text[/url]` → clickable `<a target="_blank">` (inline link; `[iurl=…]` opens same-tab; renderer supports more, e.g. `[bg]`). Raw `<a>` HTML is escaped — use `[url]`. |
+| BBCode | `label`/`button`/`edit`/`check` titles | `[b] [i] [u] [color=#f00] [size=N] [br]`, headings `[h1]`…`[h6]`, and `[url=https://…]text[/url]` → clickable `<a target="_blank">` (inline link; `[iurl=…]` opens same-tab; renderer supports more, e.g. `[bg]`). Raw `<a>` HTML is escaped — use `[url]`. |
+
+> **Mark headings with `[h1]`…`[h6]`, not with `[b]` or `[size]`.** In a `label` and in a form
+> `title` the tag produces a real `<h1>`…`<h6>` element and keeps the look of the surrounding text,
+> so style it with `styleClass` as before. Use it for the page's main heading (a `label` or the
+> form `title` — never the page-level `title`, which names the browser tab), step titles and
+> section headings (a `label` in the section `header`), with levels in order (no jump from `[h2]`
+> to `[h4]`). Do not put headings into button, field or checkbox titles: there they take the
+> browser's heading size.
 
 > ⚠️ **Visibility may be a view-model placeholder — but nothing else about it is reactive.**
 > Form, section, and rendered-item `visibility` (in `header`, `modalHeader`, and `content`) may be

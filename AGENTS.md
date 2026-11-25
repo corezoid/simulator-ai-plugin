@@ -45,6 +45,7 @@ make build         # go build ./...
 make vet           # go vet ./...
 make lint          # golangci-lint run ./...   (golangci-lint v2; gosec clean, style backlog open)
 make test          # go test ./...   — config, apiclient, tools (scenarios, -race, drift, eval), engines
+make vuln          # govulncheck (pinned) — reachable known vulnerabilities; CI job + release gate
 make discovery     # regenerate public/llms.txt + public/.well-known/skills/index.json
 make run-local     # go run ./cmd/server --profile local   (dev pong-server :9000)
 make run-prod      # go run ./cmd/server --profile prod
@@ -53,7 +54,8 @@ make eval-skills   # behavioural eval, dry, with the SKILL.md files injected as 
 make eval-live     # behavioural eval executing tools against the backend (throwaway workspace)
 ```
 
-Run the server directly (no build step — hosts use `go run ./cmd/server`):
+Run the server directly (hosts launch `mcp-server/run.sh`: prebuilt release binary, or `go run` with
+`SIMULATOR_MCP_DEV=1` / as the fallback — README → "How the MCP server starts"):
 
 ```bash
 cd plugins/simulator/mcp-server
@@ -76,8 +78,12 @@ reinstall. Verify with `/mcp`. Full guide: README → "Local development".
 
 ## Conventions & gotchas
 
-- **No build step ships.** Hosts launch the server with `go run ./cmd/server`. Don't add a
-  compiled binary to the repo.
+- **No binary in the repo.** Hosts launch `mcp-server/run.sh`, which runs `SIMULATOR_MCP_DEV=1` →
+  `go run`, else a local `simulator-mcp` (gitignored; not version-checked — rebuild it after a
+  pull), else the release binary for the manifest version (SHA-256 checked, cached in
+  `~/.cache/simulator-mcp/`), else `go run`. The Release workflow builds those binaries; don't
+  commit a compiled binary. Set `SIMULATOR_MCP_DEV=1` while editing Go code, or `/reload-plugins`
+  keeps starting the release binary.
 - **Tools are declared in Go, curated.** Each domain file under `internal/tools/`
   (`forms.go`, `actors.go`, …) declares a slice of typed `Operation`s; `build.go` registers
   them. The server exposes ~95 tools, not the full REST surface — keep it curated.

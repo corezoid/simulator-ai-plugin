@@ -130,7 +130,8 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             },
             "in": "path",
             "name": "accId",
@@ -352,23 +353,52 @@
                 "type": "object",
                 "properties": {
                   "originalUser": {
-                    "type": "object",
-                    "properties": {
-                      "nick": {
-                        "type": "string"
+                    "allOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "nick": {
+                            "type": "string",
+                            "description": "Shown instead of the user nick"
+                          },
+                          "avatar": {
+                            "type": "string",
+                            "description": "Shown instead of the user avatar"
+                          },
+                          "shortNick": {
+                            "type": "string",
+                            "description": "Widget name: shown to clients in the Widget instead of the nick"
+                          }
+                        }
                       },
-                      "avatar": {
-                        "type": "string"
+                      {
+                        "type": "object",
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "required": [
+                              "nick"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "shortNick"
+                            ]
+                          }
+                        ]
                       }
-                    },
-                    "required": [
-                      "nick"
                     ]
                   }
-                }
+                },
+                "required": [
+                  "originalUser"
+                ]
               }
             }
-          }
+          },
+          "required": true
         },
         "parameters": [
           {
@@ -413,6 +443,14 @@
             },
             "in": "query",
             "name": "compressionLevel",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "actorId",
             "required": false
           },
           {
@@ -486,62 +524,17 @@
             "schema": {
               "type": "string"
             },
-            "in": "path",
-            "name": "accId",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response"
-          }
-        }
-      }
-    },
-    "/papi/1.0/upload/proxy": {
-      "post": {
-        "tags": [
-          "Upload"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1
-            },
             "in": "query",
-            "name": "url",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "in": "query",
-            "name": "ttl",
+            "name": "actorId",
             "required": false
           },
           {
             "schema": {
               "type": "string"
             },
-            "in": "query",
-            "name": "auth",
-            "required": false
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "low",
-                "medium",
-                "high"
-              ]
-            },
-            "in": "query",
-            "name": "compressionLevel",
-            "required": false
+            "in": "path",
+            "name": "accId",
+            "required": true
           }
         ],
         "responses": {
@@ -1038,12 +1031,57 @@
         }
       }
     },
+    "/papi/1.0/attachments/claim-anonymous": {
+      "post": {
+        "operationId": "claimAnonymousAttachments",
+        "tags": [
+          "Attachments"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attachIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  },
+                  "oldUserId": {
+                    "type": "integer"
+                  },
+                  "newUserId": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "attachIds",
+                  "oldUserId",
+                  "newUserId"
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/actors/link/{accId}": {
       "post": {
         "operationId": "createLink",
         "tags": [
           "Graph"
         ],
+        "description": "Idempotent: an existing link is returned as is, without side effects. Valency rules apply to new links only. See docs/massLinks.md.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1124,6 +1162,7 @@
         "tags": [
           "Graph"
         ],
+        "description": "Creates up to 50 links one by one; safe to retry. Errors are reported per link in data[i] ({error, errMsg}) of a 200 response. See docs/massLinks.md.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1408,6 +1447,7 @@
         "tags": [
           "Graph"
         ],
+        "description": "Not idempotent by itself: send a `ref` to make retries safe. A `ref` already used in the form (also by a deleted actor) is 409 Conflict and nothing is created, so a retry of a create that did commit gets 409. Invalid form data is 400 naming the fields. A lost database connection is 503 with Retry-After: repeat the request. See docs/apiErrors.md.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1720,6 +1760,14 @@
             },
             "in": "query",
             "name": "contextLayerId",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "addToRecent",
             "required": false
           },
           {
@@ -2662,7 +2710,8 @@
           {
             "schema": {
               "enum": [
-                "user"
+                "user",
+                "group"
               ]
             },
             "in": "path",
@@ -3022,6 +3071,9 @@
                   "targetLaId": {
                     "type": "integer",
                     "minimum": 1
+                  },
+                  "forceMerge": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -3359,6 +3411,7 @@
     },
     "/papi/1.0/sip/transcription/{actorId}": {
       "post": {
+        "operationId": "saveTranscription",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3381,6 +3434,25 @@
                     },
                     "reactionId": {
                       "type": "string"
+                    },
+                    "eventType": {
+                      "type": "string"
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "attachId": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "attachId"
+                        ]
+                      },
+                      "maxItems": 200
                     }
                   },
                   "required": [
@@ -3727,17 +3799,41 @@
                     "type": "object",
                     "properties": {
                       "originalUser": {
-                        "type": "object",
-                        "properties": {
-                          "nick": {
-                            "type": "string"
+                        "allOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nick": {
+                                "type": "string",
+                                "description": "Shown instead of the user nick"
+                              },
+                              "avatar": {
+                                "type": "string",
+                                "description": "Shown instead of the user avatar"
+                              },
+                              "shortNick": {
+                                "type": "string",
+                                "description": "Widget name: shown to clients in the Widget instead of the nick"
+                              }
+                            }
                           },
-                          "avatar": {
-                            "type": "string"
+                          {
+                            "type": "object",
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "nick"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "shortNick"
+                                ]
+                              }
+                            ]
                           }
-                        },
-                        "required": [
-                          "nick"
                         ]
                       },
                       "context": {
@@ -4353,17 +4449,41 @@
                     "type": "object",
                     "properties": {
                       "originalUser": {
-                        "type": "object",
-                        "properties": {
-                          "nick": {
-                            "type": "string"
+                        "allOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "nick": {
+                                "type": "string",
+                                "description": "Shown instead of the user nick"
+                              },
+                              "avatar": {
+                                "type": "string",
+                                "description": "Shown instead of the user avatar"
+                              },
+                              "shortNick": {
+                                "type": "string",
+                                "description": "Widget name: shown to clients in the Widget instead of the nick"
+                              }
+                            }
                           },
-                          "avatar": {
-                            "type": "string"
+                          {
+                            "type": "object",
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "required": [
+                                  "nick"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "required": [
+                                  "shortNick"
+                                ]
+                              }
+                            ]
                           }
-                        },
-                        "required": [
-                          "nick"
                         ]
                       },
                       "context": {
@@ -8013,7 +8133,9 @@
                 "type": "object",
                 "properties": {
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
                   },
                   "isTree": {
                     "type": "boolean"
@@ -10090,6 +10212,57 @@
             },
             "in": "query",
             "name": "filter",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created_at",
+                "title",
+                "owner"
+              ]
+            },
+            "in": "query",
+            "name": "orderBy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASC",
+                "DESC"
+              ]
+            },
+            "in": "query",
+            "name": "orderValue",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "from",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "in": "query",
+            "name": "to",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "ownerIds",
             "required": false
           },
           {
@@ -12336,6 +12509,14 @@
           },
           {
             "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "excludeCduVersion",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "string"
             },
             "in": "path",
@@ -12674,6 +12855,18 @@
           },
           {
             "schema": {
+              "enum": [
+                "children",
+                "parents",
+                "both"
+              ]
+            },
+            "in": "query",
+            "name": "linkedToActorDirection",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "string"
             },
             "in": "query",
@@ -12745,6 +12938,52 @@
           },
           {
             "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "withHierarchy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20,
+              "default": 0
+            },
+            "in": "query",
+            "name": "parentsLimit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20,
+              "default": 0
+            },
+            "in": "query",
+            "name": "childrenLimit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "withGraphStats",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "excludeCduVersion",
+            "required": false
+          },
+          {
+            "schema": {
               "type": "integer"
             },
             "in": "path",
@@ -12808,6 +13047,36 @@
             },
             "in": "query",
             "name": "reactionsStats",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "withHierarchy",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20,
+              "default": 0
+            },
+            "in": "query",
+            "name": "parentsLimit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20,
+              "default": 0
+            },
+            "in": "query",
+            "name": "childrenLimit",
             "required": false
           },
           {
@@ -13473,6 +13742,38 @@
         }
       }
     },
+    "/papi/1.0/graph_layers/gantt/{actorId}/progress": {
+      "get": {
+        "tags": [
+          "Graph"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+(,\\d+){0,499}$"
+            },
+            "in": "query",
+            "name": "laIds",
+            "required": true,
+            "description": "Comma-separated layer actor ids, up to 500"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "actorId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/papi/1.0/graph_layers/gantt/{actorId}": {
       "get": {
         "tags": [
@@ -13531,6 +13832,15 @@
             "in": "query",
             "name": "reactionsStats",
             "required": false
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "progress",
+            "required": false,
+            "description": "Calculate task progress from hierarchy children (adds progress fields to nodes and progressActorIds)"
           },
           {
             "schema": {
@@ -14214,6 +14524,18 @@
             },
             "in": "query",
             "name": "linkedToActorId",
+            "required": false
+          },
+          {
+            "schema": {
+              "enum": [
+                "children",
+                "parents",
+                "both"
+              ]
+            },
+            "in": "query",
+            "name": "linkedToActorDirection",
             "required": false
           },
           {
@@ -16543,6 +16865,10 @@
     {
       "name": "Meta",
       "description": "Endpoint for extracting meta information from web pages."
+    },
+    {
+      "name": "Text to speech",
+      "description": "Server-side proxy to the text-to-speech provider (the provider key never leaves the server)."
     }
   ]
 }
