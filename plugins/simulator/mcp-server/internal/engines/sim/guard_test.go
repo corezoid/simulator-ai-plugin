@@ -108,7 +108,9 @@ func TestRunLogIsCapped(t *testing.T) {
 // Review of #111: the layer endpoints apply LIMIT before dropping deleted elements, so a
 // short page is not the last one; an actor whose accounts are not readable is skipped.
 func TestSnapshotReadsPastShortPageAndSkipsUnreadable(t *testing.T) {
-	node := func(i int) map[string]any { return map[string]any{"id": fmt.Sprintf("n%03d", i), "title": fmt.Sprint("N", i), "formTitle": "t"} }
+	node := func(i int) map[string]any {
+		return map[string]any{"id": fmt.Sprintf("n%03d", i), "title": fmt.Sprint("N", i), "formTitle": "t"}
+	}
 	var page1, page2 []map[string]any
 	for i := 0; i < 49; i++ { // 50 asked, one deleted actor filtered out by the server
 		page1 = append(page1, node(i))
@@ -173,5 +175,20 @@ func TestYAMLAliasBombIsRefused(t *testing.T) {
 	}
 	if _, err := parseYAML([]byte("base: &b {x: 1}\nuse: [*b, *b]\n")); err != nil {
 		t.Errorf("a small alias must still work: %v", err)
+	}
+}
+
+// Review of #115: a server that ignored offset would make "read until an empty page" loop.
+func TestPagedReadStopsAtThePageCap(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []any{map[string]any{"id": "same"}}})
+	}))
+	defer srv.Close()
+	prev := maxPages
+	maxPages = 5
+	defer func() { maxPages = prev }()
+	ctx := apiclient.WithAuthorization(apiclient.WithBaseURL(context.Background(), srv.URL), "Simulator test")
+	if _, err := readPaged[layerNode](ctx, "/graph_layers/paginated/x", nil, 1, true); err == nil || !strings.Contains(err.Error(), "more than 5 pages") {
+		t.Errorf("err = %v, want the page cap", err)
 	}
 }

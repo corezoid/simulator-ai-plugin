@@ -1,0 +1,40 @@
+value_types:
+  USD: {kind: decimal, scale: 2, conserved: true}
+  count: {kind: integer, conserved: false}
+
+refs:
+  shop: {title: Shop}
+
+params:
+  tick_every: 1m
+
+horizon: 2h
+
+initial_events:
+  - {event: open, target: {title: Shop}, at: 0, priority: 10}        # an actor reference, not a ref name
+  - {event: tick, for_type: client, at: 0, every: "=params.tick_every"}
+
+behaviors:
+  shop:
+    open:
+      - create: {type: wallet, title: Wallet, accounts: [{name: cash, value_type: USD}]}   # first USD account at 0
+      - set: {opened: true}
+  client:
+    tick:
+      - add: {actor: self, account: ticks, amount: 1, value_type: count}
+      - if: "chance(0.25)"
+        then:
+          - transfer: {from: {actor: refs.shop, account: till}, to: {actor: "actors(type='wallet')[0]", account: cash}, amount: "0.01"}
+
+metrics:
+  sum: "actor(refs.shop).price + actor(refs.shop).cost"
+  tiny: "actor(refs.shop).fee * 1000000000000000000000"
+  priced_10: "count(price=10)"
+  code_is_text: "actor(refs.shop).code == '10'"
+  wallets: "count(type='wallet')"
+  ticks: "total('ticks', type='client')"
+  till: "actor(refs.shop).acc('till')"
+  moved: "actors(type='wallet')[0].acc('cash')"
+
+goals:
+  till_kept: "till >= 99.5"

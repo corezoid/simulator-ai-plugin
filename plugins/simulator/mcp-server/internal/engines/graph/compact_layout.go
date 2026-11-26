@@ -161,6 +161,9 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return mcp.NewToolResultError("[Error] " + errTooManyPages().Error()), nil
+		}
 	}
 
 	// 2) Harvest edges on the layer.
@@ -190,6 +193,9 @@ func handleCompactGraphLayout(ctx context.Context, req mcp.CallToolRequest) (*mc
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return mcp.NewToolResultError("[Error] " + errTooManyPages().Error()), nil
+		}
 	}
 
 	// 3) Count incoming edges per actor — actors that exceed `bucketThreshold`

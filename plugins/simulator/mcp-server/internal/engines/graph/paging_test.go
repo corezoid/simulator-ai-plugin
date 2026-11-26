@@ -41,3 +41,18 @@ func TestFetchLayerActorsReadsPastShortPage(t *testing.T) {
 		t.Errorf("actors = %d, want 59 (pages at offsets %v)", len(actors), calls)
 	}
 }
+
+// Review of #115: with "read until an empty page", a server that ignores offset must not loop.
+func TestFetchLayerActorsStopsAtThePageCap(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"id": "same"}}})
+	}))
+	defer srv.Close()
+	prev := maxLayerPages
+	maxLayerPages = 3
+	defer func() { maxLayerPages = prev }()
+	ctx := apiclient.WithAuthorization(apiclient.WithBaseURL(context.Background(), srv.URL), "Simulator test")
+	if _, err := fetchLayerActors(ctx, "layer"); err == nil {
+		t.Fatal("want an error after the page cap")
+	}
+}

@@ -112,6 +112,9 @@ func fetchLayerActors(ctx context.Context, layerID string) ([]layerActor, error)
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return nil, errTooManyPages()
+		}
 	}
 	return all, nil
 }
@@ -138,6 +141,9 @@ func fetchLayerEdges(ctx context.Context, layerID string) ([]layerEdge, error) {
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return nil, errTooManyPages()
+		}
 	}
 	return all, nil
 }

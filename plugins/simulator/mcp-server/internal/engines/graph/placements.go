@@ -107,6 +107,9 @@ func handleGetAllLayerPlacements(ctx context.Context, req mcp.CallToolRequest) (
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return mcp.NewToolResultError("[Error] " + errTooManyPages().Error()), nil
+		}
 	}
 
 	// Workspace id only embedded for callers that want to chain into other

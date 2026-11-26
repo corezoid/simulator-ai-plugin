@@ -124,6 +124,9 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return mcp.NewToolResultError("[Error] " + errTooManyPages().Error()), nil
+		}
 	}
 
 	// 2) Pull all edges.
@@ -153,6 +156,9 @@ func handlePruneLongEdges(ctx context.Context, req mcp.CallToolRequest) (*mcp.Ca
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return mcp.NewToolResultError("[Error] " + errTooManyPages().Error()), nil
+		}
 	}
 
 	// 3) Compute incoming-edge counts to decide buckets.

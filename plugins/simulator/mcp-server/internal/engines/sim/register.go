@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -19,13 +20,15 @@ import (
 const inputsDesc = "Model: pass `model` (YAML text) or `modelPath` (file in the working directory). " +
 	"Scenarios: `scenarios` (YAML list) or `scenariosPath`; without them one scenario `base` runs. " +
 	"Graph: `layerId` (read live from Simulator: actors, links, account values) or `graphPath` " +
-	"(a layer YAML from pullGraphFile / simulationSnapshot)."
+	"(a layer YAML from pullGraphFile / simulationSnapshot); without either, only the model's `actors` exist. " +
+	"Model format: " + FormatURL
 
 // hostedInputsDesc is inputsDesc for the hosted (stateless) server, which has
 // no working directory: the *Path arguments are not offered there.
 const hostedInputsDesc = "Model: pass `model` (YAML text). " +
 	"Scenarios: `scenarios` (YAML list); without them one scenario `base` runs. " +
-	"Graph: `layerId` (read live from Simulator: actors, links, account values)."
+	"Graph: `layerId` (read live from Simulator: actors, links, account values); without it, only the model's " +
+	"`actors` exist. Model format: " + FormatURL
 
 // Register adds the simulation tools (read-only: nothing is written to Simulator).
 func Register(s *server.MCPServer) {
@@ -134,6 +137,17 @@ func acquireRunSlot() (release func(), ok bool) {
 	default:
 		return nil, false
 	}
+}
+
+// logSimulation writes one line per simulationRun call: how big, how long, how it ended and
+// whether a slot was free. It never holds the model, the graph or any value from them.
+// SIMULATOR_SIMULATION_LOG=off disables it.
+func logSimulation(stat map[string]any) {
+	if strings.EqualFold(os.Getenv("SIMULATOR_SIMULATION_LOG"), "off") {
+		return
+	}
+	b, _ := json.Marshal(stat)
+	log.Printf("simulation %s", b)
 }
 
 // localPath resolves a user-given relative path inside the working directory.
@@ -269,7 +283,9 @@ func loadInputs(ctx context.Context, args map[string]any, needGraph bool) (*inpu
 			nameFormTypes(ctx, in.graph)
 		}
 	case needGraph:
-		return fail("pass layerId (live) or graphPath (layer YAML file)")
+		// no layer: the graph is only the model's own actors (a model can be all helper actors)
+		in.graph = newGraph()
+		in.graph.Source.Set("kind", "model only")
 	}
 	return in, nil
 }
@@ -289,8 +305,15 @@ func handleCheck(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolRes
 }
 
 func handleRun(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	stat := map[string]any{"tool": "simulationRun", "outcome": "error"} // bad input unless set below
+	started := time.Now()
+	defer func() {
+		stat["ms"] = time.Since(started).Milliseconds()
+		logSimulation(stat)
+	}()
 	release, ok := acquireRunSlot()
 	if !ok {
+		stat["outcome"] = "refused: no free slot"
 		return mcp.NewToolResultError("[Error] simulationRun: the server is already running the maximum number of simulations; retry in a minute"), nil
 	}
 	defer release()
@@ -299,8 +322,11 @@ func handleRun(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResul
 	if res != nil {
 		return res, nil
 	}
+	stat["graph"] = in.graph.summary()
 	rep := Check(in.modelSrc, in.graph, in.rawScen)
+	stat["check_errors"], stat["check_warnings"] = len(rep.Errors), len(rep.Warnings)
 	if !rep.OK() {
+		stat["outcome"] = "check failed"
 		return jsonText(map[string]any{"ok": false, "message": "model check failed: fix the errors, nothing was run",
 			"errors": rep.Errors, "warnings": rep.Warnings}), nil
 	}
@@ -357,8 +383,16 @@ func handleRun(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResul
 			summaries = append(summaries, RunMany(runCtx, in.graph, in.model, sc, runs, nil, goals))
 		}
 		if ctx.Err() != nil {
+			stat["outcome"] = "cancelled"
 			return mcp.NewToolResultError("[Error] cancelled"), nil
 		}
+		done := map[string]int{}
+		for _, sm := range summaries {
+			done["completed"] += sm.Completed
+			done["stopped"] += sm.Stopped
+			done["failed"] += sm.Failed
+		}
+		stat["outcome"], stat["scenarios"], stat["runs"], stat["runs_by_status"] = "ok", len(summaries), runs, done
 		out["runs"] = runs
 		out["table"] = SummaryTable(summaries)
 		out["scenarios"] = summariesJSON(summaries)
@@ -369,8 +403,15 @@ func handleRun(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResul
 		results = append(results, RunScenario(in.graph, in.model, sc, nil, RunOptions{Ctx: runCtx, LogLimit: logN}))
 	}
 	if ctx.Err() != nil {
+		stat["outcome"] = "cancelled"
 		return mcp.NewToolResultError("[Error] cancelled"), nil
 	}
+	byStatus, steps := map[string]int{}, 0
+	for _, r := range results {
+		byStatus[r.Status]++
+		steps += r.Steps
+	}
+	stat["outcome"], stat["scenarios"], stat["runs"], stat["runs_by_status"], stat["steps"] = "ok", len(results), 1, byStatus, steps
 	out["table"] = CompareTable(results)
 	out["scenarios"] = resultsJSON(results, logN)
 	return jsonText(out), nil

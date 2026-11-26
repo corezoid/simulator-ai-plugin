@@ -1,0 +1,51 @@
+# Cases found by the reviews of the Go port (simulator-ai-plugin 2.9.0/2.9.1): exact numbers in
+# actor data, an initial event aimed at an actor reference, the first account of a conserved
+# type opened at 0, a recurring event over many occurrences.
+layerId: ''
+actors:
+- id: shop
+  title: Shop
+  formName: shop
+  data:
+    price: 10
+    cost: 20.5
+    fee: 0.000000000000000000001
+    code: '10'
+  sim:
+    type: shop
+    origin_id: null
+    created_by: null
+    state: {}
+- id: c1
+  title: Client One
+  formName: client
+  data:
+    price: 10
+  sim:
+    type: client
+    origin_id: null
+    created_by: null
+    state: {}
+- id: c2
+  title: Client Two
+  formName: client
+  data:
+    price: 12
+  sim:
+    type: client
+    origin_id: null
+    created_by: null
+    state: {}
+edges:
+- source: shop
+  target: c1
+  sim: {id: e1, edgeType: hierarchy, mediator: null}
+- source: shop
+  target: c2
+  sim: {id: e2, edgeType: hierarchy, mediator: null}
+sim:
+  format: sim-morrow/1
+  valueTypes:
+    USD: {kind: decimal, scale: 2, conserved: true, min: null, max: null}
+  accounts:
+  - {actor_id: shop, name: till, value_type: USD, value: '100'}

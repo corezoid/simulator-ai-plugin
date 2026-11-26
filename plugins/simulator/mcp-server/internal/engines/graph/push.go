@@ -193,6 +193,9 @@ func (s *GraphSyncer) fetchLayerActors(ctx context.Context, layerID string) ([]l
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return nil, errTooManyPages()
+		}
 	}
 	return all, nil
 }
@@ -219,6 +222,9 @@ func (s *GraphSyncer) fetchLayerEdges(ctx context.Context, layerID string) ([]la
 			break
 		}
 		offset += limit
+		if offset >= limit*maxLayerPages {
+			return nil, errTooManyPages()
+		}
 	}
 	return all, nil
 }

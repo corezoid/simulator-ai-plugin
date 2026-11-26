@@ -3,6 +3,15 @@
 ## [Unreleased]
 
 ### Added
+- simulationRun without `layerId`/`graphPath` runs a model made only of its own `actors` (a game
+  economy, a plan) instead of refusing; the tool descriptions link the model format.
+- One `simulation {...}` log line per simulationRun call (size, outcome, runs by status, steps,
+  duration, slot refusals; never model content). `SIMULATOR_SIMULATION_LOG=off` disables it.
+- Simulation conformance case `edge_cases` (numbers in actor data, an actor reference as an
+  initial-event target, the first account of a conserved type at 0, many runs with chance),
+  shared with the reference engine sim-morrow, which now also holds the 2.9.1 semantics. The
+  model format says both rules explicitly; `TestWrongCallFailsTheRun` pins that a bad call
+  fails the run.
 - Smart Form skills cover control-cdu v0.53.2: `extra.ignoreFormValidity` on a `default` button
   (and the automatic disabling by form validity it turns off), `[h1]`…`[h6]` heading tags for
   labels and form titles, `autoFocus`, keyboard focus of `modal` sections, and the single
@@ -10,6 +19,13 @@
   that a page sends one `/send` at a time.
 
 ### Fixed
+- simulationCheck said `ok` for models that then ran with wrong numbers (first production use,
+  2026-10-22): a text that is not a model (`help`) is now an error with a minimal example and the
+  format link; unknown keys of actions, `actors`, `initial_events` and `value_types` are warned
+  about; an account name written as an expression (`"='k_' + x"`) is an error; reading an account
+  that no actor has and no action creates is a warning (it reads as 0).
+- Paged layer reads (simulation snapshot and the graph tools) stop with an error after 10,000
+  pages instead of looping when a server ignores `offset`.
 - `pushSmartForm` rejected page configs that use components and keys added to the renderer since
   June (`extra.ignoreFormValidity` on a button, the `progressBar` class, the `extra` keys of the
   `graph`/`reactions` widgets, `table.extra.showScrollToTop`): the bundled CDU swagger is refreshed
